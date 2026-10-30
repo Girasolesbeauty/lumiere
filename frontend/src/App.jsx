@@ -27152,7 +27152,18 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-nieve{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
 .tw-adv-nieve i{position:absolute;top:-10px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;opacity:var(--o);animation:twAdvNieve var(--d) linear var(--del) infinite}
 @keyframes twAdvNieve{to{transform:translate(var(--x),1100px)}}
-.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/560}
+.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/560;transform-style:preserve-3d;animation:twAdv3d 9s ease-in-out infinite alternate;--hund:inset 0 4px 5px rgba(0,0,0,.55),inset 3px 0 4px rgba(0,0,0,.3),0 2px 0 #d8b46a,0 4px 4px rgba(0,0,0,.4)}
+@keyframes twAdv3d{from{transform:perspective(1100px) rotateY(-6deg) rotateX(3deg)}to{transform:perspective(1100px) rotateY(6deg) rotateX(1deg)}}
+.tw-adv-ciudad.mueve{animation:none;transform:perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out}
+.tw-adv-ciudad::before{content:"";position:absolute;left:6%;right:6%;bottom:-16px;height:30px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);transform:translateZ(-60px);pointer-events:none}
+.tw-adv-v .hj{position:absolute;top:-1px;bottom:-1px;width:50%;background:linear-gradient(180deg,#5a4183,#2b2050);border:1px solid rgba(255,224,138,.7);box-shadow:inset 0 0 0 2px rgba(255,224,138,.12);pointer-events:none;z-index:2}
+.tw-adv-v .hj::after{content:"";position:absolute;left:22%;right:22%;top:12%;height:34%;border:1px solid rgba(255,224,138,.5);background:rgba(255,226,160,.25)}
+.tw-adv-v .hj.l{left:-1px;transform-origin:left center;transform:perspective(70px) rotateY(-70deg)}
+.tw-adv-v .hj.r{right:-1px;transform-origin:right center;transform:perspective(70px) rotateY(70deg)}
+.tw-adv-v.recien .hj.l{animation:twAdvHjL .9s cubic-bezier(.3,1.4,.5,1)}
+.tw-adv-v.recien .hj.r{animation:twAdvHjR .9s cubic-bezier(.3,1.4,.5,1)}
+@keyframes twAdvHjL{from{transform:perspective(70px) rotateY(0)}}
+@keyframes twAdvHjR{from{transform:perspective(70px) rotateY(0)}}
 .tw-adv-ciudad>svg,.tw-adv-fach,.tw-adv-fach svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .tw-adv-fach .corre{animation:twAdvCorre 1.4s linear infinite}
 @keyframes twAdvCorre{from{stroke-dashoffset:var(--o0)}to{stroke-dashoffset:var(--o1)}}
@@ -27164,7 +27175,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-ciudad.on::after{animation:twAdvEnc 1.9s steps(8,end) .15s forwards}
 @keyframes twAdvEnc{to{clip-path:inset(0 0 100% 0)}}
 .tw-adv-v.listo:not(.hoy){animation:twAdvRespira 2.8s ease-in-out infinite}
-@keyframes twAdvRespira{0%,100%{box-shadow:0 0 0 0 rgba(255,224,138,0)}50%{box-shadow:0 0 10px 2px rgba(255,224,138,.45)}}
+@keyframes twAdvRespira{0%,100%{box-shadow:var(--hund),0 0 0 0 rgba(255,224,138,0)}50%{box-shadow:var(--hund),0 0 10px 2px rgba(255,224,138,.45)}}
 .tw-adv-v.recien{animation:twAdvRecien 1.1s ease-out}
 @keyframes twAdvRecien{0%{filter:brightness(2.6);transform:scale(1.25)}40%{filter:brightness(1.6);transform:scale(.95)}100%{filter:none;transform:none}}
 .tw-adv-fach .a1{animation:twAdvTw 1.6s ease-in-out infinite}.tw-adv-fach .a2{animation:twAdvTw 1.6s ease-in-out .55s infinite}.tw-adv-fach .a3{animation:twAdvTw 1.6s ease-in-out 1.1s infinite}
@@ -27174,24 +27185,24 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-fach .afLat{transform-box:fill-box;transform-origin:center;animation:twAdvFaro 2.4s ease-in-out infinite}
 .tw-adv-fach .afBand{transform-box:fill-box;transform-origin:0 50%;animation:twAdvBand 2.2s ease-in-out infinite}
 @keyframes twAdvBand{0%,100%{transform:skewY(0)}50%{transform:skewY(-6deg) scaleX(.94)}}
-@media (prefers-reduced-motion:reduce){.tw-adv-fach *,.tw-adv-fugaz,.tw-adv-v{animation:none!important}.tw-adv-ciudad::after{display:none}}
+@media (prefers-reduced-motion:reduce){.tw-adv-fach *,.tw-adv-fugaz,.tw-adv-v,.tw-adv-v .hj,.tw-adv-ciudad{animation:none!important}.tw-adv-ciudad::after{display:none}}
 .tw-adv-titila{animation:twAdvTit 3.2s ease-in-out infinite}
 @keyframes twAdvTit{0%,100%{opacity:.55}50%{opacity:.15}}
 .tw-adv-faro{animation:twAdvFaro 2.4s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
 @keyframes twAdvFaro{0%,100%{opacity:.55;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
-.tw-adv-v{position:absolute;padding:0;border:1px solid rgba(255,224,138,.55);border-radius:2px;background:linear-gradient(180deg,#3a2a5c,#211a3d);cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:flex-end;justify-content:center;overflow:visible;transition:background .4s,box-shadow .4s;color:#d9bf7f}
+.tw-adv-v{position:absolute;padding:0;border:1px solid rgba(255,224,138,.55);border-radius:2px;background:linear-gradient(180deg,#3a2a5c,#211a3d);cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:flex-end;justify-content:center;overflow:visible;transition:background .4s,box-shadow .4s;color:#d9bf7f;box-shadow:var(--hund)}
 .tw-adv-v::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,224,138,.35)}
 .tw-adv-v::after{content:"";position:absolute;left:0;right:0;top:38%;height:1px;background:rgba(255,224,138,.3)}
 .tw-adv-v.prendida::after{background:rgba(140,80,0,.18)}
 .tw-adv-v b{position:relative;z-index:1;color:#ffe7a8;font-weight:700;font-size:14px;line-height:1;margin-bottom:4px;font-family:"TwJS",sans-serif}
 .tw-adv-v.listo{background:linear-gradient(180deg,#4a3470,#2b2050)}
-.tw-adv-v.prendida{border-color:#ffe2a0;background:linear-gradient(180deg,#fff3cf,#f5c065 70%,#e7a440);box-shadow:0 0 12px 3px rgba(255,200,110,.55),0 0 30px 8px rgba(255,190,90,.25);color:#6a3d00}
+.tw-adv-v.prendida{border-color:#ffe2a0;background:linear-gradient(180deg,#fff3cf,#f5c065 70%,#e7a440);box-shadow:inset 0 4px 6px rgba(140,70,0,.35),0 2px 0 #d8b46a,0 0 12px 3px rgba(255,200,110,.55),0 0 30px 8px rgba(255,190,90,.25);color:#6a3d00}
 .tw-adv-v.prendida::before{background:rgba(140,80,0,.25)}
 .tw-adv-v.prendida .ic{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:74%;height:74%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1}
 .tw-adv-tarjeta .big .tw-adv-esc{width:96px;height:96px}
 .tw-adv-v.prendida b{position:absolute;right:2px;bottom:1px;font-size:8px;margin:0;opacity:.7;color:#6a3d00}
 .tw-adv-v.hoy{border-color:#fff3cf;animation:twAdvHoyV 1.4s ease-in-out infinite}
-@keyframes twAdvHoyV{0%,100%{box-shadow:0 0 0 2px #fff3cf,0 0 16px 5px rgba(255,59,78,.7)}25%{box-shadow:0 0 0 2px #fff3cf,0 0 20px 7px rgba(255,210,63,.85)}50%{box-shadow:0 0 0 2px #fff3cf,0 0 16px 5px rgba(51,209,122,.75)}75%{box-shadow:0 0 0 2px #fff3cf,0 0 20px 7px rgba(63,169,255,.8)}}
+@keyframes twAdvHoyV{0%,100%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 16px 5px rgba(255,59,78,.7)}25%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 20px 7px rgba(255,210,63,.85)}50%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 16px 5px rgba(51,209,122,.75)}75%{box-shadow:var(--hund),0 0 0 2px #fff3cf,0 0 20px 7px rgba(63,169,255,.8)}}
 .tw-adv-v.hoy .hoy-chip{animation:twAdvChip 1s ease-in-out infinite}
 @keyframes twAdvChip{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-3px)}}
 .tw-adv-v.hoy b{color:#fff}
@@ -27205,7 +27216,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media (min-width:700px){.tw-adv-vista{left:auto;max-width:420px}}
 .tw-adv-nav{background:linear-gradient(90deg,#b8892e,#e9cf8a)!important;border-radius:99px}
 .tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(74,39,104,.97),rgba(15,12,46,.98));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
-.tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff}
+.tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff;perspective:1000px}
 .tw-adv-cerrar{position:absolute;top:-6px;right:0;z-index:5;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff!important;font-size:24px;line-height:1;cursor:pointer}
 .tw-adv-rayos{position:absolute;left:50%;top:190px;width:640px;height:640px;margin:-320px 0 0 -320px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,224,150,.26) 0 9deg,transparent 9deg 22deg);opacity:0;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 22%,transparent 68%);mask:radial-gradient(circle,#000 22%,transparent 68%)}
 .tw-adv-escena.abre .tw-adv-rayos{animation:twAdvRayos 1s ease-out 1.9s forwards,twAdvGira 16s linear 1.9s infinite}
@@ -27216,26 +27227,48 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-confeti i.f1{width:5px;height:12px;border-radius:2px}.tw-adv-confeti i.f2{width:9px;height:9px;border-radius:1px;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)}
 .tw-adv-escena.abre .tw-adv-confeti i{animation:twAdvConf 1.5s cubic-bezier(.2,.7,.4,1) 1.9s forwards}
 .tw-adv-modal{animation:twAdvIn .45s ease-out}
-.tw-adv-zv{position:relative;width:min(300px,82vw);aspect-ratio:300/280;margin:50px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 40px 10px rgba(255,200,110,0);overflow:hidden;transform-origin:50% 50%}
+.tw-adv-zv{position:relative;width:min(300px,82vw);aspect-ratio:300/280;margin:50px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 40px 10px rgba(255,200,110,0);overflow:visible;transform-origin:50% 50%;transform-style:preserve-3d}
+.tw-adv-zv::after{content:"";position:absolute;left:-16px;right:-16px;bottom:-21px;height:14px;border-radius:3px 3px 8px 8px;background:linear-gradient(180deg,#fffaf0,#dfe7f2 55%,#b8892e 56%,#8a6420);box-shadow:0 10px 18px rgba(0,0,0,.5)}
 .tw-adv-escena.abre .tw-adv-zv{animation:twAdvZvGlow .8s ease-out .75s forwards}
-.tw-adv-vg{position:absolute;inset:0;overflow:hidden}
+.tw-adv-vg{position:absolute;inset:0;transform-style:preserve-3d;perspective:700px}
+.tw-adv-vg .marco{position:absolute;inset:0;overflow:hidden;box-shadow:inset 0 10px 18px rgba(0,0,0,.45),inset 8px 0 14px rgba(0,0,0,.25),inset -8px 0 14px rgba(0,0,0,.25)}
+.tw-adv-vg .hoja{position:absolute;top:0;bottom:0;width:50%;transform-style:preserve-3d;backface-visibility:hidden;background:linear-gradient(90deg,rgba(0,0,0,.06),transparent 30%),linear-gradient(180deg,#2a3a66,#162447);border:3px solid #c9a45a;box-sizing:border-box;display:flex;flex-direction:column;gap:6%;padding:9% 12%;z-index:3}
+.tw-adv-vg .hoja.izq{left:0;transform-origin:left center;border-right-width:1.5px}
+.tw-adv-vg .hoja.der{right:0;transform-origin:right center;border-left-width:1.5px}
+.tw-adv-vg .hoja i{flex:1;border:2px solid #c9a45a;border-radius:2px;background:#0b142b;box-shadow:inset 0 0 12px rgba(0,0,0,.6)}
+.tw-adv-vg .hoja::after{content:"";position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.tw-adv-vg .hoja.izq::before,.tw-adv-vg .hoja.der::before{content:"";position:absolute;top:50%;width:7px;height:16px;margin-top:-8px;border-radius:4px;background:linear-gradient(180deg,#ffe9a8,#b8892e);box-shadow:0 1px 2px rgba(0,0,0,.5)}
+.tw-adv-vg .hoja.izq::before{right:8px}.tw-adv-vg .hoja.der::before{left:8px}
+.tw-adv-escena.abre .tw-adv-vg .hoja i{animation:twAdvVidrio .55s steps(1,end) .75s forwards}
+@keyframes twAdvVidrio{0%{background:#0b142b}25%{background:#ffe3a6;box-shadow:inset 0 0 12px rgba(255,190,90,.8),0 0 14px rgba(255,200,110,.6)}45%{background:#0b142b}65%,100%{background:#ffe3a6;box-shadow:inset 0 0 12px rgba(255,190,90,.8),0 0 14px rgba(255,200,110,.6)}}
+.tw-adv-escena.abre .tw-adv-vg .hoja.izq{animation:twAdvHojaI 1.05s cubic-bezier(.45,0,.2,1) 1.45s forwards}
+.tw-adv-escena.abre .tw-adv-vg .hoja.der{animation:twAdvHojaD 1.05s cubic-bezier(.45,0,.2,1) 1.45s forwards}
+.tw-adv-escena.abre .tw-adv-vg .hoja::after{animation:twAdvSombra 1.05s ease-in 1.45s forwards}
+@keyframes twAdvHojaI{0%{transform:rotateY(0)}12%{transform:rotateY(6deg)}75%{transform:rotateY(-122deg)}100%{transform:rotateY(-108deg)}}
+@keyframes twAdvHojaD{0%{transform:rotateY(0)}12%{transform:rotateY(-6deg)}75%{transform:rotateY(122deg)}100%{transform:rotateY(108deg)}}
+@keyframes twAdvSombra{to{opacity:.45}}
+.tw-adv-vg .rendija{position:absolute;top:0;bottom:0;left:50%;width:6px;margin-left:-3px;background:#fff8e1;box-shadow:0 0 18px 8px rgba(255,214,140,.9),0 0 60px 30px rgba(255,190,90,.55);opacity:0;z-index:2;transform:scaleX(0)}
+.tw-adv-escena.abre .tw-adv-vg .rendija{animation:twAdvRendija .9s ease-out 1.45s forwards}
+@keyframes twAdvRendija{0%{opacity:0;transform:scaleX(0)}20%{opacity:1;transform:scaleX(1)}60%{opacity:1;transform:scaleX(28)}100%{opacity:0;transform:scaleX(40)}}
+.tw-adv-vg .sello{position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;z-index:4;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#fff3c4,#e9c46a 45%,#a8761f);box-shadow:0 0 0 4px rgba(168,118,31,.45),0 8px 16px rgba(0,0,0,.45),inset 0 -4px 8px rgba(120,70,0,.4);transform:translateZ(30px)}
+.tw-adv-vg .sello b{font-family:"TwPF",Georgia,serif;font-style:italic;font-weight:500;font-size:44px;color:#3a2600;text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.tw-adv-escena.abre .tw-adv-vg .sello{animation:twAdvSello .45s cubic-bezier(.5,0,.6,1) 1.15s forwards}
+@keyframes twAdvSello{0%{transform:translateZ(30px) scale(1)}35%{transform:translateZ(60px) scale(1.25) rotate(-8deg)}100%{transform:translateZ(160px) scale(1.7) rotate(25deg);opacity:0}}
+.tw-adv-vg .destellos i{position:absolute;width:10px;height:10px;opacity:0;background:#fff;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)}
+.tw-adv-vg .destellos i:nth-child(1){left:14%;top:18%}.tw-adv-vg .destellos i:nth-child(2){left:80%;top:14%}.tw-adv-vg .destellos i:nth-child(3){left:86%;top:62%}.tw-adv-vg .destellos i:nth-child(4){left:10%;top:70%}.tw-adv-vg .destellos i:nth-child(5){left:48%;top:8%}.tw-adv-vg .destellos i:nth-child(6){left:52%;top:86%}
+.tw-adv-escena.abre .tw-adv-vg .destellos i{animation:twAdvDestello 1.2s ease-out 1.9s infinite}
+.tw-adv-escena.abre .tw-adv-vg .destellos i:nth-child(even){animation-delay:2.3s}
+@keyframes twAdvDestello{0%,100%{opacity:0;transform:scale(.2) rotate(0)}40%{opacity:1;transform:scale(1.4) rotate(45deg)}}
 .tw-adv-vg .fondo{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,#fffbe8,#ffe3a6 45%,#f0b04e)}
 .tw-adv-vg .escena{position:absolute;inset:8% 12%;display:flex;align-items:center;justify-content:center;font-size:110px;opacity:0;transform:scale(.6)}
 .tw-adv-vg .escena .tw-adv-esc{width:100%;height:100%}
-.tw-adv-vg .persiana{position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(217,166,80,0) 0 19px,rgba(217,166,80,.3) 19px 20px),linear-gradient(180deg,#fff2d2,#f4c678);display:flex;align-items:center;justify-content:center;border-bottom:8px solid #c9a45a}
-.tw-adv-vg .persiana b{font-family:"TwPF",Georgia,serif;font-style:italic;font-weight:500;font-size:84px;color:rgba(12,22,48,.85)}
-.tw-adv-vg .apagado{position:absolute;inset:0;background:#0f1a31}
-.tw-adv-escena.abre .tw-adv-vg .apagado{animation:twAdvLuzOn .5s steps(1,end) .75s forwards}
-@keyframes twAdvLuzOn{0%{opacity:0}25%{opacity:1}45%{opacity:0}65%{opacity:.8}80%,100%{opacity:0}}
-.tw-adv-escena.abre .tw-adv-vg .persiana{animation:twAdvPersiana .65s cubic-bezier(.5,0,.3,1) 1.35s forwards}
-@keyframes twAdvPersiana{to{transform:translateY(-104%)}}
-.tw-adv-escena.abre .tw-adv-vg .escena{animation:twAdvEscena .6s cubic-bezier(.3,1.5,.5,1) 1.7s forwards}
-@keyframes twAdvEscena{to{opacity:1;transform:none}}
+.tw-adv-escena.abre .tw-adv-vg .escena{animation:twAdvEscena .75s cubic-bezier(.3,1.5,.5,1) 1.75s forwards}
+@keyframes twAdvEscena{0%{opacity:0;transform:scale(.45) translateY(18px)}60%{opacity:1;transform:scale(1.12) translateY(-4px)}100%{opacity:1;transform:none}}
 @keyframes twAdvZvGlow{to{box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 50px 16px rgba(255,200,110,.5)}}
 .tw-adv-saltar{position:absolute;left:50%;transform:translateX(-50%);top:calc(50px + min(300px,82vw)*280/300 + 26px);border:0;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8)!important;font:inherit;font-size:13px;letter-spacing:.08em;padding:8px 16px;border-radius:99px;cursor:pointer}
 .tw-adv-escena.listo .tw-adv-zv,.tw-adv-escena.listo .tw-adv-saltar{display:none}
-@keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1) rotate(0)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 60px)) scale(.5) rotate(var(--r))}}
-.tw-adv-tarjeta{position:relative;margin:0 auto;background:#fffaf0;color:#1b1b1b;border-radius:22px;padding:22px 18px 18px;box-shadow:0 0 0 1px #e8cf8f,0 0 0 6px rgba(232,207,143,.18),0 24px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(60px) scale(.92)}
+@keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1) rotate3d(1,.6,.3,0deg)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 60px)) scale(.6) rotate3d(1,.6,.3,calc(var(--r) * 3))}}
+.tw-adv-tarjeta{position:relative;margin:0 auto;background:#fffaf0;color:#1b1b1b;border-radius:22px;padding:22px 18px 18px;box-shadow:0 0 0 1px #e8cf8f,0 0 0 6px rgba(232,207,143,.18),0 24px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(70px) rotateX(-62deg) scale(.9);transform-origin:50% 100%}
 .tw-adv-escena.abre:not(.listo) .tw-adv-tarjeta{position:absolute;left:0;right:0;top:100%}
 .tw-adv-escena.listo .tw-adv-tarjeta{animation:twAdvSube .6s cubic-bezier(.3,1.3,.5,1) forwards}
 .tw-adv-tarjeta::before{content:"";position:absolute;left:18px;right:18px;top:-6px;height:12px;background:radial-gradient(circle,#ff3b4e 0 3px,transparent 3.5px) 0 0/48px 12px repeat-x,radial-gradient(circle,#ffd23f 0 3px,transparent 3.5px) 12px 0/48px 12px repeat-x,radial-gradient(circle,#33d17a 0 3px,transparent 3.5px) 24px 0/48px 12px repeat-x,radial-gradient(circle,#3fa9ff 0 3px,transparent 3.5px) 36px 0/48px 12px repeat-x;filter:drop-shadow(0 0 4px rgba(255,220,140,.9));animation:twAdvTw 1.6s ease-in-out infinite}
@@ -29418,14 +29451,20 @@ function TwAdvIcono({ icono, className, style }) {
   const k = advEscenaDe(icono);
   return k ? <span className={"tw-adv-esc " + (className || "")} style={{ display: "inline-flex", lineHeight: 0, ...style }} role="img" aria-label={ADV_ESCENAS[k][0]} dangerouslySetInnerHTML={{ __html: advEscenaSvg(k) }} /> : <span className={className} style={style}>{icono}</span>;
 }
-// La ventana de hoy vista de cerca: se prende la luz, sube la persiana y aparece la escena del día
+// La ventana grande al abrir un día: adentro la escena; adelante dos puertas con vidrios (se prende la luz), un sello
+// dorado con el número que se rompe y las puertas que se abren hacia afuera en 3D, con luz saliendo por la rendija
 function TwAdvVentanaGrande({ d }) {
   return (
     <div className="tw-adv-vg">
-      <div className="fondo" />
-      <div className="escena"><TwAdvIcono icono={d.icono} /></div>
-      <div className="persiana"><b>{d.dia}</b></div>
-      <div className="apagado" />
+      <div className="marco">
+        <div className="fondo" />
+        <div className="escena"><TwAdvIcono icono={d.icono} /></div>
+        <div className="destellos" aria-hidden="true">{[0, 1, 2, 3, 4, 5].map(i => <i key={i} />)}</div>
+      </div>
+      <div className="rendija" />
+      <div className="hoja izq"><i /><i /></div>
+      <div className="hoja der"><i /><i /></div>
+      <div className="sello"><b>{d.dia}</b></div>
     </div>
   );
 }
@@ -29471,7 +29510,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
     const el = zv.current, r = abriendo && abriendo.r;
     if (!el || !r || !el.animate || abriendo.fase !== "abre") return;
     const f = el.getBoundingClientRect(), dx = r.left + r.width / 2 - (f.left + f.width / 2), dy = r.top + r.height / 2 - (f.top + f.height / 2);
-    el.animate([{ transform: "translate(" + dx + "px," + dy + "px) scale(" + (r.width / f.width) + ")" }, { transform: "none" }], { duration: 750, easing: "cubic-bezier(.3,.8,.3,1)" });
+    el.animate([{ transform: "translate(" + dx + "px," + dy + "px) scale(" + (r.width / f.width) + ") rotateX(22deg) rotateY(-18deg)" }, { transform: "translate(0,-10px) scale(1.04) rotateX(-4deg) rotateY(4deg)", offset: .75 }, { transform: "none" }], { duration: 850, easing: "cubic-bezier(.3,.8,.3,1)" });
   }, [abriendo && abriendo.d.dia, abriendo && abriendo.r]); // eslint-disable-line react-hooks/exhaustive-deps
   // "Descubrir la sorpresa" desde la animación de bienvenida: baja al calendario y abre la ventana de hoy
   const abrirRef = useRef(abrir); abrirRef.current = abrir;
@@ -29501,7 +29540,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
       <div className="tw-adv-ceja">New York Christmas · Diciembre {adv.anio}</div>
       <h2>{advTitulo(adv.titulo)}</h2>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
-      <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef}>
+      <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef}
+        onPointerMove={e => { if (e.pointerType !== "mouse") return; const r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; e.currentTarget.classList.add("mueve"); e.currentTarget.style.setProperty("--ry", (x * 14).toFixed(2) + "deg"); e.currentTarget.style.setProperty("--rx", (-y * 10).toFixed(2) + "deg"); }}
+        onPointerLeave={e => { e.currentTarget.classList.remove("mueve"); }}>
         <TwAdvCiudad />
         {adv.dias.map(d => {
           const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
@@ -29510,6 +29551,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
               style={{ left: (v.x / 360 * 100) + "%", top: (v.y / ADV_ALTO * 100) + "%", width: (ADV_VW / 360 * 100) + "%", height: (ADV_VH / ADV_ALTO * 100) + "%" }}
               onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
               {ab && <TwAdvIcono icono={d.icono} className="ic" />}<b>{n}</b>
+              {ab && <><i className="hj l" aria-hidden="true" /><i className="hj r" aria-hidden="true" /></>}
               {esHoy && !ab && <span className="hoy-chip">HOY</span>}
             </button>);
         })}
