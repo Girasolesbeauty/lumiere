@@ -4203,6 +4203,7 @@ function POS({ localId, usuario, paletaActual }) {
     // En preventa / seña el pago se elige en su propio panel (el selector común está oculto)
     if (!preventa && restaPagar > 0 && !pagoMixto && !medioPagoSel) return setMensaje("Selecciona un medio de pago para la diferencia");
     if (rutinaBloquea) return setMensaje("⚠️ Las " + rutinaCuotas.cuotas + " cuotas sin interés son solo llevando " + textoReglaRutina(rutinaCuotas) + ". Este ticket tiene " + rutinaPos + ".");
+    if (cuotasMezcla && !confirm("⚠️ " + cuotasMezcla.sin.map(i => i.nombre || i.name).join(", ") + (cuotasMezcla.sin.length === 1 ? " no tiene" : " no tienen") + " cuotas sin interés.\n\nLo correcto es hacer dos tickets: uno con los productos de la oferta en cuotas y otro con el resto.\n\n¿Cobrar igual todo junto con este medio?")) return;
     const usaCC = !preventa && restaPagar > 0 && (pagoMixto ? pagosMixtos.some(p => mediosPago.find(m => m.id === p.medio_pago_id)?.tipo === "cuenta_corriente") : medioPagoSel?.tipo === "cuenta_corriente");
     if (usaCC && !clienteSeleccionado) return setMensaje("⚠️ Para vender en cuenta corriente, elegí el cliente (cargá su DNI)");
     if (!preventa && restaPagar > 0 && !pagoMixto && medioPagoSel?.tipo === "efectivo" && montoRecibidoEfectivo !== "" && parseFloat(montoRecibidoEfectivo) < restaPagar) {
@@ -4727,6 +4728,17 @@ function POS({ localId, usuario, paletaActual }) {
   const rutinaPos = rutinaCuotas ? rutinaCuotasN(cart.filter(i => !i.es_ajuste && !i.es_kit).map(i => ({ id: i.id, precio: i.precio_base || i.precio || i.price, p: i })), rutinaCuotas) : 0;
   const usaMedioRutina = !!rutinaCuotas && !!rutinaCuotas.medio_id && (pagoMixto ? pagosMixtos.some(x => Number(x.medio_pago_id) === rutinaCuotas.medio_id) : medioPagoSel?.id === rutinaCuotas.medio_id);
   const rutinaBloquea = !preventa && usaMedioRutina && rutinaPos < rutinaCuotas.minimo;
+  // Ofertas "N% OFF + cuotas sin interés" (promo con crédito): el recargo/las cuotas del medio valen para todo el ticket,
+  // así que si se mezclan productos de la oferta con otros, se avisa para cobrarlos en dos tickets
+  const cuotasMezcla = (() => {
+    if (preventa || medioPagoTipoActual !== "credito" || pagoMixto) return null;
+    const promosCuo = promociones.filter(pr => pr.medio_pago_tipo === "credito" && /\d+\s*cuotas/.test(pr.nombre || "") && (!pr.local_id || Number(pr.local_id) === Number(localId)));
+    if (!promosCuo.length) return null;
+    const items = cart.filter(i => !i.es_ajuste && !i.tienda_pedido);
+    const cubre = (i) => promosCuo.some(pr => pr.tipo === "combo" ? (pr.productos_ids || []).map(Number).includes(Number(i.id)) : itemAplica(pr, i));
+    const con = items.filter(cubre), sin = items.filter(i => !cubre(i));
+    return con.length && sin.length ? { con, sin } : null;
+  })();
   const topeRedondeo = (base) => Math.max(1000, Math.round(base * 0.03));
   const opcionesRedondeo = (base) => {
     if (!base) return [];
@@ -5457,6 +5469,12 @@ function POS({ localId, usuario, paletaActual }) {
                       )}
                       {medioPagoSel?.mp_qr && (
                         <div className="pop-in" style={{ fontSize: 11.5, marginTop: 6, padding: "8px 10px", borderRadius: 8, background: temaPal.bg, color: temaPal.text }}>📲 Al tocar <b>Cobrar</b> aparece un QR con el importe: el cliente lo escanea con el celular y paga. La venta se registra sola cuando Mercado Pago la aprueba.</div>
+                      )}
+                      {cuotasMezcla && (
+                        <div className="pop-in" role="alert" style={{ fontSize: 12.5, marginTop: 6, padding: "10px 12px", borderRadius: 8, background: temaPal.red + "18", border: "1px solid " + temaPal.red, color: temaPal.text, lineHeight: 1.4 }}>
+                          <b style={{ color: temaPal.red }}>⚠️ Hacé dos tickets.</b> {cuotasMezcla.sin.map(i => i.nombre || i.name).join(", ")} {cuotasMezcla.sin.length === 1 ? "no tiene" : "no tienen"} cuotas sin interés.
+                          <div style={{ marginTop: 4 }}>1) Cobrá en cuotas solo: <b>{cuotasMezcla.con.map(i => i.nombre || i.name).join(", ")}</b>. 2) El resto, en otro ticket con el medio que elija la clienta.</div>
+                        </div>
                       )}
                       {rutinaCuotas && cart.length > 0 && (rutinaPos > 0 || usaMedioRutina) && (
                         <div className="pop-in" style={{ fontSize: 12, marginTop: 6, padding: "8px 10px", borderRadius: 8, background: rutinaBloquea ? temaPal.red + "18" : rutinaPos >= rutinaCuotas.minimo ? temaPal.green + "18" : temaPal.bg, color: temaPal.text, border: "1px solid " + (rutinaBloquea ? temaPal.red : rutinaPos >= rutinaCuotas.minimo ? temaPal.green : temaPal.border) }}>
