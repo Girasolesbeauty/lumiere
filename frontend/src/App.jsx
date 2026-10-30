@@ -35585,6 +35585,8 @@ const ADV_TIPOS_LUM = [
   ["regalo", "🎁 Regalo con la compra", "Los pedidos de ese día (desde el mínimo) llevan un aviso para que la vendedora agregue el regalo."],
   ["mensaje", "💌 Solo mensaje", "Un saludo, un tip o un anuncio (por ejemplo un sorteo): no cambia precios."],
 ];
+// Metas del álbum de sellos de fábrica (igual que en el servidor): las 25 ventanas suman 2.000 puntos
+const ADV_HITOS_DEF = [{ dias: 10, puntos: 500 }, { dias: 20, puntos: 700 }, { dias: 25, puntos: 800 }];
 // Quiénes juntan sellos del Adviento y sorteo entre las que llegaron a la cantidad del sorteo
 function AdvSorteo({ sellos, dias, premio, temaPal: p }) {
   const [ganadora, setGanadora] = useState(null);
@@ -35646,7 +35648,7 @@ function AdvientoTienda({ temaPal, productos }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Sw on={!f.constancia || f.constancia.activo !== false} toggle={() => set("constancia", { ...(f.constancia || {}), activo: f.constancia && f.constancia.activo === false })} /><b style={{ fontSize: 13 }}>🎖️ Álbum de sellos (premio por constancia)</b></div>
         <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 8px", lineHeight: 1.45 }}>Cada clienta con cuenta suma un sello cuando abre la ventana <b>el mismo día</b> (no se pueden abrir días pasados para sumar). Al llegar a la cantidad de sellos gana los puntos solos; con los sellos del sorteo entra al sorteo de Navidad.</div>
         {(!f.constancia || f.constancia.activo !== false) && <div style={{ display: "grid", gap: 6 }}>
-          {[0, 1].map(i => { const h = ((f.constancia && f.constancia.hitos) || [{ dias: 10, puntos: 300 }, { dias: 20, puntos: 700 }])[i] || { dias: "", puntos: "" }; const setH = (k, v) => set("constancia", { ...(f.constancia || {}), hitos: [0, 1].map(j => j === i ? { ...h, [k]: v } : (((f.constancia && f.constancia.hitos) || [{ dias: 10, puntos: 300 }, { dias: 20, puntos: 700 }])[j] || { dias: "", puntos: "" })) });
+          {[0, 1, 2].map(i => { const h = ((f.constancia && f.constancia.hitos) || ADV_HITOS_DEF)[i] || { dias: "", puntos: "" }; const setH = (k, v) => set("constancia", { ...(f.constancia || {}), hitos: [0, 1, 2].map(j => j === i ? { ...h, [k]: v } : (((f.constancia && f.constancia.hitos) || ADV_HITOS_DEF)[j] || { dias: "", puntos: "" })) });
             return <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>Con <input className="inp" style={{ width: 64 }} inputMode="numeric" value={h.dias} onChange={e => setH("dias", e.target.value.replace(/\D/g, ""))} /> sellos gana <input className="inp" style={{ width: 90 }} inputMode="numeric" value={h.puntos} onChange={e => setH("puntos", e.target.value.replace(/\D/g, ""))} /> puntos</div>; })}
           <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>Con <input className="inp" style={{ width: 64 }} inputMode="numeric" value={f.constancia && f.constancia.sorteo_dias !== undefined ? f.constancia.sorteo_dias : 20} onChange={e => set("constancia", { ...(f.constancia || {}), sorteo_dias: e.target.value.replace(/\D/g, "") })} /> sellos entra al sorteo de <input className="inp" style={{ flex: "1 1 200px" }} maxLength={100} value={f.constancia && f.constancia.sorteo_premio !== undefined ? f.constancia.sorteo_premio : "Un kit sorpresa de skincare"} onChange={e => set("constancia", { ...(f.constancia || {}), sorteo_premio: e.target.value })} /></div>
         </div>}
