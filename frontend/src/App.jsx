@@ -3844,6 +3844,16 @@ function POS({ localId, usuario, paletaActual }) {
     return null;
   })();
 
+  // Promos con crédito del plan de ofertas: "10% OFF + 3 cuotas sin interés" vale solo con el medio de 3 cuotas
+  // (no con "Plan 5 cuotas") y "con crédito en 1 pago" solo con crédito en 1 pago
+  const cuotasDeMedio = (m) => m ? (parseInt(m.cuotas) > 1 ? parseInt(m.cuotas) : parseInt((String(m.nombre || "").match(/(\d+)\s*cuotas/i) || [])[1]) || 1) : 0;
+  const promoCuotasOk = (promo) => {
+    if (promo.medio_pago_tipo !== "credito" || !medioPagoSel) return true;
+    const n = parseInt((String(promo.nombre || "").match(/(\d+)\s*cuotas/i) || [])[1]) || 0, m = cuotasDeMedio(medioPagoSel);
+    if (n > 1) return m === n;
+    if (/1 pago/i.test(promo.nombre || "")) return m <= 1;
+    return true;
+  };
   const precioItem = (i) => (i.precio || i.price || 0) * (1 - (i.descuento_pct || 0) / 100);
   const itemAplica = (promo, i) => {
     if (promo.aplica_a === "todo") return true;
@@ -3864,6 +3874,7 @@ function POS({ localId, usuario, paletaActual }) {
     for (const promo of (esPedidoWeb ? [] : promociones)) {
       // Filtro por medio de pago (si la promo lo exige)
       if (promo.medio_pago_tipo && promo.medio_pago_tipo !== medioPagoTipoActual) continue;
+      if (!promoCuotasOk(promo)) continue;
       if (promo.sin_medio_pago && promo.sin_medio_pago === medioPagoTipoActual) continue;
       if (promo.local_id && Number(promo.local_id) !== Number(localId)) continue;
       let desc = 0;
@@ -4732,7 +4743,7 @@ function POS({ localId, usuario, paletaActual }) {
   // así que si se mezclan productos de la oferta con otros, se avisa para cobrarlos en dos tickets
   const cuotasMezcla = (() => {
     if (preventa || medioPagoTipoActual !== "credito" || pagoMixto) return null;
-    const promosCuo = promociones.filter(pr => pr.medio_pago_tipo === "credito" && /\d+\s*cuotas/.test(pr.nombre || "") && (!pr.local_id || Number(pr.local_id) === Number(localId)));
+    const promosCuo = promociones.filter(pr => pr.medio_pago_tipo === "credito" && /\d+\s*cuotas/.test(pr.nombre || "") && promoCuotasOk(pr) && (!pr.local_id || Number(pr.local_id) === Number(localId)));
     if (!promosCuo.length) return null;
     const items = cart.filter(i => !i.es_ajuste && !i.tienda_pedido);
     const cubre = (i) => promosCuo.some(pr => pr.tipo === "combo" ? (pr.productos_ids || []).map(Number).includes(Number(i.id)) : itemAplica(pr, i));
