@@ -25005,7 +25005,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
       });
     }));
     // Combos: una promo por forma de pagar (con sus productos y cantidades), en el local elegido
-    const combosTienda = [];
+    const combosTienda = [], sinTienda = [];
     combosListos.forEach(cb => {
       const productos = cb.items.map(it => it.id), cantidades = Object.fromEntries(cb.items.filter(it => (it.cant || 1) > 1).map(it => [it.id, it.cant]));
       const loc = cb.local && cb.local !== "0" ? Number(cb.local) : null, enLoc = loc ? " (solo " + nombreLocal(loc) + ")" : "";
@@ -25017,10 +25017,11 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
         (o.medios || []).forEach(k => gr.push(k === "otros" ? { ...base, pct: o.pct, sin: tieneCredito ? "credito" : null, etiqueta: "Combo " + nombreCombo(cb) + ": " + o.pct + "% OFF con cualquier otro medio" + enLoc }
           : { ...base, pct: o.pct, pago: k, etiqueta: "Combo " + nombreCombo(cb) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() + enLoc }));
       });
+      if (cb.tienda === false) sinTienda.push(nombreCombo(cb) + " (no está marcado para la tienda)"); else if (loc) sinTienda.push(nombreCombo(cb) + " (es de un solo local)"); else if (!(pctOnline(cb) > 0)) sinTienda.push(nombreCombo(cb) + " (no tiene descuento para la tienda online)");
       if (cb.tienda !== false && !loc && pctOnline(cb) > 0) combosTienda.push({ id: cb.id, nombre: nombreCombo(cb), productos, cantidades, precio: Math.round(listaCombo(cb) * (1 - pctOnline(cb) / 100)) });
     });
     if (!gr.length) return setAviso("Las ofertas elegidas no tienen descuentos");
-    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos" + (combosListos.length ? " y " + combosListos.length + (combosListos.length === 1 ? " combo" : " combos") : "") + ", del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan. ¿Seguimos?")) return;
+    if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos" + (combosListos.length ? " y " + combosListos.length + (combosListos.length === 1 ? " combo" : " combos") : "") + ", del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan." + (cfg.en_tienda && combosListos.length ? "\n\nEn la tienda online van " + combosTienda.length + " de " + combosListos.length + " combos." + (sinTienda.length ? " No van: " + sinTienda.join(", ") + "." : "") : "") + "\n\n¿Seguimos?")) return;
     setCreando(true);
     try { await API.post("/promociones/liquidacion", { nombre: cfg.nombre, desde: cfg.desde, hasta: cfg.hasta, en_tienda: cfg.en_tienda, sector: cfg.sector, grupos: gr, combos_tienda: combosTienda }); onCreado(); }
     catch (e) { setAviso(e.response?.data?.error || "No se pudieron crear"); }
