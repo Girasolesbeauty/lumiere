@@ -97,6 +97,10 @@ router.get('/:slug', async (req, res) => {
     const adv = tienda.advientoDe(c), advHoy = tienda.advientoHoy(adv), advVista = !!adv.token && String(req.query.adviento || '') === adv.token;
     const advVer = (adv.activo && advHoy >= 1 && advHoy <= 25) || advVista;
     const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
+    // Cuotas sin interés de cada combo: las de su promo con crédito en el local (para combos creados antes de guardarlas en el combo)
+    const cuotasCombos = await pool.query(`SELECT productos_ids, nombre FROM promociones WHERE tipo = 'combo' AND medio_pago_tipo = 'credito' AND activo AND local_id IS NULL
+      AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`)
+      .then(r => Object.fromEntries(r.rows.map(x => [[...(x.productos_ids || [])].map(Number).sort((a, b) => a - b).join(','), Math.min(24, parseInt((String(x.nombre).match(/(\d+)\s*cuotas/) || [])[1]) || 0)]).filter(([, n]) => n > 1))).catch(() => ({}));
     res.json({
       adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
@@ -122,7 +126,7 @@ router.get('/:slug', async (req, res) => {
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       legales: (() => { const l = tienda.legalesDe(c); return { data_fiscal: l.data_fiscal, paginas: l.paginas, firma_lumiere: l.firma_lumiere }; })(),
       puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
-      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, cuotas: x.cuotas || 0 })) }; })(),
+      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, cuotas: x.cuotas || cuotasCombos[[...(x.productos || [])].map(Number).sort((a, b) => a - b).join(',')] || 0 })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
