@@ -27199,7 +27199,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-v.prendida{border-color:#ffe2a0;background:linear-gradient(180deg,#fff3cf,#f5c065 70%,#e7a440);box-shadow:inset 0 4px 6px rgba(140,70,0,.35),0 2px 0 #d8b46a,0 0 12px 3px rgba(255,200,110,.55),0 0 30px 8px rgba(255,190,90,.25);color:#6a3d00}
 .tw-adv-v.prendida::before{background:rgba(140,80,0,.25)}
 .tw-adv-v.prendida .ic{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:74%;height:74%;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1}
-.tw-adv-tarjeta .big .tw-adv-esc{width:96px;height:96px}
+.tw-adv-tarjeta .big .tw-adv-esc{width:84px;height:84px}
 .tw-adv-v.prendida b{position:absolute;left:50%;transform:translateX(-50%);bottom:1px;font-size:8px;margin:0;opacity:.75;color:#6a3d00;z-index:3}
 .tw-adv-v.pent{border-radius:24px 24px 3px 3px;border-width:1.5px;border-color:#ffe08a}
 .tw-adv-v.pent b{font-size:19px;font-family:"TwPF",Georgia,serif;font-style:italic}
@@ -27223,10 +27223,12 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-prog .final rect{animation:twAdvTw 2s ease-in-out infinite}
 .tw-adv-prog .fuego{opacity:0;transform-box:fill-box;transform-origin:center;animation:twAdvFuego 2.1s ease-out var(--d) infinite}
 @keyframes twAdvFuego{0%{opacity:0;transform:scale(.2)}10%{opacity:1}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.15)}}
-.tw-adv-vuela{position:absolute;left:0;top:1%;width:46%;z-index:3;pointer-events:none;animation:twAdvVuela 7s linear forwards}
-.tw-adv-trineo{width:100%;height:auto;display:block;filter:drop-shadow(0 0 6px rgba(255,214,140,.7))}
+.tw-adv-vuela{position:absolute;left:0;top:7%;width:56%;z-index:3;pointer-events:none;animation:twAdvVuela 9s cubic-bezier(.45,.05,.55,.95) forwards}
+.tw-adv-trineo{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 0 1.2px rgba(255,236,190,.95)) drop-shadow(0 0 7px rgba(255,214,140,.55))}
 .tw-adv-trineo .nariz{animation:twAdvTw .8s ease-in-out infinite}
-@keyframes twAdvVuela{0%{transform:translate(-110%,40px) rotate(-6deg)}50%{transform:translate(70%,-6px) rotate(-2deg)}100%{transform:translate(240%,30px) rotate(5deg)}}
+.tw-adv-trineo .rastro circle{fill:#fff1c4;animation:twAdvRastro 1.1s ease-out var(--d) infinite}
+@keyframes twAdvRastro{0%{opacity:0;transform:translateY(0)}30%{opacity:1}100%{opacity:0;transform:translateY(5px)}}
+@keyframes twAdvVuela{0%{opacity:0;transform:translate(-70%,90px) rotate(-12deg) scale(.8)}8%{opacity:1}60%{transform:translate(48%,-8px) rotate(-8deg) scale(1)}90%{opacity:1}100%{opacity:0;transform:translate(110%,-60px) rotate(-14deg) scale(.82)}}
 .tw-adv-estrella{position:absolute;z-index:6;width:56px;height:56px;margin:-28px 0 0 -28px;border:0;background:none;padding:0;cursor:pointer;animation:twAdvCae 3.2s ease-in forwards;-webkit-tap-highlight-color:transparent}
 .tw-adv-estrella i{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;background:#fff;box-shadow:0 0 10px 4px #fff3c4,0 0 24px 10px rgba(255,214,140,.7)}
 .tw-adv-estrella i::after{content:"";position:absolute;right:8px;top:50%;width:90px;height:3px;margin-top:-1.5px;transform-origin:right center;transform:rotate(-24deg);background:linear-gradient(90deg,transparent,rgba(255,243,196,.95));border-radius:2px}
@@ -27322,19 +27324,60 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-saltar{position:absolute;left:50%;transform:translateX(-50%);top:calc(50px + min(300px,82vw)*280/300 + 26px);border:0;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8)!important;font:inherit;font-size:13px;letter-spacing:.08em;padding:8px 16px;border-radius:99px;cursor:pointer}
 .tw-adv-escena.listo .tw-adv-zv,.tw-adv-escena.listo .tw-adv-saltar{display:none}
 @keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1) rotate3d(1,.6,.3,0deg)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 60px)) scale(.6) rotate3d(1,.6,.3,calc(var(--r) * 3))}}
-.tw-adv-tarjeta{position:relative;margin:0 auto;background:#fffaf0;color:#1b1b1b;border-radius:22px;padding:22px 18px 18px;box-shadow:0 0 0 1px #e8cf8f,0 0 0 6px rgba(232,207,143,.18),0 24px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(70px) rotateX(-62deg) scale(.9);transform-origin:50% 100%}
+@font-face{font-family:"TwDM";font-display:swap;src:url(https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2G_Bx0g.woff2) format("woff2")}
+@font-face{font-family:"TwMS";font-display:swap;font-weight:400 800;src:url(https://fonts.gstatic.com/s/montserrat/v31/JTUSjIg1_i6t8kCHKm459Wlhyw.woff2) format("woff2")}
+.tw-adv-tarjeta{position:relative;margin:0 auto;font-family:"TwMS","Helvetica Neue",Arial,sans-serif;background:radial-gradient(circle at 15% 12%,rgba(255,255,255,.9) 0 1.5px,transparent 2px) 0 0/34px 34px,radial-gradient(circle at 70% 60%,rgba(214,176,96,.18) 0 1.5px,transparent 2px) 0 0/46px 46px,linear-gradient(180deg,#fffdf6,#fbefd9);color:#2a1f12;border-radius:26px;padding:34px 18px 20px;box-shadow:0 0 0 2px #d9b25f,0 0 0 7px rgba(217,178,95,.22),0 0 46px rgba(255,214,140,.35),0 26px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(70px) rotateX(-62deg) scale(.9);transform-origin:50% 100%}
 .tw-adv-escena.abre:not(.listo) .tw-adv-tarjeta{position:absolute;left:0;right:0;top:100%}
 .tw-adv-escena.listo .tw-adv-tarjeta{animation:twAdvSube .6s cubic-bezier(.3,1.3,.5,1) forwards}
-.tw-adv-tarjeta::before{content:"";position:absolute;left:18px;right:18px;top:-6px;height:12px;background:radial-gradient(circle,#ff3b4e 0 3px,transparent 3.5px) 0 0/48px 12px repeat-x,radial-gradient(circle,#ffd23f 0 3px,transparent 3.5px) 12px 0/48px 12px repeat-x,radial-gradient(circle,#33d17a 0 3px,transparent 3.5px) 24px 0/48px 12px repeat-x,radial-gradient(circle,#3fa9ff 0 3px,transparent 3.5px) 36px 0/48px 12px repeat-x;filter:drop-shadow(0 0 4px rgba(255,220,140,.9));animation:twAdvTw 1.6s ease-in-out infinite}
+.tw-adv-tarjeta::after{content:"";position:absolute;inset:9px;border:1.5px dashed rgba(201,164,90,.55);border-radius:19px;pointer-events:none}
+.tw-adv-tarjeta::before{display:none;content:"";position:absolute;left:18px;right:18px;top:-6px;height:12px;background:radial-gradient(circle,#ff3b4e 0 3px,transparent 3.5px) 0 0/48px 12px repeat-x,radial-gradient(circle,#ffd23f 0 3px,transparent 3.5px) 12px 0/48px 12px repeat-x,radial-gradient(circle,#33d17a 0 3px,transparent 3.5px) 24px 0/48px 12px repeat-x,radial-gradient(circle,#3fa9ff 0 3px,transparent 3.5px) 36px 0/48px 12px repeat-x;filter:drop-shadow(0 0 4px rgba(255,220,140,.9));animation:twAdvTw 1.6s ease-in-out infinite}
 @keyframes twAdvSube{to{opacity:1;transform:none}}
-.tw-adv-dia{display:inline-block;background:#0c1630;color:#e8cf8f;font-weight:600;font-size:11px;letter-spacing:.3em;padding:6px 12px 5px 15px;border-radius:99px}
-.tw-adv-tarjeta .big{font-size:50px;line-height:1.15;margin:8px 0 2px}
-.tw-adv-tarjeta h3{margin:0 0 8px;font-family:"TwPF",Georgia,serif;font-style:italic;font-size:27px;font-weight:500;line-height:1.12;color:#0c1630}
-.tw-adv-tarjeta p{margin:0 0 12px;font-size:14.5px;line-height:1.5;color:#3b3b3b;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+.tw-adv-dia{position:relative;z-index:1;display:inline-block;background:linear-gradient(180deg,#d0142f,#8e0c20);color:#ffe7a8;font-weight:800;font-size:11.5px;letter-spacing:.32em;text-transform:uppercase;padding:7px 22px 6px 25px;clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%);box-shadow:0 3px 10px rgba(142,12,32,.35)}
+.tw-adv-mono{position:absolute;left:50%;top:-30px;width:96px;margin-left:-48px;z-index:2;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35));transform-origin:50% 60%}
+.tw-adv-escena.listo .tw-adv-mono{animation:twAdvMono .9s cubic-bezier(.3,1.6,.5,1) .25s both}
+@keyframes twAdvMono{from{transform:scale(.2) rotate(-25deg);opacity:0}}
+.tw-adv-acebo{position:absolute;top:10px;width:58px;z-index:1;opacity:.95}
+.tw-adv-acebo.i{left:6px;transform:rotate(-18deg)}.tw-adv-acebo.d{right:6px;transform:scaleX(-1) rotate(-18deg)}
+.tw-adv-tnieve{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none}
+.tw-adv-tnieve i{position:absolute;top:-8px;width:5px;height:5px;border-radius:50%;background:#e6dccb;opacity:.8;animation:twAdvNieve 7s linear infinite}
+.tw-adv-tnieve i:nth-child(1){left:8%;animation-delay:-1s}.tw-adv-tnieve i:nth-child(2){left:20%;animation-delay:-4s;animation-duration:9s}.tw-adv-tnieve i:nth-child(3){left:33%;animation-delay:-2.5s}.tw-adv-tnieve i:nth-child(4){left:45%;animation-delay:-6s;animation-duration:8s}.tw-adv-tnieve i:nth-child(5){left:57%;animation-delay:-.5s}.tw-adv-tnieve i:nth-child(6){left:68%;animation-delay:-3.5s;animation-duration:10s}.tw-adv-tnieve i:nth-child(7){left:79%;animation-delay:-5s}.tw-adv-tnieve i:nth-child(8){left:90%;animation-delay:-2s;animation-duration:8.5s}.tw-adv-tnieve i:nth-child(9){left:26%;animation-delay:-7s;width:3px;height:3px}.tw-adv-tnieve i:nth-child(10){left:74%;animation-delay:-8s;width:3px;height:3px}
+.tw-adv-tarjeta>*:not(.tw-adv-tnieve):not(.tw-adv-mono):not(.tw-adv-acebo){position:relative;z-index:1}
+.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-dia,.tw-adv-escena.listo .tw-adv-tarjeta>h3,.tw-adv-escena.listo .tw-adv-tarjeta>p,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-premio,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-cod,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-sellado,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-btn{animation:twAdvHijo .6s cubic-bezier(.3,1.3,.5,1) both}
+.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-dia{animation-delay:.3s}.tw-adv-escena.listo .tw-adv-tarjeta>h3{animation-delay:.55s}.tw-adv-escena.listo .tw-adv-tarjeta>p{animation-delay:.65s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-premio{animation-delay:.75s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-cod{animation-delay:.85s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-sellado{animation-delay:1.1s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-btn{animation-delay:1.2s}
+@keyframes twAdvHijo{from{opacity:0;transform:translateY(16px) scale(.96)}}
+.tw-adv-tarjeta .big{position:relative;width:118px;height:118px;margin:14px auto 4px;display:flex;align-items:center;justify-content:center;font-size:58px;line-height:1;border-radius:50%;background:radial-gradient(circle,#fffaf0 0 52%,#f6dfa6 53% 56%,#fff3d6 57%);box-shadow:0 0 0 2px #e0b54f,0 8px 22px rgba(160,110,20,.3)}
+.tw-adv-tarjeta .big .halo{position:absolute;inset:-26px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(224,181,79,.35) 0 8deg,transparent 8deg 20deg);-webkit-mask:radial-gradient(circle,transparent 46%,#000 50%,transparent 72%);mask:radial-gradient(circle,transparent 46%,#000 50%,transparent 72%);animation:twAdvGira 14s linear infinite;z-index:-1}
+.tw-adv-escena.listo .tw-adv-tarjeta .big{animation:twAdvIcoPop .8s cubic-bezier(.3,1.7,.5,1) .4s both}
+@keyframes twAdvIcoPop{from{transform:scale(.3) rotate(-20deg);opacity:0}}
+.tw-adv-tarjeta h3{margin:8px 0 8px;font-family:"TwDM",Georgia,serif;font-style:normal;font-size:31px;font-weight:400;line-height:1.08;color:#8e0c20;letter-spacing:.005em}
+.tw-adv-tarjeta p{margin:0 auto 14px;max-width:330px;font-size:14px;line-height:1.55;color:#4a3a22;font-family:"TwMS","Helvetica Neue",Arial,sans-serif;font-weight:500}
+.tw-adv-premio{position:relative;overflow:hidden;margin:4px auto 16px;max-width:340px;padding:12px 16px 13px;border-radius:18px;background:linear-gradient(135deg,#1f6b3f,#123f26);border:1.5px solid #e0b54f;color:#fff;display:flex;flex-direction:column;gap:3px;box-shadow:0 8px 20px rgba(18,63,38,.3)}
+.tw-adv-premio::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.28) 50%,transparent 70%);background-size:250% 100%;animation:twAdvBrilloP 3.4s ease-in-out 1.4s infinite}
+@keyframes twAdvBrilloP{0%{background-position:130% 0}60%,100%{background-position:-130% 0}}
+.tw-adv-premio small{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#f3d68a}
+.tw-adv-premio b{font-family:"TwDM",Georgia,serif;font-weight:400;font-size:24px;line-height:1.15;color:#fff8e6}
+.tw-adv-premio em{font-style:normal;font-size:12px;font-weight:600;color:rgba(255,255,255,.82)}
+.tw-adv-premio.paso{background:#efe7d8;border-color:#d8ccb4;color:#7a6c55;box-shadow:none}.tw-adv-premio.paso small{color:#9a8c72}.tw-adv-premio.paso b{color:#7a6c55;font-size:18px}
+.tw-adv-regalos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 12px;margin:2px 0 16px}
+.tw .tw-adv-pg{width:132px;border:0;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:#2a1f12!important;font:inherit}
+.tw-adv-escena.listo .tw-adv-pg{animation:twAdvHijo .6s cubic-bezier(.3,1.3,.5,1) calc(.95s + var(--i) * .12s) both}
+.tw-adv-pg .img{position:relative;width:118px;height:118px;border-radius:22px;background:#fff;border:2px solid #e0b54f;box-shadow:0 8px 18px rgba(120,80,20,.22);display:flex;align-items:center;justify-content:center;overflow:visible;animation:twAdvFlotaP 3.4s ease-in-out calc(var(--i) * .5s) infinite}
+.tw-adv-pg .img img{width:100%;height:100%;object-fit:cover;border-radius:20px}
+.tw-adv-pg .img .ph{font-size:34px;color:#c9a45a}
+.tw-adv-pg .img em{position:absolute;left:-6px;top:-6px;font-style:normal;font-size:12px;font-weight:800;color:#fff;background:#c8102e;border-radius:99px;padding:3px 8px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.tw-adv-pg .img .moñito{position:absolute;right:-8px;top:-10px;width:30px;height:20px;background:radial-gradient(circle at 50% 55%,#e0b54f 0 3.5px,transparent 4px),radial-gradient(ellipse at 28% 50%,#c8102e 0 7px,transparent 7.5px),radial-gradient(ellipse at 72% 50%,#c8102e 0 7px,transparent 7.5px);transform:rotate(14deg)}
+@keyframes twAdvFlotaP{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-5px) rotate(1.5deg)}}
+.tw-adv-pg small{margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#a0802f}
+.tw-adv-pg b{font-size:12.5px;font-weight:700;line-height:1.25;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-transform:none}
+.tw-adv-ingresa{margin:0 auto 14px;max-width:330px;font-size:12.5px;font-weight:600;color:#6b4a00;background:#fff3d6;border:1px solid #ecd8a6;border-radius:12px;padding:8px 12px}
+.tw .tw-adv-ingresa .tw-adv-link{color:#8e0c20!important}
 .tw-adv-btn{border:0;border-radius:99px;padding:12px 22px;font:inherit;font-size:14px;font-weight:600;letter-spacing:.06em;cursor:pointer;background:linear-gradient(90deg,#b8892e,#e9cf8a);color:#1d1400!important}
+.tw-adv-btn.rojo{position:relative;overflow:hidden;font-family:"TwMS",sans-serif;font-weight:800;font-size:15px;letter-spacing:.04em;padding:14px 34px;background:linear-gradient(180deg,#d6152f,#94101f);color:#fff7e3!important;box-shadow:0 0 0 2px #e0b54f,0 8px 20px rgba(148,16,31,.4)}
+.tw-adv-btn.rojo::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);background-size:250% 100%;animation:twAdvBrilloP 3s ease-in-out 2s infinite}
 .tw-adv-btn.sec{background:#fff;color:#0c1630!important;box-shadow:inset 0 0 0 1.5px #0c1630}
 .tw-adv-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 12px}
-.tw-adv-cod code{font-family:"TwJS",ui-monospace,monospace;font-weight:700;font-size:18px;letter-spacing:.16em;background:#0c1630;color:#ffd98a;padding:9px 14px 7px;border-radius:10px}
+.tw-adv-cod .tw-adv-btn.sec{padding:9px 14px;font-family:"TwMS",sans-serif;font-weight:700}
+.tw-adv-cod code{font-family:"TwMS",ui-monospace,monospace;font-weight:700;font-size:18px;letter-spacing:.16em;background:#0c1630;color:#ffd98a;padding:9px 14px 7px;border-radius:10px}
 .tw-adv-prods{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:0 -6px;text-align:left;scroll-snap-type:x mandatory;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-prods>*{flex:0 0 150px;scroll-snap-align:start}
 .tw-adv-info{display:inline-block;margin:0 auto 12px;padding:7px 14px;border-radius:999px;background:#fff3d6;color:#6b4a00;font-size:13px;font-weight:600;line-height:1.35;max-width:100%}
@@ -29549,13 +29592,13 @@ const advTitulo = (t) => { const p = String(t || "").trim().split(/\s+/); if (p.
 // Cómo se usa la sorpresa de un día (o que ya pasó): { t, paso }
 const advPlata = (n) => "$" + Math.round(n).toLocaleString("es-AR");
 function advInfo(d, hoy, vista) {
-  const pasado = !vista && d.dia < hoy, fecha = d.dia + "/12";
+  const pasado = !vista && d.dia < hoy, nota = (l) => l.filter(Boolean).join(" · ");
   if (d.tipo === "codigo" && d.codigo && d.pct) {
-    if (pasado && d.vale !== "navidad") return { t: "⌛ Este código era solo del " + fecha, paso: true };
-    return { t: "🎟️ " + d.pct + "% OFF usando el código en el carrito · " + (d.vale === "navidad" && d.dia < 25 ? "vale hasta Navidad" : "solo el " + fecha) + (d.minimo ? " · compras desde " + advPlata(d.minimo) : "") + (d.uno ? " · una vez por clienta" : "") };
+    if (pasado && d.vale !== "navidad") return { et: "Código del día " + d.dia, dest: "Esta sorpresa ya pasó", paso: true };
+    return { et: "🎟️ Tu código de regalo", dest: d.pct + "% OFF", nota: nota([d.vale === "navidad" && d.dia < 25 ? "Vale hasta Navidad" : "Vale solo hoy", d.minimo ? "En compras desde " + advPlata(d.minimo) : "", d.uno ? "Una vez por clienta" : "", "Online y en los locales"]) };
   }
-  if (d.tipo === "descuento" && d.pct) return pasado ? { t: "⌛ Este descuento era solo del " + fecha, paso: true } : { t: "🏷️ " + d.pct + "% OFF ya aplicado en estos productos, solo el " + fecha };
-  if (d.tipo === "regalo" && d.regalo) return pasado ? { t: "⌛ Este regalo era de las compras del " + fecha, paso: true } : { t: "🎁 Comprando el " + fecha + " te llevás de regalo: " + d.regalo + (d.minimo ? " (compras desde " + advPlata(d.minimo) + ")" : "") };
+  if (d.tipo === "descuento" && d.pct) return pasado ? { et: "Descuento del día " + d.dia, dest: "Esta sorpresa ya pasó", paso: true } : { et: "🏷️ Solo hoy", dest: d.pct + "% OFF", nota: "Ya aplicado en estos productos, online y en los locales" };
+  if (d.tipo === "regalo" && d.regalo) return pasado ? { et: "Regalo del día " + d.dia, dest: "Esta sorpresa ya pasó", paso: true } : { et: "🎁 Hoy, con tu compra te regalamos", dest: d.regalo, nota: d.minimo ? "En compras desde " + advPlata(d.minimo) : "Online y en los locales" };
   return null;
 }
 // ── Magia del Adviento ──
@@ -29605,12 +29648,16 @@ function TwAdvProgreso({ n }) {
   );
 }
 // Papá Noel en trineo cruzando el cielo (al abrir la ventana de hoy y cada tanto)
+// Papá Noel en trineo: silueta clásica (como en las películas) que cruza delante de la luna dejando un rastro de brillitos
+const ADV_RENO = "M3 15 C5 11 12 10 18 10.5 C22 10.8 25 9 27 6.5 L28.5 3.2 C29 2.4 30.6 2.2 31.2 3 L31.6 4.2 C31 5.4 30 6.6 29.6 8.2 C29.4 10.4 28.4 12.6 26.6 13.8 L30.6 18.6 L28.8 19.2 L25 15.4 C21 16.4 16 16.4 12 15.6 L7.4 19.8 L5.8 18.8 L9 14.6 C7 14.6 4.6 15.6 3 15 Z";
 const TwAdvTrineo = () => (
-  <svg className="tw-adv-trineo" viewBox="0 0 160 40" aria-hidden="true">
-    <path d="M2 30 Q40 34 80 31" fill="none" stroke="#ffe7a8" strokeWidth="1" strokeDasharray="1 4" opacity=".8" />
-    {[0, 1, 2].map(i => <g key={i} transform={"translate(" + (92 + i * 21) + " 14)"} fill="#2a1c10"><ellipse cx="8" cy="9" rx="8" ry="4" /><path d="M14 7 l5 -6 l2 1 l-4 6Z" /><path d="M18 1 l-2 -5 M18 1 l2 -5 M19 0 l4 -3" stroke="#2a1c10" strokeWidth="1" /><path d="M2 12 l-2 7 M5 12 l1 7 M11 12 l-1 7 M14 11 l3 7" stroke="#2a1c10" strokeWidth="1.3" />{i === 2 && <circle cx="21" cy="3" r="1.6" fill="#ff3b4e" className="nariz" />}</g>)}
-    <path d="M60 26 H96" stroke="#d8b46a" strokeWidth=".8" />
-    <g transform="translate(58 10)"><path d="M0 18 Q-4 18 -3 22 H30 Q36 22 37 16" fill="none" stroke="#d8b46a" strokeWidth="1.6" /><path d="M2 6 H28 L30 16 H0Z" fill="#b91c1c" /><circle cx="12" cy="0" r="4" fill="#f5d0b5" /><path d="M8 -2 Q12 -12 18 -3Z" fill="#b91c1c" /><circle cx="18" cy="-3" r="1.4" fill="#fff" /><path d="M8 4 Q12 9 16 4" fill="#fff" /><rect x="19" y="0" width="9" height="7" rx="1" fill="#2f7d4f" /></g>
+  <svg className="tw-adv-trineo" viewBox="0 0 200 50" aria-hidden="true">
+    <g className="rastro">{Array.from({ length: 14 }, (_, i) => <circle key={i} cx={14 + i * 4.6} cy={38 - Math.sin(i / 3) * 2.5 + (i % 2) * 2} r={.6 + (i % 3) * .45} style={{ "--d": (i * .09) + "s" }} />)}</g>
+    <g fill="#140c2e">
+      {[0, 1, 2, 3].map(i => <g key={i} transform={"translate(" + (96 + i * 25) + " " + (12 - i * 2.2) + ") scale(.78)"}><path d={ADV_RENO} /><path d="M29.6 3.4 l-1.6 -3 M29.6 3.4 l1.8 -3.4 M30.8 1.2 l2.6 -1.2 M28.6 1.4 l-2.4 -.8" stroke="#140c2e" strokeWidth="1" strokeLinecap="round" fill="none" />{i === 3 && <circle cx="31.8" cy="4.6" r="1.3" fill="#ff2a3c" className="nariz" />}</g>)}
+      <path d="M96 24 L84 30" stroke="#140c2e" strokeWidth=".7" />
+      <g transform="translate(58 18)"><path d="M2 20 Q-2 20 -1 23.5 H30 Q36 23.5 38 17" fill="none" stroke="#140c2e" strokeWidth="1.8" strokeLinecap="round" /><path d="M4 9 Q2 4 6 3 H24 Q30 3 32 9 L30 17 H6 Z" /><path d="M8 20 V17 M28 20 V17" stroke="#140c2e" strokeWidth="1.4" /><circle cx="17" cy="-2" r="3.6" /><path d="M14 -4 Q17 -12 22 -6 Z" /><path d="M10 3 Q14 -1 20 1 L22 3 Z" /><path d="M22 3 Q26 -6 31 0 Q32 3 30 4 Z" /></g>
+    </g>
   </svg>
 );
 const ADV_DESEOS = ["Que esta Navidad tu piel brille tanto como esta estrella ✨", "Deseo pedido: una rutina que te haga sentir linda todos los días 💫", "Que lo que más querés esté debajo del árbol 🎁", "Una estrella para vos: que el año que viene sea tu año 🌟", "Deseo concedido: más tiempo para vos y tu skincare 🧖‍♀️"];
@@ -29640,7 +29687,7 @@ function TwAdvAlbum({ adv, mio, logueada, onIngresar, demo }) {
     </div>
   );
 }
-function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {} }) {
+function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }) {
   const clave = "tienda_adv_" + slug + "_" + adv.anio;
   const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(localStorage.getItem(clave) || "[]"); } catch (e) { return []; } });
   const [abriendo, setAbriendo] = useState(null); // { d, fase }
@@ -29775,18 +29822,25 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {} }) {
             <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} className={"f" + k.f} style={{ "--x": k.x, "--y": k.y, "--k": k.k, "--r": k.r }} />)}</div>
             {abriendo.fase !== "listo" && <div className="tw-adv-zv" ref={zv}><TwAdvVentanaGrande d={sel} /></div>}
             {abriendo.fase === "abre" && <button className="tw-adv-saltar" onClick={saltar}>Saltar ›</button>}
-            <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 30 } : undefined}>
-              <span className="tw-adv-dia">DÍA {sel.dia}</span>
-              <div className="big"><TwAdvIcono icono={sel.icono} /></div>
+            {(() => { const info = advInfo(sel, hoy, adv.vista_previa); return (
+            <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 46 } : undefined}>
+              <div className="tw-adv-tnieve" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <i key={i} />)}</div>
+              <svg className="tw-adv-mono" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z" fill="#c8102e" /><path d="M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z" fill="#c8102e" /><path d="M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z" fill="#8e0c20" opacity=".55" /><path d="M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z" fill="#a50e26" /><circle cx="60" cy="30" r="7" fill="#e0b54f" /><circle cx="58" cy="28" r="2.4" fill="#fff3c4" /></svg>
+              <svg className="tw-adv-acebo i" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#1f6b3f" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#185c35" /><circle cx="30" cy="22" r="4" fill="#d01c33" /><circle cx="36" cy="25" r="3.6" fill="#b5122a" /><circle cx="26" cy="27" r="3.4" fill="#e02740" /></svg>
+              <svg className="tw-adv-acebo d" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#1f6b3f" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#185c35" /><circle cx="30" cy="22" r="4" fill="#d01c33" /><circle cx="36" cy="25" r="3.6" fill="#b5122a" /><circle cx="26" cy="27" r="3.4" fill="#e02740" /></svg>
+              <span className="tw-adv-dia">Día {sel.dia}</span>
+              <div className="big"><i className="halo" aria-hidden="true" /><TwAdvIcono icono={sel.icono} /></div>
               <h3>{sel.titulo || "¡Sorpresa!"}</h3>
               {sel.detalle ? <p>{sel.detalle}</p> : !sel.titulo && <p>Muy pronto vas a ver acá la sorpresa de este día.</p>}
-              {advInfo(sel, hoy, adv.vista_previa) && <div className={"tw-adv-info" + (advInfo(sel, hoy, adv.vista_previa).paso ? " paso" : "")}>{advInfo(sel, hoy, adv.vista_previa).t}</div>}
-              {sel.codigo && sel.tipo === "codigo" && !(advInfo(sel, hoy, adv.vista_previa) || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
-              {prods.length > 0 && <div className="tw-adv-prods">{prods.map(tarjeta)}</div>}
+              {info && <div className={"tw-adv-premio" + (info.paso ? " paso" : "")}><small>{info.et}</small><b>{info.dest}</b>{info.nota && <em>{info.nota}</em>}</div>}
+              {sel.codigo && sel.tipo === "codigo" && !(info || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
+              {prods.length > 0 && <div className="tw-adv-regalos">{prods.map((p, i) => <button key={p.id} className="tw-adv-pg" style={{ "--i": i }} onClick={() => { cerrarDia(); onAbrir && onAbrir(p); }}>
+                <span className="img">{p.foto && foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="ph">✿</span>}{sel.tipo === "descuento" && sel.pct > 0 && !(info || {}).paso && <em>-{sel.pct}%</em>}<i className="moñito" aria-hidden="true" /></span>
+                {p.marca && <small>{p.marca}</small>}<b>{p.nombre}</b></button>)}</div>}
               {premioSello && sel.dia === hoy && <div className="tw-adv-sellado"><span className="st"><TwAdvIcono icono={sel.icono} /></span><div><b>¡Sumaste el sello del día {sel.dia}!</b>{premioSello.premios && premioSello.premios.length ? <span>🎉 Ganaste {premioSello.premios.reduce((t, h) => t + h.puntos, 0).toLocaleString("es-AR")} puntos por juntar {premioSello.premios[premioSello.premios.length - 1].dias} {premioSello.premios[premioSello.premios.length - 1].dias === 1 ? "sello" : "sellos"}</span> : <span>Llevás {(premioSello.sellos || []).length} de 25 en tu álbum</span>}</div></div>}
-              {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-info">🎖️ <button className="tw-adv-link" style={{ color: "inherit" }} onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
-              <button className="tw-adv-btn" onClick={cerrarDia}>{sel.dia === hoy ? "¡Gracias! ✨" : "Cerrar"}</button>
-            </div>
+              {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-ingresa">🎖️ <button className="tw-adv-link" onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
+              <button className="tw-adv-btn rojo" onClick={cerrarDia}>{sel.dia === hoy ? "¡Gracias! ✨" : "Cerrar"}</button>
+            </div>); })()}
           </div>
         </div>
       </div>, document.body)}
@@ -32496,7 +32550,7 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
-            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} cuenta={{ logueada, pedir, ingresar: () => { setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para juntar los sellos del Calendario de Adviento"), 50); } }} />}
+            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} foto={foto} onAbrir={abrir} cuenta={{ logueada, pedir, ingresar: () => { setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para juntar los sellos del Calendario de Adviento"), 50); } }} />}
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} foto={foto} prods={cyHeroProds} maxPct={cyHeroMax} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
             {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
