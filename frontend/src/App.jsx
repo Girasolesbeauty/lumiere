@@ -27326,7 +27326,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1) rotate3d(1,.6,.3,0deg)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 60px)) scale(.6) rotate3d(1,.6,.3,calc(var(--r) * 3))}}
 @font-face{font-family:"TwDM";font-display:swap;src:url(https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2G_Bx0g.woff2) format("woff2")}
 @font-face{font-family:"TwMS";font-display:swap;font-weight:400 800;src:url(https://fonts.gstatic.com/s/montserrat/v31/JTUSjIg1_i6t8kCHKm459Wlhyw.woff2) format("woff2")}
-.tw-adv-tarjeta{position:relative;margin:0 auto;font-family:"TwMS","Helvetica Neue",Arial,sans-serif;background:radial-gradient(circle at 15% 12%,rgba(255,255,255,.9) 0 1.5px,transparent 2px) 0 0/34px 34px,radial-gradient(circle at 70% 60%,rgba(214,176,96,.18) 0 1.5px,transparent 2px) 0 0/46px 46px,linear-gradient(180deg,#fffdf6,#fbefd9);color:#2a1f12;border-radius:26px;padding:34px 18px 20px;box-shadow:0 0 0 2px #d9b25f,0 0 0 7px rgba(217,178,95,.22),0 0 46px rgba(255,214,140,.35),0 26px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(70px) rotateX(-62deg) scale(.9);transform-origin:50% 100%}
+.tw-adv-tarjeta{position:relative;margin:0 auto;font-family:"TwMS","Helvetica Neue",Arial,sans-serif;background:radial-gradient(circle at 15% 12%,rgba(255,255,255,.9) 0 1.5px,transparent 2px) 0 0/34px 34px,radial-gradient(circle at 70% 60%,rgba(214,176,96,.18) 0 1.5px,transparent 2px) 0 0/46px 46px,linear-gradient(180deg,#fffdf6,#fbefd9);color:#2a1f12;border-radius:26px;padding:34px 18px 50px;box-shadow:0 0 0 2px #d9b25f,0 0 0 7px rgba(217,178,95,.22),0 0 46px rgba(255,214,140,.35),0 26px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(70px) rotateX(-62deg) scale(.9);transform-origin:50% 100%}
 .tw-adv-escena.abre:not(.listo) .tw-adv-tarjeta{position:absolute;left:0;right:0;top:100%}
 .tw-adv-escena.listo .tw-adv-tarjeta{animation:twAdvSube .6s cubic-bezier(.3,1.3,.5,1) forwards}
 .tw-adv-tarjeta::after{content:"";position:absolute;inset:9px;border:1.5px dashed rgba(201,164,90,.55);border-radius:19px;pointer-events:none}
@@ -27338,10 +27338,21 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvMono{from{transform:scale(.2) rotate(-25deg);opacity:0}}
 .tw-adv-acebo{position:absolute;top:10px;width:58px;z-index:1;opacity:.95}
 .tw-adv-acebo.i{left:6px;transform:rotate(-18deg)}.tw-adv-acebo.d{right:6px;transform:scaleX(-1) rotate(-18deg)}
+.tw-adv-pers{position:absolute;right:-6px;bottom:-12px;width:84px;z-index:3;pointer-events:none;opacity:0;transform:translateY(40px) rotate(8deg)}
+.tw-adv-pers svg{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25))}
+.tw-adv-escena.listo .tw-adv-pers{animation:twAdvPersSale .8s cubic-bezier(.3,1.6,.5,1) 1.35s forwards}
+@keyframes twAdvPersSale{to{opacity:1;transform:none}}
+.tw-adv-pers .brazo{animation:twAdvSaluda .9s ease-in-out 2s infinite alternate}
+@keyframes twAdvSaluda{0%{transform:rotate(-14deg)}100%{transform:rotate(16deg)}}
+.tw-adv-pers .nariz-r{animation:twAdvTw .9s ease-in-out infinite}
+.tw-adv-pers .globo{position:absolute;right:66px;bottom:20px;white-space:nowrap;background:#fff;color:#8e0c20;font-family:"TwMS",sans-serif;font-weight:800;font-size:12px;padding:6px 11px;border-radius:14px 14px 4px 14px;box-shadow:0 4px 12px rgba(0,0,0,.18),0 0 0 1.5px #e0b54f;opacity:0;transform:scale(.4);transform-origin:100% 80%}
+.tw-adv-escena.listo .tw-adv-pers .globo{animation:twAdvGlobo .5s cubic-bezier(.3,1.6,.5,1) 2.1s forwards}
+@keyframes twAdvGlobo{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tw-adv-pers,.tw-adv-pers .globo{opacity:1;transform:none;animation:none!important}.tw-adv-pers .brazo{animation:none!important}}
 .tw-adv-tnieve{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none}
 .tw-adv-tnieve i{position:absolute;top:-8px;width:5px;height:5px;border-radius:50%;background:#e6dccb;opacity:.8;animation:twAdvNieve 7s linear infinite}
 .tw-adv-tnieve i:nth-child(1){left:8%;animation-delay:-1s}.tw-adv-tnieve i:nth-child(2){left:20%;animation-delay:-4s;animation-duration:9s}.tw-adv-tnieve i:nth-child(3){left:33%;animation-delay:-2.5s}.tw-adv-tnieve i:nth-child(4){left:45%;animation-delay:-6s;animation-duration:8s}.tw-adv-tnieve i:nth-child(5){left:57%;animation-delay:-.5s}.tw-adv-tnieve i:nth-child(6){left:68%;animation-delay:-3.5s;animation-duration:10s}.tw-adv-tnieve i:nth-child(7){left:79%;animation-delay:-5s}.tw-adv-tnieve i:nth-child(8){left:90%;animation-delay:-2s;animation-duration:8.5s}.tw-adv-tnieve i:nth-child(9){left:26%;animation-delay:-7s;width:3px;height:3px}.tw-adv-tnieve i:nth-child(10){left:74%;animation-delay:-8s;width:3px;height:3px}
-.tw-adv-tarjeta>*:not(.tw-adv-tnieve):not(.tw-adv-mono):not(.tw-adv-acebo){position:relative;z-index:1}
+.tw-adv-tarjeta>*:not(.tw-adv-tnieve):not(.tw-adv-mono):not(.tw-adv-acebo):not(.tw-adv-pers){position:relative;z-index:1}
 .tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-dia,.tw-adv-escena.listo .tw-adv-tarjeta>h3,.tw-adv-escena.listo .tw-adv-tarjeta>p,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-premio,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-cod,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-sellado,.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-btn{animation:twAdvHijo .6s cubic-bezier(.3,1.3,.5,1) both}
 .tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-dia{animation-delay:.3s}.tw-adv-escena.listo .tw-adv-tarjeta>h3{animation-delay:.55s}.tw-adv-escena.listo .tw-adv-tarjeta>p{animation-delay:.65s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-premio{animation-delay:.75s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-cod{animation-delay:.85s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-sellado{animation-delay:1.1s}.tw-adv-escena.listo .tw-adv-tarjeta>.tw-adv-btn{animation-delay:1.2s}
 @keyframes twAdvHijo{from{opacity:0;transform:translateY(16px) scale(.96)}}
@@ -29687,6 +29698,73 @@ function TwAdvAlbum({ adv, mio, logueada, onIngresar, demo }) {
     </div>
   );
 }
+// Personajes navideños que se asoman en la tarjeta de la sorpresa y saludan (uno distinto según el día)
+// Cada uno: [nombre, frase, dibujo (viewBox 0 0 80 100; el brazo que saluda va en <g class="brazo">)]
+const ADV_PERSONAJES = [
+  ["Hombre de jengibre", "¡Hola! 🍪", <>
+    <g className="brazo" style={{ transformOrigin: "54px 50px" }}><path d="M52 52 Q66 46 70 30" stroke="#b5662f" strokeWidth="11" strokeLinecap="round" fill="none" /><path d="M66 34 l6 -2" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></g>
+    <path d="M28 52 Q16 58 12 70" stroke="#b5662f" strokeWidth="11" strokeLinecap="round" fill="none" /><path d="M10 66 l5 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    <path d="M30 76 L24 96 M50 76 L56 96" stroke="#b5662f" strokeWidth="12" strokeLinecap="round" /><path d="M20 92 h8 M52 92 h8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    <rect x="25" y="44" width="30" height="36" rx="13" fill="#c0703a" />
+    <circle cx="40" cy="28" r="17" fill="#c0703a" /><circle cx="34" cy="26" r="2.3" fill="#2b1608" /><circle cx="46" cy="26" r="2.3" fill="#2b1608" /><circle cx="30" cy="32" r="2.6" fill="#ff8a8a" opacity=".7" /><circle cx="50" cy="32" r="2.6" fill="#ff8a8a" opacity=".7" />
+    <path d="M33 33 Q40 39 47 33" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none" />
+    <circle cx="40" cy="52" r="2.6" fill="#d01c33" /><circle cx="40" cy="61" r="2.6" fill="#1f8a4c" /><circle cx="40" cy="70" r="2.6" fill="#d01c33" />
+    <path d="M30 46 q10 5 20 0" stroke="#fff" strokeWidth="1.6" fill="none" strokeDasharray="2 2" /></>],
+  ["Duendecita", "¡Feliz día! ✨", <>
+    <g className="brazo" style={{ transformOrigin: "54px 54px" }}><path d="M53 56 Q64 48 66 34" stroke="#1f8a4c" strokeWidth="8" strokeLinecap="round" fill="none" /><circle cx="66" cy="31" r="4.6" fill="#f6c9a8" /></g>
+    <path d="M27 56 Q18 64 20 74" stroke="#1f8a4c" strokeWidth="8" strokeLinecap="round" fill="none" /><circle cx="20" cy="76" r="4.2" fill="#f6c9a8" />
+    <path d="M32 86 V97 M48 86 V97" stroke="#d01c33" strokeWidth="6" strokeLinecap="round" /><path d="M27 97 h9 M45 97 h9" stroke="#1d3d2a" strokeWidth="4" strokeLinecap="round" />
+    <path d="M26 88 L32 52 H48 L54 88 Z" fill="#1f8a4c" /><path d="M26 88 l4 -5 l4 5 l4 -5 l4 5 l4 -5 l4 5 l4 -5 l2 5" fill="#d01c33" />
+    <path d="M30 52 l10 7 l10 -7 Z" fill="#d01c33" /><rect x="30" y="66" width="20" height="4" fill="#e0b54f" />
+    <path d="M22 36 Q16 30 15 24 Q22 28 26 32 Z M58 36 Q64 30 65 24 Q58 28 54 32 Z" fill="#f6c9a8" />
+    <circle cx="40" cy="36" r="15" fill="#f6c9a8" /><path d="M25 38 Q22 52 28 54 M55 38 Q58 52 52 54" stroke="#8a4b22" strokeWidth="5" strokeLinecap="round" fill="none" />
+    <circle cx="35" cy="36" r="2" fill="#2b1608" /><circle cx="45" cy="36" r="2" fill="#2b1608" /><circle cx="31" cy="41" r="2.6" fill="#ff8a8a" opacity=".7" /><circle cx="49" cy="41" r="2.6" fill="#ff8a8a" opacity=".7" /><path d="M36 43 Q40 46 44 43" stroke="#a5402c" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    <path d="M24 30 Q40 14 56 30 Q48 26 40 26 Q32 26 24 30Z" fill="#8a4b22" />
+    <path d="M23 29 Q38 -6 64 6 Q50 12 56 28 Z" fill="#1f8a4c" /><rect x="22" y="26" width="36" height="6" rx="3" fill="#d01c33" /><circle cx="64" cy="7" r="4" fill="#e0b54f" /></>],
+  ["Muñeco de nieve", "¡Brrr, qué lindo día! ❄️", <>
+    <g className="brazo" style={{ transformOrigin: "52px 52px" }}><path d="M52 54 L68 34 M62 41 l6 1 M65 37 l-1 -6" stroke="#6b4423" strokeWidth="2.6" strokeLinecap="round" fill="none" /></g>
+    <path d="M28 56 L12 66 M18 62 l-2 -5" stroke="#6b4423" strokeWidth="2.6" strokeLinecap="round" />
+    <circle cx="40" cy="76" r="21" fill="#fff" stroke="#d6e4f0" strokeWidth="1.5" /><circle cx="40" cy="50" r="15" fill="#fff" stroke="#d6e4f0" strokeWidth="1.5" />
+    <circle cx="40" cy="70" r="2.2" fill="#2b2b2b" /><circle cx="40" cy="79" r="2.2" fill="#2b2b2b" />
+    <circle cx="40" cy="28" r="13" fill="#fff" stroke="#d6e4f0" strokeWidth="1.5" /><circle cx="35" cy="26" r="1.9" fill="#2b2b2b" /><circle cx="45" cy="26" r="1.9" fill="#2b2b2b" /><path d="M40 29 L52 31 L40 32 Z" fill="#f08a24" /><path d="M35 34 Q40 37 45 34" stroke="#2b2b2b" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeDasharray="1.2 2" />
+    <path d="M27 40 Q40 46 53 40 L53 44 Q40 50 27 44 Z" fill="#d01c33" /><path d="M46 44 l3 12 l5 -1 l-3 -11 Z" fill="#d01c33" />
+    <rect x="28" y="14" width="24" height="4" rx="1" fill="#1d1d2e" /><rect x="31" y="0" width="18" height="15" rx="1" fill="#1d1d2e" /><rect x="31" y="10" width="18" height="3" fill="#d01c33" /><circle cx="45" cy="11" r="2" fill="#1f8a4c" /></>],
+  ["Rudolph", "¡Hoy brilla tu día! ✨", <>
+    <path d="M24 22 Q14 8 18 2 M18 12 L10 8 M21 16 L13 15 M56 22 Q66 8 62 2 M62 12 L70 8 M59 16 L67 15" stroke="#7a4a22" strokeWidth="3" strokeLinecap="round" fill="none" />
+    <path d="M28 70 Q22 84 30 98 H50 Q58 84 52 70 Z" fill="#9a5a2c" />
+    <g className="brazo" style={{ transformOrigin: "50px 74px" }}><path d="M50 74 Q62 66 64 52" stroke="#9a5a2c" strokeWidth="8" strokeLinecap="round" fill="none" /><path d="M60 48 h8 v4 h-8 Z" fill="#3a2410" /></g>
+    <ellipse cx="40" cy="44" rx="20" ry="22" fill="#9a5a2c" /><ellipse cx="22" cy="30" rx="7" ry="4" transform="rotate(-30 22 30)" fill="#9a5a2c" /><ellipse cx="58" cy="30" rx="7" ry="4" transform="rotate(30 58 30)" fill="#9a5a2c" />
+    <ellipse cx="40" cy="56" rx="13" ry="10" fill="#d9a877" /><circle cx="33" cy="38" r="2.6" fill="#2b1608" /><circle cx="47" cy="38" r="2.6" fill="#2b1608" /><circle cx="34" cy="37" r=".9" fill="#fff" /><circle cx="48" cy="37" r=".9" fill="#fff" />
+    <circle className="nariz-r" cx="40" cy="51" r="6" fill="#e3132b" /><circle cx="38" cy="49" r="1.8" fill="#ff8a96" /><path d="M35 61 Q40 65 45 61" stroke="#5a3215" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+    <path d="M26 68 Q40 74 54 68 L54 72 Q40 78 26 72 Z" fill="#d01c33" /><circle cx="40" cy="75" r="3" fill="#e0b54f" /></>],
+  ["Pingüino", "¡Hola, hola! 🐧", <>
+    <g className="brazo" style={{ transformOrigin: "56px 56px" }}><path d="M56 54 Q70 44 70 30 Q62 40 54 50 Z" fill="#1d2433" /></g>
+    <path d="M24 54 Q12 66 14 80 Q22 70 26 62 Z" fill="#1d2433" />
+    <ellipse cx="40" cy="62" rx="20" ry="30" fill="#1d2433" /><ellipse cx="40" cy="68" rx="13" ry="22" fill="#fff" />
+    <circle cx="34" cy="44" r="2.3" fill="#fff" /><circle cx="46" cy="44" r="2.3" fill="#fff" /><circle cx="34" cy="44" r="1.2" fill="#1d2433" /><circle cx="46" cy="44" r="1.2" fill="#1d2433" />
+    <path d="M36 50 L44 50 L40 56 Z" fill="#f08a24" /><circle cx="30" cy="51" r="2.6" fill="#ff8a8a" opacity=".6" /><circle cx="50" cy="51" r="2.6" fill="#ff8a8a" opacity=".6" />
+    <path d="M28 58 Q40 64 52 58 L52 62 Q40 68 28 62 Z" fill="#d01c33" /><path d="M46 62 l2 12 l5 -1 l-2 -12 Z" fill="#d01c33" />
+    <path d="M30 92 h8 M42 92 h8" stroke="#f08a24" strokeWidth="4" strokeLinecap="round" />
+    <path d="M24 36 Q40 10 56 36 Z" fill="#d01c33" /><rect x="23" y="33" width="34" height="6" rx="3" fill="#fff" /><circle cx="40" cy="14" r="4.5" fill="#fff" /></>],
+  ["Papá Noel", "¡Jo, jo, jo! 🎅", <>
+    <g className="brazo" style={{ transformOrigin: "58px 66px" }}><path d="M56 68 Q68 58 68 44" stroke="#c8102e" strokeWidth="10" strokeLinecap="round" fill="none" /><circle cx="68" cy="40" r="6" fill="#1d1d2e" /><rect x="62" y="44" width="12" height="4" rx="2" fill="#fff" /></g>
+    <path d="M18 98 Q16 70 40 64 Q64 70 62 98 Z" fill="#c8102e" /><rect x="36" y="64" width="8" height="34" fill="#fff" /><rect x="17" y="86" width="46" height="5" fill="#1d1d2e" /><rect x="35" y="85" width="10" height="7" rx="1" fill="#e0b54f" />
+    <circle cx="40" cy="42" r="16" fill="#f6c9a8" />
+    <path d="M22 44 Q22 72 40 74 Q58 72 58 44 Q50 52 40 52 Q30 52 22 44 Z" fill="#fff" /><path d="M32 52 Q40 48 48 52 Q44 56 40 54 Q36 56 32 52 Z" fill="#fff" stroke="#e8e8e8" strokeWidth=".6" />
+    <circle cx="34" cy="40" r="2" fill="#2b1608" /><circle cx="46" cy="40" r="2" fill="#2b1608" /><circle cx="29" cy="45" r="3" fill="#ff8a8a" opacity=".6" /><circle cx="51" cy="45" r="3" fill="#ff8a8a" opacity=".6" /><circle cx="40" cy="45" r="2.6" fill="#f0a389" />
+    <path d="M23 34 Q30 6 52 8 Q66 12 68 30 Q58 22 54 24 L58 32 Z" fill="#c8102e" /><rect x="21" y="29" width="38" height="8" rx="4" fill="#fff" /><circle cx="68" cy="31" r="5" fill="#fff" /></>],
+];
+// Qué personaje sale cada día (se van turnando)
+const advPersonaje = (dia) => ADV_PERSONAJES[(Math.max(1, dia) - 1) % ADV_PERSONAJES.length];
+function TwAdvPersonaje({ dia }) {
+  const [nombre, frase, dibujo] = advPersonaje(dia);
+  return (
+    <div className={"tw-adv-pers p" + ((Math.max(1, dia) - 1) % ADV_PERSONAJES.length)} aria-hidden="true">
+      <span className="globo">{frase}</span>
+      <svg viewBox="0 0 80 100" role="img" aria-label={nombre}>{dibujo}</svg>
+    </div>
+  );
+}
 function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }) {
   const clave = "tienda_adv_" + slug + "_" + adv.anio;
   const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(localStorage.getItem(clave) || "[]"); } catch (e) { return []; } });
@@ -29824,6 +29902,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
             {abriendo.fase === "abre" && <button className="tw-adv-saltar" onClick={saltar}>Saltar ›</button>}
             {(() => { const info = advInfo(sel, hoy, adv.vista_previa); return (
             <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 46 } : undefined}>
+              <TwAdvPersonaje dia={sel.dia} />
               <div className="tw-adv-tnieve" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <i key={i} />)}</div>
               <svg className="tw-adv-mono" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z" fill="#c8102e" /><path d="M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z" fill="#c8102e" /><path d="M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z" fill="#8e0c20" opacity=".55" /><path d="M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z" fill="#a50e26" /><circle cx="60" cy="30" r="7" fill="#e0b54f" /><circle cx="58" cy="28" r="2.4" fill="#fff3c4" /></svg>
               <svg className="tw-adv-acebo i" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#1f6b3f" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#185c35" /><circle cx="30" cy="22" r="4" fill="#d01c33" /><circle cx="36" cy="25" r="3.6" fill="#b5122a" /><circle cx="26" cy="27" r="3.4" fill="#e02740" /></svg>
