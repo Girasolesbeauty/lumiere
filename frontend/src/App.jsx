@@ -29043,7 +29043,7 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
             <div className="tw-hw-cod brilla"><code>{premio.cupon}</code><button className="tw-hw-btn sec" style={{ padding: "8px 12px" }} onClick={() => { try { navigator.clipboard.writeText(premio.cupon); setCopiado(true); } catch (e) {} }}>{copiado ? "✓" : "Copiar"}</button></div>
             <p className="tw-hw-chica">Es solo para vos (con tu cuenta){hasta ? " y vale hasta el " + hasta : ""}.</p>
             {premio.contado && <p className="tw-hw-chica">💵 Vale pagando con transferencia, efectivo, débito o crédito en 1 cuota.</p>}
-            <p className="tw-hw-chica" style={{ color: "#ffcf7a" }}>🍬 + 🍬 ¡Tus códigos se juntan! Abrí más calabazas y usalos todos juntos: hasta {hw.tope || 30}% OFF en una compra.</p>
+            {hw.juego && <p className="tw-hw-chica" style={{ color: "#ffcf7a" }}>🍬 + 🍬 ¡Tus códigos se juntan! Abrí más calabazas y usalos todos juntos: hasta {hw.tope || 30}% OFF en una compra.</p>}
           </>}
           {premio.tipo === "puntos" && <>
             <div className="tw-hw-puntos">+<TwHwCuenta hasta={premio.valor} /> <small>puntos</small></div>
@@ -29054,7 +29054,7 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
             <p className="tw-hw-chica">Entrá con tu cuenta al comprar{hasta ? " · vale hasta el " + hasta : ""}.</p>
           </>}
           {premio.tipo === "nada" && <p>Esta vez la calabaza estaba vacía… ¡pero mirá todo lo que preparamos para tu look de Halloween!</p>}
-          {premio.ya && !(info && info.quedan > 0) && <p className="tw-hw-chica">Ya abriste tu calabaza: este es tu premio.</p>}
+          {premio.ya && !(info && info.quedan > 0) && hw.juego && <p className="tw-hw-chica">Ya abriste tu calabaza: este es tu premio.</p>}
           {premio.prueba && <p className="tw-hw-chica">(Vista previa: no se guardó ni se dio nada)</p>}
           {info && info.premios && info.premios.length > 1 && <div className="tw-hw-mis">
             <b>Tus premios de Halloween</b>
@@ -29062,7 +29062,8 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
             {info.premios.every(x => x.tipo === "nada") && <div>👻 Por ahora, solo trucos… ¡seguí probando!</div>}
           </div>}
           {info && info.quedan > 0 && <button className="tw-hw-btn" style={{ margin: "6px 0 4px" }} onClick={() => { setCopiado(false); setEstado("elegir"); }}>🎃 ¡Tenés {info.quedan === 1 ? "otra calabaza" : info.quedan + " calabazas más"}! Abrila</button>}
-          {info && info.quedan === 0 && !premio.prueba && <TwHwOtra info={info} link={link} tope={hw.tope} />}
+          {info && info.quedan === 0 && !premio.prueba && hw.juego && <TwHwOtra info={info} link={link} tope={hw.tope} />}
+          {!hw.juego && <p className="tw-hw-chica" style={{ color: "#ffcf7a" }}>🎃 El juego de las calabazas ya terminó. {premio.tipo === "cupon" || (info && info.premios && info.premios.some(x => x.tipo === "cupon" && !x.cupon_usado)) ? "Tus códigos valen hasta el " + hasta + " a las 23:59, online o en el local." : "¡Gracias por jugar!"}</p>}
           <div className="tw-hw-btns" style={{ justifyContent: "center", marginTop: 8 }}>
             {onVerLook && <button className="tw-hw-btn" onClick={onVerLook}>Ver tu look de Halloween</button>}
             <button className="tw-hw-btn sec" onClick={onCerrar}>Seguir mirando</button>
@@ -30270,7 +30271,7 @@ function TiendaPublica({ slug }) {
   }, []);
 
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
-  useEffect(() => { if (!logueada || !tienda || !tienda.halloween || !tienda.halloween.juego || tienda.halloween.vista_previa) return; cargarHw(); }, [logueada, !!(tienda && tienda.halloween)]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!logueada || !tienda || !tienda.halloween || tienda.halloween.vista_previa) return; cargarHw(); }, [logueada, !!(tienda && tienda.halloween)]); // eslint-disable-line react-hooks/exhaustive-deps
   // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
   const [resVer, setResVer] = useState(null); // { id, d }
   const [misRes, setMisRes] = useState(null); // { para_resenar, mias }
@@ -31677,10 +31678,11 @@ function TiendaPublica({ slug }) {
       {pie}
 
       {/* Halloween: calabaza flotante para jugar "¿Dulce o truco?" */}
-      {tienda.halloween && tienda.halloween.juego && !paso && !ver && !hwJuego && (
-        <button className="tw-hw-fab" onClick={() => { setHwJuego(true); if (logueada && !tienda.halloween.vista_previa) cargarHw(); }} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? (hwInfo && hwInfo.quedan > 0 ? "¡Otra calabaza!" : "Tu premio") : "¿Dulce o truco?"}</button>
+      {/* Con el juego cerrado (o durante el Cyber), las que ganaron siguen viendo sus premios y códigos */}
+      {tienda.halloween && (tienda.halloween.juego || hwMio) && !paso && !ver && !hwJuego && (
+        <button className="tw-hw-fab" onClick={() => { setHwJuego(true); if (logueada && !tienda.halloween.vista_previa) cargarHw(); }} aria-label="Jugar ¿Dulce o truco?"><b aria-hidden="true">🎃</b>{hwMio ? (tienda.halloween.juego && hwInfo && hwInfo.quedan > 0 ? "¡Otra calabaza!" : "Tu premio") : "¿Dulce o truco?"}</button>
       )}
-      {tienda.halloween && tienda.halloween.musica && <TwHwMusica />}
+      {tienda.halloween && tienda.halloween.musica && !tienda.cyber && <TwHwMusica />}
       {tienda.halloween && !tienda.cyber && <TwHwIntro hw={tienda.halloween} slug={slug} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
       {hwJuego && tienda.halloween && <TwDulceTruco hw={tienda.halloween} logueada={logueada} mio={hwMio && !tienda.halloween.vista_previa ? { ...hwMio, ya: true } : null} info={tienda.halloween.vista_previa ? null : hwInfo}
         link={hwInfo && hwInfo.codigo ? (tienda.dominio ? "https://" + tienda.dominio + "/" : window.location.origin + window.location.pathname) + "?" + (tienda.dominio ? "" : "tienda=" + encodeURIComponent(slug) + "&") + "amiga=" + hwInfo.codigo : null}

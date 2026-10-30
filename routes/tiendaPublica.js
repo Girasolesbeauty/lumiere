@@ -878,7 +878,7 @@ router.get('/:slug/halloween/mio', conCuenta, async (req, res) => {
     // El premio "principal": un regalo que todavía no usó (va solo en su próximo pedido) o el último que sacó
     const r = k.jugadas.find(x => x.tipo === 'regalo' && !x.pedido_id) || k.jugadas[k.jugadas.length - 1];
     const codigo = await tienda.codigoAmiga(pool, req.clienteId).catch(() => null);
-    res.json({ jugado: !!r, premio: r ? premioHw(r, hw) : null, premios: k.jugadas.map(x => premioHw(x, hw)), quedan: k.quedan, compras: k.compras, amigas: k.amigas, amigas_max: k.amigas_max, codigo, hasta: hw.hasta });
+    res.json({ jugado: !!r, premio: r ? premioHw(r, hw) : null, premios: k.jugadas.map(x => premioHw(x, hw)), quedan: hw.juego ? k.quedan : 0, juego: hw.juego, compras: k.compras, amigas: k.amigas, amigas_max: k.amigas_max, codigo, hasta: hw.hasta });
   } catch (e) { console.error('[tienda publica] halloween mio:', e.message); res.status(500).json({ error: 'No se pudo leer' }); }
 });
 router.post('/:slug/halloween/jugar', conCuenta, async (req, res) => {
