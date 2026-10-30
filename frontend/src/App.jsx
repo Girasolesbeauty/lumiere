@@ -26705,6 +26705,19 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvNieve{to{transform:translate(var(--x),1100px)}}
 .tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/560}
 .tw-adv-ciudad>svg,.tw-adv-fach,.tw-adv-fach svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tw-adv-fach .corre{animation:twAdvCorre 1.4s linear infinite}
+@keyframes twAdvCorre{from{stroke-dashoffset:var(--o0)}to{stroke-dashoffset:var(--o1)}}
+.tw-adv-fach .brilla{transform-box:fill-box;transform-origin:center;opacity:0;animation:twAdvBrilla 4.4s ease-in-out infinite}
+@keyframes twAdvBrilla{0%,70%,100%{opacity:0;transform:scale(.2) rotate(0)}80%{opacity:1;transform:scale(1.15) rotate(45deg)}90%{opacity:.6;transform:scale(.6) rotate(90deg)}}
+.tw-adv-fugaz{animation:twAdvFugaz 9s ease-in 3s infinite;opacity:0}
+@keyframes twAdvFugaz{0%{opacity:0;transform:translate(40px,10px) rotate(18deg)}2%{opacity:1}12%{opacity:1;transform:translate(260px,80px) rotate(18deg)}14%,100%{opacity:0;transform:translate(280px,86px) rotate(18deg)}}
+.tw-adv-ciudad::after{content:"";position:absolute;inset:0;z-index:4;pointer-events:none;background:linear-gradient(180deg,rgba(15,12,46,.92),rgba(36,26,82,.92));clip-path:inset(0 0 0 0)}
+.tw-adv-ciudad.on::after{animation:twAdvEnc 1.9s steps(8,end) .15s forwards}
+@keyframes twAdvEnc{to{clip-path:inset(0 0 100% 0)}}
+.tw-adv-v.listo:not(.hoy){animation:twAdvRespira 2.8s ease-in-out infinite}
+@keyframes twAdvRespira{0%,100%{box-shadow:0 0 0 0 rgba(255,224,138,0)}50%{box-shadow:0 0 10px 2px rgba(255,224,138,.45)}}
+.tw-adv-v.recien{animation:twAdvRecien 1.1s ease-out}
+@keyframes twAdvRecien{0%{filter:brightness(2.6);transform:scale(1.25)}40%{filter:brightness(1.6);transform:scale(.95)}100%{filter:none;transform:none}}
 .tw-adv-fach .a1{animation:twAdvTw 1.6s ease-in-out infinite}.tw-adv-fach .a2{animation:twAdvTw 1.6s ease-in-out .55s infinite}.tw-adv-fach .a3{animation:twAdvTw 1.6s ease-in-out 1.1s infinite}
 @keyframes twAdvTw{0%,100%{opacity:1}50%{opacity:.3}}
 .tw-adv-fach .afEst{transform-box:fill-box;transform-origin:center;animation:twAdvDest 2.6s ease-in-out infinite}
@@ -26712,7 +26725,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-fach .afLat{transform-box:fill-box;transform-origin:center;animation:twAdvFaro 2.4s ease-in-out infinite}
 .tw-adv-fach .afBand{transform-box:fill-box;transform-origin:0 50%;animation:twAdvBand 2.2s ease-in-out infinite}
 @keyframes twAdvBand{0%,100%{transform:skewY(0)}50%{transform:skewY(-6deg) scaleX(.94)}}
-@media (prefers-reduced-motion:reduce){.tw-adv-fach *{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.tw-adv-fach *,.tw-adv-fugaz,.tw-adv-v{animation:none!important}.tw-adv-ciudad::after{display:none}}
 .tw-adv-titila{animation:twAdvTit 3.2s ease-in-out infinite}
 @keyframes twAdvTit{0%,100%{opacity:.55}50%{opacity:.15}}
 .tw-adv-faro{animation:twAdvFaro 2.4s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
@@ -26729,7 +26742,9 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-tarjeta .big .tw-adv-esc{width:96px;height:96px}
 .tw-adv-v.prendida b{position:absolute;right:2px;bottom:1px;font-size:8px;margin:0;opacity:.7;color:#6a3d00}
 .tw-adv-v.hoy{border-color:#fff3cf;animation:twAdvHoyV 1.4s ease-in-out infinite}
-@keyframes twAdvHoyV{0%,100%{box-shadow:0 0 0 1px rgba(255,243,207,.6),0 0 8px 2px rgba(255,214,120,.35)}50%{box-shadow:0 0 0 2px #fff3cf,0 0 22px 7px rgba(255,214,120,.85)}}
+@keyframes twAdvHoyV{0%,100%{box-shadow:0 0 0 2px #fff3cf,0 0 16px 5px rgba(255,59,78,.7)}25%{box-shadow:0 0 0 2px #fff3cf,0 0 20px 7px rgba(255,210,63,.85)}50%{box-shadow:0 0 0 2px #fff3cf,0 0 16px 5px rgba(51,209,122,.75)}75%{box-shadow:0 0 0 2px #fff3cf,0 0 20px 7px rgba(63,169,255,.8)}}
+.tw-adv-v.hoy .hoy-chip{animation:twAdvChip 1s ease-in-out infinite}
+@keyframes twAdvChip{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-3px)}}
 .tw-adv-v.hoy b{color:#fff}
 .tw-adv-v .hoy-chip{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#e8cf8f;color:#2a1c00;font-size:7.5px;font-weight:700;letter-spacing:.14em;padding:2px 5px 1px;border-radius:99px;white-space:nowrap;line-height:1.2}
 .tw-adv-v.bloq{opacity:.6}
@@ -26740,7 +26755,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#0c1630;color:#f3e7cf;border:1px solid #e8cf8f;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-adv-vista{left:auto;max-width:420px}}
 .tw-adv-nav{background:linear-gradient(90deg,#b8892e,#e9cf8a)!important;border-radius:99px}
-.tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(22,34,64,.96),rgba(4,7,15,.98));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
+.tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(74,39,104,.97),rgba(15,12,46,.98));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff}
 .tw-adv-cerrar{position:absolute;top:-6px;right:0;z-index:5;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff!important;font-size:24px;line-height:1;cursor:pointer}
 .tw-adv-rayos{position:absolute;left:50%;top:190px;width:640px;height:640px;margin:-320px 0 0 -320px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,224,150,.26) 0 9deg,transparent 9deg 22deg);opacity:0;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 22%,transparent 68%);mask:radial-gradient(circle,#000 22%,transparent 68%)}
@@ -26749,6 +26764,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvGira{to{transform:rotate(360deg)}}
 .tw-adv-confeti{position:absolute;left:50%;top:190px;width:0;height:0;pointer-events:none}
 .tw-adv-confeti i{position:absolute;width:7px;height:7px;border-radius:50%;opacity:0;background:var(--k);box-shadow:0 0 6px var(--k)}
+.tw-adv-confeti i.f1{width:5px;height:12px;border-radius:2px}.tw-adv-confeti i.f2{width:9px;height:9px;border-radius:1px;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)}
 .tw-adv-escena.abre .tw-adv-confeti i{animation:twAdvConf 1.5s cubic-bezier(.2,.7,.4,1) 1.9s forwards}
 .tw-adv-modal{animation:twAdvIn .45s ease-out}
 .tw-adv-zv{position:relative;width:min(300px,82vw);aspect-ratio:300/280;margin:50px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 40px 10px rgba(255,200,110,0);overflow:hidden;transform-origin:50% 50%}
@@ -26769,10 +26785,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvZvGlow{to{box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 50px 16px rgba(255,200,110,.5)}}
 .tw-adv-saltar{position:absolute;left:50%;transform:translateX(-50%);top:calc(50px + min(300px,82vw)*280/300 + 26px);border:0;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8)!important;font:inherit;font-size:13px;letter-spacing:.08em;padding:8px 16px;border-radius:99px;cursor:pointer}
 .tw-adv-escena.listo .tw-adv-zv,.tw-adv-escena.listo .tw-adv-saltar{display:none}
-@keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(.4)}}
+@keyframes twAdvConf{0%{opacity:1;transform:translate(0,0) scale(1) rotate(0)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 60px)) scale(.5) rotate(var(--r))}}
 .tw-adv-tarjeta{position:relative;margin:0 auto;background:#fffaf0;color:#1b1b1b;border-radius:22px;padding:22px 18px 18px;box-shadow:0 0 0 1px #e8cf8f,0 0 0 6px rgba(232,207,143,.18),0 24px 70px rgba(0,0,0,.6);text-align:center;opacity:0;transform:translateY(60px) scale(.92)}
 .tw-adv-escena.abre:not(.listo) .tw-adv-tarjeta{position:absolute;left:0;right:0;top:100%}
 .tw-adv-escena.listo .tw-adv-tarjeta{animation:twAdvSube .6s cubic-bezier(.3,1.3,.5,1) forwards}
+.tw-adv-tarjeta::before{content:"";position:absolute;left:18px;right:18px;top:-6px;height:12px;background:radial-gradient(circle,#ff3b4e 0 3px,transparent 3.5px) 0 0/48px 12px repeat-x,radial-gradient(circle,#ffd23f 0 3px,transparent 3.5px) 12px 0/48px 12px repeat-x,radial-gradient(circle,#33d17a 0 3px,transparent 3.5px) 24px 0/48px 12px repeat-x,radial-gradient(circle,#3fa9ff 0 3px,transparent 3.5px) 36px 0/48px 12px repeat-x;filter:drop-shadow(0 0 4px rgba(255,220,140,.9));animation:twAdvTw 1.6s ease-in-out infinite}
 @keyframes twAdvSube{to{opacity:1;transform:none}}
 .tw-adv-dia{display:inline-block;background:#0c1630;color:#e8cf8f;font-weight:600;font-size:11px;letter-spacing:.3em;padding:6px 12px 5px 15px;border-radius:99px}
 .tw-adv-tarjeta .big{font-size:50px;line-height:1.15;margin:8px 0 2px}
@@ -28635,7 +28652,7 @@ const ADV_FACHADA_SVG = (() => {
   const foco = (x, y, k, r = 1.9) => '<g class="a' + (1 + (k % 3)) + '"><circle cx="' + r1(x) + '" cy="' + r1(y) + '" r="' + (r * 2.8) + '" fill="url(#afL' + (k % L.length) + ')"/><circle cx="' + r1(x) + '" cy="' + r1(y) + '" r="' + r + '" fill="' + L[k % L.length] + '"/></g>';
   // Tira recta de lucecitas de colores (tres líneas punteadas desfasadas, una por color)
   const tira = (x1, y1, x2, y2, paso = 6, ancho = 2.4) => '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#ffd98a" stroke-width="6" opacity=".16"/>' +
-    [0, 1, 2].map(j => '<line class="a' + (j + 1) + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + L[(j * 2) % L.length] + '" stroke-width="' + ancho + '" stroke-linecap="round" stroke-dasharray="0 ' + (paso * 3) + '" stroke-dashoffset="' + (-j * paso) + '"/>').join("");
+    [0, 1, 2].map(j => '<line class="corre" style="--o0:' + (-j * paso) + 'px;--o1:' + (-j * paso - paso * 3) + 'px" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + L[(j * 2) % L.length] + '" stroke-width="' + ancho + '" stroke-linecap="round" stroke-dasharray="0 ' + (paso * 3) + '" stroke-dashoffset="' + (-j * paso) + '"/>').join("");
   // Guirnalda verde en ondas, con focos de colores
   const guirnalda = (y, x1, x2, tramo, caida, grosor, conFocos) => {
     let d = "M" + x1 + " " + y, k = 0, focos = "";
@@ -28700,6 +28717,10 @@ const ADV_FACHADA_SVG = (() => {
     arbolito(140, 554, 40, 20) + arbolito(220, 554, 40, 20) + corona(180, 502, 8.5);
   s += guirnalda(484, 18, 342, 40, 5, 8, false);
   for (let x = 18; x < 342; x += 40) s += '<circle cx="' + (x + 20) + '" cy="' + 494 + '" r="2.8" fill="#f5c84c"/><circle cx="' + (x + 20) + '" cy="' + 493 + '" r="1" fill="#fff6d8"/><path d="M' + x + ' 484 l-4 -3 v6Z M' + x + ' 484 l4 -3 v6Z" fill="#e01b34"/>' + foco(x + 10, 489, x / 40 | 0) + foco(x + 30, 489, (x / 40 | 0) + 3);
+  // Destellos que aparecen y desaparecen sobre la fachada
+  [[60, 70], [300, 76], [120, 118], [252, 190], [72, 262], [210, 336], [318, 404], [150, 470], [36, 150], [282, 300], [180, 112], [100, 430]].forEach(([x, y], i) => {
+    s += '<path class="brilla" style="animation-delay:' + (i * .37).toFixed(2) + 's" d="M' + x + ' ' + (y - 7) + ' Q' + (x + 1) + ' ' + (y - 1) + ' ' + (x + 7) + ' ' + y + ' Q' + (x + 1) + ' ' + (y + 1) + ' ' + x + ' ' + (y + 7) + ' Q' + (x - 1) + ' ' + (y + 1) + ' ' + (x - 7) + ' ' + y + ' Q' + (x - 1) + ' ' + (y - 1) + ' ' + x + ' ' + (y - 7) + 'Z" fill="#fff"/>';
+  });
   return s + '</svg>';
 })();
 // La ciudad de fondo y la fachada (las ventanas van arriba, como botones)
@@ -28711,6 +28732,8 @@ function TwAdvCiudad() {
         <radialGradient id="twAdvLuna"><stop offset="0" stopColor="#fff3cf" stopOpacity=".4" /><stop offset="1" stopColor="#fff3cf" stopOpacity="0" /></radialGradient>
         <circle cx="318" cy="30" r="34" fill="url(#twAdvLuna)" />
         <circle cx="318" cy="30" r="13" fill="#fff6dc" opacity=".92" />
+        <linearGradient id="twAdvFug" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#fff" /></linearGradient>
+        <g className="tw-adv-fugaz"><rect x="-60" y="-1" width="60" height="2" rx="1" fill="url(#twAdvFug)" /><circle r="2.2" fill="#fff" /></g>
         {ADV_SKY.map(([x, w, h, k], i) => <rect key={i} x={x} y={A - h} width={w} height={h} fill={k ? "#221b48" : "#1a1538"} />)}
       </svg>
       <div className="tw-adv-fach" aria-hidden="true" dangerouslySetInnerHTML={{ __html: ADV_FACHADA_SVG }} />
@@ -28742,14 +28765,14 @@ const ADV_ESCENAS = (() => {
     boleto: ["El boleto dorado del Expreso Polar", `<path d="M12 30 h76 v12 a6 6 0 0 0 0 16 v12 h-76 v-12 a6 6 0 0 0 0 -16 Z" fill="${G2}" stroke="${G}" stroke-width="2"/><path d="M18 36 h64 v28 h-64 Z" fill="none" stroke="${G}" stroke-width="1.2" stroke-dasharray="3 2"/><text x="50" y="55" text-anchor="middle" font-family="Georgia,serif" font-style="italic" font-weight="700" font-size="14" fill="${N}">Believe</text><path d="M24 42 h10 M66 42 h10" stroke="${N}" stroke-width="1.5"/>`],
     corona: ["Corona en una puerta de Brooklyn", `<rect x="22" y="8" width="56" height="88" rx="2" fill="${N}"/><path d="M28 14 h44 v36 h-44 Z M28 56 h44 v34 h-44 Z" fill="none" stroke="${G}" stroke-width="1.4"/><circle cx="50" cy="40" r="20" fill="none" stroke="${V}" stroke-width="10"/>${Array.from({length:10},(_,i)=>{const a=i/10*Math.PI*2;return `<circle cx="${(50+Math.cos(a)*20).toFixed(1)}" cy="${(40+Math.sin(a)*20).toFixed(1)}" r="2.2" fill="${i%2?R:G2}"/>`}).join("")}<path d="M50 58 c-12 -10 -16 4 -4 4 M50 58 c12 -10 16 4 4 4 M48 60 l-6 12 M52 60 l6 12" fill="none" stroke="${R}" stroke-width="3" stroke-linecap="round"/><circle cx="66" cy="66" r="3" fill="${G2}"/>`],
     farol: ["Farol de Central Park", `<circle cx="50" cy="30" r="22" fill="#ffd98a" opacity=".45"/><path d="M38 20 h24 l-4 20 h-16 Z" fill="#fff1c9" stroke="${N}" stroke-width="2.5"/><path d="M36 20 c4 -8 24 -8 28 0 Z" fill="${N}"/><path d="M38 18 c6 -4 18 -4 24 0" stroke="${W}" stroke-width="3" stroke-linecap="round"/><rect x="47" y="40" width="6" height="46" fill="${N}"/><path d="M40 92 h20 l-4 -8 h-12 Z" fill="${N}"/><path d="M44 52 c-10 0 -12 8 -6 10 M56 52 c10 0 12 8 6 10" fill="none" stroke="${V}" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="52" r="3" fill="${R}"/>`],
-    gorro: ["El gorro de Papá Noel", `<path d="M22 70 C26 40 44 18 66 20 C78 22 82 34 80 46 L74 44 C74 36 70 32 64 34 C52 38 48 54 46 70 Z" fill="${R}"/><circle cx="78" cy="50" r="7" fill="${W}"/><rect x="18" y="66" width="56" height="14" rx="7" fill="${W}"/>${estrella(30, 28, 5, G2)}${estrella(84, 22, 4, G2)}`],
+    gorro: ["El gorro de Papá Noel", `<path d="M14 70 C13 44 30 22 54 19 C70 17 81 26 85 38 C87 45 86 51 83 55 L76 51 C76 45 72 41 66 43 C70 53 76 61 86 70 Z" fill="${R}"/><path d="M54 19 C70 17 81 26 85 38 C87 45 86 51 83 55 L76 51 C76 45 72 41 66 43 C70 53 76 61 86 70 L64 70 C56 52 58 30 54 19 Z" fill="#7d0f20" opacity=".55"/><path d="M24 62 C24 44 34 30 48 26" fill="none" stroke="#ff6b7d" stroke-width="3" stroke-linecap="round" opacity=".6"/>${(() => { const f = (st) => [[16,66],[26,62],[37,61],[48,60],[59,61],[70,62],[81,63],[88,67]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="7" ${st}/>`).join("") + `<rect x="10" y="64" width="82" height="20" rx="10" ${st}/>` + [[18,82],[30,84],[43,85],[56,85],[69,84],[82,82]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" ${st}/>`).join("") + `<circle cx="83" cy="58" r="10" ${st}/>`; return f('fill="#c9b99c" stroke="#c9b99c" stroke-width="3.5"') + f('fill="' + W + '"'); })()}<path d="M16 76 h70" stroke="#e3d6bd" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 6"/><circle cx="80" cy="55" r="3" fill="#fff"/><path d="M78 64 a8 8 0 0 0 12 -4" fill="none" stroke="#e8dcc6" stroke-width="2"/>${estrella(24, 22, 5, G2)}${estrella(90, 22, 4, G2)}${estrella(12, 44, 3, G2)}`],
     libertad: ["La Estatua de la Libertad", `<path d="M64 6 c-5 6 -6 9 -3 13 c3 3 8 2 8 -3 c0 -4 -2 -6 -5 -10 Z" fill="${G2}"/><circle cx="64" cy="13" r="10" fill="#ffd98a" opacity=".35"/><rect x="60" y="19" width="8" height="5" fill="#3f7f6e"/><path d="M61 24 h6 l-3 24 h-6 Z" fill="#3f7f6e"/><path d="M50 38 a8 9 0 1 0 0.1 0 Z" fill="#3f7f6e"/><path d="M43.1 36.0 L36.1 32.0" stroke="#3f7f6e" stroke-width="3" stroke-linecap="round"/><path d="M46.0 33.1 L42.0 26.1" stroke="#3f7f6e" stroke-width="3" stroke-linecap="round"/><path d="M50.0 32.0 L50.0 24.0" stroke="#3f7f6e" stroke-width="3" stroke-linecap="round"/><path d="M54.0 33.1 L58.0 26.1" stroke="#3f7f6e" stroke-width="3" stroke-linecap="round"/><path d="M56.9 36.0 L63.9 32.0" stroke="#3f7f6e" stroke-width="3" stroke-linecap="round"/><path d="M42 52 c4 -3 12 -3 16 0 l4 4 l2 34 h-30 l2 -30 Z" fill="#3f7f6e"/><path d="M34 60 l12 4 l-2 14 l-12 -4 Z" fill="#2f6657"/><path d="M38 90 h28 v4 h-28 Z" fill="${N}"/>`],
     puente: ["El Puente de Brooklyn", `<path d="M4 80 h92" stroke="${N}" stroke-width="3"/><rect x="18" y="22" width="18" height="58" fill="${N}"/><rect x="64" y="22" width="18" height="58" fill="${N}"/><path d="M22 70 v-26 c0 -6 10 -6 10 0 v26 Z M68 70 v-26 c0 -6 10 -6 10 0 v26 Z" fill="#f4c678"/><path d="M0 70 C10 60 20 26 27 22 C40 50 60 50 73 22 C80 26 90 60 100 70" fill="none" stroke="${G}" stroke-width="2"/>${[34,42,50,58,66].map(x=>`<path d="M${x} ${x<50?22+(x-27)*1.1:22+(73-x)*1.1} V64" stroke="${G}" stroke-width="1" opacity=".8"/>`).join("")}<path d="M4 64 h92" stroke="${N}" stroke-width="4"/><path d="M8 88 h20 M40 92 h24 M70 88 h22" stroke="${N}" stroke-width="1.5" opacity=".4"/>`],
     pretzel: ["Pretzel de un carrito de Nueva York", `<path d="M30 70 C10 60 14 30 34 30 C46 30 52 44 50 54 C48 44 54 30 66 30 C86 30 90 60 70 70 C58 76 44 64 50 54 C56 64 42 76 30 70 Z" fill="none" stroke="#a8641f" stroke-width="10" stroke-linejoin="round"/><path d="M30 70 C10 60 14 30 34 30 C46 30 52 44 50 54 C48 44 54 30 66 30 C86 30 90 60 70 70 C58 76 44 64 50 54 C56 64 42 76 30 70 Z" fill="none" stroke="#d08a3a" stroke-width="5" stroke-linejoin="round"/>${[[28,40],[40,34],[64,36],[74,44],[36,60],[62,62],[50,48],[22,54],[78,58]].map(([x,y])=>`<rect x="${x}" y="${y}" width="2.4" height="2.4" fill="${W}" transform="rotate(30 ${x} ${y})"/>`).join("")}`],
     piano: ["El piano gigante (Quisiera ser grande)", `<path d="M10 50 h80 v28 h-80 Z" fill="${W}" stroke="${N}" stroke-width="2"/>${Array.from({length:9},(_,i)=>`<path d="M${10+i*10} 50 v28" stroke="${N}" stroke-width="1.4"/>`).join("")}${[1,2,4,5,6,8].map(i=>`<rect x="${10+i*10-3.5}" y="50" width="7" height="17" fill="${N}"/>`).join("")}<path d="M34 16 v18 M34 16 l12 -4 v18" stroke="${G}" stroke-width="2.6" fill="none"/><ellipse cx="31" cy="34" rx="4" ry="3" fill="${G}"/><ellipse cx="43" cy="30" rx="4" ry="3" fill="${G}"/><path d="M66 22 v14" stroke="${R}" stroke-width="2.6"/><ellipse cx="63" cy="36" rx="4" ry="3" fill="${R}"/><path d="M66 22 c4 2 6 6 4 10" fill="none" stroke="${R}" stroke-width="2.4"/>`],
     carteles: ["Los carteles de Realmente amor", `<rect x="26" y="20" width="52" height="66" rx="2" fill="${W}" stroke="${N}" stroke-width="1.5" transform="rotate(8 52 53)"/><rect x="22" y="16" width="52" height="66" rx="2" fill="${W}" stroke="${N}" stroke-width="2"/><path d="M30 30 h34 M30 40 h28 M30 50 h32" stroke="${N}" stroke-width="2.4" stroke-linecap="round"/><path d="M48 74 C36 66 36 58 42 56 C46 55 48 58 48 60 C48 58 50 55 54 56 C60 58 60 66 48 74 Z" fill="${R}"/>`],
     medias: ["Medias colgadas en la chimenea", `<rect x="6" y="14" width="88" height="10" fill="${N}"/><rect x="10" y="24" width="80" height="4" fill="${G}"/><path d="M22 28 h18 v34 c0 10 -6 16 -16 16 h-8 c-6 0 -8 -8 -2 -10 l8 -2 Z" fill="${R}"/><rect x="20" y="28" width="22" height="9" fill="${W}"/><path d="M58 28 h18 v30 c0 10 -6 16 -16 16 h-8 c-6 0 -8 -8 -2 -10 l8 -2 Z" fill="${V}"/><rect x="56" y="28" width="22" height="9" fill="${W}"/>${estrella(31, 52, 5, G2)}${estrella(67, 50, 5, G2)}`],
-    brindis: ["Brindis de Nochebuena", `<path d="M30 20 h18 l-2 26 c-1 8 -5 10 -7 10 s-6 -2 -7 -10 Z" fill="${G2}" stroke="${N}" stroke-width="2" transform="rotate(-14 39 40)"/><path d="M52 20 h18 l-2 26 c-1 8 -5 10 -7 10 s-6 -2 -7 -10 Z" fill="${G2}" stroke="${N}" stroke-width="2" transform="rotate(14 61 40)"/><path d="M33 58 l4 26 M30 86 h14 M67 58 l-4 26 M56 86 h14" stroke="${N}" stroke-width="2.6" stroke-linecap="round"/>${[[36,30],[40,40],[62,32],[58,42]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.6" fill="${W}"/>`).join("")}${estrella(50, 12, 7, G)}<path d="M38 12 l-6 -4 M62 12 l6 -4" stroke="${G}" stroke-width="2" stroke-linecap="round"/>`],
+    brindis: ["Brindis de Nochebuena", `<circle cx="50" cy="30" r="20" fill="${G2}" opacity=".25"/><g transform="translate(31 94) rotate(10)"><path d="M-9 -62 L9 -62 L5.5 -27 Q0 -20 -5.5 -27 Z" fill="${W}" opacity=".55"/><path d="M-8 -50 L8 -50 L5.5 -27 Q0 -20 -5.5 -27 Z" fill="${G2}"/><path d="M-8 -50 L8 -50" stroke="#fff3cf" stroke-width="2"/>${[[-3,-44],[2,-38],[-1,-32],[3,-46]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.2" fill="${W}"/>`).join("")}<path d="M-9 -62 L9 -62 L5.5 -27 Q0 -20 -5.5 -27 Z" fill="none" stroke="${N}" stroke-width="2" stroke-linejoin="round"/><path d="M-5 -58 L-3 -32" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/><path d="M0 -22 V-4" stroke="${N}" stroke-width="2.4"/><ellipse cx="0" cy="-3" rx="11" ry="3" fill="${W}" stroke="${N}" stroke-width="2"/></g><g transform="translate(69 94) rotate(-10)"><path d="M-9 -62 L9 -62 L5.5 -27 Q0 -20 -5.5 -27 Z" fill="${W}" opacity=".55"/><path d="M-8 -50 L8 -50 L5.5 -27 Q0 -20 -5.5 -27 Z" fill="${G2}"/><path d="M-8 -50 L8 -50" stroke="#fff3cf" stroke-width="2"/>${[[-3,-44],[2,-38],[-1,-32],[3,-46]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.2" fill="${W}"/>`).join("")}<path d="M-9 -62 L9 -62 L5.5 -27 Q0 -20 -5.5 -27 Z" fill="none" stroke="${N}" stroke-width="2" stroke-linejoin="round"/><path d="M-5 -58 L-3 -32" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/><path d="M0 -22 V-4" stroke="${N}" stroke-width="2.4"/><ellipse cx="0" cy="-3" rx="11" ry="3" fill="${W}" stroke="${N}" stroke-width="2"/></g>${estrella(50, 27, 8, G)}<path d="M50 14 v-8 M40 18 l-5 -6 M60 18 l5 -6 M36 28 h-7 M64 28 h7" stroke="${G}" stroke-width="2.2" stroke-linecap="round"/>${[[42,10],[58,9],[50,4]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.8" fill="${G2}"/>`).join("")}${estrella(16, 20, 4, G2)}${estrella(86, 24, 4, G2)}`],
     trineo: ["El trineo cruzando la luna", `<circle cx="50" cy="46" r="36" fill="#fff4d6"/><circle cx="50" cy="46" r="36" fill="none" stroke="${G}" stroke-width="1.5" opacity=".6"/><g transform="translate(12 52)"><path d="M0 8 c0 -5 4 -7 10 -7 h6 c3 0 5 -3 6 -6 l4 1 c-1 4 -3 9 -7 11 c-2 1 -2 3 -2 4 l2 8 h-3 l-3 -7 h-6 l-3 7 h-3 l1 -8 c-2 0 -2 -2 -2 -3 Z" fill="${N}"/><path d="M24 -5 l3 -6 M25 -8 l4 -2 M22 -6 l-1 -6" stroke="${N}" stroke-width="1.4" fill="none" stroke-linecap="round"/></g><g transform="translate(36 44)"><path d="M0 8 c0 -5 4 -7 10 -7 h6 c3 0 5 -3 6 -6 l4 1 c-1 4 -3 9 -7 11 c-2 1 -2 3 -2 4 l2 8 h-3 l-3 -7 h-6 l-3 7 h-3 l1 -8 c-2 0 -2 -2 -2 -3 Z" fill="${N}"/><path d="M24 -5 l3 -6 M25 -8 l4 -2 M22 -6 l-1 -6" stroke="${N}" stroke-width="1.4" fill="none" stroke-linecap="round"/></g><path d="M34 58 L60 52 M58 50 L84 52" stroke="${N}" stroke-width="1" fill="none"/><path d="M62 46 h20 c3 0 5 -3 5 -7 l4 0 c0 8 -4 14 -11 14 h-18 Z" fill="${N}"/><path d="M60 58 h28 c2 0 3 -2 3 -3" stroke="${N}" stroke-width="2" fill="none"/><path d="M66 46 v12 M80 46 v12" stroke="${N}" stroke-width="1.5"/><path d="M70 46 l2 -6 l4 0 l2 6 Z" fill="${R}"/>${estrella(20, 22, 4, G2)}${estrella(84, 14, 3, G2)}`],
   };
 })();
@@ -28805,7 +28828,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
     setCopiado(false); setAbriendo({ d, fase: ya ? "listo" : "abre", r });
     timers.current.forEach(clearTimeout);
     if (!ya) timers.current = [
-      setTimeout(() => marcar(d.dia), 2000),
+      setTimeout(() => { marcar(d.dia); setRecien(d.dia); }, 2000),
       setTimeout(() => setAbriendo(a => a && a.d.dia === d.dia ? { ...a, fase: "abre listo" } : a), 3000),
     ];
   };
@@ -28824,8 +28847,19 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
     window.addEventListener("tw-adv-hoy", f); return () => window.removeEventListener("tw-adv-hoy", f);
   }, [hoy, adv]);
   useEffect(() => { if (!abriendo) return; const k = (e) => { if (e.key === "Escape") setAbriendo(null); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, [!!abriendo]);
-  const confeti = useMemo(() => Array.from({ length: 30 }, (_, i) => ({ x: Math.round(Math.cos(i / 30 * Math.PI * 2) * (110 + (i % 5) * 34)) + "px", y: Math.round(Math.sin(i / 30 * Math.PI * 2) * (100 + (i % 4) * 34) - 30) + "px", k: ["#ffe9a8", "#fff", "#e8cf8f", "#ffd98a"][i % 4] })), []);
+  const confeti = useMemo(() => Array.from({ length: 44 }, (_, i) => ({ x: Math.round(Math.cos(i / 44 * Math.PI * 2) * (100 + (i % 5) * 38)) + "px", y: Math.round(Math.sin(i / 44 * Math.PI * 2) * (90 + (i % 4) * 38) - 30) + "px", k: [...ADV_LUCES, "#fff", "#ffe9a8"][i % 8], r: ((i * 97) % 540 - 270) + "deg", f: i % 3 })), []);
   const prendidas = abiertas.filter(n => n >= 1 && n <= 25).length;
+  // Cuando el edificio aparece en pantalla, se encienden las luces piso por piso (de abajo hacia arriba)
+  const ciudadRef = useRef(null);
+  const [encendido, setEncendido] = useState(false);
+  useEffect(() => {
+    const el = ciudadRef.current; if (!el) return;
+    if (!window.IntersectionObserver) { setEncendido(true); return; }
+    const o = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setEncendido(true); o.disconnect(); } }, { threshold: .25 });
+    o.observe(el); return () => o.disconnect();
+  }, []);
+  // La ventana recién abierta hace un destello al encenderse en la fachada
+  const [recien, setRecien] = useState(0);
   const sel = abriendo && abriendo.d;
   const prods = sel ? (sel.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean) : [];
   return (
@@ -28834,12 +28868,12 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
       <div className="tw-adv-ceja">New York Christmas · Diciembre {adv.anio}</div>
       <h2>{advTitulo(adv.titulo)}</h2>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
-      <div className="tw-adv-ciudad">
+      <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef}>
         <TwAdvCiudad />
         {adv.dias.map(d => {
           const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
           return (
-            <button key={n} data-dia={n} className={"tw-adv-v" + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "")}
+            <button key={n} data-dia={n} className={"tw-adv-v" + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "") + (recien === n ? " recien" : "")}
               style={{ left: (v.x / 360 * 100) + "%", top: (v.y / ADV_ALTO * 100) + "%", width: (ADV_VW / 360 * 100) + "%", height: (ADV_VH / ADV_ALTO * 100) + "%" }}
               onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
               {ab && <TwAdvIcono icono={d.icono} className="ic" />}<b>{n}</b>
@@ -28855,7 +28889,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta }) {
           <div className={"tw-adv-escena " + abriendo.fase} onClick={e => e.stopPropagation()}>
             <button className="tw-adv-cerrar" onClick={() => setAbriendo(null)} aria-label="Cerrar">×</button>
             <div className="tw-adv-rayos" aria-hidden="true" />
-            <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} style={{ "--x": k.x, "--y": k.y, "--k": k.k }} />)}</div>
+            <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} className={"f" + k.f} style={{ "--x": k.x, "--y": k.y, "--k": k.k, "--r": k.r }} />)}</div>
             {abriendo.fase !== "listo" && <div className="tw-adv-zv" ref={zv}><TwAdvVentanaGrande d={sel} /></div>}
             {abriendo.fase === "abre" && <button className="tw-adv-saltar" onClick={saltar}>Saltar ›</button>}
             <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 30 } : undefined}>
