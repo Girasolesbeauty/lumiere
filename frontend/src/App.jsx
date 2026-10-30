@@ -29327,6 +29327,7 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
           const precioC = c.precio > 0 ? Math.min(c.precio, suma) : suma, ahorro = Math.max(0, suma - precioC);
           const pct = ahorro > 0 ? Math.round(ahorro / suma * 100) : 0;
           const fotos = c.items.slice(0, 4), resto = c.items.length - fotos.length;
+          const off = suma > 0 ? Math.round((1 - (pagoKits ? precioC * (1 - pagoKits.pct / 100) : precioC) / suma) * 100) : 0;
           const agregar = () => { onAgregar(c.items.map(p => ({ p, n: twCantCombo(c, p.id), v: p.variantes ? p.variantes.find(v => dispo(p, v) >= twCantCombo(c, p.id)) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); };
           return (
             <article key={c.id} className="tw-combo tw-kit" style={{ "--i": k }}>
@@ -29338,6 +29339,7 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                   </button>
                 ))}
                 {resto > 0 && <span className="tw-kit-resto">+{resto}</span>}
+                {off > 0 && <div className="tw-etqs"><span className="tw-etq tw-cy-badge">⚡ -{off}%</span></div>}
               </div>
               {/* Lo importante a la vista: el precio con transferencia y, abajo, el de otros medios con su % y las cuotas */}
               <div className="tw-kit-txt">
