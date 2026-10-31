@@ -398,9 +398,12 @@ async function costosFijosParaEquilibrio(est, mes, anio, local_id, esMesActual, 
   const detalle = {};
   const registrado = {};
   RUBROS_FIJOS.forEach(([k, nombre]) => { registrado[nombre] = (est[k] && est[k].total) || 0; });
-  if (!esMesActual) {
+  // Mes cerrado, o mes en curso ya avanzado (desde el día 20 los gastos del mes ya están casi todos cargados):
+  // se usa lo cargado. Antes, el día 31 seguía tomando el promedio de los 3 meses anteriores si era más alto.
+  const diaHoy = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' })).getDate();
+  if (!esMesActual || diaHoy >= 20) {
     const total = Object.values(registrado).reduce((a, b) => a + b, 0);
-    return { total, detalle: registrado, estimado: false };
+    return { total, detalle: registrado, registrado: total, estimado: false, estimados: [] };
   }
   // Los 3 meses anteriores (se pueden pasar ya calculados)
   let prev = anteriores;
@@ -411,14 +414,14 @@ async function costosFijosParaEquilibrio(est, mes, anio, local_id, esMesActual, 
     }));
   }
   const conGastos = prev.filter(e => e && RUBROS_FIJOS.some(([k]) => ((e[k] && e[k].total) || 0) > 0));
-  let estimado = false;
+  let estimado = false; const estimados = [];
   RUBROS_FIJOS.forEach(([k, nombre]) => {
     const prom = conGastos.length ? conGastos.reduce((a, e) => a + ((e[k] && e[k].total) || 0), 0) / conGastos.length : 0;
-    if (prom > registrado[nombre]) estimado = true;
+    if (prom > registrado[nombre]) { estimado = true; estimados.push(nombre); }
     detalle[nombre] = Math.max(registrado[nombre], prom);
   });
   const total = Object.values(detalle).reduce((a, b) => a + b, 0);
-  return { total, detalle, registrado: Object.values(registrado).reduce((a, b) => a + b, 0), estimado, meses_promedio: conGastos.length };
+  return { total, detalle, registrado: Object.values(registrado).reduce((a, b) => a + b, 0), registrado_detalle: registrado, estimado, estimados, meses_promedio: conGastos.length };
 }
 
 // Punto de equilibrio del mes elegido (antes siempre miraba el mes actual y todos los locales).
@@ -472,6 +475,8 @@ const getPuntoEquilibrio = async (req, res) => {
       costos_fijos: costosFijos,
       costos_fijos_detalle: cf.detalle,
       costos_estimados: cf.estimado,
+      costos_estimados_rubros: cf.estimados || [],
+      costos_registrados_detalle: cf.registrado_detalle || null,
       costos_registrados: cf.registrado !== undefined ? cf.registrado : costosFijos,
       margen_bruto_pct: +(margenBruto * 100).toFixed(1),
       comisiones_pct: +(pctComisiones * 100).toFixed(1),
