@@ -11382,7 +11382,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
               </div>
               <div className="chart-card anim-in" style={{ animationDelay: "80ms" }}>
                 <div className="chart-head"><div className="chart-title">Cómo se calcula</div></div>
-                {Object.entries(e.costos_fijos_detalle || {}).filter(([, v]) => v > 0).map(([k, v]) => <div key={k} className="cc-linea"><span>{k}</span><b>{fmt(v)}</b></div>)}
+                {Object.entries(e.costos_fijos_detalle || {}).filter(([, v]) => v > 0).map(([k, v]) => { const est = (e.costos_estimados_rubros || []).includes(k); return <div key={k} className="cc-linea"><span>{k}{est && <small style={{ color: p.textMuted }}> · promedio (cargado hasta hoy: {fmt((e.costos_registrados_detalle || {})[k] || 0)})</small>}</span><b>{fmt(v)}</b></div>; })}
                 <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>{e.costos_estimados ? "Costos fijos del mes (promedio)" : "Costos fijos del mes"}</span><b style={{ color: p.text, fontSize: 15 }}>{fmt(e.costos_fijos)}</b></div>
                 <div className="divider" />
                 <div className="cc-linea"><span>Margen bruto de lo vendido</span><b>{e.margen_bruto_pct}%</b></div>
@@ -11390,7 +11390,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
                 <div className="cc-linea cc-esperado" style={{ fontSize: 13 }}><span>Margen de contribución</span><b style={{ fontSize: 15 }}>{e.margen_promedio}%</b></div>
                 <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>
                   Punto de equilibrio = costos fijos ÷ margen de contribución.{e.margen_base === "60dias" ? " Como no hubo ventas ese mes, el margen sale de los últimos 60 días." : ""}
-                  {e.costos_estimados && <div style={{ marginTop: 6 }}>Como el mes recién empieza y todavía faltan cargar gastos (llevás {fmt(e.costos_registrados || 0)}), se usa lo que gastás en promedio por mes (últimos 3 meses). Si este mes cargás más, se toma lo cargado.</div>}
+                  {e.costos_estimados && <div style={{ marginTop: 6 }}>Como estamos en los primeros días del mes y todavía faltan cargar gastos (llevás {fmt(e.costos_registrados || 0)}), en los rubros marcados se usa lo que gastás en promedio por mes (últimos 3 meses). Desde el día 20, o si cargás más, se toma lo cargado.</div>}
                 </div>
               </div>
             </div>
