@@ -40,7 +40,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), legales: tienda.legalesDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, ayuda_pago: tienda.ayudaPagoDe(c), ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), legales: tienda.legalesDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -72,6 +72,7 @@ router.put('/config', async (req, res) => {
        Math.min(168, Math.max(1, parseInt(b.horas_reserva) || 24)),
        String(b.anuncios || '').split('\n').map(x => x.trim().slice(0, 90)).filter(Boolean).slice(0, 5).join('\n') || null]);
     await pool.query('UPDATE tienda_config SET horas_pago_online = $1 WHERE id = 1', [tienda.horasPagoOnline(b)]);
+    if (b.ayuda_pago) await pool.query('UPDATE tienda_config SET ayuda_pago = $1 WHERE id = 1', [JSON.stringify(tienda.ayudaPagoDe({ ayuda_pago: b.ayuda_pago }))]);
     await pool.query('UPDATE tienda_config SET gocuotas_minimo = $1 WHERE id = 1', [num(b.gocuotas_minimo) > 0 ? Math.round(num(b.gocuotas_minimo)) : null]);
     await pool.query('UPDATE tienda_config SET pago_gocuotas = $1, descuentos_pago = $2, descuentos_pago_kits = $3 WHERE id = 1', [!!b.pago_gocuotas, JSON.stringify(tienda.descuentosPagoDe({ descuentos_pago: b.descuentos_pago })), JSON.stringify(tienda.descuentosPagoKitsDe({ descuentos_pago_kits: b.descuentos_pago_kits }))]);
     // Dominio propio (opcional): se guarda en el registro central, junto a la direccion de la tienda

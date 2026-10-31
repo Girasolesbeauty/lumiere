@@ -113,6 +113,7 @@ router.get('/:slug', async (req, res) => {
       envio: c.envio_activo ? { zonas: c.envio_zonas, gratis_desde: c.envio_gratis_desde } : null,
       pagos: { mp, transferencia: !!c.pago_transferencia, retiro: !!c.pago_retiro, gocuotas: !!c.pago_gocuotas && await gocuotas.conectado(), gocuotas_minimo: num(c.gocuotas_minimo) || 0 }, horas_reserva: c.horas_reserva,
       anuncios: String(c.anuncios || '').split('\n').filter(Boolean),
+      ayuda_pago: (() => { const a = tienda.ayudaPagoDe(c); return a.activo && (mp || c.pago_gocuotas) ? a : null; })(),
       redes: linksRedes(c.redes),
       reels_titulo: c.reels_titulo || 'Videos',
       reels: (await pool.query('SELECT id, titulo, tipo, codigo, productos FROM tienda_reels ORDER BY orden, id').catch(() => ({ rows: [] }))).rows,
@@ -779,11 +780,29 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
       ruleta: await estadoRuleta(req.tienda, p),
       codigo: p.codigo, numero: p.numero || null, estado: p.estado, pagado: p.pagado, pago: p.pago, entrega: p.entrega, local_id: p.local_id || 1, local: loc || null, direccion: p.direccion, zona: p.zona,
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, adviento_regalo: p.adviento_regalo || null, hw_regalo: p.hw_regalo || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
-      vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
+      pago_rechazado: !p.pagado && !!p.pago_rechazo, vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
       giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
+});
+
+// "¿No te salió el pago?": un pedido con retiro que no se pudo pagar online pasa a pagarse en el local al retirarlo
+// (con las cuotas del local). Queda reservado el tiempo de siempre; es lo mismo que puede hacer el local desde Lumiere.
+router.post('/:slug/pedidos/:codigo/pagar-en-local', async (req, res) => {
+  try {
+    const c = req.tienda, a = tienda.ayudaPagoDe(c);
+    if (!a.activo || !a.local) return res.status(400).json({ error: 'Esta opción no está disponible' });
+    const p = (await pool.query('SELECT * FROM tienda_pedidos WHERE codigo = $1', [String(req.params.codigo || '').toUpperCase()])).rows[0];
+    if (!p) return res.status(404).json({ error: 'No encontramos ese pedido' });
+    if (p.pagado) return res.status(400).json({ error: 'Ese pedido ya está pagado' });
+    if (p.tipo === 'giftcard' || p.entrega !== 'retiro') return res.status(400).json({ error: 'Esta opción es solo para pedidos que se retiran en el local' });
+    if (p.estado !== 'pendiente_pago' || !['mp', 'gocuotas'].includes(p.pago)) return res.status(400).json({ error: 'Este pedido ya no se puede cambiar' });
+    const horas = Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
+    await pool.query(`UPDATE tienda_pedidos SET pago = 'retiro', pago_rechazo = NULL, mp_link = NULL, estado = 'confirmado', vence_en = NOW() + ($2 || ' hours')::interval,
+      motivo = 'No le salió el pago online: paga en el local al retirar', actualizado_en = NOW() WHERE id = $1 AND NOT pagado AND estado = 'pendiente_pago'`, [p.id, String(horas)]);
+    res.json({ ok: true });
+  } catch (e) { console.error('[tienda] pagar en local:', e.message); res.status(500).json({ error: 'No se pudo cambiar la forma de pago' }); }
 });
 
 // ===================== Ruleta de premios =====================
