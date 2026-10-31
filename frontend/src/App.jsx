@@ -27306,9 +27306,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-nieve{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
 .tw-adv-nieve i{position:absolute;top:-10px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;opacity:var(--o);animation:twAdvNieve var(--d) linear var(--del) infinite}
 @keyframes twAdvNieve{to{transform:translate(var(--x),1100px)}}
-.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/644;transform-style:flat;animation:twAdv3d 9s ease-in-out infinite alternate;--hund:inset 0 4px 5px rgba(0,0,0,.55),inset 3px 0 4px rgba(0,0,0,.3),0 2px 0 #d8b46a,0 4px 4px rgba(0,0,0,.4)}
-@keyframes twAdv3d{from{transform:perspective(1100px) rotateY(-6deg) rotateX(3deg)}to{transform:perspective(1100px) rotateY(6deg) rotateX(1deg)}}
-.tw-adv-ciudad.mueve{animation:none;transform:perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out}
+.tw-adv-ciudad{position:relative;width:100%;max-width:420px;margin:6px auto 0;aspect-ratio:360/644;transform-style:flat;--hund:inset 0 4px 5px rgba(0,0,0,.55),inset 3px 0 4px rgba(0,0,0,.3),0 2px 0 #d8b46a,0 4px 4px rgba(0,0,0,.4)}
 .tw-adv-ciudad::before{content:"";position:absolute;left:6%;right:6%;bottom:-16px;height:30px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);pointer-events:none}
 .tw-adv-v .hj{position:absolute;top:-1px;bottom:-1px;width:50%;-webkit-backface-visibility:visible;backface-visibility:visible;will-change:transform;background:linear-gradient(180deg,#5a4183,#2b2050);border:1px solid rgba(255,224,138,.7);box-shadow:inset 0 0 0 2px rgba(255,224,138,.12);pointer-events:none;z-index:2}
 .tw-adv-v .hj::after{content:"";position:absolute;left:22%;right:22%;top:12%;height:34%;border:1px solid rgba(255,224,138,.5);background:rgba(255,226,160,.25)}
@@ -30030,9 +30028,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       <div className="tw-adv-ceja">New York Christmas · Diciembre {adv.anio}</div>
       <h2>{advTitulo(adv.titulo)}</h2>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
-      <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef}
-        onPointerMove={e => { if (e.pointerType !== "mouse") return; const r = e.currentTarget.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; e.currentTarget.classList.add("mueve"); e.currentTarget.style.setProperty("--ry", (x * 14).toFixed(2) + "deg"); e.currentTarget.style.setProperty("--rx", (-y * 10).toFixed(2) + "deg"); }}
-        onPointerLeave={e => { e.currentTarget.classList.remove("mueve"); }} onDoubleClick={nevar}>
+      <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef} onDoubleClick={nevar}>
         <TwAdvCiudad />
         <TwAdvProgreso n={prendidas} />
         {trineo > 0 && <div key={trineo} className="tw-adv-vuela" onAnimationEnd={() => setTrineo(0)}><TwAdvTrineo /></div>}
