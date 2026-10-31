@@ -10247,7 +10247,7 @@ const INF_CSS = `
 .inf-hz .inf-top h1{font-size:46px}
 .inf-hz .inf-hero{margin:-30px 40px 0;display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap}
 .inf-hz .inf-hero .big{margin:0}
-.inf-hz-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:6px 28px 10px;align-items:start}
+.inf-hz-cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;padding:6px 28px 10px;align-items:start}
 .inf-hz-col{min-width:0}
 .inf-hz .inf-sec{padding:16px 0 4px}
 .inf-acc{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
@@ -10352,19 +10352,19 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   // En el iPhone un lienzo no puede pasar de ~16 millones de píxeles (si no, sale vacío o falla): la escala se achica
   // según el largo del informe
   // Imagen horizontal (para el celular acostado y la notebook): el encabezado arriba y las secciones repartidas en
-  // 3 columnas parejas. Se arma sobre la copia que hace html2canvas, la pantalla no cambia.
+  // 4 columnas parejas. Se arma sobre la copia que hace html2canvas, la pantalla no cambia.
   const capturarHorizontal = async () => {
     const { default: html2canvas } = await import("html2canvas");
-    const ANCHO = 1800;
+    const ANCHO = 2400;
     const c = await html2canvas(ref.current, {
-      scale: 1.5, backgroundColor: "#fff8ef", logging: false, useCORS: true, windowWidth: ANCHO + 40,
+      scale: 1.25, backgroundColor: "#fff8ef", logging: false, useCORS: true, windowWidth: ANCHO + 40,
       onclone: (doc) => {
         const el = doc.querySelector(".inf"); if (!el) return;
         el.classList.add("inf-hz"); el.style.width = ANCHO + "px"; el.style.maxWidth = ANCHO + "px";
         const secs = [...el.children].filter(x => x.classList.contains("inf-sec"));
         const pie = el.querySelector(".inf-pie");
         const cols = doc.createElement("div"); cols.className = "inf-hz-cols";
-        const col = [0, 1, 2].map(() => { const d = doc.createElement("div"); d.className = "inf-hz-col"; cols.appendChild(d); return d; });
+        const col = [0, 1, 2, 3].map(() => { const d = doc.createElement("div"); d.className = "inf-hz-col"; cols.appendChild(d); return d; });
         if (pie) el.insertBefore(cols, pie); else el.appendChild(cols);
         // de a una, en la columna más corta (en orden, así se lee de izquierda a derecha)
         secs.forEach(sc => { const k = col.reduce((m, x, i) => (x.offsetHeight < col[m].offsetHeight ? i : m), 0); col[k].appendChild(sc); });
