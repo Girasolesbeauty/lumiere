@@ -16,6 +16,10 @@ function normalizarLocalId(v) {
 // ultimo dia del mes caia en el mes siguiente.
 const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
 const EN_MES = (col, iMes, iAnio) => `EXTRACT(MONTH FROM ${AR(col)}) = $${iMes} AND EXTRACT(YEAR FROM ${AR(col)}) = $${iAnio}`;
+// Periodo de los calculos: un mes ({mes, anio}) o un rango de dias argentinos ({desde, hasta}, ambos incluidos).
+// Los dos primeros parametros de la consulta son siempre (mes, anio) o (desde, hasta).
+const EN_PERIODO = (col, i1, i2, rango) => (rango ? `${AR(col)}::date BETWEEN $${i1}::date AND $${i2}::date` : EN_MES(col, i1, i2));
+const paramsPeriodo = (mes, anio, rango) => (rango ? [rango.desde, rango.hasta] : [mes, anio]);
 // Una venta cuenta si no esta anulada, no es de prueba y (si es preventa) ya se cobro.
 const VENTA_VALIDA = (a = 'v') => `COALESCE(${a}.anulada, FALSE) = FALSE
   AND (COALESCE(${a}.es_preventa, FALSE) = FALSE OR ${a}.estado_pago = 'confirmada')
@@ -78,16 +82,16 @@ const pctDeFila = (row, porDefecto) => (row.pct_local1 !== null && row.pct_local
 // Comisiones de los medios de pago sobre lo cobrado en el mes. Una venta con pago
 // dividido reparte su importe entre sus medios; la parte pagada con gift card no se
 // comisiona (ya se comisiono al venderse la gift card, que tambien se cuenta aca).
-async function calcularComisionesMedios(mes, anio, localNum) {
+async function calcularComisionesMedios(mes, anio, localNum, rango = null) {
   const conPagos = await tieneVentaPagos();
-  const params = [mes, anio];
+  const params = paramsPeriodo(mes, anio, rango);
   let filtroLocalV = '', filtroLocalM = '';
   if (localNum !== null) { params.push(localNum); filtroLocalV = ` AND v.local_id = $3`; filtroLocalM = ` AND m.local_id = $3`; }
 
   const q = `
     WITH ventas_mes AS (
       SELECT v.* FROM ventas v
-      WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)} ${filtroLocalV}
+      WHERE ${VENTA_VALIDA('v')} AND ${EN_PERIODO('v.creado_en', 1, 2, rango)} ${filtroLocalV}
     ),
     tramos AS (
       ${conPagos ? `
@@ -103,7 +107,7 @@ async function calcularComisionesMedios(mes, anio, localNum) {
       SELECT NULL, m.forma_pago, m.importe, TRUE
       FROM movimientos_caja m
       WHERE m.tipo = 'I' AND m.concepto ILIKE 'Gift Card%' AND m.importe > 0 AND ${NO_ANULADO('m')}
-        AND ${EN_MES('m.creado_en', 1, 2)} ${filtroLocalM}
+        AND ${EN_PERIODO('m.creado_en', 1, 2, rango)} ${filtroLocalM}
     )
     SELECT t.nombre, t.importe, t.es_gc, mp.nombre AS mp_nombre, COALESCE(mp.comision, 0) AS comision_pct, COALESCE(mp.tipo, '') AS mp_tipo
     FROM tramos t
@@ -151,9 +155,9 @@ const CANALES = { presencial: 'Ventas en el local', online: 'Ventas online', tie
 // el pago de comisiones en efectivo (que se guarda en las dos tablas a la vez).
 // Los egresos sin categoria se clasifican por su concepto para que no queden afuera
 // del resultado (antes, el Flujo de Efectivo los ignoraba y Movimientos si los sumaba).
-async function obtenerEgresos(mes, anio, localNum) {
+async function obtenerEgresos(mes, anio, localNum, rango = null) {
   const porDefecto = await obtenerRepartoDefault();
-  const params = [mes, anio];
+  const params = paramsPeriodo(mes, anio, rango);
   let filtro = '';
   if (localNum !== null) { params.push(localNum); filtro = ` AND (x.local_id = $3 OR x.local_id IS NULL)`; }
   const r = await pool.query(`
@@ -175,7 +179,7 @@ async function obtenerEgresos(mes, anio, localNum) {
       WHERE e.tipo IN ('egreso', 'E') AND ${NO_ANULADO('e')}
         AND COALESCE(e.destino_origen, '') <> 'Pago de comisiones'
     ) x
-    WHERE ${EN_MES('x.creado_en', 1, 2)} ${filtro}`, params);
+    WHERE ${EN_PERIODO('x.creado_en', 1, 2, rango)} ${filtro}`, params);
   // Viendo un local, lo compartido (local_id NULL) cuenta solo su parte; en consolidado, entero.
   return r.rows.map(row => ({
     ...row,
@@ -186,9 +190,9 @@ async function obtenerEgresos(mes, anio, localNum) {
 // Logica compartida: ingresos por canal + egresos por tipo + comisiones de medios de pago.
 // La usan Movimientos, Flujo de Efectivo, Analisis, Equilibrio y el Dashboard, asi todos
 // muestran el mismo numero.
-async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
+async function calcularFlujoEstructurado(mesActual, anioActual, local_id, rango = null) {
   const localNum = normalizarLocalId(local_id);
-  const params = [mesActual, anioActual];
+  const params = paramsPeriodo(mesActual, anioActual, rango);
   if (localNum !== null) params.push(localNum);
 
   // Los pedidos de la tienda web se cobran en la caja: se muestran en su propio renglon (el total no cambia)
@@ -197,16 +201,19 @@ async function calcularFlujoEstructurado(mesActual, anioActual, local_id) {
     pool.query(`
       SELECT ${canalSql} AS canal, SUM(v.total) AS total, COUNT(*) AS cantidad
       FROM ventas v
-      WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)} ${localNum !== null ? 'AND v.local_id = $3' : ''}
+      WHERE ${VENTA_VALIDA('v')} AND ${EN_PERIODO('v.creado_en', 1, 2, rango)} ${localNum !== null ? 'AND v.local_id = $3' : ''}
       GROUP BY 1`, params),
     // Diferencias cobradas en cambios de producto: plata que entra y no es una venta nueva
     pool.query(`
       SELECT COALESCE(SUM(m.importe), 0) AS total FROM movimientos_caja m
       WHERE m.tipo = 'I' AND m.concepto ILIKE 'Cobro diferencia%' AND ${NO_ANULADO('m')}
-        AND ${EN_MES('m.creado_en', 1, 2)} ${localNum !== null ? 'AND m.local_id = $3' : ''}`, params),
-    pool.query(`SELECT COALESCE(SUM(monto), 0) AS total FROM facturacion_externa WHERE mes = $1 AND anio = $2 ${localNum !== null ? 'AND local_id = $3' : ''}`, params),
-    obtenerEgresos(mesActual, anioActual, localNum),
-    calcularComisionesMedios(mesActual, anioActual, localNum),
+        AND ${EN_PERIODO('m.creado_en', 1, 2, rango)} ${localNum !== null ? 'AND m.local_id = $3' : ''}`, params),
+    // La facturacion del sistema anterior es por mes: en un rango cuenta solo si el mes entero queda adentro
+    pool.query(`SELECT COALESCE(SUM(monto), 0) AS total FROM facturacion_externa WHERE ${rango
+      ? `make_date(anio, mes, 1) >= $1::date AND (make_date(anio, mes, 1) + INTERVAL '1 month' - INTERVAL '1 day')::date <= $2::date`
+      : 'mes = $1 AND anio = $2'} ${localNum !== null ? 'AND local_id = $3' : ''}`, params),
+    obtenerEgresos(mesActual, anioActual, localNum, rango),
+    calcularComisionesMedios(mesActual, anioActual, localNum, rango),
   ]);
 
   const ingresosDetalle = {};
@@ -639,8 +646,35 @@ const getMovimientosDetalle = async (req, res) => {
       query += ` AND (m.concepto ILIKE $${params.length} OR cc.nombre ILIKE $${params.length})`;
     }
     query += ' ORDER BY m.creado_en DESC LIMIT 500';
-    const r = await pool.query(query, params);
-    res.json(r.rows.map(row => (row.local_id === null ? { ...row, pct_local1: pctDeFila(row, porDefecto) } : row)));
+    // Los egresos pagados desde la Caja de efectivo tambien suman en Finanzas (obtenerEgresos): se listan aca
+    // para que el total de Movimientos de lo mismo que la tarjeta de Egresos. Son de solo lectura: se corrigen
+    // o anulan desde la Caja. El pago de comisiones no va porque ya figura en movimientos_caja.
+    const conEfectivo = tipo !== 'I' && req.query.sin_categoria !== '1' && local_id !== 'compartido';
+    let qEf = null;
+    if (conEfectivo) {
+      const pe = [];
+      let sq = `
+        SELECT 'ef-' || e.id AS id, e.concepto, e.importe, 'E' AS tipo, e.creado_en, e.local_id, 'efectivo' AS forma_pago,
+               NULL AS referencia, NULL::numeric AS pct_local1, NULL::int AS categoria_id,
+               CASE WHEN CONCAT(e.concepto, ' ', e.destino_origen) ~* '(sueldo|aguinaldo)' THEN 'Sueldos' ELSE e.destino_origen END AS categoria_nombre,
+               CASE WHEN CONCAT(e.concepto, ' ', e.destino_origen) ~* '(sueldo|aguinaldo)' THEN 'sueldo' ELSE 'variable' END AS categoria_tipo,
+               NULL::int AS cuenta_pago_id, 'Caja de efectivo' AS cuenta_nombre,
+               to_char(${AR('e.creado_en')}, 'YYYY-MM-DD') AS fecha, FALSE AS automatico, 'efectivo' AS origen
+        FROM movimientos_caja_efectivo e
+        WHERE e.tipo IN ('egreso', 'E') AND ${NO_ANULADO('e')} AND COALESCE(e.destino_origen, '') <> 'Pago de comisiones'`;
+      if (desde) { pe.push(desde); sq += ` AND ${AR('e.creado_en')}::date >= $${pe.length}::date`; }
+      if (hasta) { pe.push(hasta); sq += ` AND ${AR('e.creado_en')}::date <= $${pe.length}::date`; }
+      const localNum = normalizarLocalId(local_id);
+      if (localNum !== null) { pe.push(localNum); sq += ` AND (e.local_id = $${pe.length} OR e.local_id IS NULL)`; }
+      if (busqueda && busqueda.trim()) { pe.push('%' + busqueda.trim() + '%'); sq += ` AND (e.concepto ILIKE $${pe.length} OR e.destino_origen ILIKE $${pe.length})`; }
+      sq += ' ORDER BY e.creado_en DESC LIMIT 500';
+      qEf = pool.query(sq, pe);
+    }
+    const [r, ef] = await Promise.all([pool.query(query, params), qEf]);
+    const filas = r.rows.map(row => (row.local_id === null ? { ...row, pct_local1: pctDeFila(row, porDefecto) } : row));
+    if (ef) filas.push(...ef.rows.map(row => ({ ...row, categoria_nombre: etiquetaDestinoOrigen(row.categoria_nombre) })));
+    filas.sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
+    res.json(filas.slice(0, 500));
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al obtener el detalle de movimientos: ' + error.message });
@@ -694,6 +728,31 @@ const updateMovimiento = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al editar el movimiento: ' + error.message });
+  }
+};
+
+// Cambiar la categoria de varios egresos manuales a la vez (ej: pasar todos los "Luz" de "Sueldo Sabrina" a "Servicios").
+// Solo toca egresos cargados a mano: ni los automaticos ni los anulados.
+const recategorizarMovimientos = async (req, res) => {
+  try {
+    const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : []).map(x => parseInt(x)).filter(x => x > 0))];
+    if (!ids.length) return res.status(400).json({ error: 'Elegí al menos un movimiento' });
+    if (ids.length > 500) return res.status(400).json({ error: 'Son demasiados movimientos de una vez (máximo 500)' });
+    const cat = req.body.categoria_id === null || req.body.categoria_id === '' ? null : parseInt(req.body.categoria_id);
+    if (cat !== null) {
+      if (!(cat > 0)) return res.status(400).json({ error: 'Categoría inválida' });
+      const c = await pool.query('SELECT id FROM categorias_costo WHERE id = $1', [cat]);
+      if (!c.rows.length) return res.status(400).json({ error: 'Esa categoría no existe' });
+    }
+    const r = await pool.query(
+      `UPDATE movimientos_caja m SET categoria_id = $2
+       WHERE m.id = ANY($1::int[]) AND m.tipo = 'E' AND ${NO_ANULADO('m')}
+         AND COALESCE(m.concepto, '') !~* '^(Venta |Gift Card|Seña|Cobro diferencia|Devolucion de diferencia|Pago (total )?comisiones)'
+       RETURNING m.id`, [ids, cat]);
+    res.json({ ok: true, actualizados: r.rowCount, omitidos: ids.length - r.rowCount });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al cambiar la categoría: ' + error.message });
   }
 };
 
@@ -1170,22 +1229,37 @@ const getComparativaMeses = async (req, res) => {
     }
     const localNum = normalizarLocalId(local_id);
 
+    const fecha = /^\d{4}-\d{2}-\d{2}$/;
+    if (![desde1, hasta1, desde2, hasta2].every(f => fecha.test(f))) return res.status(400).json({ error: 'Fechas inválidas' });
+
+    // Cada periodo con la misma cuenta que el Estado de resultados (ventas, egresos por grupo, comisiones de medios y neto)
+    const GRUPOS = [['variables', 'Mercadería y gastos variables'], ['fijos', 'Gastos fijos'], ['sueldos', 'Sueldos y comisiones'],
+      ['admin', 'Administrativos y marketing'], ['impuestos', 'Impuestos'], ['comisiones_medios_pago', 'Comisiones de tarjetas y apps']];
     const consultarPeriodo = async (desde, hasta) => {
-      const params = [desde, hasta];
-      if (localNum !== null) params.push(localNum);
-      const r = await pool.query(`
-        SELECT COALESCE(SUM(v.total), 0) AS total, COUNT(*) AS cantidad
-        FROM ventas v
-        WHERE ${VENTA_VALIDA('v')} AND ${AR('v.creado_en')}::date BETWEEN $1::date AND $2::date
-          ${localNum !== null ? 'AND v.local_id = $3' : ''}`, params);
-      const total = num(r.rows[0].total);
-      const cantidad = parseInt(r.rows[0].cantidad) || 0;
+      const est = await calcularFlujoEstructurado(null, null, local_id, { desde, hasta });
+      const total = est.total_ventas, cantidad = est.cantidad_ventas;
       const dias = Math.max(1, Math.round((new Date(hasta + 'T12:00:00') - new Date(desde + 'T12:00:00')) / 86400000) + 1);
-      return { total, cantidad, ticket_promedio: cantidad > 0 ? total / cantidad : 0, dias, promedio_diario: total / dias };
+      return {
+        total, cantidad, ticket_promedio: cantidad > 0 ? total / cantidad : 0, dias, promedio_diario: total / dias,
+        ingresos: est.ingresos.total, egresos: est.total_egresos, neto: est.resultado_neto,
+        grupos: Object.fromEntries(GRUPOS.map(([k]) => [k, est[k].total])),
+        detalle: Object.fromEntries(GRUPOS.map(([k]) => [k, est[k].detalle])),
+      };
     };
 
     const [periodo1, periodo2] = await Promise.all([consultarPeriodo(desde1, hasta1), consultarPeriodo(desde2, hasta2)]);
     const variacion = (a, b) => (b > 0 ? ((a - b) / b) * 100 : null);
+    // En que gastos cambio mas de un periodo al otro (por rubro, los 6 que mas se movieron)
+    const rubros = {};
+    GRUPOS.forEach(([k, nombre]) => {
+      [[periodo1, 'a'], [periodo2, 'b']].forEach(([per, lado]) => Object.entries(per.detalle[k] || {}).forEach(([n, v]) => {
+        const x = rubros[k + '|' + n] || (rubros[k + '|' + n] = { grupo: nombre, nombre: n, a: 0, b: 0 });
+        x[lado] += v;
+      }));
+    });
+    const cambios = Object.values(rubros).map(x => ({ ...x, dif: x.a - x.b })).filter(x => Math.abs(x.dif) >= 1)
+      .sort((x, y) => Math.abs(y.dif) - Math.abs(x.dif)).slice(0, 6);
+    delete periodo1.detalle; delete periodo2.detalle;
 
     res.json({
       periodo_1: { desde: desde1, hasta: hasta1, ...periodo1 },
@@ -1193,6 +1267,10 @@ const getComparativaMeses = async (req, res) => {
       variacion_pct: variacion(periodo1.total, periodo2.total),
       variacion_cantidad_pct: variacion(periodo1.cantidad, periodo2.cantidad),
       variacion_ticket_pct: variacion(periodo1.ticket_promedio, periodo2.ticket_promedio),
+      variacion_egresos_pct: variacion(periodo1.egresos, periodo2.egresos),
+      grupos: GRUPOS.map(([k, nombre]) => ({ k, nombre, a: periodo1.grupos[k], b: periodo2.grupos[k], variacion_pct: variacion(periodo1.grupos[k], periodo2.grupos[k]) }))
+        .filter(g => g.a > 0 || g.b > 0),
+      cambios,
     });
   } catch (error) {
     console.error(error);
@@ -1320,4 +1398,4 @@ const getInformeMes = async (req, res) => {
   }
 };
 
-module.exports = { getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

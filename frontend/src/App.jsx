@@ -1074,6 +1074,19 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .fin-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .fin-form { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
 .fin-filtros { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fin-comp-sub { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: ${p.textMuted}; margin: 4px 2px 8px; }
+.fin-comp-ley { display: flex; gap: 12px; font-size: 11px; color: ${p.textMuted}; }
+.fin-comp-ley span { display: flex; align-items: center; gap: 5px; }
+.fin-comp-ley i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.fin-comp-g { padding: 8px 0; border-bottom: 1px solid ${p.border}; }
+.fin-comp-g:last-child { border-bottom: 0; }
+.fin-comp-gh { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 12.5px; margin-bottom: 6px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.fin-comp-gh > span:last-child { display: flex; gap: 6px; align-items: center; }
+.fin-comp-bar { height: 7px; border-radius: 4px; background: ${p.bg}; overflow: hidden; margin-top: 3px; }
+.fin-comp-bar i { display: block; height: 100%; border-radius: 4px; transition: width .5s; }
+.fin-comp-ant { font-size: 11px; color: ${p.textMuted}; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.fin-masiva { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: sticky; top: 8px; z-index: 5; }
+.fin-chk { width: 17px; height: 17px; accent-color: ${p.accent}; cursor: pointer; vertical-align: middle; }
 .fin-sec { border-bottom: 1px solid ${p.border}; }
 .fin-sec-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 16px; font-size: 13px; font-weight: 800; border-left: 3px solid transparent; background: ${p.bg}; font-variant-numeric: tabular-nums; }
 .fin-sec-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 16px 7px 28px; font-size: 12px; color: ${p.textSoft}; font-variant-numeric: tabular-nums; }
@@ -10704,6 +10717,9 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [soloSinCategoria, setSoloSinCategoria] = useState(false);
   const [editandoMov, setEditandoMov] = useState(null);
   const [borrandoMov, setBorrandoMov] = useState(null);
+  const [selMovs, setSelMovs] = useState([]);
+  const [catMasiva, setCatMasiva] = useState("");
+  const [aplicandoCat, setAplicandoCat] = useState(false);
 
   // --- Comparar ---
   const [comparativa, setComparativa] = useState(null);
@@ -10763,7 +10779,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
     if (tabLocal !== "consolidado") q.set("local_id", tabLocal);
     if (extra.sinCategoria !== undefined ? extra.sinCategoria : soloSinCategoria) q.set("sin_categoria", "1");
     API.get("/finanzas/movimientos-detalle?" + q.toString())
-      .then(res => setDetalleMovs(res.data || []))
+      .then(res => { setDetalleMovs(res.data || []); setSelMovs([]); })
       .catch(() => setDetalleMovs([]))
       .finally(() => setDetalleLoading(false));
   };
@@ -10828,6 +10844,19 @@ function Finanzas({ localId, usuario, paletaActual }) {
       cargarDetalle(); cargarDatos();
       avisar("✓ Movimiento actualizado");
     } catch (e) { avisar("Error al editar: " + (e.response?.data?.error || e.message)); }
+  };
+  // Cambiar la categoría de varios egresos a la vez
+  const aplicarCategoriaMasiva = async () => {
+    if (!selMovs.length || catMasiva === "") return;
+    setAplicandoCat(true);
+    try {
+      const r = await API.put("/finanzas/movimientos-categoria", { ids: selMovs, categoria_id: catMasiva === "ninguna" ? null : parseInt(catMasiva) });
+      const nombre = catMasiva === "ninguna" ? "Sin categoría" : (categoriasCosto.find(c => String(c.id) === String(catMasiva)) || {}).nombre;
+      avisar("✓ " + r.data.actualizados + " movimiento" + (r.data.actualizados !== 1 ? "s" : "") + " pasado" + (r.data.actualizados !== 1 ? "s" : "") + " a " + nombre);
+      setSelMovs([]); setCatMasiva("");
+      cargarDetalle(); cargarDatos();
+    } catch (e) { avisar("Error: " + (e.response?.data?.error || e.message)); }
+    setAplicandoCat(false);
   };
   const borrarMov = async (m) => {
     try {
@@ -11128,8 +11157,17 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
       {/* ============ MOVIMIENTOS ============ */}
       {tab === "movimientos" && (() => {
-        const totI = detalleMovs.filter(m => m.tipo === "I").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
-        const totE = detalleMovs.filter(m => m.tipo !== "I").reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+        // Viendo un local, lo compartido suma solo la parte de ese local (igual que la tarjeta de Egresos)
+        const parte = (m) => { const v = parseFloat(m.importe || 0); if (tabLocal === "consolidado" || m.local_id !== null) return v; const pct = m.pct_local1 ?? repartoDefault; return String(tabLocal) === "1" ? v * pct / 100 : v * (100 - pct) / 100; };
+        const totI = detalleMovs.filter(m => m.tipo === "I").reduce((s, m) => s + parte(m), 0);
+        const totE = detalleMovs.filter(m => m.tipo !== "I").reduce((s, m) => s + parte(m), 0);
+        const editable = (m) => !m.automatico && !m.origen;
+        const marcables = detalleMovs.filter(m => m.tipo === "E" && editable(m));
+        const todosMarcados = marcables.length > 0 && marcables.every(m => selMovs.includes(m.id));
+        const totSel = detalleMovs.filter(m => selMovs.includes(m.id)).reduce((s, m) => s + parseFloat(m.importe || 0), 0);
+        // Mes completo: las comisiones de tarjetas y apps no son movimientos cargados, pero suman en Egresos
+        const [dMes, hMes] = rangoMes(mesFiltro, anioFiltro);
+        const comMedios = detalleDesde === dMes && detalleHasta === hMes && detalleTipo !== "I" && !soloSinCategoria && !detalleBusqueda.trim() ? (flujoEst?.comisiones_medios_pago?.total || 0) : 0;
         return (
           <div className="fade">
             <div className="chart-card" style={{ marginBottom: 12 }}>
@@ -11154,24 +11192,46 @@ function Finanzas({ localId, usuario, paletaActual }) {
                   {totI > 0 && <> · <b style={{ color: p.green }}>+{fmt(totI)}</b></>}
                 </span>
               </div>
+              {comMedios > 0 && (
+                <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 8, lineHeight: 1.5 }}>
+                  Además, las <b>comisiones de tarjetas y apps</b> del mes (<b style={{ color: p.red }}>−{fmt(comMedios)}</b>) se calculan solas con las ventas: con eso, los egresos dan <b style={{ color: p.text }}>{fmt(totE + comMedios)}</b>, lo mismo que en Resumen.
+                </div>
+              )}
             </div>
+            {selMovs.length > 0 && (
+              <div className="chart-card fin-masiva" style={{ marginBottom: 12, borderColor: p.accent }}>
+                <b style={{ fontSize: 13 }}>{selMovs.length} seleccionado{selMovs.length !== 1 ? "s" : ""} · {fmt(totSel)}</b>
+                <select className="sel" value={catMasiva} onChange={e => setCatMasiva(e.target.value)} aria-label="Nueva categoría" style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <option value="">Pasar a la categoría…</option>
+                  {[["variable", "Costos variables"], ["fijo", "Costos fijos"], ["administrativo", "Administrativos y marketing"], ["sueldo", "Sueldos"]].map(([t, l]) => (
+                    <optgroup key={t} label={l}>{categoriasCosto.filter(c => c.tipo === t).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</optgroup>
+                  ))}
+                  <option value="ninguna">Sin categoría</option>
+                </select>
+                <button className="btn btn-p btn-sm" disabled={catMasiva === "" || aplicandoCat} onClick={aplicarCategoriaMasiva}>{aplicandoCat ? "Guardando…" : "Cambiar"}</button>
+                <button className="btn btn-g btn-sm" onClick={() => setSelMovs([])}>Cancelar</button>
+              </div>
+            )}
             <div className="chart-card" style={{ padding: 0, overflow: "hidden" }}>
               {detalleLoading ? <div style={{ padding: 16 }}><div className="skel" style={{ height: 180 }} /></div>
               : detalleMovs.length === 0 ? <div className="empty">Sin movimientos para este filtro.</div> : (
                 <div style={{ overflowX: "auto" }}>
                   <table>
-                    <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Local</th><th>Pago</th><th style={{ textAlign: "right" }}>Importe</th><th></th></tr></thead>
+                    <thead><tr>
+                      <th style={{ width: 30, paddingRight: 0 }}>{marcables.length > 0 && <input type="checkbox" className="fin-chk" checked={todosMarcados} onChange={() => setSelMovs(todosMarcados ? [] : marcables.map(m => m.id))} aria-label="Elegir todos los egresos" title="Elegir todos para cambiarles la categoría" />}</th>
+                      <th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Local</th><th>Pago</th><th style={{ textAlign: "right" }}>Importe</th><th></th></tr></thead>
                     <tbody>
                       {detalleMovs.map(m => (
-                        <tr key={m.id}>
+                        <tr key={m.id} style={selMovs.includes(m.id) ? { background: p.accentDim } : null}>
+                          <td style={{ paddingRight: 0 }}>{m.tipo === "E" && editable(m) && <input type="checkbox" className="fin-chk" checked={selMovs.includes(m.id)} onChange={() => setSelMovs(s => s.includes(m.id) ? s.filter(x => x !== m.id) : [...s, m.id])} aria-label={"Elegir " + m.concepto} />}</td>
                           <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmtDiaCorto(m.fecha)}</td>
-                          <td style={{ fontSize: 12 }}>{m.concepto}{m.automatico && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>automático</span>}</td>
+                          <td style={{ fontSize: 12 }}>{m.concepto}{m.automatico && <span className="tag tag-neutral" style={{ marginLeft: 6 }}>automático</span>}{m.origen === "efectivo" && <span className="tag tag-neutral" style={{ marginLeft: 6 }} title="Se cargó en la Caja de efectivo: para corregirlo o anularlo, hacelo desde la Caja">caja de efectivo</span>}</td>
                           <td style={{ fontSize: 11 }}>{m.categoria_nombre ? <span style={{ color: p.textMuted }}>{m.categoria_nombre}</span> : m.tipo === "E" ? <span className="tag tag-warn">sin categoría</span> : <span style={{ color: p.textMuted }}>—</span>}</td>
                           <td style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}><span title={m.local_id === null ? nombreLocal(1) + " " + Math.round(m.pct_local1 ?? repartoDefault) + "% · " + nombreLocal(2) + " " + (100 - Math.round(m.pct_local1 ?? repartoDefault)) + "%" : ""}>{nombreLocalMov(m.local_id, m.pct_local1)}</span></td>
                           <td style={{ fontSize: 11, color: p.textMuted }}>{m.cuenta_nombre || m.forma_pago || "—"}</td>
                           <td style={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", color: m.tipo === "I" ? p.green : p.red }}>{m.tipo === "I" ? "+" : "−"}{fmt(parseFloat(m.importe))}</td>
                           <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {!m.automatico && <>
+                            {editable(m) && <>
                               <button className="icon-btn" onClick={() => setEditandoMov({ ...m })} aria-label={"Editar " + m.concepto} title="Editar">✏️</button>
                               <button className="icon-btn peligro" onClick={() => setBorrandoMov(m)} aria-label={"Borrar " + m.concepto} title="Borrar">✕</button>
                             </>}
@@ -11326,7 +11386,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
               ))}
             </div>
           </div>
-          {comparativaLoading && !comparativa ? <div className="skel" style={{ height: 160 }} /> : !comparativa ? <div className="empty">Elegí dos períodos para comparar.</div> : (
+          {comparativaLoading && !comparativa ? <div className="skel" style={{ height: 160 }} /> : !comparativa ? <div className="empty">Elegí dos períodos para comparar.</div> : (<>
+            <div className="fin-comp-sub">Ventas</div>
             <div className="kpi-grid kpi-3" style={{ opacity: comparativaLoading ? 0.6 : 1 }}>
               {[
                 ["Facturación", comparativa.periodo_1.total, comparativa.periodo_2.total, comparativa.variacion_pct, fmt],
@@ -11337,7 +11398,49 @@ function Finanzas({ localId, usuario, paletaActual }) {
                   tag={tagVar(v)} sub={"antes: " + f(b)} />
               ))}
             </div>
-          )}
+            {comparativa.periodo_1.egresos !== undefined && (() => {
+              const c1 = comparativa.periodo_1, c2 = comparativa.periodo_2;
+              const varN = c2.neto !== 0 ? ((c1.neto - c2.neto) / Math.abs(c2.neto)) * 100 : null;
+              const maxG = Math.max(1, ...comparativa.grupos.flatMap(g => [g.a, g.b]));
+              return <>
+                <div className="fin-comp-sub">Gastos y ganancia</div>
+                <div className="kpi-grid kpi-3" style={{ opacity: comparativaLoading ? 0.6 : 1 }}>
+                  <KpiCard p={p} titulo="Ingresos" valor={c1.ingresos} formato={fmt} color={p.green} indice={0} tag={tagVar(c2.ingresos > 0 ? ((c1.ingresos - c2.ingresos) / c2.ingresos) * 100 : null)} sub={"antes: " + fmt(c2.ingresos)} />
+                  <KpiCard p={p} titulo="Egresos" valor={c1.egresos} formato={fmt} color={p.red} indice={1} tag={tagVar(comparativa.variacion_egresos_pct, true)} sub={"antes: " + fmt(c2.egresos)} />
+                  <KpiCard p={p} titulo="Resultado neto" valor={c1.neto} formato={fmt} color={c1.neto >= 0 ? p.green : p.red} indice={2} tag={tagVar(varN)} sub={"antes: " + fmt(c2.neto)} />
+                </div>
+                {comparativa.grupos.length > 0 && (
+                  <div className="fin-grid" style={{ marginBottom: 12 }}>
+                    <div className="chart-card anim-in">
+                      <div className="chart-head"><div className="chart-title">Egresos por grupo</div>
+                        <div className="fin-comp-ley"><span><i style={{ background: p.accent }} />A comparar</span><span><i style={{ background: p.border }} />Contra</span></div>
+                      </div>
+                      {comparativa.grupos.map(g => (
+                        <div key={g.k} className="fin-comp-g">
+                          <div className="fin-comp-gh"><span>{g.nombre}</span><span><b>{fmt(g.a)}</b> {tagVar(g.variacion_pct, true)}</span></div>
+                          <div className="fin-comp-bar"><i style={{ width: (g.a / maxG * 100) + "%", background: p.accent }} /></div>
+                          <div className="fin-comp-bar"><i style={{ width: (g.b / maxG * 100) + "%", background: p.border }} /></div>
+                          <div className="fin-comp-ant">antes: {fmt(g.b)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {comparativa.cambios?.length > 0 && (
+                      <div className="chart-card anim-in" style={{ animationDelay: "80ms" }}>
+                        <div className="chart-head"><div className="chart-title">Lo que más cambió</div></div>
+                        {comparativa.cambios.map(x => (
+                          <div key={x.grupo + x.nombre} className="cc-linea">
+                            <span style={{ minWidth: 0 }}><span style={{ display: "block", fontWeight: 600, color: p.text }}>{x.nombre}</span><span style={{ fontSize: 11, color: p.textMuted }}>{x.grupo} · {fmt(x.b)} → {fmt(x.a)}</span></span>
+                            <b style={{ color: x.dif > 0 ? p.red : p.green, whiteSpace: "nowrap" }}>{x.dif > 0 ? "+" : "−"}{fmt(Math.abs(x.dif))}</b>
+                          </div>
+                        ))}
+                        <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>En rojo, lo que se gastó de más; en verde, lo que se gastó de menos.</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>;
+            })()}
+          </>)}
           {comparativa && (
             <div style={{ fontSize: 11, color: p.textMuted }}>
               {fmtDiaCorto(comparativa.periodo_1.desde)} al {fmtDiaCorto(comparativa.periodo_1.hasta)} ({comparativa.periodo_1.dias} días, {fmt(comparativa.periodo_1.promedio_diario)} por día)
