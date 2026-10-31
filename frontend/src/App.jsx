@@ -26481,6 +26481,19 @@ html:has(.tw){overflow-x:hidden}
 .tw-hero:hover .tw-flecha,.tw-fila:hover .tw-flecha{opacity:1}
 .tw-flecha:hover{transform:translateY(-50%) scale(1.08)}
 .tw-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--n);color:#fff !important;border:none;border-radius:999px;padding:14px 30px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none;transition:transform .15s,background .2s,opacity .2s}
+.tw-ayuda-pago{text-align:left;border:1.5px solid #e6e1d6;border-radius:16px;padding:16px;margin:0 0 16px;background:#fffdf8}
+.tw-ayuda-pago.falla{border-color:#f0b4ad;background:#fff8f6;animation:twSube .5s ease both}
+.tw-ap-tit{font-size:17px;font-weight:800;margin-bottom:4px}
+.tw-ap-sub{font-size:13.5px;color:#666;margin-bottom:12px;line-height:1.4}
+.tw-ap-op{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px dashed #e6e1d6}
+.tw-ap-op b{font-size:15px}
+.tw-ap-ic{font-size:24px;line-height:1;flex:0 0 auto}
+.tw-ap-cuotas{display:inline-block;margin:6px 0 2px;background:#eaf7ef;color:#1f6b40;font-weight:800;font-size:13.5px;border-radius:8px;padding:5px 9px}
+.tw-ap-txt{font-size:13.5px;color:#555;margin:4px 0 10px;line-height:1.4}
+.tw-ap-op .tw-btn{padding:10px 18px;font-size:13px}
+.tw-btn.tw-btn-sec{background:#25d366}
+.tw-ap-hint{font-size:13px;color:#1f6b40;background:#eaf7ef;border-radius:10px;padding:9px 12px;margin:8px 0 4px;line-height:1.4}
+.tw-ap-err{color:#c0392b;font-size:13px;font-weight:600;margin-top:8px}
 .tw-btn:hover{background:#333}
 .tw-btn:active{transform:scale(.97)}
 .tw-btn:disabled{opacity:.45;cursor:default;transform:none}
@@ -29430,6 +29443,50 @@ function TwDecoRegalo({ t, n = 16 }) {
 }
 
 // Franja grande de la portada
+// "¿No te salió el pago?": cuando el pago online no sale (o la clienta duda), otras formas de comprar igual:
+// pagar en el local (con sus cuotas con tarjeta de crédito) o pagar por teléfono y recibirlo. Abierto si hubo un rechazo.
+function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, pedir, onCambio }) {
+  const [abierta, setAbierta] = useState(!!falla);
+  const [cambiando, setCambiando] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { if (falla) setAbierta(true); }, [falla]);
+  const nro = pedido.numero || pedido.codigo, monto = fmtTienda(pedido.total);
+  const waTel = linkWa("¡Hola! Quise pagar online mi pedido N° " + nro + " (" + monto + ") y no me salió el pago. ¿Me ayudan a pagarlo por teléfono?" + (pedido.entrega === "envio" ? " Es con envío." : ""));
+  const waLocal = linkWa("¡Hola! No me salió el pago online del pedido N° " + nro + " (" + monto + "). ¿Lo puedo pagar en el local" + (ayuda.cuotas_local ? " (" + ayuda.cuotas_local + ")" : "") + "?");
+  const pagarEnLocal = async () => {
+    setCambiando(true); setError("");
+    try { await pedir("/pedidos/" + pedido.codigo + "/pagar-en-local", { method: "POST" }); onCambio(); }
+    catch (e) { setError(e.message); }
+    setCambiando(false);
+  };
+  if (!abierta) return <button className="tw-link" style={{ display: "block", margin: "0 auto 14px", fontSize: 14 }} onClick={() => setAbierta(true)}>¿Problemas para pagar? Mirá otras opciones</button>;
+  return (
+    <div className={"tw-ayuda-pago" + (falla ? " falla" : "")}>
+      <div className="tw-ap-tit">{falla ? "¿No te salió el pago? ¡No pasa nada!" : "Otras formas de pagar"}</div>
+      <div className="tw-ap-sub">{falla ? "Tu pedido sigue reservado un rato. Podés probar de nuevo o elegir una de estas opciones:" : "Si el pago online no te sale, también podés:"}</div>
+      {ayuda.local && <div className="tw-ap-op">
+        <span className="tw-ap-ic">🏬</span>
+        <div>
+          <b>Pagalo en el local{pedido.entrega === "retiro" && nombreLocal ? " (" + nombreLocal + ")" : ""}</b>
+          {ayuda.cuotas_local && <div className="tw-ap-cuotas">💳 {ayuda.cuotas_local}</div>}
+          {pedido.entrega === "retiro"
+            ? <><div className="tw-ap-txt">Te lo guardamos y lo pagás cuando lo retirás.</div><button className="tw-btn" disabled={cambiando} onClick={pagarEnLocal}>{cambiando ? "Un momento…" : "Lo pago al retirarlo"}</button></>
+            : <><div className="tw-ap-txt">Acercate a cualquiera de nuestros locales y lo pagás ahí.</div>{waLocal && <a className="tw-btn tw-btn-sec" href={waLocal} target="_blank" rel="noopener">Avisar por WhatsApp</a>}</>}
+        </div>
+      </div>}
+      {ayuda.telefono && waTel && <div className="tw-ap-op">
+        <span className="tw-ap-ic">📞</span>
+        <div>
+          <b>Pagalo por teléfono</b>
+          <div className="tw-ap-txt">Escribinos, te ayudamos a pagarlo{pedido.entrega === "envio" ? " y te lo mandamos a tu casa" : " y te lo dejamos listo para retirar"}.</div>
+          <a className="tw-btn tw-btn-sec" href={waTel} target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+        </div>
+      </div>}
+      {error && <div className="tw-ap-err">{error}</div>}
+    </div>
+  );
+}
+
 // Cumpleaños sin año: dia y mes con dos listas grandes (el calendario con el año confundía a muchas clientas).
 // Se guarda con el año 1904, que en el sistema significa "año desconocido".
 const TW_MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -32131,7 +32188,13 @@ function TiendaPublica({ slug }) {
               {pedido.giftcard && <TwGiftCardPedido pedido={pedido} tienda={tienda} slug={slug} />}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") === "no" && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con GoCuotas no se completó. Podés volver a intentarlo.</div>}
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") !== "no" && <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>Si ya pagaste con GoCuotas, en unos minutos se confirma solo.</div>}
+              {pedido.estado === "pendiente_pago" && pedido.pago === "mp" && (pedido.pago_rechazado || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")) && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con Mercado Pago no se completó. Podés volver a intentarlo{tienda.ayuda_pago ? " o elegir otra opción de abajo" : ""}.</div>}
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>{pedido.pago === "gocuotas" ? "Pagar con GoCuotas" : "Pagar con Mercado Pago"}</a>}
+              {pedido.estado === "pendiente_pago" && ["mp", "gocuotas"].includes(pedido.pago) && !pedido.giftcard && tienda.ayuda_pago && (
+                <TwAyudaPago pedido={pedido} ayuda={tienda.ayuda_pago} pedir={pedir} linkWa={(t) => wa(t, pedido.local_id)}
+                  falla={pedido.pago_rechazado || params.get("gc") === "no" || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")}
+                  nombreLocal={pedido.local && pedido.local.nombre} onCambio={() => pedir("/pedidos/" + pedido.codigo).then(setPedido).catch(() => {})} />
+              )}
               {pedido.transferencia && pedido.estado !== "cancelado" && (
                 <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
@@ -33280,6 +33343,7 @@ function TiendaPublica({ slug }) {
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
                   {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago</b><span>{tienda.pagos.mp ? "Para reservar productos que todavía no llegaron, el pago es solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "Ahora no podemos cobrar con Mercado Pago: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
                   {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => pagoNo(k) ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{hwJunta ? "Juntando tus códigos de Halloween pagás con transferencia o en efectivo" : cuponContado ? "Tu cupón " + cuponOk.codigo + " vale sin cuotas" : k === "gocuotas" && gocOferta.length ? "No disponible para productos en oferta" + (tienda.cyber ? " del Cyber" : "") + " (" + gocOferta.slice(0, 2).join(", ") + (gocOferta.length > 2 ? " y " + (gocOferta.length - 2) + " más" : "") + ")" : <>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</>}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && !hwJunta && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{cuponContado && k === "mp" ? "En 1 pago (débito, crédito o dinero en cuenta), por tu cupón" : hwJunta && k === "retiro" ? "En efectivo en el local, por juntar tus códigos" : cuponContado && k === "retiro" ? "Efectivo, débito o crédito en 1 cuota, por tu cupón" : d}</div></button>)}
+                  {!gcCubre && tienda.ayuda_pago && tienda.ayuda_pago.local && tienda.ayuda_pago.cuotas_local && <div className="tw-ap-hint">💳 ¿Preferís pagar con tarjeta de crédito? En nuestros locales: <b>{tienda.ayuda_pago.cuotas_local}</b>.{datos.entrega === "retiro" ? " Si el pago online no te sale, podés pagarlo al retirar." : ""}</div>}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
                     <div className="tw-cupon" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px" }}>
@@ -37495,6 +37559,16 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </div>
             )}
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
+            {(cfg.pago_mp || cfg.pago_gocuotas) && (() => { const ap = { activo: true, local: true, telefono: true, cuotas_local: "", ...(cfg.ayuda_pago || {}) }; const setAp = (k, v) => set("ayuda_pago", { ...ap, [k]: v }); return (
+              <div style={{ marginTop: 12, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px" }}>
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={ap.activo} onChange={e => setAp("activo", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>🆘 "¿No te salió el pago?"</b><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Si a una clienta le rechazan Mercado Pago o GoCuotas, la tienda le ofrece otras formas de comprar igual.</div></span></label>
+                {ap.activo && <div style={{ margin: "8px 0 0 26px", display: "grid", gap: 8 }}>
+                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13 }}><input type="checkbox" checked={ap.local} onChange={e => setAp("local", e.target.checked)} style={{ marginTop: 2 }} /> <span>Pagar en el local <span style={{ color: temaPal.textMuted, fontSize: 11.5 }}>(si es con retiro, con un toque queda para pagar al retirarlo)</span></span></label>
+                  {ap.local && <div><div className="fl">Cuotas o promos del local (se muestra en la tienda)</div><input className="inp" maxLength={140} placeholder="Ej: 3 cuotas sin interés con todas las tarjetas de crédito" value={ap.cuotas_local} onChange={e => setAp("cuotas_local", e.target.value)} /></div>}
+                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13 }}><input type="checkbox" checked={ap.telefono} onChange={e => setAp("telefono", e.target.checked)} style={{ marginTop: 2 }} /> <span>Pagar por teléfono <span style={{ color: temaPal.textMuted, fontSize: 11.5 }}>(botón de WhatsApp con el pedido y el monto; vos le cobrás y se lo mandás o lo deja listo)</span></span></label>
+                  {ap.telefono && !cfg.whatsapp && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Cargá el WhatsApp de la tienda para que aparezca este botón.</div>}
+                </div>}
+              </div>); })()}
             {[["mp", "Mercado Pago", cfg.pago_mp], ["gocuotas", "GoCuotas", cfg.pago_gocuotas], ["transferencia", "Transferencia", cfg.pago_transferencia], ["retiro", "Paga al retirar", cfg.pago_retiro]].some(x => x[2]) && (
               <div style={{ marginTop: 12, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px" }}>
                 <div style={{ fontWeight: 800, fontSize: 13 }}>💸 Descuento por forma de pago</div>
