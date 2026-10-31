@@ -10332,6 +10332,7 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   const [error, setError] = useState("");
   const [negocio, setNegocio] = useState("");
   const [bajando, setBajando] = useState("");
+  const [errorBajar, setErrorBajar] = useState("");
   const ref = useRef(null);
   useEffect(() => { API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
   useEffect(() => {
@@ -10340,28 +10341,46 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
       .then(r => setD(r.data)).catch(e => setError(e.response?.data?.error || "No se pudo armar el informe"));
   }, [mes, anio, local]);
   const nombreArchivo = "informe-" + MESES_NOMBRE[mes - 1].toLowerCase() + "-" + anio;
+  // En el iPhone un lienzo no puede pasar de ~16 millones de píxeles (si no, sale vacío o falla): la escala se achica
+  // según el largo del informe
   const capturar = async () => {
     const { default: html2canvas } = await import("html2canvas");
-    return html2canvas(ref.current, { scale: Math.max(2, Math.min(3, 1400 / ref.current.offsetWidth)), backgroundColor: "#fff8ef", logging: false, useCORS: true });
+    const el = ref.current, w = el.offsetWidth, h = el.scrollHeight;
+    const maxPx = 15000000, porArea = Math.sqrt(maxPx / Math.max(1, w * h)), porLado = 16000 / Math.max(w, h);
+    const scale = Math.max(1, Math.min(3, 1400 / w, porArea, porLado));
+    const c = await html2canvas(el, { scale, backgroundColor: "#fff8ef", logging: false, useCORS: true, windowWidth: document.documentElement.clientWidth });
+    if (!c.width || !c.height) throw new Error("vacío");
+    return c;
+  };
+  // En el celular (iPhone sobre todo) el "descargar" de los links no funciona: se abre el menú para guardar o compartir
+  const entregar = async (blob, nombre) => {
+    const f = new File([blob], nombre, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      try { await navigator.share({ files: [f], title: nombre }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
   const bajarImagen = async () => {
-    setBajando("img");
+    setBajando("img"); setErrorBajar("");
     try {
       const c = await capturar();
-      const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = nombreArchivo + ".png"; a.click();
-    } catch (e) { setError("No se pudo descargar la imagen"); }
+      const blob = await new Promise((ok, mal) => c.toBlob(b => b ? ok(b) : mal(new Error("sin imagen")), "image/png"));
+      await entregar(blob, nombreArchivo + ".png");
+    } catch (e) { setErrorBajar("No se pudo descargar la imagen. Probá de nuevo o desde la compu."); }
     setBajando("");
   };
   const bajarPdf = async () => {
-    setBajando("pdf");
+    setBajando("pdf"); setErrorBajar("");
     try {
       const [c, { jsPDF }] = await Promise.all([capturar(), import("jspdf")]);
       // Una sola hoja larga, del ancho de una A4, para que se lea entero sin cortes
       const ancho = 210, alto = c.height * ancho / c.width;
       const pdf = new jsPDF({ unit: "mm", format: [ancho, alto] });
       pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, ancho, alto);
-      pdf.save(nombreArchivo + ".pdf");
-    } catch (e) { setError("No se pudo descargar el PDF"); }
+      await entregar(pdf.output("blob"), nombreArchivo + ".pdf");
+    } catch (e) { setErrorBajar("No se pudo descargar el PDF. Probá de nuevo o desde la compu."); }
     setBajando("");
   };
   if (error) return <div className="cc-aviso bad" role="alert">{error}</div>;
@@ -10406,6 +10425,7 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
         <button className="btn btn-p" onClick={bajarImagen} disabled={!!bajando}>{bajando === "img" ? "Preparando…" : "📲 Descargar imagen"}</button>
         <button className="btn btn-s" onClick={bajarPdf} disabled={!!bajando}>{bajando === "pdf" ? "Preparando…" : "📄 Descargar PDF"}</button>
       </div>
+      {errorBajar && <div className="cc-aviso bad" role="alert" style={{ maxWidth: 760, margin: "0 auto 10px" }}>{errorBajar}</div>}
       <div className="inf" ref={ref}>
         <div className="inf-top">
           <div className="neg">{negocio || "Tu negocio"}{nombreLocalTxt ? " · " + nombreLocalTxt : ""}</div>
