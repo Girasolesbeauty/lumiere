@@ -27397,8 +27397,14 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-deseo{position:absolute;left:50%;top:22%;z-index:7;width:min(320px,86%);transform:translateX(-50%);background:rgba(12,22,48,.94);border:1px solid #e8cf8f;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:5px;box-shadow:0 0 30px rgba(255,214,140,.45);animation:twAdvDeseo .5s cubic-bezier(.3,1.4,.5,1)}
 .tw-adv-deseo b{color:#ffd98a;font-size:15px}.tw-adv-deseo span{font-size:14px;line-height:1.4}.tw-adv-deseo small{font-size:12.5px;color:#e8cf8f}
 @keyframes twAdvDeseo{from{opacity:0;transform:translateX(-50%) scale(.6)}}
-.tw-adv-nevada{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
-.tw-adv-nevada i{position:absolute;top:-12px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;box-shadow:0 0 4px #fff;animation:twAdvNieve var(--d) linear var(--del) 3}
+.tw-adv-nevada{position:fixed;inset:0;z-index:2147483000;pointer-events:none;overflow:hidden}
+.tw-adv-nevada{transition:opacity 1.6s ease-in}.tw-adv-nevada.sefue{opacity:0}
+.tw-adv-nevada .capa{position:absolute;inset:0;animation:twAdvCapa 1s ease-out both}
+.tw-adv-nevada i{position:absolute;top:-16px;width:var(--s);height:var(--s);border-radius:50%;background:#fff;box-shadow:0 0 5px #fff;opacity:.95;animation:twAdvNieve2 var(--d) linear var(--del) infinite}
+.tw-adv-nevada i.copo{width:auto;height:auto;background:none;box-shadow:none;color:#fff;font-size:calc(var(--s) * 3.2);line-height:1;text-shadow:0 0 6px rgba(160,200,255,.9)}
+@keyframes twAdvNieve2{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(calc(var(--x) * -1),55vh) rotate(180deg)}100%{transform:translate(var(--x),112vh) rotate(360deg)}}
+@keyframes twAdvCapa{from{opacity:0}}
+.tw-adv-nevada .monton{position:absolute;left:-5%;right:-5%;bottom:0;transition:height 1.2s ease-out;background:radial-gradient(60px 26px at 10% 0,#fff 98%,transparent) 0 0/120px 100% repeat-x,linear-gradient(#fff,#e6f0ff);border-radius:50% 50% 0 0/18px 18px 0 0;box-shadow:0 -4px 14px rgba(255,255,255,.7)}
 .tw-adv-tips{font-size:11.5px;color:rgba(255,255,255,.62);margin-top:6px;padding:0 14px}
 .tw-adv-tips .pc{display:none}
 @media (hover:hover) and (pointer:fine){.tw-adv-tips .cel{display:none}.tw-adv-tips .pc{display:inline}}
@@ -29807,8 +29813,15 @@ const twAdvSon = {
   nevada() { const c = twSonidoOn() && twCtx(); if (!c) return; this.ruido(c, 0, 1.4, .06, 900, "lowpass"); [1568, 1976, 2349, 3136].forEach((f, i) => twTono(c, { f1: f, dur: .8, vol: .025, cuando: .2 + i * .15 })); twVibrar([20, 60, 20]); },
 };
 // Nevada fuerte (sacudiendo el celular, o doble clic en la compu): como un globo de nieve
-const ADV_NEVADA = Array.from({ length: 70 }, (_, i) => ({ l: ((i * 37) % 100) + "%", s: (3 + (i % 4) * 1.5) + "px", d: (1.6 + (i % 5) * .35) + "s", del: (-(i % 9) * .22) + "s", x: (((i * 53) % 60) - 30) + "px" }));
-const TwAdvNevada = () => <div className="tw-adv-nevada" aria-hidden="true">{ADV_NEVADA.map((k, i) => <i key={i} style={{ left: k.l, "--s": k.s, "--d": k.d, "--del": k.del, "--x": k.x }} />)}</div>;
+// Nevada al sacudir el celular: cada sacudida suma una capa de nieve (hasta 4), cada vez más copos y más grandes,
+// sobre toda la pantalla, y abajo se va juntando un montón de nieve
+const advNevadaCapa = (c) => Array.from({ length: 90 + c * 20 }, (_, i) => { const j = i + c * 131; return { l: ((j * 37) % 101) + "%", s: (3 + (j % 4) * 1.6 + c * .8) + "px", d: (2.4 + (j % 6) * .45 - c * .15) + "s", del: (-((j * 7) % 23) * .12) + "s", x: (((j * 53) % 80) - 40) + "px", copo: j % 9 === 0 }; });
+const ADV_NEVADA = [0, 1, 2, 3].map(advNevadaCapa);
+const TwAdvNevada = ({ capas, seVa }) => createPortal(
+  <div className={"tw-adv-nevada" + (seVa ? " sefue" : "")} aria-hidden="true">
+    {capas.map((c, n) => <div key={c.id} className="capa">{ADV_NEVADA[Math.min(n, 3)].map((k, i) => <i key={i} className={k.copo ? "copo" : ""} style={{ left: k.l, "--s": k.s, "--d": k.d, "--del": k.del, "--x": k.x }}>{k.copo ? "❄" : null}</i>)}</div>)}
+    <div className="monton" style={{ height: [0, 22, 38, 52, 64][Math.min(4, capas.length)] + "px" }} />
+  </div>, document.body);
 // El edificio se va llenando: con cada ventana encendida, más nieve en el techo y los toldos, más cortinas de luces
 // entre las ventanas, y el 25 todo dorado con fuegos artificiales
 function TwAdvProgreso({ n }) {
@@ -29954,7 +29967,8 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   const [trineo, setTrineo] = useState(0);
   const [estrella, setEstrella] = useState(null); // { k, x, y }
   const [deseo, setDeseo] = useState(null);
-  const [nevada, setNevada] = useState(0);
+  const [nevada, setNevada] = useState([]);
+  const [nieveSeVa, setNieveSeVa] = useState(false);
   const vigente = hoy >= 1 && hoy <= 25 && !adv.vista_previa;
   useEffect(() => { if (cuenta.logueada && vigente && cuenta.pedir) cuenta.pedir("/adviento/mio").then(setMio).catch(() => {}); else setMio(null); }, [cuenta.logueada]); // eslint-disable-line react-hooks/exhaustive-deps
   const marcar = (dia) => setAbiertas(l => { if (l.includes(dia)) return l; const n = [...l, dia]; try { localStorage.setItem(clave, JSON.stringify(n)); } catch (e) {} return n; });
@@ -29980,11 +29994,12 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   // iOS pide permiso para leer el movimiento (para la nevada al sacudir): se pide con el primer toque
   const permisoMov = useRef(false);
   const pedirMovimiento = () => { if (permisoMov.current) return; permisoMov.current = true; try { if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === "function") DeviceMotionEvent.requestPermission().catch(() => {}); } catch (e) {} };
-  const nevar = () => { setNevada(Date.now()); twAdvSon.nevada(); };
+  // Cada sacudida suma una capa (hasta 4) y estira la nevada; si dejás de sacudir, a los 7 segundos para
+  const nevar = () => { setNieveSeVa(false); setNevada(cs => [...cs, { id: Date.now() + Math.random() }].slice(-4)); twAdvSon.nevada(); };
   // Sacudir el celular: nevada fuerte
   useEffect(() => {
     let ult = null, t0 = 0;
-    const f = (e) => { const a = e.accelerationIncludingGravity; if (!a || a.x === null) return; if (ult) { const d = Math.abs(a.x - ult.x) + Math.abs(a.y - ult.y) + Math.abs(a.z - ult.z); if (d > 28 && Date.now() - t0 > 5000) { t0 = Date.now(); nevar(); } } ult = { x: a.x, y: a.y, z: a.z }; };
+    const f = (e) => { const a = e.accelerationIncludingGravity; if (!a || a.x === null) return; if (ult) { const d = Math.abs(a.x - ult.x) + Math.abs(a.y - ult.y) + Math.abs(a.z - ult.z); if (d > 20 && Date.now() - t0 > 900) { t0 = Date.now(); nevar(); } } ult = { x: a.x, y: a.y, z: a.z }; };
     window.addEventListener("devicemotion", f); return () => window.removeEventListener("devicemotion", f);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Estrellas fugaces que se pueden tocar (cada 18 a 40 segundos, cuando el edificio está a la vista) y el trineo cada tanto
@@ -30003,7 +30018,8 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
     else setDeseo({ msg, extra: adv.estrella_puntos > 0 ? (vigente ? "Ingresá a tu cuenta y cada día tu primera estrella te suma " + adv.estrella_puntos + " puntos" : "Desde el 1 de diciembre, con cuenta, la primera estrella de cada día suma " + adv.estrella_puntos + " puntos") : "" });
   };
   useEffect(() => { if (!deseo) return; const t = setTimeout(() => setDeseo(null), 6500); return () => clearTimeout(t); }, [deseo]);
-  useEffect(() => { if (!nevada) return; const t = setTimeout(() => setNevada(0), 6000); return () => clearTimeout(t); }, [nevada]);
+  useEffect(() => { if (!nevada.length) return; const t = setTimeout(() => setNieveSeVa(true), 7000); return () => clearTimeout(t); }, [nevada]);
+  useEffect(() => { if (!nieveSeVa) return; const t = setTimeout(() => { setNevada([]); setNieveSeVa(false); }, 1800); return () => clearTimeout(t); }, [nieveSeVa]);
   const saltar = () => { timers.current.forEach(clearTimeout); if (abriendo) { marcar(abriendo.d.dia); setAbriendo(a => a && { ...a, fase: "listo" }); } };
   const zv = useRef(null);
   useLayoutEffect(() => {
@@ -30055,10 +30071,10 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
             </button>);
         })}
       </div>
-      {nevada > 0 && <TwAdvNevada key={nevada} />}
+      {nevada.length > 0 && <TwAdvNevada capas={nevada} seVa={nieveSeVa} />}
       {deseo && <div className="tw-adv-deseo" role="status" onClick={() => setDeseo(null)}><b>🌠 ¡Pediste un deseo!</b><span>{deseo.msg}</span>{deseo.extra && <small>{deseo.extra}</small>}</div>}
       <div className="tw-adv-cuenta">✦ {prendidas} de 25 ventanas encendidas ✦</div>
-      <div className="tw-adv-tips">🌠 Tocá las estrellas fugaces · ❄️ <span className="cel">Sacudí el celular</span><span className="pc">Doble clic en el edificio</span> para que nieve</div>
+      <div className="tw-adv-tips">🌠 Tocá las estrellas fugaces · ❄️ <span className="cel">Sacudí el celular</span><span className="pc">Doble clic en el edificio</span>: cuanto más, más nieva</div>
       <TwAdvAlbum adv={adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
       <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 && !adv.vista_previa ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
