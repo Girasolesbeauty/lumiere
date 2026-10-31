@@ -10481,7 +10481,8 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
           <div className="inf-h"><span>💸</span>Sueldos y comisiones</div>
           <div className="inf-lista">
             {d.sueldos.map((x, i) => <div className="f" key={"s" + i}><span>👩‍💼 {x.quien}</span><b>{infPlata(x.total)}</b></div>)}
-            {d.comisiones_equipo.map((x, i) => <div className="f" key={"c" + i}><span>🎯 Comisiones equipo {x.local}</span><b>{infPlata(x.ganada)}{x.pagada < x.ganada ? <small style={{ color: "#b45309", fontWeight: 700 }}> · falta pagar {infPlata(x.ganada - x.pagada)}</small> : null}</b></div>)}
+            {d.sueldos.length > 0 && d.sueldos_total !== undefined && <div className="f" key="tot" style={{ borderTop: "2px solid #e5e7eb", fontWeight: 800 }}><span>Total pagado en sueldos y comisiones</span><b>{infPlata(d.sueldos_total)}</b></div>}
+            {d.comisiones_equipo.map((x, i) => <div className="f" key={"c" + i} style={{ opacity: .85 }}><span>🎯 Comisiones que ganó el equipo de {x.local} (aparte del total)</span><b>{infPlata(x.ganada)}{x.pagada < x.ganada ? <small style={{ color: "#b45309", fontWeight: 700 }}> · falta pagar {infPlata(x.ganada - x.pagada)}</small> : null}</b></div>)}
           </div>
         </div>}
 
