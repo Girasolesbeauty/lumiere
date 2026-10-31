@@ -168,7 +168,9 @@ async function obtenerEgresos(mes, anio, localNum) {
       LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
       WHERE m.tipo = 'E' AND ${NO_ANULADO('m')}
       UNION ALL
-      SELECT e.importe, e.concepto, e.local_id, e.creado_en, NULL::numeric, 'variable', e.destino_origen
+      SELECT e.importe, e.concepto, e.local_id, e.creado_en, NULL::numeric,
+        CASE WHEN CONCAT(e.concepto, ' ', e.destino_origen) ~* '(sueldo|aguinaldo)' THEN 'sueldo' ELSE 'variable' END,
+        CASE WHEN CONCAT(e.concepto, ' ', e.destino_origen) ~* '(sueldo|aguinaldo)' THEN 'Sueldos' ELSE e.destino_origen END
       FROM movimientos_caja_efectivo e
       WHERE e.tipo IN ('egreso', 'E') AND ${NO_ANULADO('e')}
         AND COALESCE(e.destino_origen, '') <> 'Pago de comisiones'
@@ -1198,6 +1200,23 @@ const getComparativaMeses = async (req, res) => {
 // Todo lo del mes en un solo pedido, comparado con el mes anterior: facturación, ingresos y egresos (con su %),
 // sueldos y comisiones, vendedoras, ticket promedio, locales, canales, medios de pago, productos, marcas y clientas.
 // Si el mes está en curso, la facturación también se compara con los mismos días del mes anterior.
+// Sueldos del mes por persona: los mismos egresos que suman "Sueldos y comisiones" (así la lista da el mismo total),
+// juntando los pagos de cada una aunque se hayan cargado distinto ("Sueldo Vero", "Adelanto sueldo vero", "Aguinaldo Vero")
+const PALABRAS_SUELDO = /(^|\s)(sueldos?|aguinaldos?|sac|adelantos?|anticipos?|pagos?|liquidaci[oó]n|vacaciones|quincena|1ra|2da|1er|2do|primera|segunda|mitad|parte|saldo|resto|horas?|extras?|cuota|de|del|la|el|a|y|mes|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|\d+)(?=\s|$)/gi;
+function sueldosPorPersona(egresos) {
+  const m = new Map();
+  (egresos || []).filter(r => r.categoria_tipo === 'sueldo').forEach(r => {
+    const comision = /comisi/i.test(r.concepto || '') || /comisi/i.test(r.categoria_nombre || '');
+    let quien = comision ? 'Comisiones de vendedoras' : String(r.concepto || '').replace(/[\/.:,()-]/g, ' ').replace(/\s+/g, ' ');
+    if (!comision) { let antes; do { antes = quien; quien = quien.replace(PALABRAS_SUELDO, ' ').replace(/\s+/g, ' '); } while (quien !== antes); quien = quien.trim(); }
+    if (!quien) quien = 'Sueldos sin nombre';
+    const k = quien.toLowerCase();
+    const x = m.get(k) || { quien: comision ? quien : quien.toLowerCase().replace(/(^|\s)\p{L}/gu, c => c.toUpperCase()), total: 0, pagos: 0 };
+    x.total += num(r.importe); x.pagos += 1; m.set(k, x);
+  });
+  return [...m.values()].map(x => ({ ...x, total: Math.round(x.total * 100) / 100 })).sort((a, b) => b.total - a.total);
+}
+
 const getInformeMes = async (req, res) => {
   try {
     if (!['jefe', 'admin', 'administrativo'].includes(req.usuario && req.usuario.rol)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
@@ -1212,7 +1231,8 @@ const getInformeMes = async (req, res) => {
     const q = async (sql, params) => { try { return (await pool.query(sql, params)).rows; } catch (e) { console.error('[informe mes]', e.message); return []; } };
     const VV = VENTA_VALIDA('v');
 
-    const [est, estAnt, dias, diasAnt, locales, vendedoras, vendAnt, topProd, topMarcas, medios, clientas, sueldosRows, comisionesEq, web, cmvR, mismosDias] = await Promise.all([
+    const [egresosMes, est, estAnt, dias, diasAnt, locales, vendedoras, vendAnt, topProd, topMarcas, medios, clientas, comisionesEq, web, cmvR, mismosDias] = await Promise.all([
+      obtenerEgresos(mes, anio, localNum),
       calcularFlujoEstructurado(mes, anio, req.query.local_id),
       calcularFlujoEstructurado(mesAnt, anioAnt, req.query.local_id),
       q(`SELECT EXTRACT(DAY FROM ${AR('v.creado_en')})::int AS d, SUM(v.total) AS total, COUNT(*) AS cant FROM ventas v
@@ -1242,12 +1262,6 @@ const getInformeMes = async (req, res) => {
            (SELECT COUNT(DISTINCT v.cliente_id) FROM ventas v WHERE ${VV} AND v.cliente_id IS NOT NULL AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 5)}
               AND EXISTS (SELECT 1 FROM ventas v2 WHERE v2.cliente_id = v.cliente_id AND COALESCE(v2.anulada, FALSE) = FALSE AND v2.creado_en < date_trunc('month', make_date($2::int, $1::int, 1)))) AS volvieron`,
         P([mes, anio, mesAnt, anioAnt])),
-      // Sueldos: los egresos de tipo "sueldo" del mes, juntados por concepto (como se cargaron: "Sueldo Vero", "Aguinaldo Mara"…)
-      q(`SELECT INITCAP(TRIM(REGEXP_REPLACE(m.concepto, '\s+', ' ', 'g'))) AS quien, SUM(m.importe) AS total, COUNT(*) AS pagos
-         FROM movimientos_caja m LEFT JOIN categorias_costo cc ON cc.id = m.categoria_id
-         WHERE m.tipo = 'E' AND ${NO_ANULADO('m')} AND (cc.tipo = 'sueldo' OR (m.categoria_id IS NULL AND m.concepto ILIKE '%sueldo%'))
-           AND m.concepto NOT ILIKE '%comisi%' AND ${EN_MES('m.creado_en', 1, 2)}${localNum !== null ? ' AND (m.local_id = $3 OR m.local_id IS NULL)' : ''}
-         GROUP BY 1 ORDER BY 2 DESC LIMIT 15`, P([mes, anio])),
       // Comisiones que ganó el equipo de cada local en el mes
       q(`SELECT l.id, l.nombre, COALESCE(SUM(c.comision_ganada), 0) AS ganada, COALESCE(SUM(c.comision_ganada) FILTER (WHERE c.pagada), 0) AS pagada
          FROM locales l JOIN comisiones c ON c.local_id = l.id
@@ -1282,7 +1296,8 @@ const getInformeMes = async (req, res) => {
       por_dia: porDia, mejor_dia: mejorDia && mejorDia.total > 0 ? mejorDia : null,
       locales: locales.map(l => ({ id: l.id, nombre: l.nombre, total: num(l.total), total_ant: num(l.total_ant), cant: num(l.cant) })),
       vendedoras: vendedoras.map(v => ({ nombre: v.nombre, total: num(v.total), cant: num(v.cant), ticket: num(v.cant) ? num(v.total) / num(v.cant) : 0, total_ant: (vAnt[v.id] || {}).total || 0 })),
-      sueldos: sueldosRows.map(r => ({ quien: r.quien, total: num(r.total), pagos: num(r.pagos) })),
+      sueldos: sueldosPorPersona(egresosMes),
+      sueldos_total: est.sueldos.total,
       comisiones_equipo: comisionesEq.map(r => ({ local: r.nombre, ganada: num(r.ganada), pagada: num(r.pagada) })),
       top_productos: topProd.map(r => ({ nombre: r.nombre, marca: r.marca, unidades: num(r.unidades), total: num(r.total) })),
       top_marcas: topMarcas.map(r => ({ marca: r.marca, total: num(r.total), unidades: num(r.unidades) })),
