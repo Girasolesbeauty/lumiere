@@ -29616,8 +29616,6 @@ const ADV_FACHADA_SVG = (() => {
   // Edificios del fondo: uno alto tipo Empire State, con la punta de colores
   s += '<g opacity=".95"><path d="M54 70 V22 H60 V8 H64 V-4 H66 V8 H70 V22 H76 V70Z" fill="#241d47"/><rect x="62" y="10" width="6" height="3" fill="#ff3b4e" class="a1"/><rect x="62" y="15" width="6" height="3" fill="#33d17a" class="a2"/><circle cx="65" cy="-4" r="4" fill="url(#afL0)" class="a3"/></g>';
   s += '<path d="M268 70 V30 H300 V70Z" fill="#1d1840"/><path d="M276 30 V18 H292 V30Z" fill="#1d1840"/>' + [0, 1, 2].map(i => '<rect x="' + (272 + i * 9) + '" y="38" width="3" height="4" fill="#ffd98a" opacity=".6"/>').join("");
-  // Costados (edificios vecinos)
-  [[-2, 22], [338, 24]].forEach(([x, w], j) => { s += '<rect x="' + x + '" y="40" width="' + w + '" height="520" fill="#1a1538"/>'; for (let y = 52, k = j; y < 540; y += 16, k++) s += '<rect x="' + (x + 6) + '" y="' + y + '" width="' + (w - 12) + '" height="8" rx="1" fill="' + (k % 3 === 0 ? "#2a2250" : k % 3 === 1 ? "#ffcf6e" : "#ffe9b8") + '"/>' + (k % 4 === 2 ? '<line class="a' + (1 + (k % 3)) + '" x1="' + (x + 6) + '" y1="' + (y - 2) + '" x2="' + (x + w - 6) + '" y2="' + (y - 2) + '" stroke="' + L[k % L.length] + '" stroke-width="2" stroke-linecap="round" stroke-dasharray="0 4"/>' : ""); });
   // Techo mansarda con buhardillas, banderas y una gran estrella de luz arriba
   s += '<path d="M24 96 L40 58 H320 L336 96Z" fill="url(#afTecho)"/>';
   [92, 268].forEach(x => { s += '<path d="M' + (x - 13) + ' 96 V74 L' + x + ' 62 L' + (x + 13) + ' 74 V96Z" fill="#cdb791"/><rect x="' + (x - 7) + '" y="74" width="14" height="18" rx="7" fill="url(#afVid)"/><path d="M' + (x - 7) + ' 83 H' + (x + 7) + ' M' + x + ' 74 V92" stroke="#8a6a3a" stroke-width=".8"/>'; });
