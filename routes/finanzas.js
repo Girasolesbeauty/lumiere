@@ -13,6 +13,7 @@ router.get('/cmv', controller.getCMV);
 router.post('/facturacion-externa', controller.guardarFacturacionExterna);
 router.get('/facturacion-externa', controller.getFacturacionExterna);
 router.get('/movimientos-detalle', controller.getMovimientosDetalle);
+router.put('/movimientos-categoria', controller.recategorizarMovimientos);
 router.put('/movimientos/:id', controller.updateMovimiento);
 router.delete('/movimientos/:id', controller.deleteMovimiento);
 router.get('/analisis', controller.getAnalisisFinanciero);
