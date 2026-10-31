@@ -506,6 +506,12 @@ router.post('/:slug/pedidos', async (req, res) => {
     // (ej. Cyber Monday), pague como pague. Se calculan solo sobre el resto.
     const promosPedido = (await tienda.promosTienda(client)).filter(x => !x.local || x.local === Number(localId));
     const baseCupon = tienda.baseCupon(promosPedido, lineas, combo.enCombos);
+    // Los productos en oferta (ej. Cyber Monday) no se pagan con GoCuotas
+    const conOfertaGoc = pago === 'gocuotas' ? lineas.filter(l => !l.preventa && tienda.sinGoCuotas(promosPedido, { id: l.producto_id, categoria: l.categoria })) : [];
+    if (conOfertaGoc.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'GoCuotas no está disponible para productos en oferta (' + conOfertaGoc.map(l => l.nombre).slice(0, 3).join(', ') + '). Elegí otra forma de pago.' });
+    }
     if (b.cupon) {
       if (baseCupon <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Los cupones no se pueden usar en productos en oferta. Sacá el código para seguir.' }); }
       cupon = await tienda.revisarCupon(client, b.cupon, baseCupon, true, { cliente_id: clienteId, telefono }, pago);
