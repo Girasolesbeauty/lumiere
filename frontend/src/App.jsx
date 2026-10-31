@@ -29584,7 +29584,7 @@ const ADV_FACHADA_SVG = (() => {
   const L = ADV_LUCES, r1 = (n) => Math.round(n * 10) / 10;
   let s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 ' + ADV_ALTO + '" preserveAspectRatio="xMidYMid meet"><defs>' +
     '<linearGradient id="afPiedra" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a99272"/><stop offset=".5" stop-color="#cdb791"/><stop offset="1" stop-color="#ead5ad"/></linearGradient>' +
-    '<linearGradient id="afTecho" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2445"/><stop offset="1" stop-color="#4b3f69"/></linearGradient>' +
+    '<linearGradient id="afTecho" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f6b5c"/><stop offset="1" stop-color="#5d9c86"/></linearGradient>' +
     '<linearGradient id="afVid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3d1"/><stop offset=".6" stop-color="#ffc766"/><stop offset="1" stop-color="#ff9a3c"/></linearGradient>' +
     '<linearGradient id="afPuerta" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a8"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient>' +
     '<linearGradient id="afToldo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4a5a"/><stop offset="1" stop-color="#b3132a"/></linearGradient>' +
@@ -29655,11 +29655,23 @@ const ADV_FACHADA_SVG = (() => {
   s += '<path d="M152 552 V520 A28 28 0 0 1 208 520 V552Z" fill="#7d0c1c"/><path d="M156 552 V521 A24 24 0 0 1 204 521 V552Z" fill="url(#afPuerta)"/><path d="M180 497 V552 M156 528 H204" stroke="#a5672a" stroke-width="1" opacity=".6"/>' +
     '<path class="a2" d="M152 552 V520 A28 28 0 0 1 208 520 V552" fill="none" stroke="#fff3c4" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="0 4.5"/>' +
     '<path d="M150 552 H210 L218 560 H142Z" fill="#c4122f"/><path d="M146 556 H214" stroke="#8d0c22" stroke-width=".8"/>' +
-    arbolito(140, 554, 40, 20) + arbolito(220, 554, 40, 20) + corona(180, 502, 8.5);
+    corona(180, 502, 8.5);
+  // Inspirado en el Hotel Plaza: techo de cobre verde (afTecho), banderas sobre la entrada, marquesina y dos faroles
+  [[160, -1, "#c4122f"], [180, 0, "#f3ead2"], [200, 1, "#1f3a6b"]].forEach(([x, k, c]) => {
+    const tx = x + k * 8, ty = 450, fx = k ? k : 1;
+    s += '<line x1="' + x + '" y1="478" x2="' + tx + '" y2="' + ty + '" stroke="#d8c08a" stroke-width="1.2"/><circle cx="' + tx + '" cy="' + ty + '" r="1.3" fill="#ffd98a"/>' +
+      '<path class="afBand" d="M' + tx + ' ' + (ty + 2) + ' q' + (fx * 7) + ' -2 ' + (fx * 14) + ' 1 v10 q' + (-fx * 7) + ' -3 ' + (-fx * 14) + ' -1Z" fill="' + c + '" stroke="#00000022" stroke-width=".4"/>';
+  });
+  s += '<path d="M146 510 H214 L220 518 H140Z" fill="#5b0a17"/><path d="M140 518 H220 V520 H140Z" fill="#c9a24e"/><path d="M146 510 H214" stroke="#e8c97a" stroke-width="1"/>' + tira(141, 519, 219, 519, 4.5, 1.9);
+  [146, 214].forEach((x, i) => {
+    s += '<rect x="' + (x - .9) + '" y="532" width="1.8" height="22" fill="#2b2233"/><path d="M' + (x - 3) + ' 554 h6 l-1 -3 h-4Z" fill="#2b2233"/>' +
+      '<circle class="a' + (1 + i) + '" cx="' + x + '" cy="527" r="9" fill="url(#afBr)" opacity=".9"/><path d="M' + (x - 3) + ' 532 V524 L' + x + ' 521 L' + (x + 3) + ' 524 V532Z" fill="#fff1b8" stroke="#2b2233" stroke-width="1"/>' +
+      '<path d="M' + (x - 3.5) + ' 538 l3.5 2 l3.5 -2 v3 l-3.5 -1 l-3.5 1Z" fill="#e01b34"/>';
+  });
   s += guirnalda(484, 18, 342, 40, 5, 8, false);
   for (let x = 18; x < 342; x += 40) s += '<circle cx="' + (x + 20) + '" cy="' + 494 + '" r="2.8" fill="#f5c84c"/><circle cx="' + (x + 20) + '" cy="' + 493 + '" r="1" fill="#fff6d8"/><path d="M' + x + ' 484 l-4 -3 v6Z M' + x + ' 484 l4 -3 v6Z" fill="#e01b34"/>' + foco(x + 10, 489, x / 40 | 0) + foco(x + 30, 489, (x / 40 | 0) + 3);
   // Destellos que aparecen y desaparecen sobre la fachada
-  [[60, 70], [300, 76], [120, 118], [252, 190], [72, 262], [210, 336], [318, 404], [150, 470], [36, 150], [282, 300], [180, 112], [100, 430]].forEach(([x, y], i) => {
+  [[60, 70], [300, 76], [120, 118], [252, 190], [72, 262], [210, 336], [318, 404], [112, 466], [36, 150], [282, 300], [180, 112], [100, 430]].forEach(([x, y], i) => {
     s += '<path class="brilla" style="animation-delay:' + (i * .37).toFixed(2) + 's" d="M' + x + ' ' + (y - 7) + ' Q' + (x + 1) + ' ' + (y - 1) + ' ' + (x + 7) + ' ' + y + ' Q' + (x + 1) + ' ' + (y + 1) + ' ' + x + ' ' + (y + 7) + ' Q' + (x - 1) + ' ' + (y + 1) + ' ' + (x - 7) + ' ' + y + ' Q' + (x - 1) + ' ' + (y - 1) + ' ' + x + ' ' + (y - 7) + 'Z" fill="#fff"/>';
   });
   // ── Penthouse del 25 (arriba del techo): terraza con barandas de luces, paredes de vidrio, cornisa dorada, dos pinitos
