@@ -1212,7 +1212,10 @@ function sueldosPorPersona(egresos) {
   const m = new Map();
   (egresos || []).filter(r => r.categoria_tipo === 'sueldo').forEach(r => {
     const comision = /comisi/i.test(r.concepto || '') || /comisi/i.test(r.categoria_nombre || '');
-    let quien = comision ? 'Comisiones de vendedoras' : String(r.concepto || '').replace(/[\/.:,()-]/g, ' ').replace(/\s+/g, ' ');
+    // Si la categoría es de una persona ("Sueldo Sabrina", "Sueldo Enrique"), todo lo cargado ahí es de esa persona
+    // (aunque el concepto diga "Telepase" o "Kiosco"); si la categoría es la general ("Sueldos"), se usa el concepto
+    const cat = String(r.categoria_nombre || '').trim(), catPersona = cat && !/^(sueldos?|sueldos? y cargas.*|sueldos? empleados?|personal|sin categor[ií]a)$/i.test(cat);
+    let quien = comision ? 'Comisiones de vendedoras' : String(catPersona ? cat : r.concepto || '').replace(/[\/.:,()-]/g, ' ').replace(/\s+/g, ' ');
     if (!comision) { let antes; do { antes = quien; quien = quien.replace(PALABRAS_SUELDO, ' ').replace(/\s+/g, ' '); } while (quien !== antes); quien = quien.trim(); }
     if (!quien) quien = 'Sueldos sin nombre';
     const k = quien.toLowerCase();
