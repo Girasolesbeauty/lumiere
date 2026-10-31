@@ -10242,6 +10242,14 @@ const GRUPOS_EGRESO = [
 // Tiene sus propios colores (no los del tema) para que la imagen descargada se vea igual siempre.
 const INF_CSS = `
 .inf-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.inf.inf-hz{border-radius:0;box-shadow:none}
+.inf-hz .inf-top{padding:30px 40px 46px}
+.inf-hz .inf-top h1{font-size:46px}
+.inf-hz .inf-hero{margin:-30px 40px 0;display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap}
+.inf-hz .inf-hero .big{margin:0}
+.inf-hz-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:6px 28px 10px;align-items:start}
+.inf-hz-col{min-width:0}
+.inf-hz .inf-sec{padding:16px 0 4px}
 .inf-acc{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .inf{width:100%;max-width:760px;text-align:left;background:#fff8ef;color:#2a2238;border-radius:26px;overflow:hidden;font-family:inherit;box-shadow:0 10px 40px rgba(60,30,90,.15)}
 .inf *{box-sizing:border-box}
@@ -10343,6 +10351,28 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   const nombreArchivo = "informe-" + MESES_NOMBRE[mes - 1].toLowerCase() + "-" + anio;
   // En el iPhone un lienzo no puede pasar de ~16 millones de píxeles (si no, sale vacío o falla): la escala se achica
   // según el largo del informe
+  // Imagen horizontal (para el celular acostado y la notebook): el encabezado arriba y las secciones repartidas en
+  // 3 columnas parejas. Se arma sobre la copia que hace html2canvas, la pantalla no cambia.
+  const capturarHorizontal = async () => {
+    const { default: html2canvas } = await import("html2canvas");
+    const ANCHO = 1800;
+    const c = await html2canvas(ref.current, {
+      scale: 1.5, backgroundColor: "#fff8ef", logging: false, useCORS: true, windowWidth: ANCHO + 40,
+      onclone: (doc) => {
+        const el = doc.querySelector(".inf"); if (!el) return;
+        el.classList.add("inf-hz"); el.style.width = ANCHO + "px"; el.style.maxWidth = ANCHO + "px";
+        const secs = [...el.children].filter(x => x.classList.contains("inf-sec"));
+        const pie = el.querySelector(".inf-pie");
+        const cols = doc.createElement("div"); cols.className = "inf-hz-cols";
+        const col = [0, 1, 2].map(() => { const d = doc.createElement("div"); d.className = "inf-hz-col"; cols.appendChild(d); return d; });
+        if (pie) el.insertBefore(cols, pie); else el.appendChild(cols);
+        // de a una, en la columna más corta (en orden, así se lee de izquierda a derecha)
+        secs.forEach(sc => { const k = col.reduce((m, x, i) => (x.offsetHeight < col[m].offsetHeight ? i : m), 0); col[k].appendChild(sc); });
+      },
+    });
+    if (!c.width || !c.height) throw new Error("vacío");
+    return c;
+  };
   const capturar = async () => {
     const { default: html2canvas } = await import("html2canvas");
     const el = ref.current, w = el.offsetWidth, h = el.scrollHeight;
@@ -10365,7 +10395,7 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   const bajarImagen = async () => {
     setBajando("img"); setErrorBajar("");
     try {
-      const c = await capturar();
+      const c = await capturarHorizontal();
       const blob = await new Promise((ok, mal) => c.toBlob(b => b ? ok(b) : mal(new Error("sin imagen")), "image/png"));
       await entregar(blob, nombreArchivo + ".png");
     } catch (e) { setErrorBajar("No se pudo descargar la imagen. Probá de nuevo o desde la compu."); }
