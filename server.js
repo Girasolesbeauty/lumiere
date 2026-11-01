@@ -87,6 +87,7 @@ app.use('/api/retos', require('./routes/retos'));
 app.use('/api/avisos-menu', require('./routes/avisos-menu'));
 app.use('/api/gerente', require('./routes/gerente'));
 app.use('/api/resumen-semanal', require('./routes/resumenSemanal'));
+app.use('/api/club', require('./routes/club'));
 app.use('/api/del-mes', require('./routes/delMes'));
 app.use('/api/testers', require('./routes/testers'));
 app.use('/api/respaldo', require('./routes/respaldo'));

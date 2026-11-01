@@ -1074,6 +1074,15 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .fin-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .fin-form { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
 .fin-filtros { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.club-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.club-pieza { text-align: left; margin: 0; min-width: 0; }
+.club-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; }
+.club-dia { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: ${p.accent}22; color: ${p.accentText || p.accent}; border-radius: 99px; padding: 3px 10px; }
+.club-placa { width: 100%; height: auto; aspect-ratio: 1080/1350; border-radius: 12px; display: block; margin-bottom: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.club-txt { width: 100%; font-size: 13px; line-height: 1.45; resize: vertical; margin-bottom: 8px; box-sizing: border-box; }
+.club-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.club-ayuda { font-size: 12.5px; color: ${p.textMuted}; margin-top: 12px; line-height: 1.5; background: ${p.bg}; border-radius: 10px; padding: 10px 12px; }
+.club-aviso { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); color: #fff; font-weight: 700; font-size: 13.5px; padding: 10px 18px; border-radius: 99px; z-index: 9999; box-shadow: 0 6px 20px rgba(0,0,0,.25); max-width: 90vw; text-align: center; }
 .fin-comp-sub { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: ${p.textMuted}; margin: 4px 2px 8px; }
 .fin-comp-ley { display: flex; gap: 12px; font-size: 11px; color: ${p.textMuted}; }
 .fin-comp-ley span { display: flex; align-items: center; gap: 5px; }
@@ -25872,6 +25881,173 @@ function CyberVideos({ temaPal }) {
     </div>
   );
 }
+// ===== Club de WhatsApp: mensajes para los grupos de clientas =====
+// Lumiere propone un mensaje por día (novedades, tip, lo más vendido, beneficio con cupón, ofertas/últimas unidades y encuesta)
+// con los datos reales, más una placa (imagen 1080x1350) para mandar junto al texto. WhatsApp no deja mandar a grupos
+// desde un sistema: se comparte desde el celular (eligiendo el grupo) o se copia y pega.
+const clubPlata = (n) => "$" + Math.round(Number(n) || 0).toLocaleString("es-AR");
+function clubLineas(ctx, txt, ancho, max) {
+  const out = []; let l = "";
+  String(txt || "").split(/\s+/).forEach(w => { const t = l ? l + " " + w : w; if (ctx.measureText(t).width > ancho && l) { out.push(l); l = w; } else l = t; });
+  if (l) out.push(l);
+  if (out.length > max) { out.length = max; out[max - 1] = out[max - 1].replace(/\s*\S*$/, "") + "…"; }
+  return out;
+}
+const clubLimpio = (t) => String(t || "").replace(/[*_~]/g, "");
+function clubRedondo(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function clubDibujar(cv, pz, d, imgs) {
+  if (!cv) return;
+  const ctx = cv.getContext("2d"), W = 1080, H = 1350, col = d.color || "#c9a84c";
+  ctx.clearRect(0, 0, W, H);
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#fffaf0"); g.addColorStop(1, "#fdf0dc"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = col; ctx.fillRect(0, 0, W, 300);
+  ctx.globalAlpha = .12; ctx.fillStyle = "#fff"; [[120, 60, 140], [960, 230, 190], [820, 30, 80]].forEach(([x, y, r]) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); }); ctx.globalAlpha = 1;
+  ctx.textAlign = "center"; ctx.fillStyle = "#fff";
+  ctx.font = cyF(800, 34); ctx.letterSpacing = "8px"; ctx.fillText(String(d.club || "").toUpperCase(), W / 2, 92); ctx.letterSpacing = "0px";
+  ctx.font = "110px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; ctx.fillText(pz.emoji || "", W / 2, 210);
+  ctx.font = cyF(900, 66); ctx.fillStyle = "#2a1f12";
+  const tit = pz.tipo === "beneficio" ? "Beneficio exclusivo" : pz.titulo;
+  clubLineas(ctx, tit, W - 140, 2).forEach((l, i) => ctx.fillText(l, W / 2, 390 + i * 74));
+  const prods = (pz.productos || []).slice(0, 4), y0 = 500;
+  if (pz.tipo === "beneficio" && pz.cupon) {
+    ctx.font = cyF(900, 230); ctx.fillStyle = col; ctx.fillText(pz.cupon.valor + "%", W / 2, y0 + 250);
+    ctx.font = cyF(900, 80); ctx.fillText("OFF", W / 2, y0 + 345);
+    ctx.font = cyF(600, 40); ctx.fillStyle = "#555"; ctx.fillText("con el código", W / 2, y0 + 440);
+    ctx.setLineDash([18, 12]); ctx.lineWidth = 6; ctx.strokeStyle = col; clubRedondo(ctx, 190, y0 + 475, W - 380, 140, 28); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = cyF(900, 76); ctx.fillStyle = "#2a1f12"; ctx.fillText(pz.cupon.codigo, W / 2, y0 + 572);
+    ctx.font = cyF(600, 38); ctx.fillStyle = "#555"; ctx.fillText("Válido hasta el " + pz.cupon.vence.split("-").reverse().slice(0, 2).join("/"), W / 2, y0 + 690);
+  } else if (pz.tipo === "encuesta") {
+    ctx.font = cyF(800, 50); ctx.fillStyle = "#2a1f12"; const ls = clubLineas(ctx, pz.pregunta, W - 180, 3); ls.forEach((l, i) => ctx.fillText(l, W / 2, y0 + 30 + i * 62));
+    (pz.opciones || []).forEach((o, i) => { const y = y0 + 90 + ls.length * 62 + i * 130; ctx.fillStyle = "#fff"; clubRedondo(ctx, 140, y, W - 280, 104, 52); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.stroke(); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(210, y + 52, 34, 0, 7); ctx.fill(); ctx.fillStyle = "#fff"; ctx.font = cyF(900, 40); ctx.fillText(String(i + 1), 210, y + 66); ctx.fillStyle = "#2a1f12"; ctx.textAlign = "left"; ctx.font = cyF(700, 40); ctx.fillText(clubLineas(ctx, o, W - 420, 1)[0], 270, y + 66); ctx.textAlign = "center"; });
+  } else if (pz.tipo === "tip") {
+    ctx.font = cyF(600, 46); ctx.fillStyle = "#2a1f12"; const ls = clubLineas(ctx, clubLimpio(pz.tip), W - 200, prods.length ? 5 : 9); ls.forEach((l, i) => ctx.fillText(l, W / 2, y0 + 40 + i * 62));
+    if (prods[0]) { const p = prods[0], im = imgs[p.id], y = y0 + 70 + ls.length * 62, s = Math.max(160, Math.min(320, H - 110 - y - 130));
+      ctx.fillStyle = "#fff"; clubRedondo(ctx, W / 2 - s / 2 - 20, y, s + 40, s + 40, 30); ctx.fill(); if (im) { const k = Math.min(s / im.width, s / im.height); ctx.drawImage(im, W / 2 - im.width * k / 2, y + 20 + (s - im.height * k) / 2, im.width * k, im.height * k); }
+      ctx.font = cyF(800, 34); ctx.fillStyle = "#2a1f12"; ctx.fillText(clubLineas(ctx, p.nombre, W - 200, 1)[0], W / 2, y + s + 95); }
+  } else if (prods.length) {
+    const n = prods.length, cols = n === 1 ? 1 : 2, filas = Math.ceil(n / cols), gap = 34, cw = n === 1 ? 600 : (W - 120 - gap) / 2, ch = n <= 2 ? 640 : 330 + 0;
+    const hTot = filas * (n <= 2 ? 640 : 340) + (filas - 1) * gap, x0 = (W - (cols * cw + (cols - 1) * gap)) / 2, yy0 = y0 + Math.max(0, (H - 160 - y0 - hTot) / 2);
+    prods.forEach((p, i) => {
+      const x = x0 + (i % cols) * (cw + gap), y = yy0 + Math.floor(i / cols) * ((n <= 2 ? 640 : 340) + gap), hh = n <= 2 ? 640 : 340;
+      ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(80,50,10,.12)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; clubRedondo(ctx, x, y, cw, hh, 30); ctx.fill(); ctx.shadowColor = "transparent";
+      const nl = clubLineas(ctx, p.nombre, cw - 40, 2).length, fh = hh - 70 - nl * 36, im = imgs[p.id];
+      if (im) { const k = Math.min((cw - 40) / im.width, (fh - 30) / im.height); ctx.drawImage(im, x + cw / 2 - im.width * k / 2, y + 20 + (fh - 30 - im.height * k) / 2, im.width * k, im.height * k); }
+      else { ctx.font = "90px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; ctx.fillText("🌻", x + cw / 2, y + fh / 2 + 30); }
+      ctx.font = cyF(700, 30); ctx.fillStyle = "#2a1f12"; clubLineas(ctx, p.nombre, cw - 40, 2).forEach((l, j) => ctx.fillText(l, x + cw / 2, y + fh + 6 + j * 36));
+      ctx.font = cyF(900, 40);
+      if (p.precio_oferta) { ctx.fillStyle = col; ctx.fillText(clubPlata(p.precio_oferta), x + cw / 2 + 70, y + hh - 26); ctx.font = cyF(600, 28); ctx.fillStyle = "#999"; const t = clubPlata(p.precio), tw = ctx.measureText(t).width, tx = x + cw / 2 - 90; ctx.fillText(t, tx, y + hh - 28); ctx.fillRect(tx - tw / 2, y + hh - 38, tw, 3); }
+      else { ctx.fillStyle = col; ctx.fillText(clubPlata(p.precio), x + cw / 2, y + hh - 26); }
+      const chip = p.pct ? "-" + Math.round(p.pct) + "%" : pz.tipo === "ultimas" ? (p.stock === 1 ? "¡Queda 1!" : "Quedan " + p.stock) : pz.tipo === "novedades" ? "NUEVO" : pz.tipo === "mas_vendidos" ? "#" + (i + 1) : "";
+      if (chip) { ctx.font = cyF(900, 26); const cw2 = ctx.measureText(chip).width + 36; ctx.fillStyle = pz.tipo === "ultimas" || p.pct ? "#d62f45" : col; clubRedondo(ctx, x + 16, y + 16, cw2, 50, 25); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(chip, x + 16 + cw2 / 2, y + 51); }
+    });
+  }
+  ctx.fillStyle = col; ctx.fillRect(0, H - 110, W, 110); ctx.fillStyle = "#fff"; ctx.font = cyF(700, 34);
+  ctx.fillText(pz.tipo === "encuesta" ? "Respondé con el número 👇" : d.link_tienda ? d.link_tienda.replace(/^https?:\/\//, "").replace(/\/?\?tienda=.*/, "") : "Respondé este mensaje 💛", W / 2, H - 45);
+}
+function ClubPieza({ pz, d, imgs, p, avisar, onOtra, onTexto, onCupon }) {
+  const cv = useRef(null);
+  const [ia, setIa] = useState(false);
+  const [cup, setCup] = useState({ pct: "10", dias: "3", codigo: "CLUB" + (new Date().getMonth() + 1) + String(new Date().getDate()).padStart(2, "0") });
+  const [creando, setCreando] = useState(false);
+  useEffect(() => { clubDibujar(cv.current, pz, d, imgs); }, [pz, d, imgs]);
+  const blobPlaca = () => new Promise(r => cv.current.toBlob(r, "image/png"));
+  const nombre = "club-" + pz.tipo + ".png";
+  const copiar = async () => { try { await navigator.clipboard.writeText(pz.texto); avisar("✓ Texto copiado: pegalo en el grupo"); } catch (e) { avisar("No se pudo copiar: seleccioná el texto y copialo"); } };
+  const compartir = async () => {
+    try { await navigator.clipboard.writeText(pz.texto); } catch (e) {}
+    const b = await blobPlaca(), f = new File([b], nombre, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], text: pz.texto }); } catch (e) {} }
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = nombre; a.click(); avisar("✓ Imagen descargada y texto copiado"); }
+  };
+  const bajar = async () => { const b = await blobPlaca(); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = nombre; a.click(); };
+  const reescribir = async () => { setIa(true); try { const r = await API.post("/club/redactar", { texto: pz.texto }); onTexto(r.data.texto); } catch (e) { avisar(e.response?.data?.error || "No se pudo reescribir"); } setIa(false); };
+  const crearCupon = async () => {
+    setCreando(true);
+    try { const r = await API.post("/club/cupon", { pct: cup.pct, dias: cup.dias, codigo: cup.codigo }); onCupon({ ...r.data, valor: Math.round(Number(r.data.valor)) }); avisar("✓ Cupón " + r.data.codigo + " creado"); }
+    catch (e) { avisar(e.response?.data?.error || "No se pudo crear el cupón"); }
+    setCreando(false);
+  };
+  const sinCupon = pz.tipo === "beneficio" && !pz.cupon;
+  return (
+    <div className="card club-pieza">
+      <div className="club-cab"><span className="club-dia">{pz.dia}</span><b>{pz.emoji} {pz.titulo}</b></div>
+      {sinCupon ? (
+        <div className="club-cupon">
+          <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 8 }}>Un código de descuento solo para el grupo. Se crea en Cupones (canal "Club WhatsApp"), vale una vez por clienta, en los locales y en la tienda online.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div className="fg" style={{ margin: 0 }}><div className="fl">Descuento %</div><input className="inp" inputMode="numeric" value={cup.pct} onChange={e => setCup(c => ({ ...c, pct: e.target.value.replace(/\D/g, "") }))} /></div>
+            <div className="fg" style={{ margin: 0 }}><div className="fl">Días que dura</div><input className="inp" inputMode="numeric" value={cup.dias} onChange={e => setCup(c => ({ ...c, dias: e.target.value.replace(/\D/g, "") }))} /></div>
+          </div>
+          <div className="fg" style={{ margin: "8px 0" }}><div className="fl">Código</div><input className="inp" value={cup.codigo} onChange={e => setCup(c => ({ ...c, codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") }))} /></div>
+          <button className="btn btn-p" disabled={creando} onClick={crearCupon}>{creando ? "Creando…" : "🎟️ Crear cupón y armar el mensaje"}</button>
+        </div>
+      ) : <>
+        <canvas ref={cv} width={1080} height={1350} className="club-placa" />
+        <textarea className="inp club-txt" rows={9} value={pz.texto} onChange={e => onTexto(e.target.value)} aria-label={"Mensaje de " + pz.titulo} />
+        {pz.tipo === "encuesta" && <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 8 }}>💡 También la podés hacer como encuesta de WhatsApp: en el grupo tocá 📎 › Encuesta y cargá estas opciones.</div>}
+        <div className="club-btns">
+          <button className="btn btn-p btn-sm" onClick={compartir}>📲 Compartir</button>
+          <button className="btn btn-g btn-sm" onClick={copiar}>📋 Copiar texto</button>
+          <button className="btn btn-g btn-sm" onClick={bajar}>⬇️ Imagen</button>
+          {pz.tipo !== "beneficio" && <button className="btn btn-g btn-sm" onClick={onOtra}>🔄 Otra versión</button>}
+          {d.ia && <button className="btn btn-g btn-sm" disabled={ia} onClick={reescribir}>{ia ? "Escribiendo…" : "🪄 Reescribir con IA"}</button>}
+        </div>
+      </>}
+    </div>
+  );
+}
+function PaginaClubWa({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA, base = String(API.defaults.baseURL || "").replace(/\/+$/, "");
+  const [aviso, setAviso] = useState("");
+  const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(a => (a === t ? "" : a)), 3500); };
+  const [club, setClub] = useState(() => { try { return localStorage.getItem("lumiere_club_nombre") || ""; } catch (e) { return ""; } });
+  const [d, setD] = useState(null);
+  const [imgs, setImgs] = useState({});
+  const [error, setError] = useState("");
+  const versiones = useRef({});
+  const cargar = (tipo) => {
+    const v = tipo ? (versiones.current[tipo] = (versiones.current[tipo] || 0) + 1) : 0;
+    API.get("/club/contenido?" + new URLSearchParams({ origen: window.location.origin, club, v: String(v) })).then(r => {
+      if (!tipo) return setD(r.data);
+      const nueva = r.data.piezas.find(x => x.tipo === tipo);
+      if (nueva) setD(x => ({ ...x, piezas: x.piezas.map(y => y.tipo === tipo ? nueva : y) }));
+    }).catch(e => setError(e.response?.data?.error || "No se pudo armar el contenido"));
+  };
+  useEffect(() => { cargar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (window.FontFace && document.fonts && ![...document.fonts].some(f => f.family === CY_FUENTE[0])) { const ff = new FontFace(...CY_FUENTE); ff.load().then(x => { document.fonts.add(x); setD(y => y && { ...y }); }).catch(() => {}); } }, []);
+  useEffect(() => {
+    if (!d || !d.slug) return;
+    d.piezas.flatMap(x => x.productos || []).filter(x => x.foto).forEach(x => { if (imgs[x.id] !== undefined) return; setImgs(m => ({ ...m, [x.id]: null })); const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [x.id]: im })); im.src = base + "/tienda-publica/" + encodeURIComponent(d.slug) + "/foto/" + x.id; });
+  }, [d]); // eslint-disable-line react-hooks/exhaustive-deps
+  const guardarClub = (v) => { setClub(v); try { localStorage.setItem("lumiere_club_nombre", v); } catch (e) {} };
+  const cambiar = (tipo, cambio) => setD(x => ({ ...x, piezas: x.piezas.map(y => y.tipo === tipo ? { ...y, ...cambio } : y) }));
+  const textoCupon = (c) => `💛 *Beneficio exclusivo del ${d.club}* 💛\n\nPor ser parte de este grupo, tenés *${c.valor}% OFF* en tu próxima compra con el código:\n\n👉 *${c.codigo}*\n\nVale hasta el ${c.vence.split("-").reverse().slice(0, 2).join("/")}, en los locales${d.link_tienda ? " y en la tienda online" : ""} (una vez por persona).${d.link_tienda ? "\n🛍️ " + d.link_tienda : ""}\n\n_No se suma a productos que ya tienen otra oferta._`;
+  return (
+    <div className="fade">
+      <div className="ph"><div><div className="pt">📣 Club de WhatsApp</div><div className="ps">mensajes listos para los grupos de clientas, con los datos de esta semana</div></div></div>
+      <div className="card" style={{ marginBottom: 14, textAlign: "left" }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="fg" style={{ margin: 0, flex: "1 1 220px" }}><div className="fl">Nombre del club</div><input className="inp" placeholder={d ? d.club : "Ej: Club Girasoles"} value={club} onChange={e => guardarClub(e.target.value)} onBlur={() => cargar()} /></div>
+          <button className="btn btn-g" onClick={() => { versiones.current = {}; cargar(); }}>🔄 Actualizar con los datos de hoy</button>
+        </div>
+        <div className="club-ayuda">
+          <b>Cómo usarlo:</b> un mensaje por día, así el grupo vuelve a tener movimiento sin cansar. Desde el celular tocá <b>📲 Compartir</b>, elegí WhatsApp y el grupo: va la imagen con el texto (el texto también queda copiado, por si WhatsApp no lo pega: mantené apretado y "Pegar"). Podés editar el texto antes de mandarlo.
+        </div>
+      </div>
+      {error && <div className="card" style={{ color: p.red }}>{error}</div>}
+      {aviso && <div className="club-aviso" role="status" style={{ background: /^✓/.test(aviso) ? p.green : p.red }}>{aviso}</div>}
+      {!d ? <div className="skel" style={{ height: 300 }} /> : (
+        <div className="club-grid">
+          {d.piezas.map(pz => (
+            <ClubPieza key={pz.tipo} pz={pz} d={d} imgs={imgs} p={p} avisar={avisar}
+              onOtra={() => cargar(pz.tipo)} onTexto={(t) => cambiar(pz.tipo, { texto: t })}
+              onCupon={(c) => cambiar(pz.tipo, { cupon: c, texto: textoCupon(c) })} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 function PaginaCyber({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [medios, setMedios] = useState(null);
@@ -26215,6 +26391,7 @@ const NAV_SECTIONS = [
     { id: "fidelizacion", icon: "⭐", label: "Fidelización", k: "puntos canjes" },
     { id: "portal", icon: "📱", label: "Portal Cliente", k: "premios diseño portal" },
     { id: "postventa", icon: "💬", label: "Postventa WA", k: "whatsapp mensajes" },
+    { id: "club-wa", icon: "📣", label: "Club de WhatsApp", k: "grupos whatsapp club mensajes contenido difusion novedades clientas" },
     { id: "cupones", icon: "🏷️", label: "Cupones", k: "descuento codigo" },
     { id: "promociones", icon: "🎉", label: "Promociones", k: "ofertas 2x1" },
     { id: "del-mes", icon: "🏆", label: "Clienta del mes", k: "competencia ranking puesto premio clienta del mes mejor clienta" }] },
@@ -39808,7 +39985,7 @@ function AppWrapper() {
       "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
-      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "postventa": "postventa.ver", "portal": "portal.ver",
+      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "postventa": "postventa.ver", "club-wa": "postventa.ver", "portal": "portal.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
@@ -39902,6 +40079,7 @@ function AppWrapper() {
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
     if (id === "cyber") return <PaginaCyber paletaActual={paletaActual} />;
+    if (id === "club-wa") return <PaginaClubWa paletaActual={paletaActual} />;
     if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;
     if (id === "tareas") return <Tareas usuario={usuario} localId={local.id} paletaActual={paletaActual} />;
     if (id === "postventa") return <PostventaWA paletaActual={paletaActual} />;
