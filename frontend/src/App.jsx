@@ -1236,6 +1236,12 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .oi-cont::-webkit-outer-spin-button, .oi-cont::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 @media (max-width: 700px) { .oi-item { grid-template-columns: 1fr; } }
 .ped-grupo { border-bottom: 1px solid ${p.border}; }
+.ped-bloque { border: 1.5px solid; border-radius: 16px; overflow: clip; }
+.ped-bloque-cab { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1.5px solid var(--c); }
+.ped-bloque-cab b { display: block; font-size: 16px; font-weight: 900; line-height: 1.2; }
+.ped-bloque-cab small { display: block; font-size: 12.5px; line-height: 1.35; margin-top: 2px; }
+.ped-bloque-ic { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.ped-bloque-n { flex: 0 0 auto; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 99px; color: #fff; font-weight: 900; font-size: 16px; display: grid; place-items: center; }
 .ped-grupo summary { display: flex; align-items: center; gap: 10px; padding: 11px 14px; cursor: pointer; list-style: none; font-size: 13px; }
 .ped-grupo summary::-webkit-details-marker { display: none; }
 .ped-grupo summary:hover { background: ${p.trHover}; }
@@ -36999,7 +37005,14 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const atender = (p) => (["pendiente_pago", "confirmado", "preparado", "en_caja"].includes(p.estado) && !enProceso(p)) || aRevisar(p);
   const locsPed = UN_SOLO_LOCAL ? [] : (locs.length ? locs : [{ id: 1, nombre: nombreLocal(1) }, { id: 2, nombre: nombreLocal(2) }]).filter(l => l.activo !== false);
   const haceTxt = (f) => { const m = Math.round((Date.now() - new Date(f).getTime()) / 60000); return m < 1 ? "recién" : m < 60 ? "hace " + m + " min" : m < 1440 ? "hace " + Math.round(m / 60) + " h" : m < 2880 ? "ayer" : new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }); };
-  const GRUPOS_PED = [["revisar", "🔔 Para revisar: se cancelaron, se vencieron o no pasó el pago", "#c0392b"], ["nuevo", "📥 Nuevos: hay que armarlos", "#2471a3"], ["preventa", "⏳ Preventa: esperando que llegue la mercadería", "#b9770e"], ["pago", "💳 Esperando el pago", "#b7950b"], ["listo", "📦 Listos: esperando que los retiren o salgan", "#8e44ad"]];
+  // Cada grupo: [estado, ícono, título corto, qué hacer, color]
+  const GRUPOS_PED = [
+    ["revisar", "🔔", "Para revisar", "Se cancelaron, se vencieron o no pasó el pago. Miralos y tocá «Ya lo vi».", "#c0392b"],
+    ["nuevo", "📥", "Para armar", "Ya están listos para preparar. Armalos y tocá «Ya está listo».", "#2471a3"],
+    ["preventa", "⏳", "Preventa: todavía no llegó la mercadería", "Ya los pagaron. Cuando llegue la mercadería, tocá «Llegó la preventa» y armalos.", "#b9770e"],
+    ["pago", "💳", "Esperando el pago", "Todavía no pagaron: no los armes hasta que entre el pago.", "#b7950b"],
+    ["listo", "📦", "Listos", "Ya están armados: falta que los retiren o que salgan con el envío.", "#8e44ad"],
+  ];
 
   return (
     <div className="fade" style={{ textAlign: "left" }}>
@@ -37347,11 +37360,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}
-                {GRUPOS_PED.map(([est, titulo, c]) => { const l = visiblesB.filter(p => est === "revisar" ? aRevisar(p) : etapaPed(p) === est); if (!l.length) return null; return (
-                  <div key={est}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px", fontWeight: 900, fontSize: 14, color: c }}>{titulo} <span className="tag" style={{ background: c + "22", color: c, fontWeight: 800 }}>{l.length}</span><span style={{ flex: 1, height: 1, background: c + "44" }} /></div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>{l.map(tarjetaPed)}</div>
-                  </div>
+                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => est === "revisar" ? aRevisar(p) : etapaPed(p) === est); if (!l.length) return null; return (
+                  <section key={est} className="ped-bloque" style={{ "--c": c, borderColor: c + "66", background: c + "0d" }} aria-label={titulo}>
+                    <div className="ped-bloque-cab" style={{ background: "linear-gradient(" + c + "1f, " + c + "1f), " + temaPal.card }}>
+                      <span className="ped-bloque-ic" style={{ background: c }}>{ico}</span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <b style={{ color: c }}>{titulo}</b>
+                        <small style={{ color: temaPal.textMuted }}>{hacer}</small>
+                      </span>
+                      <span className="ped-bloque-n" style={{ background: c }}>{l.length}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "10px 8px 8px" }}>{l.map(tarjetaPed)}</div>
+                  </section>
                 ); })}
               </div>
             );
