@@ -25316,7 +25316,10 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
           : { ...base, pct: o.pct, pago: k, etiqueta: "Combo " + nombreCombo(cb) + ": " + o.pct + "% OFF con " + (LIQ_MEDIOS.find(m => m[0] === k) || ["", k])[1].toLowerCase() + enLoc }));
       });
       if (cb.tienda === false) sinTienda.push(nombreCombo(cb) + " (no está marcado para la tienda)"); else if (loc) sinTienda.push(nombreCombo(cb) + " (es de un solo local)"); else if (!(pctOnline(cb) > 0)) sinTienda.push(nombreCombo(cb) + " (no tiene descuento para la tienda online)");
-      if (cb.tienda !== false && !loc && pctOnline(cb) > 0) combosTienda.push({ id: cb.id, nombre: nombreCombo(cb), productos, cantidades, precio: Math.round(listaCombo(cb) * (1 - pctOnline(cb) / 100)), cuotas: Math.max(0, ...(cb.opciones || []).filter(o => o.tipo === "cuotas").map(o => o.cuotas || 0)) });
+      // Precio con transferencia o efectivo (paga al retirar), si el combo tiene un descuento propio para ese medio
+      const pctMedio = (k) => Math.max(0, ...(cb.opciones || []).filter(o => o.tipo !== "cuotas" && (o.medios || []).includes(k)).map(o => o.pct || 0));
+      const preciosPago = Object.fromEntries([["transferencia", "transferencia"], ["retiro", "efectivo"]].filter(([, k]) => pctMedio(k) > pctOnline(cb)).map(([t, k]) => [t, Math.round(listaCombo(cb) * (1 - pctMedio(k) / 100))]));
+      if (cb.tienda !== false && !loc && pctOnline(cb) > 0) combosTienda.push({ id: cb.id, nombre: nombreCombo(cb), productos, cantidades, precio: Math.round(listaCombo(cb) * (1 - pctOnline(cb) / 100)), precios_pago: preciosPago, cuotas: Math.max(0, ...(cb.opciones || []).filter(o => o.tipo === "cuotas").map(o => o.cuotas || 0)) });
     });
     if (!gr.length) return setAviso("Las ofertas elegidas no tienen descuentos");
     if (!confirm("Se van a crear " + gr.length + " promociones \"" + cfg.nombre + "\" para " + new Set(finales.map(f => f.id)).size + " productos" + (combosListos.length ? " y " + combosListos.length + (combosListos.length === 1 ? " combo" : " combos") : "") + ", del " + fecha(cfg.desde) + " al " + fecha(cfg.hasta) + ". Si ya existían las de este evento, se reemplazan." + (cfg.en_tienda && combosListos.length ? "\n\nEn la tienda online van " + combosTienda.length + " de " + combosListos.length + " combos." + (sinTienda.length ? " No van: " + sinTienda.join(", ") + "." : "") : "") + "\n\n¿Seguimos?")) return;
@@ -29764,7 +29767,9 @@ function twDescPromos(promos, carrito, usados, combos, pago, catDe, packs, marca
 // Cantidad de un producto dentro de un combo (1 si no se indica)
 const twCantCombo = (c, id) => (c && c.cantidades && c.cantidades[id]) || 1;
 // Mismo calculo que el servidor (lib/tienda.js descuentoCombos): cada combo completo descuenta la diferencia
-function twDescCombos(combos, carrito) {
+// Con pago: el precio especial del combo para esa forma de pago (ej. Cyber con transferencia). Los combos de un evento
+// no suman el descuento general por forma de pago (mismo criterio que lib/tienda.js descuentoCombos)
+function twDescCombos(combos, carrito, pago = null) {
   const queda = new Map(), precio = new Map();
   (carrito || []).filter(l => !l.preventa).forEach(l => { queda.set(l.producto_id, (queda.get(l.producto_id) || 0) + l.cantidad); if (!precio.has(l.producto_id)) precio.set(l.producto_id, Number(l.precio) || 0); });
   let total = 0; const usados = [];
@@ -29773,10 +29778,12 @@ function twDescCombos(combos, carrito) {
     const veces = Math.min(...x.productos.map(id => Math.floor((queda.get(id) || 0) / cant(id))));
     if (!(veces > 0)) return;
     const suma = x.productos.reduce((s, id) => s + (precio.get(id) || 0) * cant(id), 0);
-    const precioCombo = x.precio > 0 ? Math.min(x.precio, suma) : suma; // sin precio = precio de lista
+    const pctP = pago && x.pct_pago ? x.pct_pago[pago] || 0 : 0;
+    const conPago = pago && x.precios_pago && x.precios_pago[pago] > 0 ? x.precios_pago[pago] : pctP > 0 ? Math.round(suma * (1 - pctP / 100)) : 0;
+    const precioCombo = Math.min(suma, ...[x.precio, conPago].filter(v => v > 0)); // sin precio = precio de lista
     const ahorro = Math.max(0, suma - precioCombo);
     x.productos.forEach(id => queda.set(id, queda.get(id) - veces * cant(id)));
-    total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces, monto: precioCombo * veces });
+    total += ahorro * veces; usados.push({ ...x, veces, ahorro: ahorro * veces, monto: precioCombo * veces, sin_pago: !!x.evento });
   });
   return { descuento: Math.round(total), combos: usados };
 }
@@ -30770,7 +30777,12 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
           const precioC = c.precio > 0 ? Math.min(c.precio, suma) : suma, ahorro = Math.max(0, suma - precioC);
           const pct = ahorro > 0 ? Math.round(ahorro / suma * 100) : 0;
           const fotos = c.items.slice(0, 4), resto = c.items.length - fotos.length;
-          const off = suma > 0 ? Math.round((1 - (pagoKits ? precioC * (1 - pagoKits.pct / 100) : precioC) / suma) * 100) : 0;
+          // El mejor precio con una forma de pago: el propio del combo (ej. Cyber con transferencia) o, si no es de un evento, el % de kits
+          const pagosC = c.precios_pago || (c.pct_pago ? Object.fromEntries(Object.entries(c.pct_pago).map(([k, v]) => [k, Math.round(suma * (1 - v / 100))])) : null);
+          const pp = pagosC ? Object.entries(pagosC).filter(([, v]) => v > 0 && v < precioC).sort((a, b) => a[1] - b[1])[0] : null;
+          const pk = pp ? { precio: pp[1], nombre: ({ transferencia: "transferencia", retiro: "efectivo al retirar", mp: "Mercado Pago", gocuotas: "GoCuotas" })[pp[0]] || pp[0] }
+            : !c.evento && pagoKits ? { precio: Math.round(precioC * (1 - pagoKits.pct / 100)), nombre: pagoKits.nombre } : null;
+          const off = suma > 0 ? Math.round((1 - (pk ? pk.precio : precioC) / suma) * 100) : 0;
           const agregar = () => { onAgregar(c.items.map(p => ({ p, n: twCantCombo(c, p.id), v: p.variantes ? p.variantes.find(v => dispo(p, v) >= twCantCombo(c, p.id)) : null }))); setHecho(c.id); setTimeout(() => setHecho(null), 2500); };
           return (
             <article key={c.id} className="tw-combo tw-kit" style={{ "--i": k }}>
@@ -30790,8 +30802,8 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                 <div className="tw-kit-items">{c.items.map(p => (twCantCombo(c, p.id) > 1 ? twCantCombo(c, p.id) + "× " : "") + p.nombre).join(" + ")}</div>
                 <div className="tw-kit-precios">
                   {ahorro > 0 && <s className="tw-kit-lista-p">{fmtTienda(suma)}</s>}
-                  {pagoKits ? <>
-                    <div className="tw-kit-transf"><b>{fmtTienda(Math.round(precioC * (1 - pagoKits.pct / 100)))}</b><span>con {pagoKits.nombre}</span></div>
+                  {pk ? <>
+                    <div className="tw-kit-transf"><b>{fmtTienda(pk.precio)}</b><span>con {pk.nombre}</span></div>
                     <div className="tw-kit-otros">{fmtTienda(precioC)}{pct > 0 ? " · " + pct + "% OFF" : ""} con otros medios</div>
                   </> : <>
                     <div className="tw-kit-transf"><b>{fmtTienda(precioC)}</b>{pct > 0 && <span>{pct}% OFF</span>}</div>
@@ -32142,7 +32154,7 @@ function TiendaPublica({ slug }) {
   const envioGratis = gratisDesde && subtotal >= gratisDesde;
   const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
   // Combos (el servidor lo vuelve a calcular)
-  const comboCalc = twDescCombos(tienda.ofertas && tienda.ofertas.combos, carrito);
+  const comboCalc = twDescCombos(tienda.ofertas && tienda.ofertas.combos, carrito, datos.pago || null);
   const descCombo = comboCalc.descuento;
   // Los cupones no valen en productos con oferta (combos ni promos como las del Cyber): se calculan sobre el resto
   const baseCupon = twBaseCupon(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
@@ -32169,12 +32181,13 @@ function TiendaPublica({ slug }) {
   const pagoKitsMejor = (() => { const m = Object.entries(descPagosKits).filter(([k, v]) => v > 0 && tienda.pagos && tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return m ? { pct: m[1], nombre: ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[m[0]] } : null; })();
   const pctPago = pagoElegido && !gcCubre ? (descPagos[pagoElegido] || 0) : 0;
   // Los kits/combos del carrito llevan su propio % (si se configuro); el resto, el general. Mismo calculo que el servidor.
-  const montoKits = comboCalc.combos.reduce((t, x) => t + (x.monto || 0), 0);
+  const montoKits = comboCalc.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
+  const montoSinPago = comboCalc.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0); // combos del Cyber: ya tienen su precio por pago
   const pctKitsPago = pagoElegido && !gcCubre && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
   const promoCalc = twDescPromos(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
   const descPromo = promoCalc.descuento;
-  const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto);
+  const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto - montoSinPago);
   const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
   const descuentoPago0 = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
   // Juntando códigos de Halloween, el descuento por forma de pago también entra en el tope (igual que el servidor)

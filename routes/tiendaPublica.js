@@ -101,6 +101,7 @@ router.get('/:slug', async (req, res) => {
     const cuotasCombos = await pool.query(`SELECT productos_ids, nombre FROM promociones WHERE tipo = 'combo' AND medio_pago_tipo = 'credito' AND activo AND local_id IS NULL
       AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`)
       .then(r => Object.fromEntries(r.rows.map(x => [[...(x.productos_ids || [])].map(Number).sort((a, b) => a - b).join(','), Math.min(24, parseInt((String(x.nombre).match(/(\d+)\s*cuotas/) || [])[1]) || 0)]).filter(([, n]) => n > 1))).catch(() => ({}));
+    const pctCombos = await tienda.pctPagoCombos();
     res.json({
       adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, musica: adv.musica, constancia: adv.constancia, estrella_puntos: adv.estrella_puntos, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
@@ -127,7 +128,7 @@ router.get('/:slug', async (req, res) => {
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       legales: (() => { const l = tienda.legalesDe(c); return { data_fiscal: l.data_fiscal, paginas: l.paginas, firma_lumiere: l.firma_lumiere }; })(),
       puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
-      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, cuotas: x.cuotas || cuotasCombos[[...(x.productos || [])].map(Number).sort((a, b) => a - b).join(',')] || 0 })) }; })(),
+      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, precios_pago: x.precios_pago || null, pct_pago: x.desde && x.hasta && !x.precios_pago ? pctCombos[tienda.claveCombo(x.productos)] || null : null, evento: !!(x.desde && x.hasta), cuotas: x.cuotas || cuotasCombos[[...(x.productos || [])].map(Number).sort((a, b) => a - b).join(',')] || 0 })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
@@ -463,6 +464,8 @@ router.post('/:slug/pedidos', async (req, res) => {
 
   const col = colLocal(localId);
   if (b.cupon) await cuponesLib.asegurar();
+  // % de los combos del Cyber por forma de pago (antes de la transacción: leer promociones adentro trababa el ALTER de promosTienda)
+  const pctCombos = await tienda.pctPagoCombos();
   const client = await pool.connect();
   let pedido;
   try {
@@ -494,7 +497,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
     // Combos: si estan todos los productos de un combo, se descuenta la diferencia
-    const combo = tienda.descuentoCombos(c, lineas);
+    const combo = tienda.descuentoCombos(c, lineas, pago, pctCombos);
     const descCombo = combo.descuento;
     // GoCuotas solo desde cierto monto de compra (los productos, sin el envio)
     if (pago === 'gocuotas' && num(c.gocuotas_minimo) > 0 && subtotal - descCombo < num(c.gocuotas_minimo)) {
@@ -547,7 +550,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     // Las promos de un solo local valen solo para los pedidos de ese local
     const promo = tienda.descuentoPromos(promosPedido, lineas, combo.enCombos, pago, tienda.packsDe(c));
     const descPromo = promo.descuento;
-    const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto), combo.combos.reduce((t, x) => t + (x.monto || 0), 0));
+    // Los combos de un evento (Cyber) ya tienen su precio por forma de pago: no suman el descuento general
+    const montoSinPago = combo.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
+    const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto - montoSinPago), combo.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
     // Juntando códigos de Halloween, el descuento por forma de pago también entra en el tope
     const descuentoPago = hwJunta ? Math.min(dp.descuento, Math.max(0, Math.round((subtotal - descCombo) * hwJunta.tope / 100 - descuento))) : dp.descuento;
