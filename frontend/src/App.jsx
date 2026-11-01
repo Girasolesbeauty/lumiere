@@ -27372,6 +27372,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-recompra-aviso{display:flex;gap:8px;align-items:flex-start;background:#eef8f1;border:1px solid #cfe9d8;color:#1d5c38;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
 .tw-recompra-aviso small{display:block;color:#5b6f62;margin-top:3px}
 .tw-pedido-curso{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #f0e2e8;border-radius:16px;padding:12px 14px;margin-bottom:12px;box-shadow:0 8px 22px -16px rgba(122,29,63,.45);animation:twSegPaso .5s ease both}
+.tw-transferir{background:#f3faf5;border:1.5px solid #bfe3cb;border-radius:14px;padding:12px 14px;margin:8px 0 12px;text-align:left}
+.tw-tr-tit{font-size:14px;margin-bottom:6px}.tw-tr-tit span{color:#777;font-size:12.5px}
+.tw-tr-datos{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:14px;background:#fff;border-radius:8px;padding:8px 10px;margin:6px 0 8px;line-height:1.45;color:#222;user-select:all}
+.tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
+.tw-tr-chip{background:#eaf7ef!important;border-color:#bfe3cb!important}
 .tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
 .tw-pedido-curso-cab b{font-size:14px}
 .tw-pedido-chip{display:flex;align-items:center;gap:10px;margin:8px 20px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,#fff3f8,#fff8ee);border:1px solid #f3dfe8;text-decoration:none;color:#222;font-size:13px;animation:twSegPaso .5s ease both}
@@ -28645,6 +28650,24 @@ function TwBarraEnvio({ subtotal, gratisDesde }) {
 // Seguimiento del pedido paso a paso (página del pedido y Mi cuenta): recibido → preparando → listo → entregado.
 // La barra se llena con brillo, el paso actual late, una bolsita viaja hasta donde va el pedido y al entregarse caen pétalos.
 const TW_PASO_PEDIDO = { pendiente_pago: 0, confirmado: 1, preparado: 2, en_caja: 2, entregado: 3 };
+// Pedido con transferencia sin pagar: los datos para transferir quedan a mano (en la cuenta y en la página del pedido)
+// hasta que el local marca el pago. Con botón para copiarlos y para mandar el comprobante.
+function TwTransferir({ pd, datos, linkWa, conTitulo = true }) {
+  const [copiado, setCopiado] = useState(false);
+  const nro = pd.numero || pd.codigo;
+  const copiar = async () => { try { await navigator.clipboard.writeText(datos); setCopiado(true); setTimeout(() => setCopiado(false), 2500); } catch (e) {} };
+  const waComp = linkWa ? linkWa("¡Hola! Te mando el comprobante de la transferencia del pedido N° " + nro + " (" + fmtTienda(pd.total) + ") 🧾") : null;
+  return (
+    <div className="tw-transferir">
+      {conTitulo && <div className="tw-tr-tit">💸 Falta tu transferencia de <b>{fmtTienda(pd.total)}</b> <span>· pedido N° {nro}</span></div>}
+      <div className="tw-tr-datos">{datos}</div>
+      <div className="tw-tr-btns">
+        <button className="tw-btn2" onClick={copiar}>{copiado ? "✓ Copiado" : "📋 Copiar datos"}</button>
+        {waComp && <a className="tw-btn2 tw-tr-wa" href={waComp} target="_blank" rel="noopener">🧾 Mandar comprobante</a>}
+      </div>
+    </div>
+  );
+}
 function TwSeguimiento({ estado, entrega, local, compacto, festejar }) {
   const ref = useRef(null);
   const i = TW_PASO_PEDIDO[estado];
@@ -31978,6 +32001,22 @@ function TiendaPublica({ slug }) {
     return () => { vivo = false; clearInterval(t); };
   }, [codigoUrl]);
 
+  // Sin cuenta: los pedidos hechos desde este celular se recuerdan; si uno espera la transferencia, se avisa con los datos
+  const [pedidoTransf, setPedidoTransf] = useState(null);
+  useEffect(() => {
+    if (logueada || codigoUrl || !slug) return;
+    let vivo = true;
+    (async () => {
+      const k = "tw_pedidos_" + slug; let l = [];
+      try { l = JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) {}
+      const quedan = [];
+      for (const cod of l.slice(0, 3)) {
+        try { const pd = await pedir("/pedidos/" + cod); if (!["entregado", "cancelado"].includes(pd.estado)) quedan.push(cod); if (vivo && pd.transferencia && !pd.pagado && pd.estado !== "cancelado") { setPedidoTransf(pd); break; } } catch (e) {}
+      }
+      try { localStorage.setItem(k, JSON.stringify(quedan.concat(l.slice(3)).slice(0, 5))); } catch (e) {}
+    })();
+    return () => { vivo = false; };
+  }, [logueada, codigoUrl, slug]); // eslint-disable-line react-hooks/exhaustive-deps
   // Invitá a una amiga: el codigo llega en el link (?amiga=SABRINA-4K7Q) y se guarda hasta que compre
   const [amigaCod, setAmigaCod] = useState(() => { try { const q = new URLSearchParams(window.location.search).get("amiga"); if (q) { localStorage.setItem("tw_amiga_" + slug, q.toUpperCase().slice(0, 30)); localStorage.setItem("tw_hw_amiga_" + slug, q.toUpperCase().slice(0, 30)); return q.toUpperCase().slice(0, 30); } return localStorage.getItem("tw_amiga_" + slug) || null; } catch (e) { return null; } });
   const [amigaInfo, setAmigaInfo] = useState(null);
@@ -32228,6 +32267,7 @@ function TiendaPublica({ slug }) {
       setCarrito([]); setCuponOk(null); setCuponIn(""); setGcOk(null); setGcIn("");
       if (tienda.halloween && logueada) cargarHw();
       if (descAmiga) { try { localStorage.removeItem("tw_amiga_" + slug); } catch (e) {} }
+      try { const k = "tw_pedidos_" + slug, l = JSON.parse(localStorage.getItem(k) || "[]"); localStorage.setItem(k, JSON.stringify([r.codigo, ...l.filter(x => x !== r.codigo)].slice(0, 5))); } catch (e) {}
       if (r.link_pago) { window.location.href = r.link_pago; return; }
       window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + r.codigo;
     } catch (e) { setAviso(e.message); }
@@ -32320,10 +32360,12 @@ function TiendaPublica({ slug }) {
       {!codigoUrl && porReponer.length > 0 && !(miCuenta.pedidos || []).some(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado)) && (
         <button className="tw-pedido-chip tw-reponer-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
       )}
+      {!codigoUrl && !logueada && pedidoTransf && <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pedidoTransf)} espera tu transferencia de <b>{fmtTienda(pedidoTransf.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>}
       {!codigoUrl && logueada && miCuenta && (() => {
         // Pedido en curso: a un toque de ver cómo va
         const pd = (miCuenta.pedidos || []).find(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado));
         if (!pd) return null;
+        if (pd.transferencia) return <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)} espera tu transferencia de <b>{fmtTienda(pd.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>;
         const txt = { pendiente_pago: "esperando el pago", confirmado: "lo estamos preparando 💝", preparado: pd.entrega === "envio" ? "¡ya está empaquetado! 🎁" : "¡listo para retirar! 🎁", en_caja: "¡listo para retirar! 🎁" }[pd.estado] || "en curso";
         return <a className="tw-pedido-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">📦</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)}: <b>{txt}</b></span><span aria-hidden="true">›</span></a>;
       })()}
@@ -32401,8 +32443,8 @@ function TiendaPublica({ slug }) {
               {pedido.transferencia && pedido.estado !== "cancelado" && (
                 <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
-                  <div style={{ whiteSpace: "pre-wrap", margin: "6px 0", fontFamily: "ui-monospace,monospace" }}>{pedido.transferencia}</div>
-                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp.{pedido.giftcard ? " Cuando lo confirmemos, vas a ver acá el código de la gift card." : ""}</div>
+                  <TwTransferir pd={pedido} datos={pedido.transferencia} linkWa={(t) => wa(t, pedido.local_id)} conTitulo={false} />
+                  <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp. Estos datos te quedan acá{logueada ? " y en tu cuenta" : ""} hasta que confirmemos el pago.{pedido.giftcard ? " Cuando lo confirmemos, vas a ver acá el código de la gift card." : ""}</div>
                   {/* Plazo para pagar: que quede claro que la fecha es para transferir, no para usar el pedido (una clienta entendió que
                       aunque pagara, el pedido se cancelaba ese día) */}
                   {!pedido.giftcard && pedido.vence_en && !pedido.pagado && pedido.estado === "pendiente_pago" && (() => {
@@ -32691,11 +32733,15 @@ function TiendaPublica({ slug }) {
           </div>}
         </div>
         {(miCuenta.pedidos || []).filter(pd => pd.tipo !== "giftcard" && !["entregado", "cancelado"].includes(pd.estado)).map(pd => (
-          <a key={pd.codigo} className="tw-pedido-curso" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}>
-            <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {nroPedido(pd)}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
-            <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
-          </a>
+          <Fragment key={pd.codigo}>
+            <a className="tw-pedido-curso" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}>
+              <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {nroPedido(pd)}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
+              <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
+            </a>
+            {pd.transferencia && <TwTransferir pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} />}
+          </Fragment>
         ))}
+        {(miCuenta.pedidos || []).filter(pd => pd.tipo === "giftcard" && pd.transferencia).map(pd => <TwTransferir key={pd.codigo + "-trg"} pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} />)}
         {miCuenta.regalo_cumple && (() => { const r = miCuenta.regalo_cumple; return r.usado ? <div className="tw-cumple-regalo usado">🎂 Ya usaste tu regalo de cumple. ¡Gracias por festejarlo con nosotras! 💝</div> : (
           <div className="tw-cumple-regalo">
             <div style={{ fontSize: 26 }} aria-hidden="true">🎂🎁</div>
