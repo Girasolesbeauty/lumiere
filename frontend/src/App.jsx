@@ -37154,16 +37154,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   </button>); })}
               </div>
             )}
-            {/* Por etapa, en tarjetas grandes como las del inicio (y En proceso de pago y Entregados). Nuevos lleva globito rojo (sin globito si no hay) */}
-            <div className="ped-grid">
-              {[...(nRevisar || filtro === "g:revisar" ? [["g:revisar", "🔔", "Para revisar", "#c0392b"]] : []), ["g:nuevo", "📥", "Nuevos", "#2471a3"], ["g:preventa", "⏳", "Preventa", "#d35400"], ["g:pago", "💳", "Esperando pago", "#b7950b"], ["g:listo", "📦", "Listos", "#8e44ad"], ["proceso", "🔄", "En proceso de pago", "#c0392b"], ["entregado", "✅", "Entregados", "#1e8e4f"]].map(([k, ic, t, col], i) => { const n = contar(k), on = filtro === k; return (
-                <button key={k} className={"pcel-btn ped-btn" + (on ? " on" : "")} aria-pressed={on} style={{ "--c": col, animationDelay: (i * 45) + "ms" }} onClick={() => setFiltro(on ? "activos" : k)}>
-                  <span className="pcel-ico" aria-hidden="true">{ic}</span>
-                  <span className="pcel-txt">{t}</span>
-                  {/* Entregados sin globito (no es algo para atender); En proceso, rojo solo si hay alguno de mas de 2 horas sin escribirle */}
-                  {n > 0 && k !== "entregado" && <span className={"ped-globo" + (k === "g:nuevo" || k === "g:revisar" || (k === "proceso" && nDemorados > 0) ? " rojo" : "")} aria-label={n + " pedidos"}>{n > 99 ? "99+" : n}</span>}
-                </button>); })}
-            </div>
+            {/* Las etapas ya se ven como grupos desplegables abajo; el resto (En proceso de pago, Entregados…) desde "Ver:" */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: "100%" }}>
               <div className="ped-filtros-chips">{FILTROS_PED.map(([k, t]) => { const nv = nuevosEn(k); return <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} style={{ position: "relative" }} onClick={() => setFiltro(k)}>{t} <span style={{ opacity: 0.7 }}>({contar(k)})</span>{nv > 0 && <span className="ped-burbuja" aria-label={nv + " nuevos"}>{nv}</span>}</button>; })}</div>
               {/* En el celular: una barra desplegable en vez de tres filas de botones */}
