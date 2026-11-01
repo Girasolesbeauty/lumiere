@@ -1078,6 +1078,7 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .club-pieza { text-align: left; margin: 0; min-width: 0; }
 .club-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; }
 .club-dia { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: ${p.accent}22; color: ${p.accentText || p.accent}; border-radius: 99px; padding: 3px 10px; }
+.club-dia.hoy { background: #d62f45; color: #fff; }
 .club-placa { width: 100%; height: auto; aspect-ratio: 1080/1350; border-radius: 12px; display: block; margin-bottom: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.12); }
 .club-txt { width: 100%; font-size: 13px; line-height: 1.45; resize: vertical; margin-bottom: 8px; box-sizing: border-box; }
 .club-btns { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -25907,8 +25908,19 @@ function clubDibujar(cv, pz, d, imgs) {
   ctx.font = "110px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; ctx.fillText(pz.emoji || "", W / 2, 210);
   ctx.font = cyF(900, 66); ctx.fillStyle = "#2a1f12";
   const tit = pz.tipo === "beneficio" ? "Beneficio exclusivo" : pz.titulo;
-  clubLineas(ctx, tit, W - 140, 2).forEach((l, i) => ctx.fillText(l, W / 2, 390 + i * 74));
-  const prods = (pz.productos || []).slice(0, 4), y0 = 500;
+  const nTit = clubLineas(ctx, tit, W - 140, 2); nTit.forEach((l, i) => ctx.fillText(l, W / 2, 390 + i * 74));
+  let y0 = 500;
+  // Eventos (Cyber, Adviento…): una bajada y chips debajo del título, y los productos más abajo
+  if (pz.sub || (pz.chips && pz.chips.length)) {
+    let y = 400 + nTit.length * 74;
+    if (pz.sub) { ctx.font = cyF(700, 42); ctx.fillStyle = col; clubLineas(ctx, pz.sub, W - 160, 2).forEach(l => { ctx.fillText(l, W / 2, y); y += 54; }); }
+    const ch = (pz.chips || []).slice(0, 4);
+    if (ch.length) { ctx.font = cyF(800, 30); const ws = ch.map(t => ctx.measureText(t).width + 50); let fila = [], filas = [], ancho = 0; ws.forEach((w, i) => { if (ancho + w > W - 120 && fila.length) { filas.push(fila); fila = []; ancho = 0; } fila.push(i); ancho += w + 16; }); if (fila.length) filas.push(fila);
+      filas.forEach(f => { let x = (W - f.reduce((t, i) => t + ws[i] + 16, -16)) / 2; f.forEach(i => { ctx.fillStyle = "#fff"; clubRedondo(ctx, x, y - 10, ws[i], 60, 30); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = "#2a1f12"; ctx.fillText(ch[i], x + ws[i] / 2, y + 31); x += ws[i] + 16; }); y += 76; }); }
+    y0 = y + 20;
+    if (!(pz.productos || []).length) { ctx.font = "260px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif"; ctx.fillText(pz.emoji || "", W / 2, Math.min(H - 220, y0 + (H - 110 - y0) / 2 + 90)); }
+  }
+  const prods = (pz.productos || []).slice(0, 4);
   if (pz.tipo === "beneficio" && pz.cupon) {
     ctx.font = cyF(900, 230); ctx.fillStyle = col; ctx.fillText(pz.cupon.valor + "%", W / 2, y0 + 250);
     ctx.font = cyF(900, 80); ctx.fillText("OFF", W / 2, y0 + 345);
@@ -25925,10 +25937,11 @@ function clubDibujar(cv, pz, d, imgs) {
       ctx.fillStyle = "#fff"; clubRedondo(ctx, W / 2 - s / 2 - 20, y, s + 40, s + 40, 30); ctx.fill(); if (im) { const k = Math.min(s / im.width, s / im.height); ctx.drawImage(im, W / 2 - im.width * k / 2, y + 20 + (s - im.height * k) / 2, im.width * k, im.height * k); }
       ctx.font = cyF(800, 34); ctx.fillStyle = "#2a1f12"; ctx.fillText(clubLineas(ctx, p.nombre, W - 200, 1)[0], W / 2, y + s + 95); }
   } else if (prods.length) {
-    const n = prods.length, cols = n === 1 ? 1 : 2, filas = Math.ceil(n / cols), gap = 34, cw = n === 1 ? 600 : (W - 120 - gap) / 2, ch = n <= 2 ? 640 : 330 + 0;
-    const hTot = filas * (n <= 2 ? 640 : 340) + (filas - 1) * gap, x0 = (W - (cols * cw + (cols - 1) * gap)) / 2, yy0 = y0 + Math.max(0, (H - 160 - y0 - hTot) / 2);
+    const n = prods.length, cols = n === 1 ? 1 : 2, filas = Math.ceil(n / cols), gap = 34, cw = n === 1 ? 600 : (W - 120 - gap) / 2;
+    const HH = Math.min(n <= 2 ? 640 : 340, (H - 140 - y0 - (filas - 1) * gap) / filas);
+    const hTot = filas * HH + (filas - 1) * gap, x0 = (W - (cols * cw + (cols - 1) * gap)) / 2, yy0 = y0 + Math.max(0, (H - 160 - y0 - hTot) / 2);
     prods.forEach((p, i) => {
-      const x = x0 + (i % cols) * (cw + gap), y = yy0 + Math.floor(i / cols) * ((n <= 2 ? 640 : 340) + gap), hh = n <= 2 ? 640 : 340;
+      const x = x0 + (i % cols) * (cw + gap), y = yy0 + Math.floor(i / cols) * (HH + gap), hh = HH;
       ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(80,50,10,.12)"; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8; clubRedondo(ctx, x, y, cw, hh, 30); ctx.fill(); ctx.shadowColor = "transparent";
       const nl = clubLineas(ctx, p.nombre, cw - 40, 2).length, fh = hh - 70 - nl * 36, im = imgs[p.id];
       if (im) { const k = Math.min((cw - 40) / im.width, (fh - 30) / im.height); ctx.drawImage(im, x + cw / 2 - im.width * k / 2, y + 20 + (fh - 30 - im.height * k) / 2, im.width * k, im.height * k); }
@@ -25937,7 +25950,7 @@ function clubDibujar(cv, pz, d, imgs) {
       ctx.font = cyF(900, 40);
       if (p.precio_oferta) { ctx.fillStyle = col; ctx.fillText(clubPlata(p.precio_oferta), x + cw / 2 + 70, y + hh - 26); ctx.font = cyF(600, 28); ctx.fillStyle = "#999"; const t = clubPlata(p.precio), tw = ctx.measureText(t).width, tx = x + cw / 2 - 90; ctx.fillText(t, tx, y + hh - 28); ctx.fillRect(tx - tw / 2, y + hh - 38, tw, 3); }
       else { ctx.fillStyle = col; ctx.fillText(clubPlata(p.precio), x + cw / 2, y + hh - 26); }
-      const chip = p.pct ? "-" + Math.round(p.pct) + "%" : pz.tipo === "ultimas" ? (p.stock === 1 ? "¡Queda 1!" : "Quedan " + p.stock) : pz.tipo === "novedades" ? "NUEVO" : pz.tipo === "mas_vendidos" ? "#" + (i + 1) : "";
+      const chip = p.pct ? "-" + Math.round(p.pct) + "%" : pz.tipo === "ultimas" ? (p.stock === 1 ? "¡Queda 1!" : "Quedan " + p.stock) : pz.tipo === "nuevos" ? "NUEVO" : pz.tipo === "volvieron" ? "VOLVIÓ" : pz.tipo === "en_camino" ? "EN CAMINO" : pz.tipo === "mas_vendidos" ? "#" + (i + 1) : "";
       if (chip) { ctx.font = cyF(900, 26); const cw2 = ctx.measureText(chip).width + 36; ctx.fillStyle = pz.tipo === "ultimas" || p.pct ? "#d62f45" : col; clubRedondo(ctx, x + 16, y + 16, cw2, 50, 25); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(chip, x + 16 + cw2 / 2, y + 51); }
     });
   }
@@ -25970,7 +25983,7 @@ function ClubPieza({ pz, d, imgs, p, avisar, onOtra, onTexto, onCupon }) {
   const sinCupon = pz.tipo === "beneficio" && !pz.cupon;
   return (
     <div className="card club-pieza">
-      <div className="club-cab"><span className="club-dia">{pz.dia}</span><b>{pz.emoji} {pz.titulo}</b></div>
+      <div className="club-cab"><span className={"club-dia" + (pz.destacado ? " hoy" : "")}>{pz.destacado ? "⭐ Hoy" : pz.dia}</span><b>{pz.emoji} {pz.titulo}</b></div>
       {sinCupon ? (
         <div className="club-cupon">
           <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 8 }}>Un código de descuento solo para el grupo. Se crea en Cupones (canal "Club WhatsApp"), vale una vez por clienta, en los locales y en la tienda online.</div>

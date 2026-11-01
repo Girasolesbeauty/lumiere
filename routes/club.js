@@ -37,7 +37,7 @@ const ENCUESTAS = [
 // Productos publicados en la tienda (con su link) y los datos para elegir qué mostrar
 async function base(req) {
   const c = await tienda.leerConfig();
-  const lista = await q(`SELECT p.id, p.nombre, p.marca, p.precio, p.categoria, tp.descripcion,
+  const lista = await q(`SELECT p.id, p.nombre, p.marca, p.precio, p.categoria, tp.descripcion, (p.creado_en > NOW() - INTERVAL '30 days') AS es_nuevo,
       GREATEST(COALESCE(p.stock_rg, 0) - COALESCE(p.reservado_rg, 0), 0) + GREATEST(COALESCE(p.stock_ush, 0) - COALESCE(p.reservado_ush, 0), 0) AS stock,
       EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
     FROM productos p JOIN tienda_productos tp ON tp.producto_id = p.id AND tp.publicado
@@ -70,16 +70,67 @@ router.get('/contenido', async (req, res) => {
     const linea = (p) => '• ' + p.nombre + (p.marca && !p.nombre.toLowerCase().includes(String(p.marca).toLowerCase()) ? ' (' + p.marca + ')' : '') + ' — ' + plata(p.precio);
     const piezas = [];
 
-    // 1) Novedades: lo que entró en las últimas 3 semanas (o lo último que se cargó en la tienda)
+    // 1) Productos nuevos (dados de alta hace menos de 30 días) y 1b) los que volvieron a entrar (ingreso de las últimas 3 semanas)
     const fIng = new Map(ingresos.map(r => [r.id, new Date(r.f).getTime()]));
-    let nov = conStock.filter(p => fIng.has(p.id)).sort((a, b) => fIng.get(b.id) - fIng.get(a.id) || (v30.get(b.id) || 0) - (v30.get(a.id) || 0));
-    if (nov.length < 3) nov = [...nov, ...conStock.filter(p => !fIng.has(p.id)).sort((a, b) => b.id - a.id)].slice(0, 6);
-    nov = nov.filter(p => p.foto).concat(nov.filter(p => !p.foto)).slice(0, 4);
-    if (nov.length) piezas.push({ tipo: 'novedades', dia: 'Lunes', emoji: '✨', titulo: 'Llegó mercadería nueva', productos: nov.map(corto),
+    const conFoto = (l) => l.filter(p => p.foto).concat(l.filter(p => !p.foto));
+    const nuevos = conFoto(conStock.filter(p => p.es_nuevo).sort((a, b) => b.id - a.id)).slice(0, 4);
+    const volvieron = conFoto(conStock.filter(p => !p.es_nuevo && fIng.has(p.id)).sort((a, b) => (v30.get(b.id) || 0) - (v30.get(a.id) || 0) || fIng.get(b.id) - fIng.get(a.id))).slice(0, 4);
+    if (nuevos.length) piezas.push({ tipo: 'nuevos', dia: 'Lunes', emoji: '✨', titulo: 'Productos nuevos', productos: nuevos.map(corto),
       texto: una([
-        `🌻 *¡Llegó mercadería nueva!* 🌻\n\nSe lo mostramos primero al ${club}:\n\n${nov.map(linea).join('\n')}\n\nSon pocas unidades de cada uno: si algo te gusta, respondé este mensaje y te lo separamos 💛${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`,
-        `✨ *Novedades de la semana* ✨\n\nRecién llegado, para vos que sos del Club:\n\n${nov.map(linea).join('\n')}\n\n¿Cuál te llevás? Escribinos y te lo guardamos 🙌${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`,
+        `✨ *¡Productos nuevos en ${titulo}!* ✨\n\nSe los mostramos primero al ${club}:\n\n${nuevos.map(linea).join('\n')}\n\nSon pocas unidades: si alguno te gusta, respondé este mensaje y te lo separamos 💛${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`,
+        `🌟 *Recién llegados* 🌟\n\nSumamos estos productos nuevos:\n\n${nuevos.map(linea).join('\n')}\n\n¿Cuál querés probar primero? 👀${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`,
       ], v) });
+    if (volvieron.length) piezas.push({ tipo: 'volvieron', dia: nuevos.length ? 'Jueves' : 'Lunes', emoji: '🔁', titulo: '¡Volvieron!', productos: volvieron.map(corto),
+      texto: una([
+        `🔁 *¡Volvieron!* 🔁\n\nLos que nos pedían un montón ya están de nuevo:\n\n${volvieron.map(linea).join('\n')}\n\nVuelan rápido, así que si lo estabas esperando, avisanos y te lo guardamos 💛${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`,
+        `📦 *Llegó mercadería* 📦\n\nRepusimos estos favoritos:\n\n${volvieron.map(linea).join('\n')}\n\n¡Corré que vuelan! 🏃‍♀️${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`,
+      ], v) });
+
+    // 1c) En camino: lo que ya se compró y está por llegar (con preventa, se puede reservar)
+    const pv = tienda.preventaDe(c);
+    const transito = await q(`SELECT p.id, p.nombre, p.marca, p.precio, COALESCE(tp.publicado, FALSE) AS publicado,
+        COALESCE(p.stock_transito_rg, 0) + COALESCE(p.stock_transito_ush, 0) AS en_camino, EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto
+      FROM productos p LEFT JOIN tienda_productos tp ON tp.producto_id = p.id
+      WHERE p.activo = TRUE AND COALESCE(p.precio, 0) > 0 AND COALESCE(p.stock_transito_rg, 0) + COALESCE(p.stock_transito_ush, 0) > 0`);
+    const camino = conFoto(transito.filter(p => p.publicado || (pv.activo && pv.incluir_no_publicados))
+      .map(p => ({ ...p, precio: num(p.precio), slug: (lista.find(x => x.id === p.id) || {}).slug }))
+      .sort((a, b) => (v30.get(b.id) || 0) - (v30.get(a.id) || 0) || num(b.en_camino) - num(a.en_camino))).slice(0, 4);
+    if (camino.length) piezas.push({ tipo: 'en_camino', dia: 'Sábado', emoji: '🚚', titulo: 'Se viene…', productos: camino.map(p => ({ ...corto(p), link: p.publicado ? link(p) : '' })),
+      texto: `🚚 *¡Se viene mercadería!* 🚚\n\nYa está en camino:\n\n${camino.map(linea).join('\n')}\n\n${pv.activo ? 'Podés *reservarlo ahora* desde la tienda, así te lo guardamos apenas llega 🙌' : 'Si querés que te avisemos o te guardemos alguno, respondé este mensaje 🙌'}${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}` });
+
+    // 1d) Eventos de la tienda: Cyber, Calendario de Adviento y Halloween (cuando se vienen o están en curso)
+    const ahora = Date.now(), DIA = 86400000;
+    const fechaAR = (fh) => { const d = new Date(tienda.msAR(fh)); const f = new Date(d.getTime() - 3 * 3600e3); return f.getUTCDate() + '/' + (f.getUTCMonth() + 1); };
+    const faltan = (ms) => Math.max(1, Math.ceil(ms / DIA));
+    const ky = tienda.cyberDe(c);
+    if (ky.activo) {
+      const ini = tienda.msAR(ky.desde), fin = tienda.msAR(ky.hasta) + 59999;
+      const maxPct = Math.round(Math.max(0, ...promos.map(x => x.pct)));
+      if (ahora < ini && ini - ahora <= 10 * DIA) piezas.push({ tipo: 'cyber', dia: 'Hoy', destacado: true, emoji: '⚡', titulo: 'Se viene el Cyber Monday', sub: 'Arranca el ' + fechaAR(ky.desde) + ' · faltan ' + faltan(ini - ahora) + (faltan(ini - ahora) === 1 ? ' día' : ' días'), chips: ky.chips, productos: [],
+        texto: `⚡ *¡Se viene el Cyber Monday!* ⚡\n\nDel ${fechaAR(ky.desde)} al ${fechaAR(ky.hasta)}: *${ky.titulo}*.\n${ky.subtitulo}${ky.chips.length ? '\n\n' + ky.chips.map(x => '✅ ' + x).join('\n') : ''}\n\nFaltan ${faltan(ini - ahora)} ${faltan(ini - ahora) === 1 ? 'día' : 'días'}: armá tu lista desde ahora 📝 Y como sos del ${club}, te avisamos primero cuando arranque 💛` });
+      else if (ahora >= ini && ahora <= fin) {
+        const ult = fin - ahora < DIA;
+        const top = conStock.map(p => ({ p, pct: Math.round(Math.max(0, ...promos.filter(x => tienda.promoDe([x], p, x.pago)).map(x => x.pct))) })).filter(x => x.pct > 0)
+          .sort((a, b) => b.pct - a.pct || (v30.get(b.p.id) || 0) - (v30.get(a.p.id) || 0)).slice(0, 4);
+        piezas.push({ tipo: 'cyber', dia: 'Hoy', destacado: true, emoji: '⚡', titulo: ult ? '¡Último día de Cyber!' : '¡Arrancó el Cyber Monday!', sub: (maxPct ? 'Hasta ' + maxPct + '% OFF' : ky.titulo) + ' · hasta el ' + fechaAR(ky.hasta), chips: ky.chips,
+          productos: top.map(({ p, pct }) => ({ ...corto(p), precio_oferta: Math.round(p.precio * (1 - pct / 100)), pct })),
+          texto: `⚡ *${ult ? '¡ÚLTIMO DÍA DE CYBER MONDAY!' : '¡ARRANCÓ EL CYBER MONDAY!'}* ⚡\n\n${maxPct ? '*Hasta ' + maxPct + '% OFF*' : '*' + ky.titulo + '*'} hasta el ${fechaAR(ky.hasta)}.\n${ky.subtitulo}${top.length ? '\n\nAlgunas joyitas:\n' + top.map(({ p, pct }) => '• ' + p.nombre + ' — ~' + plata(p.precio) + '~ *' + plata(p.precio * (1 - pct / 100)) + '*').join('\n') : ''}${ky.chips.length ? '\n\n' + ky.chips.map(x => '✅ ' + x).join('\n') : ''}\n\n${ult ? '¡Se termina hoy! ⏰' : '¡Hasta agotar stock! 🏃‍♀️'}${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}` });
+      }
+    }
+    const adv = tienda.advientoDe(c), advHoy = tienda.advientoHoy(adv);
+    if (adv.activo) {
+      const puntos = adv.constancia.activo ? adv.constancia.hitos.reduce((t, h) => t + h.puntos, 0) : 0;
+      const inicioAdv = Date.UTC(adv.anio, 11, 1) + 3 * 3600e3;
+      if (advHoy === 0 && inicioAdv - ahora <= 12 * DIA) piezas.push({ tipo: 'adviento', dia: 'Hoy', destacado: true, emoji: '🎄', titulo: 'Se viene el ' + adv.titulo, sub: 'Desde el 1 de diciembre · una ventana por día', chips: puntos ? ['Hasta ' + puntos.toLocaleString('es-AR') + ' puntos', '25 sorpresas'] : ['25 sorpresas'], productos: [],
+        texto: `🎄 *Se viene el ${adv.titulo}* 🎄\n\nDesde el *1 de diciembre*, cada día se enciende una ventana nueva en la tienda con una sorpresa hasta Navidad 🎁${puntos ? '\n\nSi abrís la ventana de cada día, vas juntando sellos y podés sumar *hasta ' + puntos.toLocaleString('es-AR') + ' puntos* ✨' : ''}${adv.constancia.activo && adv.constancia.sorteo_dias && adv.constancia.sorteo_premio ? '\nY con ' + adv.constancia.sorteo_dias + ' sellos entrás al sorteo de ' + adv.constancia.sorteo_premio.charAt(0).toLowerCase() + adv.constancia.sorteo_premio.slice(1) + ' 🎉' : ''}\n\n¡Agendalo! 🗓️${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}` });
+      else if (advHoy >= 1 && advHoy <= 25) piezas.push({ tipo: 'adviento', dia: 'Hoy', destacado: true, emoji: '🎄', titulo: advHoy === 25 ? '¡Feliz Navidad!' : 'Hoy se abre la ventana ' + advHoy, sub: advHoy === 25 ? 'Se abre la última ventana' : 'Faltan ' + (25 - advHoy) + ' días para Navidad', chips: puntos ? ['Sumá tu sello de hoy'] : [], productos: [],
+        texto: advHoy === 25
+          ? `🎄 *¡Feliz Navidad, ${club}!* 🎄\n\nHoy se abre la *última ventana* del ${adv.titulo} 🎁 Entrá a verla${puntos ? ' y sumá tu último sello' : ''}.\n\nGracias por acompañarnos todo el año 💛${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}`
+          : `🎄 *${adv.titulo}: día ${advHoy}* 🎄\n\nYa se encendió la ventana de hoy en la tienda… ¿qué sorpresa habrá? 👀🎁${puntos ? '\n\nAbrila hoy para sumar tu sello: abriendo todas juntás *hasta ' + puntos.toLocaleString('es-AR') + ' puntos* ✨' : ''}\n\nFaltan ${25 - advHoy} días para Navidad 🎅${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}` });
+    }
+    const hw = tienda.halloweenDe(c);
+    if (tienda.halloweenVigente(hw)) piezas.push({ tipo: 'halloween', dia: 'Hoy', destacado: true, emoji: '🎃', titulo: hw.titulo, sub: hw.ceja, chips: [], productos: [],
+      texto: `🎃 *${hw.titulo}* 🎃\n\n${hw.subtitulo}\n\nHasta el ${fechaAR(hw.hasta)} 👻${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}` });
 
     // 2) Lo más vendido de la semana
     const top = conStock.filter(p => (v7.get(p.id) || 0) > 0).sort((a, b) => v7.get(b.id) - v7.get(a.id)).slice(0, 5);
@@ -121,7 +172,7 @@ router.get('/contenido', async (req, res) => {
     piezas.push({ tipo: 'encuesta', dia: 'Sábado', emoji: '🗳️', titulo: 'Encuesta', pregunta: preg, opciones: ops, productos: [],
       texto: `🗳️ *Queremos saber tu opinión*\n\n${preg}\n\n${ops.map((o, i) => ['1️⃣', '2️⃣', '3️⃣', '4️⃣'][i] + ' ' + o).join('\n')}\n\nRespondé con el número 👇 ¡Nos ayuda un montón! 💛` });
 
-    const orden = { Lunes: 1, Martes: 2, 'Miércoles': 3, Jueves: 4, Viernes: 5, 'Sábado': 6 };
+    const orden = { Hoy: 0, Lunes: 1, Martes: 2, 'Miércoles': 3, Jueves: 4, Viernes: 5, 'Sábado': 6 };
     res.json({ club, titulo, color: c.color || '#c9a84c', slug: c.slug, link_tienda: linkTienda, ia: !!process.env.ANTHROPIC_API_KEY,
       piezas: piezas.sort((a, b) => orden[a.dia] - orden[b.dia]) });
   } catch (e) {
