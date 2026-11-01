@@ -27384,6 +27384,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-transferir{background:#f3faf5;border:1.5px solid #bfe3cb;border-radius:14px;padding:12px 14px;margin:8px 0 12px;text-align:left}
 .tw-tr-tit{font-size:14px;margin-bottom:6px}.tw-tr-tit span{color:#777;font-size:12.5px}
 .tw-tr-datos{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:14px;background:#fff;border-radius:8px;padding:8px 10px;margin:6px 0 8px;line-height:1.45;color:#222;user-select:all}
+.tw-tr-plazo{font-size:12.5px;color:#555;line-height:1.4;margin:0 0 8px}
 .tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
 .tw-tr-chip{background:#eaf7ef!important;border-color:#bfe3cb!important}
 .tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
@@ -28661,7 +28662,7 @@ function TwBarraEnvio({ subtotal, gratisDesde }) {
 const TW_PASO_PEDIDO = { pendiente_pago: 0, confirmado: 1, preparado: 2, en_caja: 2, entregado: 3 };
 // Pedido con transferencia sin pagar: los datos para transferir quedan a mano (en la cuenta y en la página del pedido)
 // hasta que el local marca el pago. Con botón para copiarlos y para mandar el comprobante.
-function TwTransferir({ pd, datos, linkWa, conTitulo = true }) {
+function TwTransferir({ pd, datos, linkWa, conTitulo = true, conPlazo = false }) {
   const [copiado, setCopiado] = useState(false);
   const nro = pd.numero || pd.codigo;
   const copiar = async () => { try { await navigator.clipboard.writeText(datos); setCopiado(true); setTimeout(() => setCopiado(false), 2500); } catch (e) {} };
@@ -28670,6 +28671,8 @@ function TwTransferir({ pd, datos, linkWa, conTitulo = true }) {
     <div className="tw-transferir">
       {conTitulo && <div className="tw-tr-tit">💸 Falta tu transferencia de <b>{fmtTienda(pd.total)}</b> <span>· pedido N° {nro}</span></div>}
       <div className="tw-tr-datos">{datos}</div>
+      {/* El plazo para pagar se muestra solo en la cuenta (en la página del pedido confundía a las clientas) */}
+      {conPlazo && pd.vence_en && pd.estado === "pendiente_pago" && !pd.pagado && <div className="tw-tr-plazo">⏰ Tenés tiempo de transferir hasta el <b>{new Date(pd.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</b>. Apenas nos llega el pago, tu pedido queda confirmado.</div>}
       <div className="tw-tr-btns">
         <button className="tw-btn2" onClick={copiar}>{copiado ? "✓ Copiado" : "📋 Copiar datos"}</button>
         {waComp && <a className="tw-btn2 tw-tr-wa" href={waComp} target="_blank" rel="noopener">🧾 Mandar comprobante</a>}
@@ -32454,18 +32457,6 @@ function TiendaPublica({ slug }) {
                   <b>Transferí {fmtTienda(pedido.total)} a:</b>
                   <TwTransferir pd={pedido} datos={pedido.transferencia} linkWa={(t) => wa(t, pedido.local_id)} conTitulo={false} />
                   <div style={{ fontSize: 13, color: "#666" }}>Mandanos el comprobante por WhatsApp. Estos datos te quedan acá{logueada ? " y en tu cuenta" : ""} hasta que confirmemos el pago.{pedido.giftcard ? " Cuando lo confirmemos, vas a ver acá el código de la gift card." : ""}</div>
-                  {/* Plazo para pagar: que quede claro que la fecha es para transferir, no para usar el pedido (una clienta entendió que
-                      aunque pagara, el pedido se cancelaba ese día) */}
-                  {!pedido.giftcard && pedido.vence_en && !pedido.pagado && pedido.estado === "pendiente_pago" && (() => {
-                    const hs = pedido.creado_en ? Math.round((new Date(pedido.vence_en) - new Date(pedido.creado_en)) / 3600000) : 0;
-                    return (
-                      <div style={{ background: "#fff8e1", border: "1px solid #f1dc9a", borderRadius: 8, padding: "10px 12px", marginTop: 10, fontSize: 13.5, lineHeight: 1.45, color: "#333" }}>
-                        <div>⏰ <b>Tenés tiempo de transferir hasta el {new Date(pedido.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</b>{hs > 0 ? " (" + hs + " horas desde tu compra)" : ""}.</div>
-                        <div style={{ marginTop: 6 }}>✅ <b>Apenas nos llega el pago, tu pedido queda confirmado</b> y ya no se cancela, aunque pase esa fecha.</div>
-                        <div style={{ marginTop: 6, color: "#666" }}>Si no recibimos la transferencia antes de ese horario, el pedido se cancela solo y los productos vuelven a la venta.</div>
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
               {pedido.pago === "retiro" && pedido.vence_en && !["cancelado", "entregado"].includes(pedido.estado) && (
@@ -32747,7 +32738,7 @@ function TiendaPublica({ slug }) {
               <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {nroPedido(pd)}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
               <TwSeguimiento estado={pd.estado} entrega={pd.entrega} compacto />
             </a>
-            {pd.transferencia && <TwTransferir pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} />}
+            {pd.transferencia && <TwTransferir pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} conPlazo />}
           </Fragment>
         ))}
         {(miCuenta.pedidos || []).filter(pd => pd.tipo === "giftcard" && pd.transferencia).map(pd => <TwTransferir key={pd.codigo + "-trg"} pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} />)}
