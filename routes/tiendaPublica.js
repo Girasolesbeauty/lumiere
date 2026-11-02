@@ -792,24 +792,6 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
 });
 
-// "¿No te salió el pago?": un pedido con retiro que no se pudo pagar online pasa a pagarse en el local al retirarlo
-// (con las cuotas del local). Queda reservado el tiempo de siempre; es lo mismo que puede hacer el local desde Lumiere.
-router.post('/:slug/pedidos/:codigo/pagar-en-local', async (req, res) => {
-  try {
-    const c = req.tienda, a = tienda.ayudaPagoDe(c);
-    if (!a.activo || !a.local) return res.status(400).json({ error: 'Esta opción no está disponible' });
-    const p = (await pool.query('SELECT * FROM tienda_pedidos WHERE codigo = $1', [String(req.params.codigo || '').toUpperCase()])).rows[0];
-    if (!p) return res.status(404).json({ error: 'No encontramos ese pedido' });
-    if (p.pagado) return res.status(400).json({ error: 'Ese pedido ya está pagado' });
-    if (p.tipo === 'giftcard' || p.entrega !== 'retiro') return res.status(400).json({ error: 'Esta opción es solo para pedidos que se retiran en el local' });
-    if (p.estado !== 'pendiente_pago' || !['mp', 'gocuotas'].includes(p.pago)) return res.status(400).json({ error: 'Este pedido ya no se puede cambiar' });
-    const horas = Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24));
-    await pool.query(`UPDATE tienda_pedidos SET pago = 'retiro', pago_rechazo = NULL, mp_link = NULL, estado = 'confirmado', vence_en = NOW() + ($2 || ' hours')::interval,
-      motivo = 'No le salió el pago online: paga en el local al retirar', actualizado_en = NOW() WHERE id = $1 AND NOT pagado AND estado = 'pendiente_pago'`, [p.id, String(horas)]);
-    res.json({ ok: true });
-  } catch (e) { console.error('[tienda] pagar en local:', e.message); res.status(500).json({ error: 'No se pudo cambiar la forma de pago' }); }
-});
-
 // ===================== Ruleta de premios =====================
 // Se gira una vez por pedido, si la compra (productos menos descuento) llega al minimo y el pedido
 // sigue en pie. Con Mercado Pago, recien cuando se acredita el pago.
