@@ -27485,6 +27485,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-vacio-grande{text-align:center;padding:26px 16px;color:#444;font-size:14px;font-weight:700;line-height:1.4}
 .tw-vacio-grande span{display:block;font-size:34px;margin-bottom:8px}
 .tw-vacio-grande small{display:block;font-weight:400;color:#777;font-size:13px;margin-top:6px}
+.tw-rp-sub{font-size:13px;color:#777;margin:-4px 0 10px}
 .tw-rs-intro{font-size:13px;color:#777;margin:0 2px 12px;line-height:1.4}
 .tw-rs-ok{background:#eef8f1;color:#1e6b3a;border-radius:14px;padding:12px 14px;font-weight:700;font-size:13.5px;margin-bottom:12px}
 .tw-rs-card{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#fff;border:1px solid #ece6dc;border-radius:16px;padding:12px;margin:0 0 10px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
@@ -29797,7 +29798,8 @@ const TW_DURACIONES = [
   [/sombra|paleta|eyeshadow/, 180, "paleta de sombras", true],
   [/cejas|brow/, 90, "producto para cejas"],
   [/contorno|eye cream|ojeras/, 30, "contorno de ojos"],
-  [/^(?!.*hia?luron).*(\bacido|\bacid\b|\baha\b|\bbha\b|\bpha\b|glicolico|salicilico|mandelico|lactico|azelaico)/, 90, "ácido"],
+  [/retino|retinal|adapaleno|tretinoina/, 90, "retinoide"], [/niacinamid\w*\s*(de\s*)?(1\d|[2-9]\d)\s*%|(1\d|[2-9]\d)\s*%\s*(de\s*)?niacinamid/, 90, "sérum de niacinamida"],
+  [/^(?!.*hia?luron).*(\bacido|\bacid\b|\baha\b|\bbha\b|\bpha\b|glicolico|salicilico|mandelico|lactico|azelaico|tranexamic)/, 90, "ácido"],
   [/exfolia|peeling|scrub/, 90, "exfoliante"],
   [/serum|ampolla|booster|concentrado/, 30, "sérum"],
   [/tonico|toner|esencia|essence|bruma/, 120, "tónico"],
@@ -32799,6 +32801,8 @@ function TiendaPublica({ slug }) {
   const hwLook = [...hwDisfraz, ...hwDespues.filter(p => !hwDisfraz.includes(p))];
   // Lo mas vendido del mes (calculado en el servidor) y lo que la clienta miro hace poco
   const masVendidos = visibles.filter(p => p.top && !esPreventa(p)).sort((a, b) => a.top - b.top);
+  // Los que más se reponen: los que nuestras clientas vuelven a comprar (solo con stock y con foto)
+  const masRepuestos = visibles.filter(p => p.rp && p.foto && !agotado(p) && !esPreventa(p)).sort((a, b) => a.rp - b.rp).slice(0, 12);
   const vistosLista = vistos.map(id => visibles.find(p => p.id === id)).filter(Boolean).slice(0, 12);
   const q = busca.trim().toLowerCase();
   const enLista = !!q || !!cat;
@@ -33596,6 +33600,7 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {masVendidos.length >= 3 && <TwFila titulo="🔥 Lo más vendido del mes" items={masVendidos} render={tarjeta} />}
+            {masRepuestos.length >= 3 && <TwFila titulo="🔁 Los que más se reponen" sub={<div className="tw-rp-sub">Los que nuestras clientas vuelven a comprar una y otra vez 💛</div>} items={masRepuestos} render={tarjeta} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">

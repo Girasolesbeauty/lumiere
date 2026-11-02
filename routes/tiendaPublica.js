@@ -234,6 +234,13 @@ router.get('/:slug/productos', async (req, res) => {
       WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '90 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id ORDER BY SUM(vi.cantidad) DESC LIMIT 200`,
       [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
     const ranking = new Map(ventas90.map((x, i) => [x.producto_id, i + 1]));
+    // Los que más se reponen: cuántas clientas lo volvieron a comprar (en 2 compras distintas, último año, local y web)
+    const repuestos = (await pool.query(`SELECT producto_id, COUNT(*)::int AS clientas FROM (
+        SELECT vi.producto_id, v.cliente_id FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE vi.producto_id = ANY($1::int[]) AND v.cliente_id IS NOT NULL AND v.creado_en > NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA}
+        GROUP BY vi.producto_id, v.cliente_id HAVING COUNT(DISTINCT v.id) >= 2) x
+      GROUP BY producto_id ORDER BY clientas DESC LIMIT 24`, [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
+    const repuesto = new Map(repuestos.map((x, i) => [x.producto_id, i + 1]));
     // Preventa: fecha estimada de ingreso (la mas proxima de las ordenes que todavia no llegaron a cada local)
     const llegas = pv.activo ? new Map((await pool.query(`SELECT oi.producto_id,
         TO_CHAR(MIN(CASE WHEN oi.cantidad_rg > 0 AND NOT COALESCE(oi.revisado_rg, FALSE) THEN o.fecha_estimada END), 'YYYY-MM-DD') AS l1,
@@ -248,7 +255,7 @@ router.get('/:slug/productos', async (req, res) => {
       const v = vars.filter(x => x.producto_id === p.id).map(x => ({ id: x.id, valor: x.valor, stock: { 1: Math.max(0, x.stock_rg), 2: Math.max(0, x.stock_ush) } }));
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, categoria: p.categoria, precio: ofDia && ofDia.producto_id === p.id ? ofDia.precio : num(p.precio), precio_antes: ofDia && ofDia.producto_id === p.id ? num(p.precio) : null, descripcion: p.descripcion || '', foto: !!p.foto, coreano: !!p.kb,
-        destacado: !!p.destacado, nuevo: !!p.nuevo, creado: p.creado ? Number(p.creado) : 0, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, rk: ranking.get(p.id) || null, resenas: notas.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
+        destacado: !!p.destacado, nuevo: !!p.nuevo, creado: p.creado ? Number(p.creado) : 0, etiquetas: p.etiquetas || null, top: puesto.get(p.id) || null, rk: ranking.get(p.id) || null, rp: repuesto.get(p.id) || null, resenas: notas.get(p.id) || null, fotos: p.fotos_extra || [], reingreso: p.reingreso || null, foto_v: p.foto_v ? Number(p.foto_v) : null,
         video: p.video_subido ? { tipo: 'subido' } : tienda.videoDeLink(p.video_url),
         variantes: p.tiene_variantes && v.length ? v : null,
         // Para vender ya: stock menos lo reservado por preventas (solo si esta publicado)
