@@ -27392,42 +27392,39 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
 .tw-fila-sinpagar{background:#fff7ef;border-radius:10px;padding-left:8px!important;padding-right:8px!important}
 .tw-retomar{color:#d35400;font-size:12.5px;white-space:nowrap}
-.tw-cuenta-grande{font-size:16px}
-.tw-cuenta-grande .tw-sec-tit{font-size:18px}
-.tw-cuenta-grande .tw-btn,.tw-cuenta-grande .tw-btn2{min-height:46px}
-.tw-menu-cuenta{display:flex;flex-direction:column;gap:10px;margin:18px 0 6px}
-.tw-menu-tit{font-size:19px;font-weight:800;margin:0 2px 4px;color:#222}
-.tw-menu-op{display:flex;align-items:center;gap:14px;width:100%;text-align:left;font:inherit;color:#222;background:#fff;border:1.5px solid #ece6dc;border-radius:18px;padding:14px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(80,60,30,.06);transition:transform .15s,box-shadow .15s}
+.tw-menu-cuenta{display:flex;flex-direction:column;gap:8px;margin:16px 0 6px}
+.tw-menu-tit{font-size:15px;font-weight:800;margin:0 2px 4px;color:#222}
+.tw-menu-op{display:flex;align-items:center;gap:14px;width:100%;text-align:left;font:inherit;color:#222;background:#fff;border:1.5px solid #ece6dc;border-radius:16px;padding:11px 12px;cursor:pointer;box-shadow:0 2px 10px rgba(80,60,30,.06);transition:transform .15s,box-shadow .15s}
 .tw-menu-op:active{transform:scale(.98)}
 .tw-menu-op:hover{box-shadow:0 4px 16px rgba(80,60,30,.12)}
 .tw-menu-op.alerta{border-color:#f5a35c;background:linear-gradient(90deg,#fff6ec,#fff)}
-.tw-menu-ic{flex:0 0 auto;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;font-size:28px;background:#faf5ec}
+.tw-menu-ic{flex:0 0 auto;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:21px;background:#faf5ec}
 .tw-menu-op.alerta .tw-menu-ic{background:#ffe7d1}
 .tw-menu-txt{flex:1;min-width:0}
-.tw-menu-txt b{display:block;font-size:17.5px;line-height:1.25}
-.tw-menu-txt small{display:block;font-size:14px;color:#6b6b6b;margin-top:3px;line-height:1.35}
+.tw-menu-txt b{display:block;font-size:14.5px;line-height:1.25}
+.tw-menu-txt small{display:block;font-size:12.5px;color:#777;margin-top:2px;line-height:1.35}
 .tw-menu-op.alerta .tw-menu-txt small{color:#c0560a;font-weight:700}
-.tw-menu-n{flex:0 0 auto;min-width:28px;height:28px;padding:0 8px;border-radius:99px;background:#e8193c;color:#fff;font-weight:900;font-size:15px;display:grid;place-items:center}
-.tw-menu-flecha{flex:0 0 auto;font-size:26px;color:#b5ab9b;line-height:1}
+.tw-menu-n{flex:0 0 auto;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:#e8193c;color:#fff;font-weight:800;font-size:12px;display:grid;place-items:center}
+.tw-menu-flecha{flex:0 0 auto;font-size:20px;color:#b5ab9b;line-height:1}
 .tw-vista-cab{position:sticky;top:-1px;z-index:4;background:#fff;margin:0 -4px 10px;padding:10px 4px 12px;border-bottom:1px solid #f0ebe3}
-.tw-vista-cab h3{margin:10px 2px 0;font-size:22px;font-weight:800;color:#222}
-.tw-volver{font:inherit;font-size:16px;font-weight:800;color:#222;background:#f4efe6;border:0;border-radius:99px;padding:10px 18px;cursor:pointer;min-height:44px}
-.tw-vacio-grande{text-align:center;padding:30px 16px;color:#444;font-size:16px;font-weight:700;line-height:1.4}
-.tw-vacio-grande span{display:block;font-size:44px;margin-bottom:8px}
-.tw-vacio-grande small{display:block;font-weight:400;color:#777;font-size:14.5px;margin-top:6px}
-.tw-ped-card{background:#fff;border:1.5px solid #ece6dc;border-radius:18px;padding:16px;margin:0 0 12px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
+.tw-vista-cab h3{margin:8px 2px 0;font-size:17px;font-weight:800;color:#222}
+.tw-volver{font:inherit;font-size:13px;font-weight:800;color:#222;background:#f4efe6;border:0;border-radius:99px;padding:8px 14px;cursor:pointer}
+.tw-vacio-grande{text-align:center;padding:26px 16px;color:#444;font-size:14px;font-weight:700;line-height:1.4}
+.tw-vacio-grande span{display:block;font-size:34px;margin-bottom:8px}
+.tw-vacio-grande small{display:block;font-weight:400;color:#777;font-size:13px;margin-top:6px}
+.tw-ped-card{background:#fff;border:1px solid #ece6dc;border-radius:16px;padding:13px 14px;margin:0 0 10px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
 .tw-ped-card.alerta{border-color:#f5a35c;box-shadow:0 2px 14px rgba(245,163,92,.25)}
 .tw-ped-card.cerrado{background:#fbfaf8}
 .tw-ped-card-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.tw-ped-card-cab b{font-size:17px}
-.tw-ped-card-cab small{display:block;font-size:14px;color:#777;margin-top:3px}
-.tw-ped-card-total{font-size:19px!important;white-space:nowrap}
-.tw-ped-card-items{font-size:14.5px;color:#555;margin:10px 0 0;line-height:1.4}
-.tw-ped-card-estado{display:inline-block;margin-top:12px;padding:8px 12px;border-radius:12px;border:1.5px solid;font-weight:800;font-size:15px}
-.tw-ped-card-btns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
-.tw-ped-card-btns .tw-btn{width:100%;font-size:14px;padding:13px 16px;text-align:center;justify-content:center}
+.tw-ped-card-cab b{font-size:14.5px}
+.tw-ped-card-cab small{display:block;font-size:12.5px;color:#888;margin-top:2px}
+.tw-ped-card-total{font-size:15px!important;white-space:nowrap}
+.tw-ped-card-items{font-size:13px;color:#555;margin:8px 0 0;line-height:1.4}
+.tw-ped-card-estado{display:inline-block;margin-top:10px;padding:5px 10px;border-radius:99px;border:1px solid;font-weight:700;font-size:12.5px}
+.tw-ped-card-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tw-ped-card-btns .tw-btn{flex:1 1 auto;font-size:11.5px;padding:10px 14px;text-align:center;justify-content:center}
 .tw-btn.tw-btn-pagar{background:linear-gradient(90deg,#ff7a45,#ffb03a)!important;color:#fff!important}
-.tw-btn.tw-btn-claro{background:#fff!important;color:#222!important;border:1.5px solid #222!important}
+.tw-btn.tw-btn-claro{background:#fff!important;color:#222!important;border:1px solid #222!important}
 .tw-sinpagar-otras{margin:6px 20px 0;text-align:left}
 .tw-sinpagar-otras .tw-link{font-size:13px;color:#b34a00;text-align:left;line-height:1.35}
 .tw-sinpagar-fila{display:flex;align-items:center;gap:10px;margin-top:6px;padding:9px 12px;border-radius:12px;background:#fff7ef;border:1px solid #f5c9a3;color:#222;text-decoration:none;font-size:13px}
