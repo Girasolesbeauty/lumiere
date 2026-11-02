@@ -1398,4 +1398,113 @@ const getInformeMes = async (req, res) => {
   }
 };
 
-module.exports = { getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+
+// 📥 Todo el mes en un Excel: resumen (ventas, costo de lo vendido, gastos y resultado), lo que explica la
+// diferencia entre la ganancia y la plata en las cuentas (mercaderia comprada y pagada, efectivo, medios de pago)
+// y el detalle de ventas, gastos, compras, pagos a proveedores y caja. Solo dueño o quien ve el flujo.
+const getExportarMes = async (req, res) => {
+  try {
+    const u = req.usuario || {};
+    const esJefe = u.rol === 'jefe' || Number(u.rol_id) === 1;
+    if (!esJefe && !(await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso = 'finanzas.flujo'`, [u.id]).catch(() => ({ rows: [] }))).rows.length)
+      return res.status(403).json({ error: 'No tenés permiso para descargar las finanzas' });
+    const XLSX = require('xlsx');
+    const { mes, anio } = mesAnio(req.query);
+    const localNum = normalizarLocalId(req.query.local_id);
+    const pL = localNum !== null ? [mes, anio, localNum] : [mes, anio];
+    const fL = (a) => (localNum !== null ? ` AND ${a}.local_id = $3` : '');
+    const fLn = (a) => (localNum !== null ? ` AND (${a}.local_id = $3 OR ${a}.local_id IS NULL)` : '');
+    const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const nomLocal = localNum === null ? 'Todos los locales' : ((await pool.query('SELECT nombre FROM locales WHERE id = $1', [localNum]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre || 'Local ' + localNum;
+    const fecha = (d) => d ? new Date(d).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const dia = (d) => d ? new Date(d).toISOString().slice(0, 10).split('-').reverse().join('/') : '';
+    const redondo = (x) => Math.round(num(x) * 100) / 100;
+    const safe = (p) => p.catch((e) => { console.error('[exportar-mes]', e.message); return { rows: [] }; });
+
+    const [est, medios, cmvR, ventasDia, ventas, compras, pagosProv, efectivo, cierres] = await Promise.all([
+      calcularFlujoEstructurado(mes, anio, localNum),
+      calcularComisionesMedios(mes, anio, localNum),
+      safe(pool.query(`SELECT COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS cmv, COUNT(*) FILTER (WHERE COALESCE(p.costo, 0) <= 0) AS sin_costo
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+        WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)}${fL('v')}`, pL)),
+      safe(pool.query(`SELECT ${AR('v.creado_en')}::date AS dia, COUNT(*) AS cantidad, SUM(v.total) AS total
+        FROM ventas v WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)}${fL('v')} GROUP BY 1 ORDER BY 1`, pL)),
+      safe(pool.query(`SELECT v.id, v.creado_en, v.local_id, v.canal, v.medio_pago, v.total, v.descuento, c.nombre AS cliente
+        FROM ventas v LEFT JOIN clientes c ON c.id = v.cliente_id
+        WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)}${fL('v')} ORDER BY v.creado_en`, pL)),
+      safe(pool.query(`SELECT o.* FROM ordenes_ingreso o WHERE ${EN_MES('o.creado_en', 1, 2)} ORDER BY o.creado_en`, [mes, anio])),
+      safe(pool.query(`SELECT o.*, cp.nombre AS cuenta FROM ordenes_ingreso o LEFT JOIN cuentas_pago cp ON cp.id = o.cuenta_pago_id
+        WHERE o.fecha_pago IS NOT NULL AND EXTRACT(MONTH FROM o.fecha_pago) = $1 AND EXTRACT(YEAR FROM o.fecha_pago) = $2 ORDER BY o.fecha_pago`, [mes, anio])),
+      safe(pool.query(`SELECT e.* FROM movimientos_caja_efectivo e WHERE ${NO_ANULADO('e')} AND ${EN_MES('e.creado_en', 1, 2)}${fLn('e')} ORDER BY e.creado_en`, pL)),
+      safe(pool.query(`SELECT k.* FROM cierres_caja k WHERE EXTRACT(MONTH FROM k.fecha) = $1 AND EXTRACT(YEAR FROM k.fecha) = $2${fL('k')} ORDER BY k.fecha, k.local_id`, pL)),
+    ]);
+    const egresos = await obtenerEgresos(mes, anio, localNum);
+    const locales = {};
+    (await safe(pool.query('SELECT id, nombre FROM locales'))).rows.forEach(l => { locales[l.id] = l.nombre; });
+    const nl = (id) => (id ? locales[id] || 'Local ' + id : 'Compartido');
+
+    const cmv = num((cmvR.rows[0] || {}).cmv), sinCosto = parseInt((cmvR.rows[0] || {}).sin_costo) || 0;
+    const ventasTot = est.ingresos.total;
+    const comprado = compras.rows.reduce((s, o) => s + num(o.total), 0);
+    const pagado = pagosProv.rows.reduce((s, o) => s + num(o.total), 0);
+    const pagadoEnCaja = egresos.filter(e => /proveedor|mercader/i.test((e.categoria_nombre || '') + ' ' + (e.concepto || ''))).reduce((s, e) => s + num(e.importe), 0);
+    const efIn = efectivo.rows.filter(e => ['ingreso', 'I'].includes(e.tipo)).reduce((s, e) => s + num(e.importe), 0);
+    const efOut = efectivo.rows.filter(e => ['egreso', 'E'].includes(e.tipo)).reduce((s, e) => s + num(e.importe), 0);
+    const ventasEf = medios.detalle.filter(m => m.efectivo).reduce((s, m) => s + m.monto, 0);
+
+    // Hoja 1: Resumen
+    const R = [];
+    const fila = (a, b, c) => R.push([a, b === undefined ? '' : (typeof b === 'number' ? redondo(b) : b), c || '']);
+    fila('Resumen de ' + MESES[mes - 1] + ' ' + anio + ' · ' + nomLocal); fila('Descargado el ' + fecha(new Date())); fila('');
+    fila('INGRESOS');
+    Object.entries(est.ingresos.detalle || {}).forEach(([k, v]) => fila('  ' + (CANALES[k] || k), typeof v === 'object' ? num(v.total) : num(v)));
+    fila('Total ingresos', ventasTot); fila('');
+    fila('Costo de la mercadería vendida (CMV)', cmv, sinCosto ? sinCosto + ' renglones vendidos con productos sin costo cargado: el costo real es mayor' : 'Según el costo cargado en cada producto');
+    fila('Margen bruto (ventas − CMV)', ventasTot - cmv); fila('');
+    fila('GASTOS (cargados en Caja / Finanzas)');
+    [['Variables', est.variables], ['Fijos', est.fijos], ['Administrativos', est.admin], ['Sueldos', est.sueldos], ['Impuestos', est.impuestos], ['Comisiones de medios de pago', est.comisiones_medios_pago]].forEach(([t, g]) => {
+      if (!g || !g.total) return;
+      fila('  ' + t, g.total);
+      Object.entries(g.detalle || {}).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => fila('      ' + k, v));
+    });
+    fila('Total gastos', est.total_egresos); fila('');
+    fila('RESULTADO (ingresos − gastos)', est.resultado_neto, 'Es lo que Lumiere muestra como resultado del mes');
+    fila('Ganancia restando el costo de lo vendido', ventasTot - cmv - (est.total_egresos - pagadoEnCaja), 'Ventas − costo de la mercadería vendida − gastos (sin contar dos veces lo pagado a proveedores en Caja)');
+    fila('');
+    fila('¿POR QUÉ LA PLATA EN LAS CUENTAS NO ES IGUAL AL RESULTADO?');
+    fila('  Mercadería comprada en el mes (ingresos de mercadería)', comprado, compras.rows.length + ' facturas/órdenes: es stock, no es gasto, pero sale plata');
+    fila('  Pagado a proveedores en el mes (órdenes marcadas como pagadas)', pagado, 'Puede incluir compras de meses anteriores');
+    fila('  Pagos a proveedores cargados como gasto en Caja', pagadoEnCaja, 'Si es mayor a 0, ya está restado en el resultado');
+    fila('  Ventas cobradas en efectivo', ventasEf, 'Queda en las cajas hasta que se deposita');
+    fila('  Movimientos de efectivo del mes: entradas / salidas', efIn + ' / ' + efOut);
+    fila('  Ventas con tarjeta, Mercado Pago, GoCuotas, etc.', ventasTot - ventasEf, 'Se acreditan días o semanas después; mirá "por acreditar"');
+    fila('');
+    fila('No están en Lumiere (revisalos aparte): retiros personales, pagos hechos directo desde el banco sin cargarlos, tarjeta de crédito del negocio, préstamos y la plata que había al empezar el mes.');
+
+    const hojas = [
+      ['Resumen', [['Concepto', 'Importe', 'Nota'], ...R]],
+      ['Medios de pago', [['Medio de pago', 'Cantidad', 'Monto', 'Comisión %', 'Comisión $', 'Efectivo'], ...medios.detalle.map(m => [m.medio, m.ventas, redondo(m.monto), m.comision_pct, redondo(m.comision), m.efectivo ? 'Sí' : 'No']),
+        ['Total', '', redondo(medios.total_ventas), '', redondo(medios.total_comisiones), '']]],
+      ['Ventas por día', [['Día', 'Ventas', 'Total'], ...ventasDia.rows.map(r => [dia(r.dia), parseInt(r.cantidad), redondo(r.total)])]],
+      ['Ventas', [['N°', 'Fecha', 'Local', 'Canal', 'Medio de pago', 'Clienta', 'Descuento', 'Total'], ...ventas.rows.map(v => [v.id, fecha(v.creado_en), nl(v.local_id), v.canal || '', v.medio_pago || '', v.cliente || '', redondo(v.descuento), redondo(v.total)])]],
+      ['Gastos', [['Fecha', 'Concepto', 'Categoría', 'Tipo', 'Local', 'Importe'], ...egresos.sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en)).map(e => [fecha(e.creado_en), e.concepto || '', e.categoria_nombre || '', e.categoria_tipo || '', nl(e.local_id), redondo(e.importe)])]],
+      ['Compras de mercadería', [['Fecha de carga', 'Proveedor', 'N° factura', 'Fecha factura', 'Vence', 'Total', 'Estado', 'Forma de pago', 'Fecha de pago', 'Notas'], ...compras.rows.map(o => [fecha(o.creado_en), o.proveedor_nombre || '', o.numero_factura || '', dia(o.fecha_factura), dia(o.fecha_vencimiento), redondo(o.total), o.estado || '', o.forma_pago || '', dia(o.fecha_pago), o.notas || ''])]],
+      ['Pagos a proveedores', [['Fecha de pago', 'Proveedor', 'N° factura', 'Total', 'Forma de pago', 'Cuenta', 'Cargada el'], ...pagosProv.rows.map(o => [dia(o.fecha_pago), o.proveedor_nombre || '', o.numero_factura || '', redondo(o.total), o.forma_pago || '', o.cuenta || '', fecha(o.creado_en)])]],
+      ['Caja efectivo', [['Fecha', 'Tipo', 'Concepto', 'Destino / origen', 'Local', 'Importe'], ...efectivo.rows.map(e => [fecha(e.creado_en), ['ingreso', 'I'].includes(e.tipo) ? 'Entrada' : 'Salida', e.concepto || '', etiquetaDestinoOrigen(e.destino_origen), nl(e.local_id), redondo(e.importe)])]],
+      ['Cierres de caja', [['Día', 'Local', 'Fondo inicial', 'Efectivo esperado', 'Efectivo contado', 'Diferencia', 'Vendido en el día', 'Ventas', 'Quién', 'Observaciones'], ...cierres.rows.map(k => [dia(k.fecha), nl(k.local_id), redondo(k.fondo_inicial), redondo(k.efectivo_esperado), redondo(k.efectivo_contado), redondo(k.diferencia), redondo(k.total_dia), k.cantidad_ventas || 0, k.usuario_nombre || '', k.observaciones || ''])]],
+    ];
+    const wb = XLSX.utils.book_new();
+    hojas.forEach(([nombre, filas]) => {
+      const ws = XLSX.utils.aoa_to_sheet(filas);
+      ws['!cols'] = filas[0].map((_, i) => ({ wch: Math.min(60, Math.max(10, ...filas.slice(0, 300).map(f => String(f[i] === undefined ? '' : f[i]).length + 2))) }));
+      XLSX.utils.book_append_sheet(wb, ws, nombre);
+    });
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const archivo = 'finanzas-' + anio + '-' + String(mes).padStart(2, '0') + (localNum ? '-local' + localNum : '') + '.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + archivo + '"');
+    res.send(buf);
+  } catch (e) { console.error('[exportar-mes]', e); res.status(500).json({ error: 'No se pudo armar el Excel: ' + e.message }); }
+};
+
+module.exports = { getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

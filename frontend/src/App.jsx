@@ -10813,6 +10813,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
   const [cuentasPago, setCuentasPago] = useState([]);
   const [mostrarFacAnterior, setMostrarFacAnterior] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [descargandoMes, setDescargandoMes] = useState(false);
   const avisar = (t) => { setMensaje(t); setTimeout(() => setMensaje(m => (m === t ? "" : m)), 3500); };
   const esJefe = ["jefe", "admin", "administrativo"].includes(usuario?.rol);
 
@@ -11089,6 +11090,19 @@ function Finanzas({ localId, usuario, paletaActual }) {
               <button key={k} className={tabLocal === k ? "on" : ""} onClick={() => setTabLocal(k)}>{l}</button>
             ))}
           </div>}
+          <button className="btn btn-g btn-sm" disabled={descargandoMes} title="Descargá en Excel todo el mes: resumen, ventas, gastos, compras de mercadería, pagos a proveedores y caja" onClick={async () => {
+            setDescargandoMes(true);
+            try {
+              const r = await API.get(`/finanzas/exportar-mes?mes=${mesFiltro}&anio=${anioFiltro}&local_id=${tabLocal}`, { responseType: "blob" });
+              const url = URL.createObjectURL(r.data), a = document.createElement("a");
+              a.href = url; a.download = "finanzas-" + MESES_NOMBRE[mesFiltro - 1].toLowerCase() + "-" + anioFiltro + (tabLocal !== "consolidado" ? "-" + nombreLocal(tabLocal === "rg" ? 1 : 2).toLowerCase().replace(/\s+/g, "-") : "") + ".xlsx";
+              document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+            } catch (e) {
+              let m = "No se pudo descargar"; try { m = JSON.parse(await e.response.data.text()).error || m; } catch (x) {}
+              setMensaje("Error: " + m);
+            }
+            setDescargandoMes(false);
+          }}>{descargandoMes ? "Armando el Excel…" : "📥 Descargar el mes (Excel)"}</button>
           <div className="fin-mes">
             <button className="icon-btn" onClick={() => moverMes(-1)} aria-label="Mes anterior">‹</button>
             <select className="sel" value={mesFiltro} onChange={e => setMesFiltro(parseInt(e.target.value))} aria-label="Mes">
