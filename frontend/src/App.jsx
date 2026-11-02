@@ -27519,17 +27519,17 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-ped-card-estado{display:inline-block;margin-top:10px;padding:5px 10px;border-radius:99px;border:1px solid;font-weight:700;font-size:12.5px}
 .tw-ped-card-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .tw-ped-card-btns .tw-btn{flex:1 1 auto;font-size:11.5px;padding:10px 14px;text-align:center;justify-content:center}
-.tw-btn.tw-btn-pagar{background:linear-gradient(90deg,#ff7a45,#ffb03a)!important;color:#fff!important}
+.tw-btn.tw-btn-pagar{background:#111!important;color:#f3d98b!important;box-shadow:inset 0 0 0 1.5px #c9a24a}
 .tw-btn.tw-btn-claro{background:#fff!important;color:#222!important;border:1px solid #222!important}
-.tw-sinpagar-otras{margin:6px 20px 0;text-align:left}
-.tw-sinpagar-otras .tw-link{font-size:13px;color:#b34a00;text-align:left;line-height:1.35}
-.tw-sinpagar-fila{display:flex;align-items:center;gap:10px;margin-top:6px;padding:9px 12px;border-radius:12px;background:#fff7ef;border:1px solid #f5c9a3;color:#222;text-decoration:none;font-size:13px}
+.tw-sinpagar-otras{margin:-8px 20px 14px;text-align:left}
+.tw-sinpagar-otras .tw-link{font-size:13px;color:#8a6a1f;text-align:left;line-height:1.35}
+.tw-sinpagar-fila{display:flex;align-items:center;gap:10px;margin-top:6px;padding:9px 12px;border-radius:12px;background:#fffaf0;border:1px solid #e6d3a3;color:#222;text-decoration:none;font-size:13px}
 .tw-sinpagar-fila small{display:block;color:#888;font-size:11.5px;margin-top:2px}
-.tw-sinpagar-ir{font-weight:800;color:#d35400;white-space:nowrap;font-size:12.5px}
-.tw-pedido-chip.tw-pagar-chip,.tw-pedido-chip.tw-tr-chip{position:relative;overflow:visible;font-size:14px;padding:12px 14px;border-width:2px;animation:twChipTiembla 4s ease-in-out .6s infinite,twChipLate 1.6s ease-in-out infinite}
-.tw-pedido-chip.tw-pagar-chip{background:linear-gradient(90deg,#ff7a45,#ffb03a)!important;border-color:#ff7a45!important;color:#fff!important;--anillo:rgba(255,122,69,.45)}
-.tw-pedido-chip.tw-tr-chip{background:linear-gradient(90deg,#1f9d55,#3cc47c)!important;border-color:#1f9d55!important;color:#fff!important;--anillo:rgba(31,157,85,.45)}
-.tw-pagar-chip b,.tw-tr-chip b{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.tw-sinpagar-ir{font-weight:800;color:#8a6a1f;white-space:nowrap;font-size:12.5px}
+.tw-pedido-chip.tw-pagar-chip,.tw-pedido-chip.tw-tr-chip{position:relative;overflow:visible;font-size:14px;padding:12px 14px;border-width:1.5px;margin-bottom:16px;animation:twChipTiembla 4s ease-in-out .6s infinite,twChipLate 1.6s ease-in-out infinite}
+.tw-pedido-chip.tw-pagar-chip{background:linear-gradient(100deg,#fffaf0,#fbf1dc)!important;border-color:#c9a24a!important;color:#1a1a1a!important;--anillo:rgba(201,162,74,.5)}
+.tw-pedido-chip.tw-tr-chip{background:linear-gradient(100deg,#fffaf0,#fbf1dc)!important;border-color:#c9a24a!important;color:#1a1a1a!important;--anillo:rgba(201,162,74,.5)}
+.tw-pagar-chip b,.tw-tr-chip b{color:#111;text-decoration:underline;text-decoration-color:#c9a24a;text-decoration-thickness:2px;text-underline-offset:4px}
 .tw-pagar-chip .tw-pedido-chip-ic,.tw-tr-chip .tw-pedido-chip-ic{font-size:22px;animation:twChipIco 1.6s ease-in-out infinite}
 .tw-pagar-chip::after,.tw-tr-chip::after{content:"!";position:absolute;top:-8px;right:-6px;width:22px;height:22px;border-radius:50%;background:#e8193c;color:#fff;font-weight:900;font-size:14px;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.25);animation:twChipIco 1.6s ease-in-out infinite}
 @keyframes twChipLate{0%,100%{box-shadow:0 0 0 0 var(--anillo)}50%{box-shadow:0 0 0 8px rgba(0,0,0,0)}}
@@ -27538,6 +27538,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media (prefers-reduced-motion:reduce){.tw-pagar-chip,.tw-tr-chip,.tw-pagar-chip *,.tw-tr-chip *,.tw-pagar-chip::after,.tw-tr-chip::after{animation:none!important}}
 .tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
 .tw-pedido-curso-cab b{font-size:14px}
+.tw-rut-extra{margin:14px 0 16px;padding:12px;border:1.5px dashed #e3cf9c;border-radius:18px;background:#fffcf5}
+.tw-rut-extra-t{margin:0 4px 10px}
+.tw-rut-extra-t b{display:block;font-size:13.5px}
+.tw-rut-extra-t small{display:block;color:#777;font-size:12px;margin-top:2px;line-height:1.4}
+.tw-rut-extra .tw-rut-item{margin:0;background:#fff}
 .tw-pedido-chip{display:flex;align-items:center;gap:10px;margin:8px 20px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,#fff3f8,#fff8ee);border:1px solid #f3dfe8;text-decoration:none;color:#222;font-size:13px;animation:twSegPaso .5s ease both}
 .tw-pedido-chip .tw-pedido-chip-ic{font-size:20px;animation:twSegSalto2 1.8s ease-in-out infinite}
 @keyframes twSegSalto2{0%,100%{transform:none}50%{transform:translateY(-3px) rotate(-6deg)}}
@@ -31142,6 +31147,16 @@ const twTogglePiel = (lista, k) => {
 const twPielesTxt = (l) => { const n = l.map(k => ((TW_FILTROS[1].op.find(o => o[0] === k) || ["", k])[1] || "").toLowerCase()); return n.length > 1 ? n.slice(0, -1).join(", ") + " y " + n[n.length - 1] : n[0] || ""; };
 // Aceites y bálsamos de limpieza: son la primera limpieza, siempre van seguidos de un limpiador de base acuosa
 const twEsAceiteLimpieza = (p) => /aceite|\boil\b|balsamo|\bbalm\b|cleansing (oil|balm)/.test(twNorm(p.nombre || ""));
+// Contorno de ojos: primero en crema/gel/sérum; los parches van aparte, como opcional
+const twEsParcheOjos = (p) => /parche|patch/.test(twNorm(p.nombre || ""));
+const TW_OJOS_OBJ = [
+  ["hidratar", "💧", "Hidratar", "Para la zona seca o con líneas de deshidratación", /hidrat|hialuron|ceramid|nutri|moistur|hydra/],
+  ["reafirmar", "✨", "Reafirmar y líneas finas", "Arruguitas, patas de gallo, firmeza", /reafirm|firmeza|arruga|anti-?edad|anti-?age|anti-?aging|retin|peptid|colageno|lifting|patas de gallo|lineas/],
+  ["ojeras", "🌙", "Aclarar ojeras", "Para la zona oscura debajo del ojo", /ojera|aclara|dark circle|niacinamid|vitamina c|vit c|arbutin|cafeina|caffeine|brighten/],
+  ["iluminar", "🌟", "Iluminar la mirada", "Mirada descansada y luminosa", /ilumin|glow|luminos|radian|brighten|perla|pearl|gold|oro/],
+  ["bolsas", "🧊", "Desinflamar bolsas", "Hinchazón al despertar", /bolsa|desinflam|hinchaz|puff|cafeina|caffeine|frio|cooling|descongest/],
+];
+const twPuntajeOjos = (p, obj) => { if (!obj || !obj.length) return 1; const t = twNorm([p.nombre, p.descripcion].join(" ")); return obj.reduce((w, k) => { const o = TW_OJOS_OBJ.find(x => x[0] === k); return o && o[4].test(t) ? w * 2.2 : w; }, 1); };
 const twTiposRutina = (r) => { const t = TW_RUT_PASOS[r.pasos] || TW_RUT_PASOS.completa; return r.maquillaje === "si" && t.includes("limpiador") && !t.includes("desmaquillante") ? ["desmaquillante", ...t] : t; };
 const TW_RUT_PASOS = {
   basica: ["limpiador", "hidratante", "solar"],
@@ -31155,7 +31170,7 @@ const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", t
 // (si no, el mismo kit salía de limpiador y de protector). También lo que trae 3 o más pasos de la rutina facial.
 const TW_PASOS_FACIALES = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "mascarilla", "exfoliante"];
 const twEsKit = (p) => /\b(kits?|sets?|packs?|combos?|d[uú]o|tr[ií]o|box)\b/i.test(twNorm([p.nombre, p.categoria].join(" "))) || ((p._et || twEtiquetas(p)).tipo || []).filter(t => TW_PASOS_FACIALES.includes(t)).length >= 3;
-function twArmarRutina(productos, dispo, { piel, pieles, nec, pasos, presupuesto, coreano, soloTipos, maquillaje }) {
+function twArmarRutina(productos, dispo, { piel, pieles, nec, pasos, presupuesto, coreano, soloTipos, maquillaje, ojosObj }) {
   const misPieles = (pieles && pieles.length ? pieles : piel ? [piel] : []);
   const doble = maquillaje === "si";
   // Solo lo facial (asi no entran, por ejemplo, ampollas para el pelo como "serum"): la categoria Facial o la linea
@@ -31173,6 +31188,7 @@ function twArmarRutina(productos, dispo, { piel, pieles, nec, pasos, presupuesto
     // Más de un tipo de piel: cuantos más le sirvan, mejor (y lo que es para piel sensible pesa más si la marcó)
     if (misPieles.length && (van || p._et.todoTipo)) w *= 2.6 * (1 + Math.max(0, van - 1) * 0.6) * (misPieles.includes("sensible") && pi.includes("sensible") ? 1.4 : 1); else if (misPieles.length && pi.length) w *= 0.12;
     // Doble limpieza: de segundo limpiador, uno en espuma o gel
+    if ((p._et.tipo || []).includes("ojos")) w *= twPuntajeOjos(p, ojosObj);
     if (doble && (p._et.tipo || []).includes("limpiador") && /espuma|foam|gel/.test(twNorm(p.nombre || ""))) w *= 1.8;
     (nec || []).forEach(n => { if ((p._et.necesidad || []).includes(n)) w *= 1.9; });
     return w;
@@ -31181,7 +31197,7 @@ function twArmarRutina(productos, dispo, { piel, pieles, nec, pasos, presupuesto
   const aptaPiel = (p) => !misPieles.length || !(p._et.piel || []).length || misPieles.some(k => (p._et.piel || []).includes(k)) || p._et.todoTipo;
   // El limpiador nunca es un aceite o bálsamo solo; en la doble limpieza, el primer paso sí es aceite o bálsamo (si hay)
   const sirvePaso = (t, p) => t === "limpiador" ? !twEsAceiteLimpieza(p) : true;
-  const opciones = tipos.map(t => { let deTipo = conStock.filter(p => (p._et.tipo || []).includes(t) && sirvePaso(t, p) && (t === "mascarilla" || !twMascNombre(twNorm(p.nombre)))); if (t === "desmaquillante" && doble) { const ac = deTipo.filter(twEsAceiteLimpieza); if (ac.length) deTipo = ac; } const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
+  const opciones = tipos.map(t => { let deTipo = conStock.filter(p => (p._et.tipo || []).includes(t) && sirvePaso(t, p) && (t === "mascarilla" || !twMascNombre(twNorm(p.nombre)))); if (t === "desmaquillante" && doble) { const ac = deTipo.filter(twEsAceiteLimpieza); if (ac.length) deTipo = ac; } if (t === "ojos") { const cr = deTipo.filter(p => !twEsParcheOjos(p)); if (cr.length) deTipo = cr; } const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
   let pasosR = opciones.map(x => { const ops = x.ops.filter(o => !usados.has(o.p.id)); const o = ops[0] || x.ops[0]; usados.add(o.p.id); return { t: x.t, ops: x.ops, i: x.ops.indexOf(o) }; });
   // Presupuesto: mientras se pase, cambia el paso donde bajar de precio cueste menos puntaje
   const precio = (o) => o.p.precio;
@@ -31213,14 +31229,16 @@ function twArmarRutina(productos, dispo, { piel, pieles, nec, pasos, presupuesto
 
 function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, copiado, perfil, onPerfil }) {
   const [paso, setPaso] = useState(0);
-  const [r, setR] = useState(() => ({ piel: (perfil && perfil.piel) || "", pieles: twPieles(perfil), nec: ((perfil && perfil.nec) || []).slice(0, 3), pasos: "completa", presupuesto: 0, coreano: false, maquillaje: "" }));
+  const [r, setR] = useState(() => ({ piel: (perfil && perfil.piel) || "", pieles: twPieles(perfil), nec: ((perfil && perfil.nec) || []).slice(0, 3), pasos: "completa", presupuesto: 0, coreano: false, maquillaje: "", ojosObj: [] }));
   const hayCoreano = productos.some(p => p.coreano);
   // Ya no se pregunta el presupuesto: se arma la rutina ideal y al final se puede abaratar (un paso o toda la rutina)
-  const PASOS_TEST = ["piel", "nec", "maquillaje", ...(hayCoreano ? ["corea"] : []), "pasos"];
+  const PASOS_TEST = ["piel", "nec", "maquillaje", ...(hayCoreano ? ["corea"] : []), "pasos", ...(r.pasos === "pro" ? ["ojos"] : [])];
   const fin = PASOS_TEST.length, actual = PASOS_TEST[paso];
   const [rutina, setRutina] = useState(null);
   const [agregada, setAgregada] = useState(false);
   const [avisoEco, setAvisoEco] = useState("");
+  const [parcheI, setParcheI] = useState(0);
+  const [parcheOk, setParcheOk] = useState(null);
   const armar = (datos) => { setAvisoEco(""); setRutina(twArmarRutina(productos, dispo, datos)); setPaso(fin); setAgregada(false); twSonar.pop(); onPerfil && onPerfil({ piel: (datos.pieles || [])[0] || datos.piel || null, pieles: datos.pieles || [], nec: datos.nec }); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} };
   const sigue = (cambio, auto) => { const n = { ...r, ...cambio }; setR(n); if (auto) setTimeout(() => setPaso(p => p + 1), 180); };
   const necOps = TW_FILTROS.find(f => f.k === "necesidad").op;
@@ -31228,7 +31246,7 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
   const cambiar = (k) => setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); let i = x.i; for (let n = 0; n < x.ops.length; n++) { i = (i + 1) % x.ops.length; if (!otros.includes(x.ops[i].p.id)) break; } return { ...x, i }; }));
   // Un paso más barato: la mejor opción (las opciones ya vienen de mejor a peor) que cueste menos y no esté en otro paso
   // Si pidió coreano, al abaratar se abre a todas las marcas: se suman las opciones de la rutina armada sin el filtro coreano
-  const abierta = useMemo(() => r.coreano ? twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: 0 }) : null, [productos, dispo, r.piel, r.pieles, r.nec, r.pasos, r.coreano, r.maquillaje]);
+  const abierta = useMemo(() => r.coreano ? twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: 0 }) : null, [productos, dispo, r.piel, r.pieles, r.nec, r.pasos, r.coreano, r.maquillaje, r.ojosObj]);
   const opsDe = (x) => { const a = abierta && abierta.find(y => y.t === x.t); if (!a) return x.ops; const ids = new Set(x.ops.map(o => o.p.id)); return [...x.ops, ...a.ops.filter(o => !ids.has(o.p.id))].sort((p, q) => q.w - p.w); };
   const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); const ok = (o) => o.p.precio < act.p.precio && !otros.includes(o.p.id), ops = opsDe(x); return (r.coreano && ops.find(o => o.p.coreano && ok(o))) || ops.find(ok) || null; };
   const abaratar = (k) => { setAvisoEco(""); setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const o = opBarata(rt, k); if (!o) return x; const ops = opsDe(x); return { ...x, ops, i: ops.indexOf(o) }; })); setAgregada(false); };
@@ -31245,7 +31263,7 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
   };
   const volverIdeal = () => { const n = { ...r, presupuesto: 0 }; setR(n); setRutina(twArmarRutina(productos, dispo, n)); setAgregada(false); setAvisoEco(""); };
   const pielTxt = twPielesTxt(r.pieles);
-  const TITULOS = { piel: "¿Cómo sentís tu piel?", nec: "¿Qué te gustaría mejorar?", maquillaje: "¿Te maquillás todos los días?", corea: "¿Querés una rutina de skincare coreano?", pasos: "¿Cuántos pasos querés hacer?" };
+  const TITULOS = { piel: "¿Cómo sentís tu piel?", nec: "¿Qué te gustaría mejorar?", maquillaje: "¿Te maquillás todos los días?", ojos: "¿Qué querés lograr con el contorno de ojos?", corea: "¿Querés una rutina de skincare coreano?", pasos: "¿Cuántos pasos querés hacer?" };
   return (
     <div className="tw-rut">
       {paso < fin ? (
@@ -31278,10 +31296,18 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
               <span className="tw-rut-num">{ic}</span><span><b>{t}</b><small>{d}</small></span>
             </button>))}</div>}
           {actual === "pasos" && <div className="tw-rut-ops" key="p2">{[["basica", "Básica", "3 pasos", "Limpiador, crema y protector solar"], ["completa", "Completa", "4 pasos", "Limpiador, sérum, crema y protector solar"], ["pro", "Completísima", "6 pasos", "Limpiador, tónico o bruma, sérum, crema, contorno de ojos y protector solar"]].map(([k, t, d, x], i) => (
-            <button key={k} className={"tw-rut-op" + (r.pasos === k ? " on" : "")} style={{ "--i": i }} onClick={() => { const n = { ...r, pasos: k, presupuesto: 0 }; setR(n); armar(n); }}>
+            <button key={k} className={"tw-rut-op" + (r.pasos === k ? " on" : "")} style={{ "--i": i }} onClick={() => { const n = { ...r, pasos: k, presupuesto: 0 }; setR(n); if (k === "pro") setPaso(p => p + 1); else armar(n); }}>
               <span className="tw-rut-num">{k === "basica" ? "3" : k === "completa" ? "4" : "6"}</span>
               <span><b>{t} <em>{d}</em></b><small>{x}</small></span>
             </button>))}</div>}
+          {actual === "ojos" && <>
+            <p className="tw-rut-sub">Elegí hasta 2</p>
+            <div className="tw-rut-ops" key="po">{TW_OJOS_OBJ.map(([k, ic, t, d], i) => { const on = r.ojosObj.includes(k); return (
+              <button key={k} className={"tw-rut-op" + (on ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ ojosObj: on ? r.ojosObj.filter(x => x !== k) : [...r.ojosObj, k].slice(-2) })}>
+                <span className="tw-rut-num">{ic}</span><span><b>{t}</b><small>{d}</small></span>
+              </button>); })}</div>
+            <button className="tw-btn full" style={{ marginTop: 14 }} onClick={() => armar(r)}>{r.ojosObj.length ? "Armar mi rutina" : "Nada en especial, armar mi rutina"}</button>
+          </>}
           {paso > 0 && <button className="tw-rut-atras" onClick={() => setPaso(p => p - 1)}>‹ Volver</button>}
         </div>
       ) : (
@@ -31307,6 +31333,26 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
                 </div>); })}
             </div>
             {(() => { const falta = twTiposRutina(r).filter(t => !rutina.some(x => x.t === t)); return falta.length ? <div className="tw-rut-falta">{r.presupuesto ? "Para que sea más económica (o porque no hay stock) sacamos: " : "Por ahora no tenemos con stock: "}<b>{falta.map(t => TW_RUT_NOMBRE[t].toLowerCase()).join(", ")}</b>. ¡Escribinos y te asesoramos!</div> : null; })()}
+            {rutina.some(x => x.t === "ojos") && (() => {
+              // Opcional: parches de ojeras (no entran en el total; se agregan aparte)
+              const parches = productos.filter(p => !twEsKit(p) && twEsParcheOjos(p) && ((p._et && p._et.tipo) || []).includes("ojos") && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0))
+                .map(p => ({ p, w: twPuntajeOjos(p, r.ojosObj) * (p.foto ? 1.2 : 1) * (p.rk ? 1 + Math.max(0, 40 - p.rk) / 80 : 1) })).sort((a, b) => b.w - a.w);
+              if (!parches.length) return null;
+              const o = parches[parcheI % parches.length].p, v = o.variantes ? o.variantes.find(x => dispo(o, x) > 0) : null;
+              return (
+                <div className="tw-rut-extra">
+                  <div className="tw-rut-extra-t"><b>Opcional · Parches de ojeras</b><small>Un extra para potenciar el contorno: 2 o 3 veces por semana, o antes de un evento.</small></div>
+                  <div className="tw-rut-item" style={{ "--i": 0 }}>
+                    <div className="tw-rut-n"><b>+</b><span>Parches</span><small>opcional</small></div>
+                    <button className="tw-rut-img" onClick={() => onAbrir(o)} aria-label={"Ver " + o.nombre}>{o.foto ? <img src={foto(o)} alt="" /> : <span className="tw-ph" style={{ fontSize: 30 }}>✿</span>}</button>
+                    <div className="tw-rut-info">{o.marca && <small>{o.marca}</small>}<b>{o.nombre}{v ? " · " + v.valor : ""}</b><span>{fmtTienda(o.precio)}</span></div>
+                    <div className="tw-rut-btns">
+                      {parches.length > 1 && <button className="tw-rut-cambiar" onClick={() => setParcheI(i => i + 1)} aria-label="Ver otra opción">↻<span>Otra</span></button>}
+                      <button className="tw-rut-cambiar" onClick={() => { onAgregar([{ p: o, v }]); setParcheOk(o.id); }} aria-label="Agregar los parches">{parcheOk === o.id ? "✓" : "+"}<span>{parcheOk === o.id ? "Listo" : "Agregar"}</span></button>
+                    </div>
+                  </div>
+                </div>);
+            })()}
             <div className="tw-rut-total"><span>Total de tu rutina</span><b>{fmtTienda(total)}</b></div>
             <div className="tw-rut-eco">
               <button className="tw-btn2" onClick={masEconomica}>💸 Quiero una rutina más económica</button>
