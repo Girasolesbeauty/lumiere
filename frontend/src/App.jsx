@@ -13349,6 +13349,38 @@ function RecuperarClientes({ temaPal, grupoInicial }) {
 
 // Para reponer: clientas a las que se les esta por terminar un producto (segun cuanto dura cada tipo)
 const PLANTILLA_REPONER = "¡Hola {nombre}! 🌻 ¿Cómo te está yendo con {producto}? Calculamos que ya se te debe estar terminando 😉 Si querés reponerlo, te lo separamos en el local o lo pedís en nuestra tienda online. ¡Te esperamos en {negocio}!";
+// Cuánto dura de verdad cada producto: lo que contestaron las clientas en "Restockearme" de la tienda (privado)
+function DuracionReal({ temaPal }) {
+  const p = temaPal;
+  const [d, setD] = useState(null);
+  const [todos, setTodos] = useState(false);
+  useEffect(() => { API.get("/postventa/duracion-real").then(r => setD(r.data)).catch(() => setD({ productos: [] })); }, []);
+  if (!d || !d.productos.length) return null;
+  const mes = (x) => x == null ? "—" : x >= 55 ? (x / 30).toFixed(1).replace(".0", "").replace(".", ",") + " meses" : x >= 25 ? "~1 mes" : x + " días";
+  const lista = todos ? d.productos : d.productos.slice(0, 8);
+  return (
+    <div className="card" style={{ marginBottom: 14, textAlign: "left" }}>
+      <div className="ct">📊 Cuánto les dura de verdad</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "2px 0 10px", lineHeight: 1.5 }}>Lo que contestaron las clientas en <b>Restockearme</b> de la tienda cuando tocan "Todavía tengo" (mucho / la mitad / poco). Es solo para vos: sirve para ajustar los avisos y para contarles a otras clientas cuánto rinde cada producto.</div>
+      <div style={{ overflowX: "auto" }}>
+        <table>
+          <thead><tr><th>Producto</th><th style={{ textAlign: "center" }}>Respuestas</th><th>Dura en promedio</th><th>Estimábamos</th><th style={{ textAlign: "center" }}>Mucho / Mitad / Poco</th></tr></thead>
+          <tbody>{lista.map(x => {
+            const dif = x.dura_real && x.dura_estimada ? Math.round((x.dura_real - x.dura_estimada) / x.dura_estimada * 100) : null;
+            return (<tr key={x.producto_id}>
+              <td style={{ fontSize: 12.5 }}>{x.nombre}{x.tipo && <div style={{ fontSize: 11, color: p.textMuted }}>{x.tipo}</div>}</td>
+              <td style={{ textAlign: "center", fontSize: 12.5 }}>{x.respuestas}{x.sin_responder ? <div style={{ fontSize: 10.5, color: p.textMuted }}>+{x.sin_responder} sin responder</div> : null}</td>
+              <td style={{ fontWeight: 800, fontSize: 13 }}>{x.respuestas ? mes(x.dura_real) : "—"}{dif !== null && Math.abs(dif) >= 15 && <span className="tag" style={{ marginLeft: 6, background: (dif > 0 ? p.green : p.warn) + "22", color: dif > 0 ? p.green : p.warn }}>{dif > 0 ? "+" : ""}{dif}%</span>}</td>
+              <td style={{ fontSize: 12.5, color: p.textMuted }}>{mes(x.dura_estimada)}</td>
+              <td style={{ textAlign: "center", fontSize: 12, color: p.textMuted }}>{x.mucho} / {x.mitad} / {x.poco}</td>
+            </tr>); })}</tbody>
+        </table>
+      </div>
+      {d.productos.length > 8 && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => setTodos(v => !v)}>{todos ? "Ver menos" : "Ver los " + d.productos.length + " productos"}</button>}
+      <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>Se calcula con los días desde la compra y lo que les queda (mucho ≈ 65%, la mitad = 50%, poco ≈ 20%). Con pocas respuestas es solo una referencia.</div>
+    </div>
+  );
+}
 function ReponerClientes({ temaPal }) {
   const [datos, setDatos] = useState(null);
   const [plantilla, setPlantilla] = useState(PLANTILLA_REPONER);
@@ -13645,7 +13677,7 @@ function PostventaWA({ paletaActual }) {
           </div>
         </div>
       )}
-      {tab === "reponer" && <ReponerClientes temaPal={temaPal} />}
+      {tab === "reponer" && <><DuracionReal temaPal={temaPal} /><ReponerClientes temaPal={temaPal} /></>}
       {tab === "recuperar" && <RecuperarClientes temaPal={temaPal} grupoInicial={tabInicial === "recuperar_inactivos" ? "inactivos" : "una_compra"} />}
       {tab === "enviar" && (
         <div className="fade">
@@ -27455,7 +27487,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-vacio-grande small{display:block;font-weight:400;color:#777;font-size:13px;margin-top:6px}
 .tw-rs-intro{font-size:13px;color:#777;margin:0 2px 12px;line-height:1.4}
 .tw-rs-ok{background:#eef8f1;color:#1e6b3a;border-radius:14px;padding:12px 14px;font-weight:700;font-size:13.5px;margin-bottom:12px}
-.tw-rs-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #ece6dc;border-radius:16px;padding:12px;margin:0 0 10px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
+.tw-rs-card{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#fff;border:1px solid #ece6dc;border-radius:16px;padding:12px;margin:0 0 10px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
 .tw-rs-card img,.tw-rs-ph{flex:0 0 auto;width:58px;height:58px;border-radius:12px;object-fit:cover;background:#faf5ec;display:grid;place-items:center;font-size:26px}
 .tw-rs-txt{flex:1;min-width:0}
 .tw-rs-txt b{display:block;font-size:14px;line-height:1.25}
@@ -27463,6 +27495,15 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-rs-pill{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:800;color:#c0560a;background:#fff1e3;border-radius:99px;padding:3px 9px}
 .tw-rs-pill.ya{color:#b3261e;background:#fdecea}
 .tw-rs-btn{flex:0 0 auto;padding:9px 14px!important;font-size:11px!important}
+.tw-rs-acciones{flex:0 0 auto;display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.tw-rs-tengo{font:inherit;font-size:11.5px;font-weight:700;color:#555;background:none;border:0;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:2px}
+.tw-rs-preg{flex:1 0 100%;background:#faf7f1;border-radius:12px;padding:12px;animation:twSube .3s ease both}
+.tw-rs-preg b{display:block;font-size:14px;margin-bottom:8px}
+.tw-rs-opciones{display:flex;gap:8px}
+.tw-rs-opciones button{flex:1;font:inherit;font-weight:800;font-size:13px;padding:10px 6px;border-radius:12px;border:1.5px solid #e2d9c9;background:#fff;color:#222;cursor:pointer}
+.tw-rs-opciones button:active{transform:scale(.97)}
+.tw-rs-preg small{display:block;font-size:11.5px;color:#888;margin:8px 0 4px;line-height:1.4}
+.tw-rs-gracias{background:#eef8f1;color:#1e6b3a;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;margin:0 0 10px}
 .tw-rs-despues summary{font-weight:700}
 .tw-rs-fila{display:flex;align-items:baseline;gap:10px;padding:9px 2px;border-bottom:1px solid #f1ece4;font-size:13px}
 .tw-rs-fila small{color:#888;white-space:nowrap;font-size:12px}
@@ -32332,7 +32373,7 @@ function TiendaPublica({ slug }) {
     }));
     return out;
   })();
-  const porReponer = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d && i.dias >= d.dias - 7 && i.dias <= d.dias + 30 ? { ...i, dur: d.dias, tipo: d.tipo } : null; }).filter(Boolean);
+  const porReponer = compradosCuenta.filter(i => !((miCuenta && miCuenta.restock_pospuestos) || []).some(x => x.producto_id === i.producto_id)).map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d && i.dias >= d.dias - 7 && i.dias <= d.dias + 30 ? { ...i, dur: d.dias, tipo: d.tipo } : null; }).filter(Boolean);
   const rutinaCuenta = (() => {
     const conTipo = compradosCuenta.map(i => ({ ...i, e: i.p ? (i.p._et || twEtiquetas(i.p)) : twEtiquetasAuto({ nombre: i.nombre, categoria: "", descripcion: "" }) }));
     const paso = (k, momento) => conTipo.filter(i => (i.e.tipo || []).includes(k) && (k !== "serum" || !twMomentoSerum(i.e) || twMomentoSerum(i.e) === momento));
@@ -32960,8 +33001,16 @@ function TiendaPublica({ slug }) {
     const vista = ALIAS_VISTA[formCuenta.pestana] || "inicio";
     const sec = vista === "codigos" || vista === "premios" ? "puntos" : vista === "pedidos" || vista === "resenas" || vista === "local" || vista === "restock" ? "compras" : vista === "piel" ? "piel" : "inicio";
     // Restockearme: lo que compró, cuánto suele durar cada tipo y cuánto le queda (aprox.)
-    const restock = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d ? { ...i, dur: d.dias, tipo: d.tipo, fem: d.fem, queda: d.dias - i.dias } : null; }).filter(Boolean);
-    const restockYa = restock.filter(i => i.queda <= 10 && i.queda >= -90).sort((a, b) => a.queda - b.queda);
+    // "Todavía tengo": se pospone hasta la fecha que calculó el servidor (o la de recién, si lo acaba de tocar)
+    const rsPosp = { ...Object.fromEntries((miCuenta.restock_pospuestos || []).map(x => [x.producto_id, x.hasta])), ...(formCuenta.rsPosp || {}) };
+    const restock = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); if (!d) return null; const h = rsPosp[i.producto_id];
+      return { ...i, dur: d.dias, tipo: d.tipo, fem: d.fem, queda: h ? Math.max(11, Math.ceil((new Date(h) - Date.now()) / 864e5)) : d.dias - i.dias, pospuesto: !!h }; }).filter(Boolean);
+    const todaviaTengo = async (i, queda) => {
+      setFormCuenta(x => ({ ...x, rsPreg: null, rsGracias: queda ? i.producto_id : null }));
+      try { const r = await pedir("/cuenta/restock", { method: "POST", body: JSON.stringify({ producto_id: i.producto_id, dias: i.dias, queda }) });
+        setFormCuenta(x => ({ ...x, rsPosp: { ...(x.rsPosp || {}), [i.producto_id]: r.hasta || new Date(Date.now() + 14 * 864e5).toISOString() } })); } catch (e) {}
+    };
+    const restockYa = restock.filter(i => !i.pospuesto && i.queda <= 10 && i.queda >= -90).sort((a, b) => a.queda - b.queda);
     const restockDespues = restock.filter(i => i.queda > 10).sort((a, b) => a.queda - b.queda);
     const irA = (v) => { setFormCuenta(x => ({ ...x, pestana: v, verLogros: false })); try { document.querySelector(".tw-cajon-cuerpo").scrollTop = 0; } catch (e) {} };
     const pedSinPagar = (miCuenta.pedidos || []).filter(x => x.estado === "pendiente_pago" && !x.pagado && (["mp", "gocuotas"].includes(x.pago) || x.transferencia));
@@ -33218,6 +33267,7 @@ function TiendaPublica({ slug }) {
         {vista === "restock" && <>
           <p className="tw-rs-intro">Según cuándo compraste cada producto y cuánto suele durar usándolo todos los días.</p>
           {restock.length === 0 && <div className="tw-vacio-grande"><span aria-hidden="true">🧴</span>Todavía no tenemos compras tuyas de skincare.<small>Cuando compres (online o en el local diciendo tu DNI), acá te avisamos cuándo se te está por terminar cada producto.</small></div>}
+          {formCuenta.rsGracias && <div className="tw-rs-gracias">💛 ¡Gracias! Te avisamos más adelante, cuando se te esté por terminar.</div>}
           {restock.length > 0 && restockYa.length === 0 && <div className="tw-rs-ok">✨ ¡Todo bien! Por ahora no se te está terminando nada.</div>}
           {restockYa.length > 0 && <>
             <div className="tw-sec-tit">Se te está terminando</div>
@@ -33229,7 +33279,20 @@ function TiendaPublica({ slug }) {
                   <small>Lo compraste hace {i.dias} {i.dias === 1 ? "día" : "días"} · {i.dur === 1 ? (i.fem ? "es de un solo uso" : "es de un solo uso") : (i.fem ? "una " : "un ") + i.tipo + " dura ~" + durTxt}</small>
                   <span className={"tw-rs-pill" + (i.queda <= 0 ? " ya" : "")}>{i.queda <= 0 ? "Ya se te debería haber terminado" : "Te quedan unos " + i.queda + (i.queda === 1 ? " día" : " días")}</span>
                 </div>
-                {hay ? <button className="tw-btn tw-rs-btn" onClick={() => recomprar([i])}>Agregar</button> : i.p ? <button className="tw-btn tw-btn-claro tw-rs-btn" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}
+                <div className="tw-rs-acciones">
+                  {hay ? <button className="tw-btn tw-rs-btn" onClick={() => recomprar([i])}>Agregar</button> : i.p ? <button className="tw-btn tw-btn-claro tw-rs-btn" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}
+                  <button className="tw-rs-tengo" onClick={() => setFormCuenta(x => ({ ...x, rsPreg: x.rsPreg === i.producto_id ? null : i.producto_id }))}>Todavía tengo</button>
+                </div>
+                {formCuenta.rsPreg === i.producto_id && (
+                  <div className="tw-rs-preg">
+                    <b>¿Cuánto te queda?</b>
+                    <div className="tw-rs-opciones">
+                      {[["mucho", "Mucho"], ["mitad", "La mitad"], ["poco", "Poco"]].map(([k, t]) => <button key={k} onClick={() => todaviaTengo(i, k)}>{t}</button>)}
+                    </div>
+                    <small>Es opcional 😊 Nos ayuda a saber cuánto dura en promedio este producto, para contarles a otras clientas.</small>
+                    <button className="tw-link" onClick={() => todaviaTengo(i, null)}>Prefiero no responder</button>
+                  </div>
+                )}
               </div>); })}
             {restockYa.filter(i => i.p && !agotado(i.p)).length > 1 && <button className="tw-btn full" style={{ marginTop: 4 }} onClick={() => recomprar(restockYa.filter(i => i.p && !agotado(i.p)))}>Agregar todo al carrito</button>}
           </>}

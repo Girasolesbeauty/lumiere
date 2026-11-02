@@ -886,6 +886,23 @@ function clienteDeToken(req) {
   try { const d = jwt.verify(t, process.env.JWT_SECRET); return d.tipo === 'cliente' && d.neg === req.negTienda.id ? d.id : null; } catch (e) { return null; }
 }
 const conCuenta = (req, res, next) => { const id = clienteDeToken(req); if (!id) return res.status(401).json({ error: 'Volvé a ingresar a tu cuenta', sesion: true }); req.clienteId = id; next(); };
+
+// Restockearme: "todavía tengo" y, si quiere contestar, cuánto le queda (mucho / mitad / poco). Pospone el aviso según la
+// respuesta y queda guardado para estimar cuánto dura de verdad cada producto (estadística privada en Lumiere).
+router.post('/:slug/cuenta/restock', conCuenta, async (req, res) => {
+  try {
+    if (esVista(req)) return res.json({ ok: true, vista: true });
+    const productoId = parseInt(req.body && req.body.producto_id), dias = Math.min(2000, Math.max(0, parseInt(req.body && req.body.dias) || 0));
+    if (!productoId) return res.status(400).json({ error: 'Falta el producto' });
+    const queda = ['mucho', 'mitad', 'poco'].includes(req.body && req.body.queda) ? req.body.queda : null;
+    // Cuánto falta para que se termine, según lo que contestó (sin respuesta, 2 semanas)
+    const posponer = queda === 'mucho' ? Math.max(14, Math.round(dias * 1.5)) : queda === 'mitad' ? Math.max(10, dias) : queda === 'poco' ? Math.max(5, Math.round(dias * 0.25)) : 14;
+    await pool.query(`INSERT INTO tienda_restock (cliente_id, producto_id, dias, queda, posponer_hasta) VALUES ($1, $2, $3, $4, NOW() + ($5 || ' days')::interval)`,
+      [req.clienteId, productoId, dias, queda, String(posponer)]);
+    res.json({ ok: true, hasta: new Date(Date.now() + posponer * 864e5).toISOString() });
+  } catch (e) { console.error('[tienda] restock:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+});
+
 const digitos = (x) => cuentas.soloNumeros(x).slice(-8);
 // Mismo telefono aunque se escriba con 0, 15 o sin codigo de area: se comparan los ultimos 6 numeros
 const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.soloNumeros(b).length >= 8 && cuentas.soloNumeros(a).slice(-6) === cuentas.soloNumeros(b).slice(-6);
@@ -1213,12 +1230,15 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
         return { codigo: cu.codigo, que: cu.descripcion || cu.canal || 'Código de descuento', canal: cu.canal, tipo: cu.tipo === '%' ? '%' : cu.tipo === 'regalo' ? 'regalo' : '$', valor: parseFloat(cu.valor) || 0,
           regalo: cu.regalo_producto_nombre || null, vence: cu.fecha_vencimiento, desde: cu.valido_desde, estado };
       }).filter(x => x.estado !== 'inactivo');
+    // Restockearme: productos que dijo que todavía tiene (no se le avisan hasta esa fecha)
+    const restockPospuestos = (await pool.query(`SELECT DISTINCT ON (producto_id) producto_id, posponer_hasta FROM tienda_restock WHERE cliente_id = $1 ORDER BY producto_id, creado_en DESC`, [req.clienteId])
+      .catch(() => ({ rows: [] }))).rows.filter(r => r.posponer_hasta && new Date(r.posponer_hasta) > new Date()).map(r => ({ producto_id: r.producto_id, hasta: r.posponer_hasta }));
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && !t.vista && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
     const competencia = await require('../lib/competencia').deClienta(req.clienteId).catch(e => { console.error('[tienda] competencia:', e.message); return null; });
     const regaloCumple = await tienda.regaloCumple(pool, req.tienda, req.clienteId, vista).catch(e => { console.error('[tienda] cumple:', e.message); return null; });
-    res.json({ ...dd, vista: vista || undefined, competencia, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, codigos, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, turnos: await turnosDeClienta(req.clienteId), token_nuevo: tokenNuevo });
+    res.json({ ...dd, vista: vista || undefined, competencia, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, codigos, restock_pospuestos: restockPospuestos, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, turnos: await turnosDeClienta(req.clienteId), token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 

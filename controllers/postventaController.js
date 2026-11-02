@@ -391,6 +391,32 @@ const DURACIONES = [
   [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, 'Limpiador'],
   [/hidratante|crema|moistur|gel crema|emulsion/, 30, 'Crema'],
 ];
+// Cuánto dura de verdad cada producto, según lo que contestaron las clientas en "Restockearme" de la tienda
+// ("todavía tengo": mucho / la mitad / poco). Duración estimada = días desde la compra / (1 - lo que le queda).
+const QUEDA = { mucho: 0.65, mitad: 0.5, poco: 0.2 };
+const getDuracionReal = async (req, res) => {
+  try {
+    if (!(await pool.query(`SELECT to_regclass('tienda_restock') AS t`)).rows[0].t) return res.json({ productos: [] });
+    const r = await pool.query(`SELECT t.producto_id, p.nombre, p.categoria, t.dias, t.queda FROM tienda_restock t LEFT JOIN productos p ON p.id = t.producto_id
+      WHERE t.creado_en > NOW() - INTERVAL '2 years'`);
+    const m = new Map();
+    r.rows.forEach(x => {
+      const k = x.producto_id, e = m.get(k) || { producto_id: k, nombre: x.nombre || 'Producto #' + k, categoria: x.categoria, respuestas: 0, sin_responder: 0, estimaciones: [], mucho: 0, mitad: 0, poco: 0 };
+      if (x.queda && QUEDA[x.queda] !== undefined) { e.respuestas++; e[x.queda]++; if (x.dias > 0) e.estimaciones.push(x.dias / (1 - QUEDA[x.queda])); } else e.sin_responder++;
+      m.set(k, e);
+    });
+    const productos = [...m.values()].map(e => {
+      const est = e.estimaciones.sort((a, b) => a - b), d = duracionDe(e);
+      const mediana = est.length ? (est.length % 2 ? est[(est.length - 1) / 2] : (est[est.length / 2 - 1] + est[est.length / 2]) / 2) : null;
+      return { producto_id: e.producto_id, nombre: e.nombre, respuestas: e.respuestas, sin_responder: e.sin_responder, mucho: e.mucho, mitad: e.mitad, poco: e.poco,
+        dura_real: mediana ? Math.round(mediana) : null, dura_estimada: d ? d.dias : null, tipo: d ? d.tipo : null };
+    }).sort((a, b) => b.respuestas - a.respuestas || b.sin_responder - a.sin_responder);
+    res.json({ productos });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'No se pudo calcular' });
+  }
+};
 const normTxt = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const duracionDe = (p) => { const t = normTxt([p.nombre, p.categoria].join(' ')); const d = DURACIONES.find(([r]) => r.test(t)); return d && d[1] > 0 ? { dias: d[1], tipo: d[2] } : null; };
 const getReponer = async (req, res) => {
@@ -416,4 +442,4 @@ const getReponer = async (req, res) => {
   }
 };
 
-module.exports = { getReponer, getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado, getRecuperar, getResultados };
+module.exports = { getDuracionReal, getReponer, getReglas, createRegla, updateRegla, getMensajes, ejecutarReglas, getPendientesWhatsApp, marcarEnviadoWhatsApp, marcarMensajeEnviado, getRecuperar, getResultados };
