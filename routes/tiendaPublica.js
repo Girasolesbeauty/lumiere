@@ -1259,7 +1259,8 @@ const NECESIDADES = ['acne', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'p
 router.put('/:slug/cuenta/perfil', conCuenta, async (req, res) => {
   try {
     const b = req.body || {};
-    const perfil = { piel: PIELES.includes(b.piel) ? b.piel : null, nec: [...new Set((Array.isArray(b.nec) ? b.nec : []).filter(n => NECESIDADES.includes(n)))].slice(0, 3) };
+    const pieles = [...new Set((Array.isArray(b.pieles) ? b.pieles : []).filter(p => PIELES.includes(p)))].slice(0, 3);
+    const perfil = { piel: PIELES.includes(b.piel) ? b.piel : pieles[0] || null, pieles, nec: [...new Set((Array.isArray(b.nec) ? b.nec : []).filter(n => NECESIDADES.includes(n)))].slice(0, 3) };
     await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [perfil.piel || perfil.nec.length ? JSON.stringify(perfil) : null, req.clienteId]);
     res.json({ perfil_piel: perfil.piel || perfil.nec.length ? perfil : null });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
