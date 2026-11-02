@@ -779,7 +779,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
     if (!p) return res.status(404).json({ error: 'No encontramos ese pedido' });
     if (p.pago === 'mp' && !p.pagado && p.estado === 'pendiente_pago') p = await tienda.revisarPagoMP(p, true);
     if (p.tipo === 'giftcard' && p.pagado && !p.gc_codigo && p.estado !== 'cancelado') p = (await tienda.emitirGiftCard(p.id)) || p;
-    const items = (await pool.query('SELECT nombre, variante_valor, cantidad, precio, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
+    const items = (await pool.query('SELECT producto_id, variante_id, nombre, variante_valor, cantidad, precio, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows.map(i => ({ ...i, precio: num(i.precio) }));
     const loc = p.entrega === 'retiro' ? (await pool.query('SELECT nombre, direccion FROM locales WHERE id = $1', [p.local_id]).catch(() => ({ rows: [] }))).rows[0] : null;
     res.json({
       ruleta: await estadoRuleta(req.tienda, p),
@@ -1188,7 +1188,9 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       cuentas.premiosDeCliente(req.clienteId).catch(() => []),
       cuentas.canjesDeCliente(req.clienteId).catch(() => []),
       // Con transferencia sin pagar, el pedido trae los datos para transferir (cuando el local marca el pago, ya no)
-      pool.query(`SELECT codigo, numero, estado, total, creado_en, entrega, tipo, pago, pagado, vence_en FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId])
+      pool.query(`SELECT codigo, numero, estado, total, creado_en, entrega, tipo, pago, pagado, vence_en,
+          (SELECT string_agg(i.cantidad || ' × ' || i.nombre || COALESCE(' (' || i.variante_valor || ')', ''), ', ' ORDER BY i.id) FROM tienda_pedido_items i WHERE i.pedido_id = tienda_pedidos.id) AS resumen
+        FROM tienda_pedidos WHERE cliente_id = $1 ORDER BY creado_en DESC LIMIT 20`, [req.clienteId])
         .then(r => r.rows.map(x => ({ ...x, transferencia: x.pago === 'transferencia' && !x.pagado && x.estado !== 'cancelado' ? (req.tienda.transferencia_datos || '') : null }))).catch(() => []),
     ]);
     // Los canjes que son codigos de descuento: si todavia se pueden usar
