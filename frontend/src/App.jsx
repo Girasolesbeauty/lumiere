@@ -4023,7 +4023,13 @@ function POS({ localId, usuario, paletaActual }) {
     if (mejorOtra && mejorOtra.desc > sumaPorItem) { mejorNoComb = mejorOtra.desc; usadas.push(mejorOtra.promo.nombre); }
     else if (sumaPorItem > 0) { mejorNoComb = sumaPorItem; [...new Set([...mejorItem.values()].map(m => m.a.promo.nombre))].forEach(n => usadas.push(n)); }
     totalDesc = sumaComb + mejorNoComb;
-    return { totalDesc, avisos, usadas };
+    // Renglones que ya tienen una oferta (para que el descuento por medio de pago no se sume); si gana una promo de
+    // todo el ticket (por monto, 2x1, cross), cuenta como oferta para todo el ticket
+    const conPromo = new Set();
+    combinables.forEach(a => { if (a.porItem) a.porItem.forEach((v, k) => conPromo.add(k)); });
+    if (mejorNoComb > 0 && !(mejorOtra && mejorOtra.desc > sumaPorItem)) mejorItem.forEach((m, k) => conPromo.add(k));
+    const promoTicket = (mejorOtra && mejorOtra.desc > sumaPorItem && mejorNoComb > 0) || combinables.some(a => !a.porItem);
+    return { totalDesc, avisos, usadas, conPromo, promoTicket };
   })();
 
   const coef = medioPagoSel ? parseFloat(medioPagoSel.coeficiente) : 1;
@@ -4051,7 +4057,12 @@ function POS({ localId, usuario, paletaActual }) {
   const descuentoCupon = (cuponAplicado && cuponCumpleMinimo) ? Math.min(baseCuponPos, cuponAplicado.tipo === "%" ? baseCuponPos * (valorCuponAplicado / 100) : valorCuponAplicado) : 0;
   const descuentoManualCalc = descuentoManual ? (tipoDescuento === "%" ? subtotalBase * (parseFloat(descuentoManual) / 100) : parseFloat(descuentoManual)) : 0;
   const descuentoPromos = promoCalc.totalDesc;
-  const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos;
+  // Descuento por pagar con este medio (Configuración › Medios de pago): solo sobre lo que no tiene otra oferta,
+  // y no va con cupón, descuento a mano, pago dividido ni pedidos de la tienda web (que traen su propio descuento)
+  const pctMedioPago = (!pagoMixto && medioPagoSel && !cuponAplicado && !descuentoManualCalc && !promoCalc.promoTicket && !cart.some(i => i.tienda_pedido)) ? (parseFloat(medioPagoSel.descuento_pct) || 0) : 0;
+  const baseMedioPago = pctMedioPago > 0 ? cart.reduce((s2, i, j) => s2 + (promoCalc.conPromo.has(j) || i.es_kit || i.es_ajuste || (i.descuento_pct || 0) > 0 ? 0 : (i.precio || i.price) * i.qty), 0) : 0;
+  const descuentoMedioPago = Math.round(baseMedioPago * pctMedioPago / 100);
+  const descuento = descuentoCupon + descuentoManualCalc + descuentoPromos + descuentoMedioPago;
   const subtotalConDesc = subtotalBase - descuento;
   const enPasoCobro = modoVista === "clasico" ? pasoCobroClasico : cobroMovilAbierto;
   useEffect(() => {
@@ -5668,7 +5679,7 @@ function POS({ localId, usuario, paletaActual }) {
             )}
             {descuento > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#2d7a4f" }}>
-                <span>Descuento{promoCalc.usadas.length > 0 ? " (" + promoCalc.usadas.join(", ") + ")" : ""}</span><span>-{fmt(descuento)}</span>
+                <span>Descuento{(() => { const n = [...promoCalc.usadas, ...(descuentoMedioPago > 0 ? [pctMedioPago + "% pagando con " + medioPagoSel.nombre] : [])]; return n.length ? " (" + n.join(", ") + ")" : ""; })()}</span><span>-{fmt(descuento)}</span>
               </div>
             )}
             {intereses > 0 && (
@@ -16275,7 +16286,7 @@ function ConfiguracionNegocio({ paletaActual }) {
         <div className="fade">
           <ConexionMercadoPago paletaActual={paletaActual} alCambiar={cargarMedios} />
           <table>
-            <thead><tr><th>Nombre</th><th>Tipo</th><th>Cuotas</th><th>Comision %</th><th>Online</th><th>Activo</th><th></th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Cuotas</th><th>Comision %</th><th>Descuento en el local</th><th>Online</th><th>Activo</th><th></th></tr></thead>
             <tbody>
               {medios.map(m => (
                 <tr key={m.id}>
@@ -16283,6 +16294,7 @@ function ConfiguracionNegocio({ paletaActual }) {
                   <td style={{ fontSize: 11, color: p.textMuted }}>{m.tipo}</td>
                   <td>{m.cuotas}{m.con_interes ? " (c/interes)" : ""}</td>
                   <td>{m.comision}%</td>
+                  <td>{parseFloat(m.descuento_pct) > 0 ? <b style={{ color: p.green }}>{parseFloat(m.descuento_pct)}% off</b> : <span style={{ color: p.textMuted }}>—</span>}</td>
                   <td>{m.disponible_online !== false ? "Si" : "No"}</td>
                   <td>{m.activo ? "Si" : "No"}</td>
                   <td>
@@ -16313,6 +16325,8 @@ function ConfiguracionNegocio({ paletaActual }) {
                 <input type="checkbox" checked={editandoMedio.con_interes || false} onChange={e => setEditandoMedio(p => ({ ...p, con_interes: e.target.checked }))} /> Con interes
               </label>
               <div className="fg"><div className="fl">Comision (%)</div><input className="inp" type="number" step="0.01" value={editandoMedio.comision || 0} onChange={e => setEditandoMedio(p => ({ ...p, comision: parseFloat(e.target.value) || 0 }))} /></div>
+              <div className="fg"><div className="fl">Descuento en el local pagando con este medio (%)</div><input className="inp" type="number" step="0.5" min="0" max="50" placeholder="0 = sin descuento" value={editandoMedio.descuento_pct === undefined || editandoMedio.descuento_pct === null || parseFloat(editandoMedio.descuento_pct) === 0 ? "" : parseFloat(editandoMedio.descuento_pct)} onChange={e => setEditandoMedio(p => ({ ...p, descuento_pct: e.target.value === "" ? 0 : Math.min(50, Math.max(0, parseFloat(e.target.value) || 0)) }))} />
+                <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>Ej. 10 en Transferencia y Débito. En el Punto de Venta va solo sobre los productos sin otra oferta (Cyber, promos, kits) y no se suma a un cupón ni a un descuento a mano.</div></div>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, marginBottom: 10 }}>
                 <input type="checkbox" checked={editandoMedio.disponible_online !== false} onChange={e => setEditandoMedio(p => ({ ...p, disponible_online: e.target.checked }))} /> Disponible para elegir en Ventas Online
               </label>
@@ -32897,11 +32911,13 @@ function TiendaPublica({ slug }) {
   const hwCodigos = logueada && hwInfo && tienda.halloween ? (hwInfo.premios || []).filter(x => x.tipo === "cupon" && x.cupon && !x.cupon_usado) : [];
   // El mejor descuento de kits entre las formas de pago activas (se muestra en la tarjeta de cada kit)
   const pagoKitsMejor = (() => { const m = Object.entries(descPagosKits).filter(([k, v]) => v > 0 && tienda.pagos && tienda.pagos[k]).sort((a, b) => b[1] - a[1])[0]; return m ? { pct: m[1], nombre: ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[m[0]] } : null; })();
-  const pctPago = pagoElegido && !gcCubre ? (descPagos[pagoElegido] || 0) : 0;
+  // Si la tienda lo configuró así, el descuento por forma de pago no se suma a un cupón ni al regalo de amiga (igual que el servidor)
+  const sinDescPago = tienda.descuento_pago_con_cupon === false && (descuentoCupon > 0 || !!cuponOk || descAmiga > 0);
+  const pctPago = pagoElegido && !gcCubre && !sinDescPago ? (descPagos[pagoElegido] || 0) : 0;
   // Los kits/combos del carrito llevan su propio % (si se configuro); el resto, el general. Mismo calculo que el servidor.
   const montoKits = comboCalc.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
   const montoSinPago = comboCalc.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0); // combos del Cyber: ya tienen su precio por pago
-  const pctKitsPago = pagoElegido && !gcCubre && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
+  const pctKitsPago = pagoElegido && !gcCubre && !sinDescPago && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
   const promoCalc = twDescPromos(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
   const descPromo = promoCalc.descuento;
@@ -38655,6 +38671,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     </label>
                   ))}
                 </div>
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, marginTop: 10, cursor: "pointer" }}><input type="checkbox" checked={cfg.descuento_pago_con_cupon === false} onChange={e => set("descuento_pago_con_cupon", !e.target.checked)} style={{ marginTop: 2 }} /> <span><b>No sumarlo a un cupón</b> (ni al regalo de amiga): si la clienta usa un código, no tiene además el descuento por forma de pago. Los productos del Cyber y las promos ya no lo suman nunca.</span></label>
                 <div style={{ fontWeight: 800, fontSize: 12.5, marginTop: 12 }}>🎁 Kits y combos</div>
                 <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>Si ponés un % acá, los kits y combos del carrito llevan ese descuento con esa forma de pago (en lugar del de arriba); el resto de los productos sigue con el de arriba. Ej: transferencia 5% y kits 25%.</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

@@ -85,6 +85,7 @@ router.put('/config', async (req, res) => {
     await pool.query('UPDATE tienda_config SET horas_pago_online = $1 WHERE id = 1', [tienda.horasPagoOnline(b)]);
     if (b.ayuda_pago) await pool.query('UPDATE tienda_config SET ayuda_pago = $1 WHERE id = 1', [JSON.stringify(tienda.ayudaPagoDe({ ayuda_pago: b.ayuda_pago }))]);
     await pool.query('UPDATE tienda_config SET gocuotas_minimo = $1 WHERE id = 1', [num(b.gocuotas_minimo) > 0 ? Math.round(num(b.gocuotas_minimo)) : null]);
+    if (b.descuento_pago_con_cupon !== undefined) await pool.query('UPDATE tienda_config SET descuento_pago_con_cupon = $1 WHERE id = 1', [b.descuento_pago_con_cupon !== false]);
     await pool.query('UPDATE tienda_config SET pago_gocuotas = $1, descuentos_pago = $2, descuentos_pago_kits = $3 WHERE id = 1', [!!b.pago_gocuotas, JSON.stringify(tienda.descuentosPagoDe({ descuentos_pago: b.descuentos_pago })), JSON.stringify(tienda.descuentosPagoKitsDe({ descuentos_pago_kits: b.descuentos_pago_kits }))]);
     // Dominio propio (opcional): se guarda en el registro central, junto a la direccion de la tienda
     if (b.dominio !== undefined && esDuena(req)) {

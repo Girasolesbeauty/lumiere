@@ -130,6 +130,7 @@ router.get('/:slug', async (req, res) => {
       puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
       ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, precios_pago: x.precios_pago || null, pct_pago: x.desde && x.hasta && !x.precios_pago ? pctCombos[tienda.claveCombo(x.productos)] || null : null, evento: !!(x.desde && x.hasta), cuotas: x.cuotas || cuotasCombos[[...(x.productos || [])].map(Number).sort((a, b) => a - b).join(',')] || 0 })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
+      descuento_pago_con_cupon: c.descuento_pago_con_cupon !== false,
       descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
@@ -559,7 +560,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     const descPromo = promo.descuento;
     // Los combos de un evento (Cyber) ya tienen su precio por forma de pago: no suman el descuento general
     const montoSinPago = combo.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
-    const dp = tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto - montoSinPago), combo.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0));
+    // Si se configuró que no se sume a un cupón (o al regalo de amiga), con cupón no hay descuento por forma de pago
+    const sinDescPago = c.descuento_pago_con_cupon === false && (!!cupon || descAmiga > 0);
+    const dp = sinDescPago ? { descuento: 0, pct: 0, pctKits: 0 } : tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto - montoSinPago), combo.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0));
     const pctPago = dp.pctKits && !dp.pct ? dp.pctKits : dp.pct;
     // Juntando códigos de Halloween, el descuento por forma de pago también entra en el tope
     const descuentoPago = hwJunta ? Math.min(dp.descuento, Math.max(0, Math.round((subtotal - descCombo) * hwJunta.tope / 100 - descuento))) : dp.descuento;
