@@ -1201,12 +1201,23 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
       const usable = cu.activo && !(cu.max_usos && (cu.usos || 0) >= cu.max_usos) && !cuponesLib.fechasCupon(cu);
       return { ...c, cupon: { tipo: cu.tipo === '%' ? '%' : '$', valor: parseFloat(cu.valor) || 0, vence: cu.fecha_vencimiento, usable } };
     });
+    // Sus códigos personales (ruleta, Halloween, etc.: los atados a su ficha o a su WhatsApp), con su estado y vencimiento.
+    // Los de canje de puntos ya van en "canjes".
+    const tel8 = String(d.telefono || '').replace(/\D/g, '').slice(-8);
+    const codigos = (await pool.query(`SELECT codigo, descripcion, tipo, valor, canal, fecha_vencimiento, valido_desde, usos, max_usos, activo, creado_en, regalo_producto_nombre
+        FROM cupones WHERE (cliente_id = $1 OR ($2 <> '' AND dueno_tel = $2)) AND NOT (codigo = ANY($3)) ORDER BY creado_en DESC LIMIT 30`, [req.clienteId, tel8.length === 8 ? tel8 : '', cods])
+      .catch(() => ({ rows: [] }))).rows.map(cu => {
+        const usado = !!(cu.max_usos && (cu.usos || 0) >= cu.max_usos), f = cuponesLib.fechasCupon(cu);
+        const estado = usado ? 'usado' : f && /vencido/i.test(f) ? 'vencido' : !cu.activo ? (cu.canal === 'Ruleta tienda' ? 'se_activa' : 'inactivo') : f ? 'pronto' : 'para_usar';
+        return { codigo: cu.codigo, que: cu.descripcion || cu.canal || 'Código de descuento', canal: cu.canal, tipo: cu.tipo === '%' ? '%' : cu.tipo === 'regalo' ? 'regalo' : '$', valor: parseFloat(cu.valor) || 0,
+          regalo: cu.regalo_producto_nombre || null, vence: cu.fecha_vencimiento, desde: cu.valido_desde, estado };
+      }).filter(x => x.estado !== 'inactivo');
     // Cada vez que entra se renueva la llave (si ya tiene mas de un dia): mientras use la tienda, no se sale
     let tokenNuevo = null;
     try { const t = jwt.decode(String(req.headers.authorization || '').replace(/^Bearer /, '')); if (t && !t.vista && t.iat && Date.now() / 1000 - t.iat > 86400) tokenNuevo = firmar(req, req.clienteId); } catch (e) {}
     const competencia = await require('../lib/competencia').deClienta(req.clienteId).catch(e => { console.error('[tienda] competencia:', e.message); return null; });
     const regaloCumple = await tienda.regaloCumple(pool, req.tienda, req.clienteId, vista).catch(e => { console.error('[tienda] cumple:', e.message); return null; });
-    res.json({ ...dd, vista: vista || undefined, competencia, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, turnos: await turnosDeClienta(req.clienteId), token_nuevo: tokenNuevo });
+    res.json({ ...dd, vista: vista || undefined, competencia, regalo_cumple: regaloCumple, misiones, compras: (dd.compras || []).slice(0, 15), premios: premios.map(p => ({ ...p, descuento_pct: cuentas.descuentoDePremio(p) })), canjes: canjesInfo, codigos, pedidos, logros, amiga, falta_cumple: !((await pool.query('SELECT fecha_nacimiento FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).fecha_nacimiento, perfil_piel: ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [req.clienteId]).catch(() => ({ rows: [] }))).rows[0] || {}).perfil_piel || null, turnos: await turnosDeClienta(req.clienteId), token_nuevo: tokenNuevo });
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
