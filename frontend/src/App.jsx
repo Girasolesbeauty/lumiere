@@ -27386,6 +27386,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-tr-datos{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:14px;background:#fff;border-radius:8px;padding:8px 10px;margin:6px 0 8px;line-height:1.45;color:#222;user-select:all}
 .tw-tr-plazo{font-size:12.5px;color:#555;line-height:1.4;margin:0 0 8px}
 .tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
+.tw-fila-sinpagar{background:#fff7ef;border-radius:10px;padding-left:8px!important;padding-right:8px!important}
+.tw-retomar{color:#d35400;font-size:12.5px;white-space:nowrap}
 .tw-sinpagar-otras{margin:6px 20px 0;text-align:left}
 .tw-sinpagar-otras .tw-link{font-size:13px;color:#b34a00;text-align:left;line-height:1.35}
 .tw-sinpagar-fila{display:flex;align-items:center;gap:10px;margin-top:6px;padding:9px 12px;border-radius:12px;background:#fff7ef;border:1px solid #f5c9a3;color:#222;text-decoration:none;font-size:13px}
@@ -32820,7 +32822,7 @@ function TiendaPublica({ slug }) {
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
         {/* Tres secciones grandes en vez de todo junto: puntos y premios, compras, y la piel */}
         <div className="tw-cuenta-secs" role="tablist" aria-label="Secciones de mi cuenta">
-          {[["puntos", "🎁", "Puntos y premios", premios.filter(pr => !pr.no).length + codigos.length], ["compras", "🛍️", "Mis compras", misRes ? misRes.para_resenar.length : 0], ["piel", "🌿", "Mi piel", 0]].map(([k, ic, t, n]) => (
+          {[["puntos", "🎁", "Puntos y premios", premios.filter(pr => !pr.no).length + codigos.length], ["compras", "🛍️", "Mis pedidos", (misRes ? misRes.para_resenar.length : 0) + (miCuenta.pedidos || []).filter(x => x.estado === "pendiente_pago" && !x.pagado && (["mp", "gocuotas"].includes(x.pago) || x.transferencia)).length], ["piel", "🌿", "Mi piel", 0]].map(([k, ic, t, n]) => (
             <button key={k} role="tab" aria-selected={sec === k} className={sec === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pestana: k }))}>
               <span className="tw-cuenta-secs-ic" aria-hidden="true">{ic}</span>{t}{n ? <i>{n}</i> : null}
             </button>
@@ -32835,7 +32837,7 @@ function TiendaPublica({ slug }) {
             <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5, marginTop: 8 }} disabled={!formCuenta.cumpleTmp} onClick={() => pedir("/cuenta/cumple", { method: "PUT", body: JSON.stringify({ fecha_nacimiento: formCuenta.cumpleTmp }) }).then(() => { setMiCuenta(m => ({ ...m, falta_cumple: false })); setFormCuenta(x => ({ ...x, cumpleTmp: null })); }).catch(e => setAvisoCuenta(e.message))}>Guardar mi cumple</button>
           </div>
         )}
-        {(miCuenta.canjes || []).length > 0 && (() => { const filaCod = (c) => {
+        {((miCuenta.canjes || []).length > 0 || (miCuenta.codigos || []).length > 0) && (() => { const filaCod = (c) => {
           const usable = c.cupon ? c.cupon.usable : c.estado === "pendiente";
           return (
             <div key={c.id} className={"tw-cupon" + (usable ? "" : " usado")}>
@@ -32851,9 +32853,31 @@ function TiendaPublica({ slug }) {
               {!c.cupon && usable && <div style={{ fontSize: 12.5, color: "#555" }}>Mostralo en el local para retirar tu premio.</div>}
             </div>
           );
-        }; const usables = miCuenta.canjes.filter(c => c.cupon ? c.cupon.usable : c.estado === "pendiente"), usados = miCuenta.canjes.filter(c => !(c.cupon ? c.cupon.usable : c.estado === "pendiente")); return <>
-          {usables.length > 0 && <><div className="tw-sec-tit">🎟️ Tus códigos para usar</div>{usables.map(filaCod)}</>}
-          {usados.length > 0 && <details className="tw-sec-plegado"><summary>Códigos ya usados ({usados.length})</summary>{usados.map(filaCod)}</details>}
+        };
+        // Los demás códigos que ganó (ruleta, Halloween…), con su vencimiento
+        const fecha = (f) => f ? new Date(String(f).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR") : null;
+        const ESTADO_COD = { para_usar: "Para usar", pronto: "Todavía no vale", se_activa: "Se activa al retirar tu pedido", usado: "Usado", vencido: "Vencido" };
+        const filaOtro = (c) => { const ok = c.estado === "para_usar"; return (
+          <div key={"o" + c.codigo} className={"tw-cupon" + (ok || c.estado === "pronto" || c.estado === "se_activa" ? "" : " usado")}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <b style={{ fontSize: 14 }}>{c.tipo === "regalo" ? "🎁 " + (c.regalo || "Regalo") : c.tipo === "%" ? c.valor + "% OFF" : fmtTienda(c.valor) + " de descuento"}</b>
+              <span className="tw-cupon-estado">{ESTADO_COD[c.estado] || ""}</span>
+            </div>
+            <div className="tw-cupon-cod">{c.codigo}</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12.5, color: "#555" }}>{c.que}{c.desde && c.estado === "pronto" ? " · vale desde el " + fecha(c.desde) : ""} · {c.vence ? (c.estado === "vencido" ? "venció el " : "vence el ") + fecha(c.vence) : "sin vencimiento"}</span>
+              {ok && <button className="tw-btn2" style={{ padding: "6px 12px", fontSize: 11 }} onClick={() => { setCuponIn(c.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar en mi compra</button>}
+            </div>
+          </div>
+        ); };
+        const canjes = miCuenta.canjes || [], otros = miCuenta.codigos || [];
+        const usables = canjes.filter(c => c.cupon ? c.cupon.usable : c.estado === "pendiente"), usados = canjes.filter(c => !(c.cupon ? c.cupon.usable : c.estado === "pendiente"));
+        const otrosOk = otros.filter(c => ["para_usar", "pronto", "se_activa"].includes(c.estado)), otrosNo = otros.filter(c => !["para_usar", "pronto", "se_activa"].includes(c.estado));
+        return <>
+          <div className="tw-sec-tit">🎟️ Mis códigos</div>
+          {usables.length + otrosOk.length === 0 && <p className="tw-vacio">Ahora no tenés códigos para usar.</p>}
+          {usables.map(filaCod)}{otrosOk.map(filaOtro)}
+          {usados.length + otrosNo.length > 0 && <details className="tw-sec-plegado"><summary>Usados o vencidos ({usados.length + otrosNo.length})</summary>{usados.map(filaCod)}{otrosNo.map(filaOtro)}</details>}
         </>; })()}
         <div className="tw-sec-tit">🎁 Canjeá tus puntos</div>
         {(premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
@@ -32959,6 +32983,10 @@ function TiendaPublica({ slug }) {
         })()}
         </>}
         {sec === "compras" && <>
+        {(miCuenta.pedidos || []).length > 0 && <div className="tw-sec-tit">📦 Mis pedidos</div>}
+        {(miCuenta.pedidos || []).map(pd => { const sinPagar = pd.estado === "pendiente_pago" && !pd.pagado && (["mp", "gocuotas"].includes(pd.pago) || pd.transferencia);
+          const est = sinPagar ? (pd.transferencia ? "💸 Falta la transferencia" : "⚠️ Sin terminar de pagar") : (ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0];
+          return <div key={pd.codigo} className={"tw-fila-cuenta" + (sinPagar ? " tw-fila-sinpagar" : "")}><a href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo} style={{ display: "flex", flex: 1, justifyContent: "space-between", gap: 8, color: "inherit", textDecoration: "none", minWidth: 0 }}><span><b>{pd.tipo === "giftcard" ? "Gift card" : "N° " + nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {est}</small></span><span>{fmtTienda(pd.total)} {sinPagar ? <b className="tw-retomar">Retomar ›</b> : "›"}</span></a>{pd.tipo !== "giftcard" && pd.estado === "entregado" && <button className="tw-recompra-btn" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a pedir</button>}</div>; })}
         {porReponer.length > 0 && (
           <div className="tw-reponer-card">
             <b>🔁 Se te está por terminar</b>
@@ -33013,8 +33041,6 @@ function TiendaPublica({ slug }) {
             </>}
           </div>
         ))}
-        {(miCuenta.pedidos || []).length > 0 && <div className="tw-sec-tit">📦 Pedidos online</div>}
-        {((miCuenta.pedidos || []).length === 0 ? null : miCuenta.pedidos.map(pd => <div key={pd.codigo} className="tw-fila-cuenta"><a href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo} style={{ display: "flex", flex: 1, justifyContent: "space-between", gap: 8, color: "inherit", textDecoration: "none", minWidth: 0 }}><span><b>N° {nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {(ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0]}</small></span><span>{fmtTienda(pd.total)} ›</span></a>{pd.tipo !== "giftcard" && pd.estado === "entregado" && <button className="tw-recompra-btn" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a pedir</button>}</div>))}
         <div className="tw-sec-tit">🧾 Todas tus compras</div>
         {((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta" style={{ flexWrap: "wrap" }}><span style={{ flex: 1, minWidth: 0 }}><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span>{(c.items || []).some(i => i.producto_id) && <button className="tw-recompra-btn" onClick={() => recomprar(c.items)}>🔁 Volver a pedir</button>}</div>))}
         </>}
@@ -33114,7 +33140,6 @@ function TiendaPublica({ slug }) {
         return logueada ? <div className="tw-puntosdia-barra" role="note">{cuerpo}</div>
           : <button className="tw-puntosdia-barra" onClick={() => { setAvisoCuenta(null); setCanjeHecho(null); setFormCuenta({ modo: "ingresar" }); setPaso("cuenta"); }} aria-label={"Hoy tus compras online suman " + twMultTxt(m) + " de puntos. Ingresá a tu cuenta para sumarlos"}>{cuerpo}</button>;
       })()}
-      {amigaInfo && <div className="tw-amiga-barra" role="note">💌 <b>{amigaInfo.nombre}</b> te regaló <b>{amigaInfo.pct}% OFF</b> en tu primera compra · se aplica al finalizar</div>}
       {(cats.length > 0 || sectores.length > 0 || reingresados.length > 0 || reels.length > 0 || preventas.length > 0 || favs.length > 0 || tienda.regalos) && (
         <div className="tw-navbar">
           <nav className="tw-nav" aria-label="Categorías">
