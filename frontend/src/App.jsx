@@ -27446,6 +27446,19 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-vacio-grande{text-align:center;padding:26px 16px;color:#444;font-size:14px;font-weight:700;line-height:1.4}
 .tw-vacio-grande span{display:block;font-size:34px;margin-bottom:8px}
 .tw-vacio-grande small{display:block;font-weight:400;color:#777;font-size:13px;margin-top:6px}
+.tw-rs-intro{font-size:13px;color:#777;margin:0 2px 12px;line-height:1.4}
+.tw-rs-ok{background:#eef8f1;color:#1e6b3a;border-radius:14px;padding:12px 14px;font-weight:700;font-size:13.5px;margin-bottom:12px}
+.tw-rs-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #ece6dc;border-radius:16px;padding:12px;margin:0 0 10px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
+.tw-rs-card img,.tw-rs-ph{flex:0 0 auto;width:58px;height:58px;border-radius:12px;object-fit:cover;background:#faf5ec;display:grid;place-items:center;font-size:26px}
+.tw-rs-txt{flex:1;min-width:0}
+.tw-rs-txt b{display:block;font-size:14px;line-height:1.25}
+.tw-rs-txt small{display:block;font-size:12px;color:#888;margin-top:3px;line-height:1.35}
+.tw-rs-pill{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:800;color:#c0560a;background:#fff1e3;border-radius:99px;padding:3px 9px}
+.tw-rs-pill.ya{color:#b3261e;background:#fdecea}
+.tw-rs-btn{flex:0 0 auto;padding:9px 14px!important;font-size:11px!important}
+.tw-rs-despues summary{font-weight:700}
+.tw-rs-fila{display:flex;align-items:baseline;gap:10px;padding:9px 2px;border-bottom:1px solid #f1ece4;font-size:13px}
+.tw-rs-fila small{color:#888;white-space:nowrap;font-size:12px}
 .tw-ped-card{background:#fff;border:1px solid #ece6dc;border-radius:16px;padding:13px 14px;margin:0 0 10px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
 .tw-ped-card.alerta{border-color:#f5a35c;box-shadow:0 2px 14px rgba(245,163,92,.25)}
 .tw-ped-card.cerrado{background:#fbfaf8}
@@ -29706,9 +29719,10 @@ const TW_PALABRAS_VACIAS = new Set(["de", "la", "el", "los", "las", "para", "con
 // Cuanto dura cada tipo de producto, aproximado (mismo criterio que "Para reponer" en Lumiere: controllers/postventaController.js)
 const TW_DURACIONES = [
   [/protector solar|proteccion solar|\bfps\b|\bspf\b|sunscreen/, 45, "protector solar"], [/mascarilla|sheet ?mask|\bmask\b|parches?/, 45, "mascarilla"],
-  [/contorno de ojos|eye cream|ojeras/, 90, "contorno de ojos"], [/exfolia|peeling|scrub/, 90, "exfoliante"], [/serum|ampolla|booster|concentrado/, 60, "sérum"],
-  [/tonico|toner|esencia|essence|bruma/, 75, "tónico"], [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 60, "limpiador"],
-  [/hidratante|crema|moistur|gel crema|emulsion/, 60, "crema"], [/shampoo|acondicionador|mascara capilar|capilar/, 45, "producto capilar"],
+  [/contorno|eye cream|ojeras/, 30, "contorno de ojos"], [/^(?!.*hia?luron).*(\bacido|\bacid\b|\baha\b|\bbha\b|\bpha\b|glicolico|salicilico|mandelico|lactico|azelaico)/, 90, "ácido"],
+  [/exfolia|peeling|scrub/, 90, "exfoliante"], [/serum|ampolla|booster|concentrado/, 30, "sérum"],
+  [/tonico|toner|esencia|essence|bruma/, 120, "tónico"], [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, "limpiador"],
+  [/hidratante|crema|moistur|gel crema|emulsion/, 30, "crema"], [/shampoo|acondicionador|mascara capilar|capilar/, 45, "producto capilar"],
   [/perfume|fragancia|eau de|colonia|body mist|splash/, 120, "perfume"], [/labial|lip|base de maquillaje|corrector|mascara de pesta|rimel|delineador|polvo|rubor/, 120, "maquillaje"],
 ];
 const twDuracion = (nombre, categoria) => { const t = twNorm([nombre, categoria].join(" ")); const d = TW_DURACIONES.find(([r]) => r.test(t)); return d ? { dias: d[1], tipo: d[2] } : null; };
@@ -32559,7 +32573,7 @@ function TiendaPublica({ slug }) {
         <button className="tw-pedido-chip tw-reponer-chip tw-cumple-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🎂</span><span style={{ flex: 1, textAlign: "left" }}>{r.hoy ? "¡Feliz cumple! " : ""}Tenés <b>{r.tipo === "%" ? r.valor + "% OFF" : fmtTienda(r.valor) + " de regalo"}</b> por tu cumple, hasta el {r.vence.slice(8, 10)}/{r.vence.slice(5, 7)}</span><span aria-hidden="true">›</span></button>
       ); })()}
       {!codigoUrl && porReponer.length > 0 && !(miCuenta.pedidos || []).some(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado)) && (
-        <button className="tw-pedido-chip tw-reponer-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
+        <button className="tw-pedido-chip tw-reponer-chip" onClick={() => { setFormCuenta(x => ({ ...x, pestana: "restock" })); setPaso("cuenta"); }}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
       )}
       {!codigoUrl && !logueada && sinPagarGuest.length > 0 && <TwSinPagar lista={sinPagarGuest} slug={slug} />}
       {!codigoUrl && logueada && miCuenta && (() => {
@@ -32904,9 +32918,13 @@ function TiendaPublica({ slug }) {
     const proximo = premios.filter(pr => !pr.agotado && !pr.fuera_de_mes && pr.falta > 0).sort((a, b) => a.falta - b.falta)[0];
     const codigos = (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable);
     // Perfil por pantallas: un inicio con botones grandes y cada sección en su propia pantalla (con "Volver" bien visible)
-    const ALIAS_VISTA = { puntos: "premios", logros: "premios", premios: "premios", codigos: "codigos", resenas: "resenas", pedidos: "pedidos", compras: "pedidos", local: "local", piel: "piel", inicio: "inicio" };
+    const ALIAS_VISTA = { restock: "restock", puntos: "premios", logros: "premios", premios: "premios", codigos: "codigos", resenas: "resenas", pedidos: "pedidos", compras: "pedidos", local: "local", piel: "piel", inicio: "inicio" };
     const vista = ALIAS_VISTA[formCuenta.pestana] || "inicio";
-    const sec = vista === "codigos" || vista === "premios" ? "puntos" : vista === "pedidos" || vista === "resenas" || vista === "local" ? "compras" : vista === "piel" ? "piel" : "inicio";
+    const sec = vista === "codigos" || vista === "premios" ? "puntos" : vista === "pedidos" || vista === "resenas" || vista === "local" || vista === "restock" ? "compras" : vista === "piel" ? "piel" : "inicio";
+    // Restockearme: lo que compró, cuánto suele durar cada tipo y cuánto le queda (aprox.)
+    const restock = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d ? { ...i, dur: d.dias, tipo: d.tipo, queda: d.dias - i.dias } : null; }).filter(Boolean);
+    const restockYa = restock.filter(i => i.queda <= 10 && i.queda >= -90).sort((a, b) => a.queda - b.queda);
+    const restockDespues = restock.filter(i => i.queda > 10).sort((a, b) => a.queda - b.queda);
     const irA = (v) => { setFormCuenta(x => ({ ...x, pestana: v, verLogros: false })); try { document.querySelector(".tw-cajon-cuerpo").scrollTop = 0; } catch (e) {} };
     const pedSinPagar = (miCuenta.pedidos || []).filter(x => x.estado === "pendiente_pago" && !x.pagado && (["mp", "gocuotas"].includes(x.pago) || x.transferencia));
     const nCodigos = codigos.length + (miCuenta.codigos || []).filter(c => c.estado === "para_usar").length;
@@ -32959,6 +32977,7 @@ function TiendaPublica({ slug }) {
             <div className="tw-menu-tit">¿Qué querés hacer?</div>
             {[
               ["pedidos", "📦", "Mis pedidos", pedSinPagar.length ? (pedSinPagar.length === 1 ? "Tenés 1 sin terminar de pagar" : "Tenés " + pedSinPagar.length + " sin terminar de pagar") : "Ver cómo van tus compras online", pedSinPagar.length, true],
+              ["restock", "🔁", "Restockearme", restockYa.length ? (restockYa.length === 1 ? "Se te está terminando 1 producto" : "Se te están terminando " + restockYa.length + " productos") : "Reponé lo que se te está por terminar", restockYa.length, true],
               ["codigos", "🎟️", "Mis códigos", nCodigos ? (nCodigos === 1 ? "Tenés 1 descuento para usar" : "Tenés " + nCodigos + " descuentos para usar") : "Tus descuentos y cuándo vencen", nCodigos],
               ["premios", "🎁", "Mis puntos y premios", "Tenés " + pts.toLocaleString("es-AR") + " puntos para canjear", premios.filter(pr => !pr.no).length],
               ["resenas", "⭐", "Opinar de lo que compré", misRes && misRes.para_resenar.length ? "Ganás puntos por cada opinión" : "Tus opiniones", misRes ? misRes.para_resenar.length : 0],
@@ -32976,7 +32995,7 @@ function TiendaPublica({ slug }) {
         ) : (
           <div className="tw-vista-cab">
             <button className="tw-volver" onClick={() => irA("inicio")}>‹ Volver</button>
-            <h3>{{ pedidos: "📦 Mis pedidos", codigos: "🎟️ Mis códigos", premios: "🎁 Mis puntos y premios", resenas: "⭐ Opinar de lo que compré", local: "🧾 Mis compras en el local", piel: "🌿 Mi piel y mi rutina" }[vista]}</h3>
+            <h3>{{ restock: "🔁 Restockearme", pedidos: "📦 Mis pedidos", codigos: "🎟️ Mis códigos", premios: "🎁 Mis puntos y premios", resenas: "⭐ Opinar de lo que compré", local: "🧾 Mis compras en el local", piel: "🌿 Mi piel y mi rutina" }[vista]}</h3>
           </div>
         )}
         {sec === "puntos" && <>
@@ -33158,20 +33177,34 @@ function TiendaPublica({ slug }) {
             </div>
           );
         })}
-        {vista === "pedidos" && <>
-        {porReponer.length > 0 && (
-          <div className="tw-reponer-card">
-            <b>🔁 Se te está por terminar</b>
-            {porReponer.slice(0, 4).map(i => { const hay = i.p && !agotado(i.p); return (
-              <div key={i.producto_id} className="tw-reponer-it">
-                {i.p && i.p.foto ? <img src={foto(i.p)} alt="" /> : <span className="tw-mini" />}
-                <span style={{ flex: 1, minWidth: 0 }}><span className="tw-reponer-n">{i.nombre}</span><small>Lo compraste hace {i.dias} días · {["crema", "mascarilla"].includes(i.tipo) ? "una" : "un"} {i.tipo} dura ~{Math.round(i.dur / 30) >= 2 ? Math.round(i.dur / 30) + " meses" : i.dur + " días"}</small></span>
-                {hay ? <button className="tw-btn2" onClick={() => recomprar([i])}>Reponer</button> : i.p ? <button className="tw-btn2" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}
+        {vista === "restock" && <>
+          <p className="tw-rs-intro">Según cuándo compraste cada producto y cuánto suele durar usándolo todos los días.</p>
+          {restock.length === 0 && <div className="tw-vacio-grande"><span aria-hidden="true">🧴</span>Todavía no tenemos compras tuyas de skincare.<small>Cuando compres (online o en el local diciendo tu DNI), acá te avisamos cuándo se te está por terminar cada producto.</small></div>}
+          {restock.length > 0 && restockYa.length === 0 && <div className="tw-rs-ok">✨ ¡Todo bien! Por ahora no se te está terminando nada.</div>}
+          {restockYa.length > 0 && <>
+            <div className="tw-sec-tit">Se te está terminando</div>
+            {restockYa.map(i => { const hay = i.p && !agotado(i.p); const durTxt = i.dur >= 55 ? Math.round(i.dur / 30) + " meses" : i.dur >= 28 ? "1 mes" : i.dur + " días"; return (
+              <div key={i.producto_id} className="tw-rs-card">
+                {i.p && i.p.foto ? <img src={foto(i.p)} alt="" /> : <span className="tw-rs-ph" aria-hidden="true">🧴</span>}
+                <div className="tw-rs-txt">
+                  <b>{i.nombre}</b>
+                  <small>Lo compraste hace {i.dias} días · {["crema", "mascarilla"].includes(i.tipo) ? "una" : "un"} {i.tipo} dura ~{durTxt}</small>
+                  <span className={"tw-rs-pill" + (i.queda <= 0 ? " ya" : "")}>{i.queda <= 0 ? "Ya se te debería haber terminado" : "Te quedan unos " + i.queda + (i.queda === 1 ? " día" : " días")}</span>
+                </div>
+                {hay ? <button className="tw-btn tw-rs-btn" onClick={() => recomprar([i])}>Agregar</button> : i.p ? <button className="tw-btn tw-btn-claro tw-rs-btn" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}
               </div>); })}
-            {porReponer.filter(i => i.p && !agotado(i.p)).length > 1 && <button className="tw-btn full" style={{ marginTop: 8, padding: "10px", fontSize: 12 }} onClick={() => recomprar(porReponer.filter(i => i.p && !agotado(i.p)))}>Reponer todo</button>}
-          </div>
-        )}
-        {porReponer.length === 0 && (() => {
+            {restockYa.filter(i => i.p && !agotado(i.p)).length > 1 && <button className="tw-btn full" style={{ marginTop: 4 }} onClick={() => recomprar(restockYa.filter(i => i.p && !agotado(i.p)))}>Agregar todo al carrito</button>}
+          </>}
+          {restockDespues.length > 0 && <details className="tw-sec-plegado tw-rs-despues" open={restockYa.length === 0}>
+            <summary>Todavía te queda ({restockDespues.length})</summary>
+            {restockDespues.map(i => (
+              <div key={i.producto_id} className="tw-rs-fila">
+                <span style={{ flex: 1, minWidth: 0 }}>{i.nombre}</span>
+                <small>hasta ~{new Date(Date.now() + i.queda * 864e5).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}</small>
+              </div>
+            ))}
+          </details>}
+        {(() => {
           // Ultima compra (en el local o en la tienda): a un toque de volver a pedirla
           const u = (miCuenta.compras || []).find(c => (c.items || []).some(i => i.producto_id));
           if (!u) return null;
@@ -33179,7 +33212,7 @@ function TiendaPublica({ slug }) {
           return (
             <div className="tw-recompra-card">
               <div style={{ flex: 1, minWidth: 0 }}>
-                <b>🔁 ¿Se te está terminando algo?</b>
+                <b>🔁 ¿Querés repetir tu última compra?</b>
                 <small>Tu última compra ({new Date(u.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}): {items.slice(0, 3).map(i => i.nombre).join(", ")}{items.length > 3 ? " y " + (items.length - 3) + " más" : ""}</small>
               </div>
               <button className="tw-btn" style={{ padding: "10px 14px", fontSize: 11.5, whiteSpace: "nowrap" }} onClick={() => recomprar(items)}>Volver a pedir</button>
