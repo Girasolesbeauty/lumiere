@@ -27386,6 +27386,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-tr-datos{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:14px;background:#fff;border-radius:8px;padding:8px 10px;margin:6px 0 8px;line-height:1.45;color:#222;user-select:all}
 .tw-tr-plazo{font-size:12.5px;color:#555;line-height:1.4;margin:0 0 8px}
 .tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
+.tw-pagar-chip{background:#fff4e5!important;border-color:#f5c27a!important;animation:twLatePago 2.4s ease-in-out infinite}
+@keyframes twLatePago{50%{box-shadow:0 0 0 4px rgba(245,166,35,.25)}}
 .tw-tr-chip{background:#eaf7ef!important;border-color:#bfe3cb!important}
 .tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
 .tw-pedido-curso-cab b{font-size:14px}
@@ -32023,7 +32025,8 @@ function TiendaPublica({ slug }) {
       try { l = JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) {}
       const quedan = [];
       for (const cod of l.slice(0, 3)) {
-        try { const pd = await pedir("/pedidos/" + cod); if (!["entregado", "cancelado"].includes(pd.estado)) quedan.push(cod); if (vivo && pd.transferencia && !pd.pagado && pd.estado !== "cancelado") { setPedidoTransf(pd); break; } } catch (e) {}
+        try { const pd = await pedir("/pedidos/" + cod); if (!["entregado", "cancelado"].includes(pd.estado)) quedan.push(cod); const falta = pd.estado === "pendiente_pago" && !pd.pagado;
+          if (vivo && falta && (pd.transferencia || (["mp", "gocuotas"].includes(pd.pago) && pd.link_pago))) { setPedidoTransf(pd); break; } } catch (e) {}
       }
       try { localStorage.setItem(k, JSON.stringify(quedan.concat(l.slice(3)).slice(0, 5))); } catch (e) {}
     })();
@@ -32372,11 +32375,14 @@ function TiendaPublica({ slug }) {
       {!codigoUrl && porReponer.length > 0 && !(miCuenta.pedidos || []).some(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado)) && (
         <button className="tw-pedido-chip tw-reponer-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
       )}
-      {!codigoUrl && !logueada && pedidoTransf && <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pedidoTransf)} espera tu transferencia de <b>{fmtTienda(pedidoTransf.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>}
+      {!codigoUrl && !logueada && pedidoTransf && (pedidoTransf.transferencia
+        ? <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pedidoTransf)} espera tu transferencia de <b>{fmtTienda(pedidoTransf.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>
+        : <a className="tw-pedido-chip tw-pagar-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💳</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pedidoTransf)} quedó sin pagar ({fmtTienda(pedidoTransf.total)}) · <b>terminá de pagar acá</b></span><span aria-hidden="true">›</span></a>)}
       {!codigoUrl && logueada && miCuenta && (() => {
         // Pedido en curso: a un toque de ver cómo va
         const pd = (miCuenta.pedidos || []).find(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado));
         if (!pd) return null;
+        if (pd.estado === "pendiente_pago" && !pd.pagado && ["mp", "gocuotas"].includes(pd.pago)) return <a className="tw-pedido-chip tw-pagar-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💳</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)} quedó sin pagar ({fmtTienda(pd.total)}) · <b>terminá de pagar acá</b></span><span aria-hidden="true">›</span></a>;
         if (pd.transferencia) return <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)} espera tu transferencia de <b>{fmtTienda(pd.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>;
         const txt = { pendiente_pago: "esperando el pago", confirmado: "lo estamos preparando 💝", preparado: pd.entrega === "envio" ? "¡ya está empaquetado! 🎁" : "¡listo para retirar! 🎁", en_caja: "¡listo para retirar! 🎁" }[pd.estado] || "en curso";
         return <a className="tw-pedido-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">📦</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)}: <b>{txt}</b></span><span aria-hidden="true">›</span></a>;
