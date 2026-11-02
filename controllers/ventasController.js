@@ -73,7 +73,7 @@ const getAll = async (req, res) => {
     // Las ventas de la tienda web figuran como "Tienda web" (no las hizo quien las cobro)
     const web = await esVentaWeb('v');
     let query = `
-      SELECT v.*, c.nombre AS cliente_nombre, CASE WHEN ${web} THEN 'Tienda web' ELSE u.nombre END AS vendedora_nombre, ${web} AS tienda_web,
+      SELECT v.*, c.nombre AS cliente_nombre, c.cuit_dni AS cliente_dni, c.telefono AS cliente_telefono, CASE WHEN ${web} THEN 'Tienda web' ELSE u.nombre END AS vendedora_nombre, ${web} AS tienda_web,
         COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costo_total,
         COALESCE(
           json_agg(
@@ -120,7 +120,7 @@ const getAll = async (req, res) => {
     } else if (es_preventa === 'false') {
       query += ` AND COALESCE(v.es_preventa, FALSE) = FALSE`;
     }
-    query += ' GROUP BY v.id, c.nombre, u.nombre ORDER BY v.creado_en DESC';
+    query += ' GROUP BY v.id, c.nombre, c.cuit_dni, c.telefono, u.nombre ORDER BY v.creado_en DESC';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {

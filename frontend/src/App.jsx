@@ -3392,6 +3392,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [buscandoGC, setBuscandoGC] = useState(false);
   const [tabPos, setTabPos] = useState("venta");
   const [preventasPendientes, setPreventasPendientes] = useState([]);
+  const [buscarPrev, setBuscarPrev] = useState("");
   const [confirmandoPreventa, setConfirmandoPreventa] = useState(null);
   const [medioPagoConfirmacion, setMedioPagoConfirmacion] = useState("");
   const [pagosConfirmacion, setPagosConfirmacion] = useState(null); // saldo con varios medios
@@ -3658,7 +3659,7 @@ function POS({ localId, usuario, paletaActual }) {
   const limpiarVentaActual = () => {
     retoEvaluadoRef.current = false;
     setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
-    setClienteSeleccionado(null); setShowNuevoCliente(false); setDescuentoManual(""); setTipoDescuento("%");
+    setClienteSeleccionado(null); setShowNuevoCliente(false); setTelInput(""); setTelResultados(null); setDescuentoManual(""); setTipoDescuento("%");
     setInsumosSel({}); setMostrarInsumos(false); setMontoRecibidoEfectivo(""); setReferenciaVenta(""); setPedidoWeb(null);
     setJustificacionesStock({}); setItemsSinStock(null); quitarGiftCard();
     setFichaCliente(null); fichaClienteIdRef.current = null; setReto(null); setRetoDescartadoId(null); setTipoPagoAbierto("");
@@ -4116,6 +4117,35 @@ function POS({ localId, usuario, paletaActual }) {
   // (si no, una respuesta vieja -- por ejemplo de los primeros 7 digitos -- podia llegar
   // tarde y pisar al cliente correcta).
   const ultimoDniBuscadoRef = useRef("");
+  // Buscar por celular (sobre todo para señas y preventas): lista de coincidencias para elegir
+  const [busqCliPor, setBusqCliPor] = useState("dni"); // dni | tel
+  const [telInput, setTelInput] = useState("");
+  const [telResultados, setTelResultados] = useState(null); // null = sin buscar | [] | [clientas]
+  const ultimoTelRef = useRef("");
+  const buscarClientePorTel = async (tel) => {
+    setTelInput(tel); ultimoTelRef.current = tel;
+    if (tel.replace(/[^0-9]/g, "").length < 6) { setTelResultados(null); return; }
+    setBuscandoCliente(true);
+    try {
+      const r = await API.get("/clientes/buscar-tel?tel=" + encodeURIComponent(tel));
+      if (ultimoTelRef.current === tel) setTelResultados(r.data || []);
+    } catch (e) { if (ultimoTelRef.current === tel) setMensaje("⚠️ No se pudo buscar la clienta (revisá la conexión). Probá de nuevo."); }
+    finally { if (ultimoTelRef.current === tel) setBuscandoCliente(false); }
+  };
+  // Señas y preventas: un solo buscador por celular o DNI (trae las coincidencias de los dos)
+  const buscarClientaReserva = async (v) => {
+    setTelInput(v); ultimoTelRef.current = v;
+    const d = v.replace(/[^0-9]/g, "");
+    if (d.length < 6) { setTelResultados(null); return; }
+    setBuscandoCliente(true);
+    try {
+      const [rt, rd] = await Promise.all([API.get("/clientes/buscar-tel?tel=" + encodeURIComponent(v)).catch(() => ({ data: [] })), d.length >= 7 ? API.get("/clientes/buscar-dni?dni=" + encodeURIComponent(v)).catch(() => ({ data: null })) : Promise.resolve({ data: null })]);
+      if (ultimoTelRef.current !== v) return;
+      const l = [...(rd.data && rd.data.id ? [rd.data] : []), ...(rt.data || [])].filter((c, i, a) => a.findIndex(x => x.id === c.id) === i);
+      setTelResultados(l);
+    } finally { if (ultimoTelRef.current === v) setBuscandoCliente(false); }
+  };
+  const elegirClientaTel = (c) => { setClienteSeleccionado(c); setDniInput(c.cuit_dni || ""); setTelInput(""); setTelResultados(null); setShowNuevoCliente(false); cargarFicha(c.id, cartRef.current.length === 0); };
   const buscarClientePorDni = async (dni) => {
     setDniInput(dni);
     ultimoDniBuscadoRef.current = dni;
@@ -4287,7 +4317,7 @@ function POS({ localId, usuario, paletaActual }) {
       finalizarVenta(datosRecibo, { ventaId, telefono: clienteSeleccionado?.telefono, medio: pagoMixto && pagosMixtos.length > 0 ? pagosMixtos.map(p => p.medio_pago_nombre).join(" + ") : (medioPagoSel?.nombre || "") });
       setVentaPendienteArca(null);
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
-      setClienteSeleccionado(null); setShowNuevoCliente(false);
+      setClienteSeleccionado(null); setShowNuevoCliente(false); setTelInput(""); setTelResultados(null);
       setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setSenaPagos(null); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       quitarGiftCard();
       setTimeout(() => setMensaje(""), 8000);
@@ -4322,7 +4352,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (preventa) {
         setMensaje("🧪 Prueba: " + (tipoReserva === "sena" ? "la seña" : "la preventa") + " no se registró (modo prueba activo).");
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
-      setClienteSeleccionado(null); setShowNuevoCliente(false); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setSenaPagos(null); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
+      setClienteSeleccionado(null); setShowNuevoCliente(false); setTelInput(""); setTelResultados(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setSenaPagos(null); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo(""); quitarGiftCard();
         return;
       }
@@ -4339,7 +4369,7 @@ function POS({ localId, usuario, paletaActual }) {
       setVentaConfirmada({ ...datosPrueba, medio: medioTxt || "", fecha: new Date(), reto: reto ? { meta: reto.meta, vendido: subtotalConDesc, logrado: subtotalConDesc > reto.meta, cliente: reto.cliente } : null });
       setReto(null);
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
-      setClienteSeleccionado(null); setShowNuevoCliente(false); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setSenaPagos(null); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
+      setClienteSeleccionado(null); setShowNuevoCliente(false); setTelInput(""); setTelResultados(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setSenaPagos(null); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false); setReferenciaVenta("");
       setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo(""); quitarGiftCard();
       return;
     }
@@ -4477,7 +4507,7 @@ function POS({ localId, usuario, paletaActual }) {
       // facturacion", o el cron automatico), sin necesidad de tener bloqueado el mostrador
       // mientras tanto.
       setCart([]); setDniInput(""); setCupon(""); setCuponAplicado(null); setPagoMixto(false); setPagosMixtos([]); setMedioPagoSel(null);
-      setClienteSeleccionado(null); setShowNuevoCliente(false);
+      setClienteSeleccionado(null); setShowNuevoCliente(false); setTelInput(""); setTelResultados(null);
       setMedioPagoSel(null); setPreventa(false); setTipoReserva("preventa"); setNombrePreventa(""); setMontoSena(""); setSenaMedioPagoId(""); setSenaPagos(null); setDescuentoManual(""); setTipoDescuento("%"); setInsumosSel({}); setMostrarInsumos(false);
       setJustificacionesStock({}); setItemsSinStock(null); setMontoRecibidoEfectivo("");
       quitarGiftCard();
@@ -4897,14 +4927,15 @@ function POS({ localId, usuario, paletaActual }) {
             {mensaje}
           </div>
         )}
+        {preventasPendientes.length > 3 && <input className="inp" style={{ marginBottom: 12 }} placeholder="🔎 Buscar por nombre, DNI o celular" value={buscarPrev} onChange={e => setBuscarPrev(e.target.value)} aria-label="Buscar preventa" />}
         {preventasPendientes.length === 0 ? (
           <div style={{ textAlign: "center", color: temaPal.textMuted, padding: 40, fontSize: 13 }}>No hay preventas pendientes</div>
-        ) : preventasPendientes.map(p => (
+        ) : (() => { const q = normTxt(buscarPrev), qd = buscarPrev.replace(/[^0-9]/g, ""); const l = preventasPendientes.filter(p => !q || normTxt([p.nombre_preventa, p.cliente_nombre].join(" ")).includes(q) || (qd.length >= 4 && (String(p.cliente_dni || "").replace(/[^0-9]/g, "").includes(qd) || (qd.length >= 6 && String(p.cliente_telefono || "").replace(/[^0-9]/g, "").endsWith(qd.slice(-6)))))); return l.length ? l : [null]; })().map(p => !p ? <div key="nada" style={{ textAlign: "center", color: temaPal.textMuted, padding: 24, fontSize: 13 }}>Ninguna preventa coincide con "{buscarPrev}"</div> : (
           <div key={p.id} className="card" style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{p.nombre_preventa || "Consumidor Final"}</div>
-                {p.cliente_nombre && <div style={{ fontSize: 11, color: "#2d7a4f" }}>{p.cliente_nombre} {p.cliente_dni ? "- DNI: " + p.cliente_dni : ""}</div>}
+                {p.cliente_nombre && <div style={{ fontSize: 11, color: "#2d7a4f" }}>{p.cliente_nombre} {p.cliente_dni ? "- DNI: " + p.cliente_dni : ""}{p.cliente_telefono ? " · 📱 " + p.cliente_telefono : ""}</div>}
                 <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>{new Date(p.creado_en).toLocaleDateString("es-AR")} - {fmt(parseFloat(p.total))}</div>
                 {parseFloat(p.monto_sena) > 0 && <div style={{ fontSize: 11, marginTop: 2, fontWeight: 600, color: saldoPreventa(p) <= 0.5 ? "#2d7a4f" : temaPal.warn }}>{saldoPreventa(p) <= 0.5 ? "✓ Pagada" + (p.sena_medio_pago_nombre ? " (" + p.sena_medio_pago_nombre + ")" : "") : "Pagó " + fmt(parseFloat(p.monto_sena)) + " · falta " + fmt(saldoPreventa(p))}</div>}
                 {detallePagos(p, "sena").includes(" + ") && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 2 }}>Pagó con: {detallePagos(p, "sena")}</div>}
@@ -5320,6 +5351,26 @@ function POS({ localId, usuario, paletaActual }) {
             {preventa ? (
               <div className="pc-sec">
                 <div className="pc-tit"><span>{tipoReserva === "sena" ? "💰 SEÑA" : "📦 PREVENTA"}</span></div>
+                {clienteSeleccionado && clienteSeleccionado.id ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, border: "1px solid " + temaPal.border, marginBottom: 8, fontSize: 13 }}>
+                    <span>👤</span><span style={{ flex: 1 }}><b>{clienteSeleccionado.nombre}</b>{clienteSeleccionado.telefono ? <span style={{ color: temaPal.textMuted }}> · 📱 {clienteSeleccionado.telefono}</span> : null}</span>
+                    <button className="icon-btn" aria-label="Quitar clienta" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setFichaCliente(null); fichaClienteIdRef.current = null; }}>✕</button>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ position: "relative" }}>
+                      <input className="inp" inputMode="tel" placeholder="🔎 Celular o DNI de la clienta" value={telInput} onChange={e => buscarClientaReserva(e.target.value)} aria-label="Buscar clienta por celular o DNI" />
+                      {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
+                    </div>
+                    {telResultados && telResultados.length === 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>No está registrada. Escribí su nombre abajo o <button className="mini-chip" onClick={abrirAltaCliente}>👤＋ registrala</button></div>}
+                    {telResultados && telResultados.length > 0 && <div className="pop-in" style={{ marginTop: 6, display: "grid", gap: 4 }}>
+                      {telResultados.map(c => <button key={c.id} className="btn btn-g btn-sm" style={{ display: "flex", justifyContent: "space-between", gap: 8, textAlign: "left", width: "100%" }} onClick={() => { elegirClientaTel(c); if (!nombrePreventa.trim()) setNombrePreventa(c.nombre || ""); }}>
+                        <span><b>{c.nombre}</b>{c.cuit_dni ? <span style={{ color: temaPal.textMuted, fontWeight: 500 }}> · DNI {c.cuit_dni}</span> : null}</span>
+                        <span style={{ color: temaPal.textMuted, fontWeight: 500, whiteSpace: "nowrap" }}>📱 {c.telefono || "—"}</span>
+                      </button>)}
+                    </div>}
+                  </div>
+                )}
                 <input className="inp" placeholder={tipoReserva === "sena" ? "Nombre del cliente (seña)" : "Nombre del cliente (preventa)"} value={nombrePreventa} onChange={e => setNombrePreventa(e.target.value)} style={{ marginBottom: tipoReserva === "sena" ? 8 : 0 }} />
                 {tipoReserva === "preventa" && (
                   <>
@@ -5394,7 +5445,24 @@ function POS({ localId, usuario, paletaActual }) {
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div className="seg" role="group" aria-label="Buscar clienta por" style={{ marginBottom: 6 }}>
+                        <button className={busqCliPor === "dni" ? "on" : ""} onClick={() => { setBusqCliPor("dni"); setTimeout(() => dniRef.current?.focus(), 30); }}>DNI</button>
+                        <button className={busqCliPor === "tel" ? "on" : ""} onClick={() => { setBusqCliPor("tel"); setShowNuevoCliente(false); }}>📱 Celular</button>
+                      </div>
+                      {busqCliPor === "tel" && <div style={{ marginBottom: 6 }}>
+                        <div style={{ position: "relative" }}>
+                          <input className="inp" inputMode="tel" autoFocus placeholder="Celular (con o sin código de área)" value={telInput} onChange={e => buscarClientePorTel(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px" }} aria-label="Celular de la clienta" />
+                          {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
+                        </div>
+                        {telResultados && telResultados.length === 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>No hay ninguna clienta con ese celular. <button className="mini-chip" onClick={abrirAltaCliente}>👤＋ Registrarla</button></div>}
+                        {telResultados && telResultados.length > 0 && <div className="pop-in" style={{ marginTop: 6, display: "grid", gap: 4 }}>
+                          {telResultados.map(c => <button key={c.id} className="btn btn-g btn-sm" style={{ display: "flex", justifyContent: "space-between", gap: 8, textAlign: "left", width: "100%" }} onClick={() => elegirClientaTel(c)}>
+                            <span><b>{c.nombre}</b>{c.cuit_dni ? <span style={{ color: temaPal.textMuted, fontWeight: 500 }}> · DNI {c.cuit_dni}</span> : null}</span>
+                            <span style={{ color: temaPal.textMuted, fontWeight: 500, whiteSpace: "nowrap" }}>📱 {c.telefono}{c.compras ? " · " + c.compras + (c.compras === 1 ? " compra" : " compras") : ""}</span>
+                          </button>)}
+                        </div>}
+                      </div>}
+                      <div style={{ display: busqCliPor === "dni" ? "flex" : "none", gap: 6 }}>
                         <div style={{ position: "relative", flex: 1 }}>
                           <input ref={dniRef} className="inp" inputMode="numeric" placeholder="DNI del cliente" value={dniInput} onChange={e => buscarClientePorDni(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px", letterSpacing: ".03em" }} aria-label="DNI del cliente" />
                           {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
