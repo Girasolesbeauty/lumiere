@@ -26695,6 +26695,10 @@ html:has(.tw){overflow-x:hidden}
 .tw-ap-op .tw-btn{padding:10px 18px;font-size:13px}
 .tw-btn.tw-btn-sec{background:#25d366}
 .tw-ap-hint{font-size:13px;color:#1f6b40;background:#eaf7ef;border-radius:10px;padding:9px 12px;margin:8px 0 4px;line-height:1.4}
+.tw-ap-medios{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.tw-ap-medio{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#fff;border:1.5px solid #e6e1d6;border-radius:12px;padding:10px 12px;font:inherit;cursor:pointer;color:#222}
+.tw-ap-medio b{display:block;font-size:14px}.tw-ap-medio small{display:block;font-size:12px;color:#777;margin-top:1px}
+.tw-ap-medio:hover{border-color:#999}.tw-ap-medio:disabled{opacity:.6;cursor:default}
 .tw-ap-err{color:#c0392b;font-size:13px;font-weight:600;margin-top:8px}
 .tw-btn:hover{background:#333}
 .tw-btn:active{transform:scale(.97)}
@@ -29728,8 +29732,9 @@ function TwDecoRegalo({ t, n = 16 }) {
 // Franja grande de la portada
 // "¿No te salió el pago?": cuando el pago online no sale (o la clienta duda), otras formas de comprar igual:
 // pagar en el local (con sus cuotas con tarjeta de crédito) o pagar por teléfono y recibirlo. Abierto si hubo un rechazo.
-function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, pedir, onCambio }) {
+function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, otrosPagos = [], onOtroPago }) {
   const [abierta, setAbierta] = useState(!!falla);
+  const [cambiando, setCambiando] = useState(null);
   useEffect(() => { if (falla) setAbierta(true); }, [falla]);
   const nro = pedido.numero || pedido.codigo, monto = fmtTienda(pedido.total);
   const waTel = linkWa("¡Hola! Quise pagar online mi pedido N° " + nro + " (" + monto + ") y no me salió el pago. ¿Me ayudan a pagarlo por teléfono?" + (pedido.entrega === "envio" ? " Es con envío." : ""));
@@ -29740,6 +29745,22 @@ function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, pedir, onCambi
     <div className={"tw-ayuda-pago" + (falla ? " falla" : "")}>
       <div className="tw-ap-tit">{falla ? "¿No te salió el pago? ¡No pasa nada!" : "Otras formas de pagar"}</div>
       <div className="tw-ap-sub">{falla ? "Tu pedido sigue reservado un rato. Podés probar de nuevo o elegir una de estas opciones:" : "Si el pago online no te sale, también podés:"}</div>
+      {otrosPagos.length > 0 && <div className="tw-ap-op">
+        <span className="tw-ap-ic">🔁</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <b>Pagalo online con otro medio</b>
+          <div className="tw-ap-txt">Elegí cómo: te armamos el carrito de nuevo con los mismos productos.</div>
+          <div className="tw-ap-medios">
+            {otrosPagos.map(([k, t, d, pct]) => (
+              <button key={k} className="tw-ap-medio" disabled={!!cambiando} onClick={async () => { setCambiando(k); try { await onOtroPago(k); } catch (e) { setCambiando(null); } }}>
+                <span style={{ flex: 1, minWidth: 0 }}><b>{t}</b><small>{d}</small></span>
+                {pct > 0 && <span className="tw-op-off">{String(pct).replace(".", ",")}% OFF</span>}
+                <span aria-hidden="true">{cambiando === k ? "…" : "›"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>}
       {ayuda.local && <div className="tw-ap-op">
         <span className="tw-ap-ic">🏬</span>
         <div>
@@ -32077,6 +32098,19 @@ function TiendaPublica({ slug }) {
     })();
     return () => { vivo = false; };
   }, [logueada, codigoUrl, slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Vuelve de "Pagalo con otro medio": se arma el carrito con los productos de ese pedido y queda elegido el medio nuevo
+  const recomprarRef = useRef(null);
+  useEffect(() => {
+    if (codigoUrl || !productos || !productos.length || !recomprarRef.current) return;
+    let r = null;
+    try { r = JSON.parse(sessionStorage.getItem("tw_rehacer_" + slug) || "null"); sessionStorage.removeItem("tw_rehacer_" + slug); } catch (e) {}
+    if (!r || !Array.isArray(r.items)) return;
+    recomprarRef.current(r.items);
+    const nomPago = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia" }[r.pago];
+    if (nomPago) setTimeout(() => setRecompraAviso(a => a && a.van ? { ...a, texto: "✅ Te armamos el carrito de nuevo. Tocá «Finalizar compra»: ya queda elegido pagar con " + nomPago + "." } : a), 0);
+    if (r.pago) setDatos(x => ({ ...x, pago: r.pago }));
+    if (r.cupon) setCuponIn(r.cupon);
+  }, [productos, codigoUrl, !!recomprarRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
   // Invitá a una amiga: el codigo llega en el link (?amiga=SABRINA-4K7Q) y se guarda hasta que compre
   const [amigaCod, setAmigaCod] = useState(() => { try { const q = new URLSearchParams(window.location.search).get("amiga"); if (q) { localStorage.setItem("tw_amiga_" + slug, q.toUpperCase().slice(0, 30)); localStorage.setItem("tw_hw_amiga_" + slug, q.toUpperCase().slice(0, 30)); return q.toUpperCase().slice(0, 30); } return localStorage.getItem("tw_amiga_" + slug) || null; } catch (e) { return null; } });
   const [amigaInfo, setAmigaInfo] = useState(null);
@@ -32216,6 +32250,7 @@ function TiendaPublica({ slug }) {
     }
     setRecompraAviso({ van: van.length, faltan }); setPaso("carrito");
   };
+  recomprarRef.current = recomprar;
   const recomprarPedido = (codigo) => pedir("/pedidos/" + codigo).then(pd => recomprar(pd.items || [])).catch(() => setRecompraAviso({ van: 0, faltan: [], error: true }));
   // Desde la ficha: el boton gira, se dibuja el ✓, la foto vuela y despues se cierra la ficha
   const agregarDesdeFicha = (p, v, n) => {
@@ -32500,9 +32535,19 @@ function TiendaPublica({ slug }) {
               {pedido.estado === "pendiente_pago" && pedido.pago === "mp" && (pedido.pago_rechazado || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")) && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con Mercado Pago no se completó. Podés volver a intentarlo{tienda.ayuda_pago ? " o elegir otra opción de abajo" : ""}.</div>}
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>{pedido.pago === "gocuotas" ? "Pagar con GoCuotas" : "Pagar con Mercado Pago"}</a>}
               {pedido.estado === "pendiente_pago" && ["mp", "gocuotas"].includes(pedido.pago) && !pedido.giftcard && tienda.ayuda_pago && (
-                <TwAyudaPago pedido={pedido} ayuda={tienda.ayuda_pago} pedir={pedir} linkWa={(t) => wa(t, pedido.local_id)}
+                <TwAyudaPago pedido={pedido} ayuda={tienda.ayuda_pago} linkWa={(t) => wa(t, pedido.local_id)}
                   falla={pedido.pago_rechazado || params.get("gc") === "no" || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")}
-                  nombreLocal={pedido.local && pedido.local.nombre} onCambio={() => pedir("/pedidos/" + pedido.codigo).then(setPedido).catch(() => {})} />
+                  nombreLocal={pedido.local && pedido.local.nombre}
+                  otrosPagos={pedido.items.some(i => i.preventa) ? [] : [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"]]
+                    .filter(([k]) => k !== pedido.pago && tienda.pagos && tienda.pagos[k]).map(x => [...x, (tienda.descuentos_pago || {})[x[0]] || 0])}
+                  onOtroPago={async (k) => {
+                    if (!window.confirm("¿Pagar con " + ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia" })[k] + "? Te armamos el carrito con los mismos productos para que termines la compra.")) throw new Error("no");
+                    try {
+                      const r = await pedir("/pedidos/" + pedido.codigo + "/otro-pago", { method: "POST" });
+                      try { sessionStorage.setItem("tw_rehacer_" + slug, JSON.stringify({ items: r.items, pago: k, cupon: r.cupon })); } catch (e) {}
+                      window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug);
+                    } catch (e) { alert(e.message); throw e; }
+                  }} />
               )}
               {pedido.transferencia && pedido.estado !== "cancelado" && (
                 <div style={{ background: "#f6f6f6", borderRadius: 6, padding: 14, marginBottom: 14, fontSize: 15 }}>
@@ -33558,7 +33603,7 @@ function TiendaPublica({ slug }) {
               <>
                 <div className="tw-cajon-cuerpo">
                   {recompraAviso && <div className="tw-recompra-aviso" role="status">
-                    <span style={{ flex: 1 }}>{recompraAviso.error ? "No pudimos cargar esa compra. Probá de nuevo." : recompraAviso.van ? "🔁 Agregamos " + recompraAviso.van + (recompraAviso.van === 1 ? " producto" : " productos") + " de tu compra anterior." : "Ninguno de esos productos tiene stock ahora en tu ciudad."}
+                    <span style={{ flex: 1 }}>{recompraAviso.error ? "No pudimos cargar esa compra. Probá de nuevo." : recompraAviso.van && recompraAviso.texto ? recompraAviso.texto : recompraAviso.van ? "🔁 Agregamos " + recompraAviso.van + (recompraAviso.van === 1 ? " producto" : " productos") + " de tu compra anterior." : "Ninguno de esos productos tiene stock ahora en tu ciudad."}
                       {recompraAviso.faltan.length > 0 && <small>Sin stock por ahora: {recompraAviso.faltan.join(", ")}. Podés tocar ♡ en el producto para que te avisemos.</small>}</span>
                     <button className="tw-pide-x" aria-label="Cerrar aviso" onClick={() => setRecompraAviso(null)}>✕</button>
                   </div>}

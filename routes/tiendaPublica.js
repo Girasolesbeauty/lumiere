@@ -792,6 +792,23 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
 });
 
+// "Pagalo con otro medio": si el pago online no salió, la clienta elige otro medio de la tienda. El pedido sin pagar se
+// cancela (vuelve el stock y el uso del cupón) y la tienda le arma el carrito de nuevo con los mismos productos, así
+// el total y las reglas de cada medio (descuentos, mínimo de GoCuotas, ofertas) se calculan como en cualquier compra.
+router.post('/:slug/pedidos/:codigo/otro-pago', async (req, res) => {
+  try {
+    let p = (await pool.query('SELECT * FROM tienda_pedidos WHERE codigo = $1', [String(req.params.codigo || '').toUpperCase()])).rows[0];
+    if (!p) return res.status(404).json({ error: 'No encontramos ese pedido' });
+    if (p.tipo === 'giftcard') return res.status(400).json({ error: 'Para la gift card, escribinos y te ayudamos' });
+    if (p.pago === 'mp' && !p.pagado && p.estado === 'pendiente_pago') p = await tienda.revisarPagoMP(p, true);
+    if (p.pagado) return res.status(400).json({ error: 'Este pedido ya está pagado 🎉' });
+    if (p.estado !== 'pendiente_pago' || !['mp', 'gocuotas', 'transferencia'].includes(p.pago)) return res.status(400).json({ error: 'Este pedido ya no se puede cambiar' });
+    const items = (await pool.query('SELECT producto_id, variante_id, nombre, cantidad, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows;
+    await tienda.cancelar(p.id, 'La clienta eligió pagar con otro medio (rehizo la compra)');
+    res.json({ ok: true, items: items.map(i => ({ producto_id: i.producto_id, variante_id: i.variante_id, nombre: i.nombre, cantidad: i.cantidad, preventa: !!i.preventa })), cupon: p.cupon || null });
+  } catch (e) { console.error('[tienda] otro pago:', e.message); res.status(500).json({ error: 'No se pudo cambiar la forma de pago' }); }
+});
+
 // ===================== Ruleta de premios =====================
 // Se gira una vez por pedido, si la compra (productos menos descuento) llega al minimo y el pedido
 // sigue en pie. Con Mercado Pago, recien cuando se acredita el pago.
