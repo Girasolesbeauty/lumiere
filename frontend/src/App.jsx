@@ -7442,6 +7442,19 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
   const [confirmarOrden, setConfirmarOrden] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [verAjustes, setVerAjustes] = useState(false);
+  // Pedir por marca: se elige la marca (de todo el catálogo o de las del proveedor) y el pedido queda solo con esa marca
+  const [marcasSel, setMarcasSel] = useState([]);
+  const [catalogo, setCatalogo] = useState([]);
+  useEffect(() => { API.get("/productos").then(r => setCatalogo((r.data || []).filter(x => x.activo !== false))).catch(() => {}); }, []);
+  const marcaDe = (x) => String(x.marca || "").trim() || "Sin marca";
+  const marcasCatalogo = [...new Set(catalogo.map(marcaDe))].filter(m => m !== "Sin marca").sort((a, b) => a.localeCompare(b, "es"));
+  const provsDeMarca = (m) => [...new Set(catalogo.filter(x => marcaDe(x) === m && x.proveedor_id).map(x => String(x.proveedor_id)))];
+  const elegirMarca = (m) => {
+    if (!m) { setMarcasSel([]); return; }
+    setMarcasSel([m]);
+    const pv = provsDeMarca(m);
+    if (pv.length === 1 && pv[0] !== String(provSel)) setProvSel(pv[0]);
+  };
 
   const calcularSug = () => {
     if (!provSel) { setSug(null); return; }
@@ -7468,7 +7481,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
   const setCantDe = (id, l, v) => setCant(x => ({ ...x, [id]: { ...(x[id] || {}), [l]: v === "" ? "" : Math.max(0, parseInt(v) || 0) } }));
   const datoLocal = (pr) => (vistaLocal === "todos" ? pr : { ...pr, ...pr.por_local[parseInt(vistaLocal)] });
 
-  const productos = (sug?.productos || []);
+  const productosProv = (sug?.productos || []);
+  const productos = marcasSel.length ? productosProv.filter(pr => marcasSel.includes(marcaDe(pr))) : productosProv;
   const filtrados = productos.filter(pr => {
     if (buscarProd.trim() && !((pr.nombre || "") + " " + (pr.marca || "") + " " + (pr.codigo_barras || "")).toLowerCase().includes(buscarProd.toLowerCase())) return false;
     // Con "solo lo que hay que pedir" tambien entra lo agotado (aunque no se haya vendido justamente por no haber)
@@ -7489,7 +7503,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
       return "• " + n + " × " + pr.nombre + (pr.marca ? " — " + pr.marca : "") + (pr.codigo_barras ? " [" + pr.codigo_barras + "]" : "") + detalleLocal;
     });
     const para = vistaLocal === "todos" ? "" : " para " + nombreLocal(parseInt(vistaLocal));
-    return "¡Hola" + (provObj?.nombre ? " " + provObj.nombre : "") + "! Te paso el pedido" + (nombreNegocio ? " de " + nombreNegocio : "") + para + ":\n\n" +
+    const deMarca = marcasSel.length ? " de " + marcasSel.join(", ") : "";
+    return "¡Hola" + (provObj?.nombre ? " " + provObj.nombre : "") + "! Te paso el pedido" + deMarca + (nombreNegocio ? (deMarca ? " para " : " de ") + nombreNegocio : "") + para + ":\n\n" +
       lineas.join("\n") + "\n\nTotal: " + unidades + " unidades. ¡Gracias!";
   };
   const copiarPedido = async () => {
@@ -7515,7 +7530,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
       await API.post("/ordenes-ingreso", {
         proveedor_id: parseInt(provSel), numero_factura: null,
         total: items.reduce((s, it) => s + it.cantidad_total * it.costo_unitario, 0),
-        notas: "Pedido armado en Qué pedir (" + items.length + " productos)", items,
+        notas: "Pedido armado en Qué pedir (" + items.length + " productos" + (marcasSel.length ? " · " + marcasSel.join(", ") : "") + ")", items,
       });
       setConfirmarOrden(false);
       avisar("✓ Pedido registrado: " + unidades + " unidades quedaron como mercadería en camino. Lo recibís desde Ingresos.");
@@ -7617,10 +7632,19 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
             <div className="qp-fila">
               <div style={{ flex: "2 1 220px" }}>
                 <div className="fl">Proveedor</div>
-                <select className="sel" value={provSel} onChange={e => setProvSel(e.target.value)} aria-label="Proveedor">
+                <select className="sel" value={provSel} onChange={e => { setProvSel(e.target.value); setMarcasSel(ms => ms.filter(m => provsDeMarca(m).includes(e.target.value))); }} aria-label="Proveedor">
                   <option value="">Elegí un proveedor...</option>
                   {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
                 </select>
+              </div>
+              <div style={{ flex: "2 1 200px" }}>
+                <div className="fl">Marca</div>
+                <select className="sel" value={marcasSel.length === 1 ? marcasSel[0] : ""} onChange={e => elegirMarca(e.target.value)} aria-label="Marca">
+                  <option value="">{marcasSel.length > 1 ? marcasSel.length + " marcas elegidas" : "Todas las marcas"}</option>
+                  {marcasCatalogo.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                {marcasSel.length === 1 && (() => { const pv = provsDeMarca(marcasSel[0]); if (pv.length < 2) return pv.length === 0 ? <div style={{ fontSize: 11.5, color: p.warn, marginTop: 4 }}>Esta marca no tiene proveedor cargado en sus productos.</div> : null;
+                  return <div style={{ fontSize: 11.5, marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}><span style={{ color: p.textMuted }}>La traen:</span>{pv.map(id => { const pr = proveedores.find(x => String(x.id) === id); return <button key={id} className={"mini-chip" + (String(provSel) === id ? " on" : "")} onClick={() => setProvSel(id)}>{pr ? pr.nombre : "Proveedor " + id}</button>; })}</div>; })()}
               </div>
               {!UN_SOLO_LOCAL && <div>
                 <div className="fl">Para</div>
@@ -7681,6 +7705,22 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
             <div className="skel" style={{ height: 260 }} />
           ) : !sug ? null : (
             <>
+              {(() => {
+                // Marcas de este proveedor: tocá una o varias para pedir solo esas
+                const ms = [...new Set(productosProv.map(marcaDe))].sort((a, b) => a.localeCompare(b, "es"));
+                if (ms.length < 2) return null;
+                const cuenta = (m) => productosProv.filter(pr => marcaDe(pr) === m && (cantPedido(pr) > 0 || datoLocal(pr).necesita_pedido || datoLocal(pr).agotado)).length;
+                return (
+                  <div className="chart-card" style={{ marginBottom: 12, padding: "10px 14px" }}>
+                    <div className="fl" style={{ marginBottom: 6 }}>Pedir por marca <span style={{ fontWeight: 500, color: p.textMuted }}>· tocá una o varias</span></div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <button className={"chip-btn" + (!marcasSel.length ? " on" : "")} onClick={() => setMarcasSel([])}>Todas ({ms.length})</button>
+                      {ms.map(m => { const on = marcasSel.includes(m), n = cuenta(m); return <button key={m} className={"chip-btn" + (on ? " on" : "")} onClick={() => setMarcasSel(x => on ? x.filter(y => y !== m) : [...x, m])}>{m}{n ? <span style={{ marginLeft: 5, color: on ? undefined : p.red, fontWeight: 800 }}>{n}</span> : null}</button>; })}
+                    </div>
+                    {marcasSel.length > 0 && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 6 }}>El pedido, los totales y el mensaje quedan solo con {marcasSel.length === 1 ? "esta marca" : "estas marcas"}. El número rojo es cuántos productos de cada marca hay que pedir.</div>}
+                  </div>
+                );
+              })()}
               <div className="kpi-grid" style={{ opacity: cargandoSug ? 0.6 : 1 }}>
                 <KpiCard p={p} titulo="Productos a pedir" valor={enPedido.length} color={p.accentText} indice={0} sub={"de " + productos.length + " del proveedor"} />
                 <KpiCard p={p} titulo="Unidades" valor={unidades} color="#2471a3" indice={1} sub={"para " + diasCobertura + " días"} />
@@ -7701,7 +7741,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
 
               <div className="chart-card" style={{ padding: 0, overflow: "hidden", opacity: cargandoSug ? 0.6 : 1 }}>
                 {filtrados.length === 0 ? (
-                  <div className="empty">{soloPedir ? "✓ Con este cálculo no hace falta pedirle nada a este proveedor." : "No hay productos."}</div>
+                  <div className="empty">{soloPedir ? "✓ Con este cálculo no hace falta pedirle nada " + (marcasSel.length ? "de " + marcasSel.join(", ") : "a este proveedor") + "." : "No hay productos."}</div>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
                     <table className="qp-tabla">
