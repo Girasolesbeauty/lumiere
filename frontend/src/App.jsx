@@ -419,6 +419,18 @@ button.tab { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { .globo-rojo { animation: none; } }
 .chip-btn { font-family: inherit; font-size: 11px; font-weight: 600; border: 1px solid ${p.border}; background: ${p.card}; color: ${p.text}; border-radius: 999px; padding: 5px 10px; cursor: pointer; transition: border-color .15s, background .15s; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .chip-btn:hover { border-color: ${p.accent}; }
+.mj-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.mj-stat{display:flex;align-items:center;gap:8px;border:1px solid;border-radius:12px;padding:8px 12px;flex:1 1 140px}
+.mj-stat span{font-size:18px}.mj-stat b{font-size:18px;font-variant-numeric:tabular-nums}.mj-stat small{font-size:11.5px;line-height:1.2}
+.mj-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+@media (max-width:900px){.mj-cols{grid-template-columns:1fr}}
+.mj-col{border-radius:14px;padding:10px;border:1px solid ${p.border}}
+.mj-col-t{display:grid;grid-template-columns:1fr auto;gap:0 8px;margin:2px 2px 10px}
+.mj-col-t em{font-style:normal;font-weight:800;background:${p.card};border:1px solid ${p.border};border-radius:99px;padding:0 9px;font-size:12px;align-self:center}
+.mj-col-t small{grid-column:1/-1;font-size:11.5px}
+.mj-card{border:1px solid;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.mj-btns{display:flex;gap:6px;margin-top:8px;align-items:center}
+.mj-panel{margin-top:8px;padding-top:8px;border-top:1px dashed ${p.border}}
 .chip-btn.on { background: ${p.accentDim}; border-color: ${p.accent}; color: ${p.accentText}; }
 .pos-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; overflow-y: auto; }
 .reto-card { border: 1px dashed ${p.accent}; background: ${p.accentDim}; border-radius: 8px; padding: 10px 12px; }
@@ -7012,6 +7024,8 @@ function MejoraContinua({ local, p, usuario, irA }) {
   const [verHechas, setVerHechas] = useState(false);
   const [posponiendo, setPosponiendo] = useState(null); // clave de la que esta eligiendo "Ahora no"
   const [verResueltas, setVerResueltas] = useState(false);
+  const [equipo, setEquipo] = useState(null); // lo que anotó el equipo en "Ideas y mejoras"
+  useEffect(() => { API.get("/mejoras").then(r => setEquipo(r.data.resumen)).catch(() => {}); }, []);
   const cargar = () => API.get("/gerente/mejoras?local_id=" + local).then(r => setDatos(r.data)).catch(e => setDatos({ error: e.response?.data?.error || "No se pudo cargar" }));
   useEffect(() => { setDatos(null); cargar(); }, [local]);
   const marcar = async (x, estado, dias) => {
@@ -7043,6 +7057,13 @@ function MejoraContinua({ local, p, usuario, irA }) {
           </button>
         )}
       </div>
+      {equipo && (
+        <button className="chip-btn" style={{ display: "flex", width: "100%", borderRadius: 12, padding: "10px 14px", marginBottom: 12, whiteSpace: "normal", textAlign: "left", fontSize: 12.5, gap: 8, alignItems: "center" }} onClick={() => irA("mejoras")}>
+          <span style={{ fontSize: 18 }}>💡</span>
+          <span style={{ flex: 1 }}><b>Ideas y mejoras del equipo</b> · {equipo.nuevas + equipo.en_marcha === 0 ? "nada pendiente. Anotá lo que se puede mejorar en el local" : <>{equipo.nuevas} {equipo.nuevas === 1 ? "nueva" : "nuevas"} · {equipo.en_marcha} en marcha{equipo.vencidas ? <b style={{ color: p.red }}> · {equipo.vencidas} {equipo.vencidas === 1 ? "vencida" : "vencidas"}</b> : null}</>}</span>
+          <span>Ver →</span>
+        </button>
+      )}
       {verResueltas && resueltas.length > 0 && (
         <div className="chart-card pop-in" style={{ marginBottom: 12 }}>
           <div className="chart-title">🏆 Lo que ya resolviste</div>
@@ -19563,6 +19584,160 @@ function Comprobantes({ localId, usuario, paletaActual }) {
 }
 
 // 🧪 Testers: qué tester hay abierto en cada local, desde cuándo, cuánto dura cada uno y cuánto se gasta por marca
+// 💡 Ideas y mejoras: mejora continua del negocio, anotada por todo el equipo (routes/mejoras.js)
+const MJ_TIPOS = [["problema", "⚠️", "Un problema"], ["clienta", "💬", "Lo dijo una clienta"], ["idea", "💡", "Una idea"]];
+const MJ_AREAS = [["atencion", "Atención"], ["local", "Local y vidriera"], ["tienda", "Tienda online"], ["stock", "Stock y pedidos"], ["caja", "Caja y pagos"], ["redes", "Redes y difusión"], ["equipo", "Equipo"], ["otro", "Otro"]];
+const MJ_PRIO = [["urgente", "🔥 Urgente"], ["importante", "Importante"], ["cuando", "Cuando se pueda"]];
+const MJ_COLS = [["nueva", "📥 Nuevas", "Lo que se anotó y todavía nadie tomó"], ["en_marcha", "🛠️ En marcha", "Con responsable y fecha"], ["hecha", "✅ Hechas", "Qué se hizo y si funcionó"]];
+const MJ_FUNC = [["si", "👍 Funcionó"], ["masomenos", "🤏 Más o menos"], ["no", "👎 No funcionó"]];
+function IdeasMejoras({ localId, usuario, paletaActual }) {
+  const tp = paletaActual || PALETA_CLARA;
+  const [d, setD] = useState(null);
+  const [error, setError] = useState(false);
+  const [nueva, setNueva] = useState(null);
+  const [abierta, setAbierta] = useState(null); // { id, modo: "empezar" | "terminar" | "editar", ...campos }
+  const [filtro, setFiltro] = useState("");
+  const [msg, setMsg] = useState("");
+  const cargar = () => API.get("/mejoras").then(r => { setD(r.data); setError(false); }).catch(() => setError(true));
+  useEffect(() => { cargar(); }, []);
+  const avisar = (t) => { setMsg(t); setTimeout(() => setMsg(""), 3500); };
+  const reemplazar = (m) => setD(x => ({ ...x, lista: x.lista.map(y => y.id === m.id ? m : y) }));
+  const guardarNueva = async () => {
+    try { await API.post("/mejoras", { ...nueva, usuario_nombre: usuario?.nombre }); setNueva(null); avisar("✓ Anotado. ¡Gracias por sumar!"); cargar(); }
+    catch (e) { avisar(e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const cambiar = async (m, datos, ok) => {
+    try { const r = await API.put("/mejoras/" + m.id, datos); setAbierta(null); if (ok) avisar(ok); reemplazar(r.data); cargar(); }
+    catch (e) { avisar(e.response?.data?.error || "No se pudo guardar"); }
+  };
+  const votar = async (m) => { try { const r = await API.post("/mejoras/" + m.id + "/voto"); reemplazar(r.data); } catch (e) {} };
+  const borrar = async (m) => { if (!window.confirm("¿Borrar \"" + m.titulo + "\"?")) return; try { await API.delete("/mejoras/" + m.id); setAbierta(null); cargar(); } catch (e) { avisar(e.response?.data?.error || "No se pudo borrar"); } };
+  if (error) return <div className="card"><div className="empty">No se pudo cargar. Probá de nuevo.</div></div>;
+  if (!d) return <div className="skel" style={{ height: 300 }} />;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const fechaC = (f) => f ? new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : "";
+  const venc = (m) => m.estado === "en_marcha" && m.fecha_limite && String(m.fecha_limite).slice(0, 10) < hoy;
+  const prioN = { urgente: 0, importante: 1, cuando: 2 };
+  const lista = d.lista.filter(m => !filtro || m.area === filtro);
+  const r = d.resumen;
+  const tipo = (k) => MJ_TIPOS.find(t => t[0] === k) || MJ_TIPOS[2];
+  const area = (k) => (MJ_AREAS.find(a => a[0] === k) || ["", "Otro"])[1];
+  const formCampos = (v, set) => (<>
+    <div className="seg" role="group" aria-label="Qué es" style={{ flexWrap: "wrap" }}>{MJ_TIPOS.map(([k, ic, t]) => <button key={k} className={v.tipo === k ? "on" : ""} onClick={() => set({ tipo: k })}>{ic} {t}</button>)}</div>
+    <input className="inp" style={{ marginTop: 10 }} maxLength={160} autoFocus placeholder={v.tipo === "idea" ? "¿Cuál es la idea? Ej: armar packs de regalo para el Día de la Madre" : v.tipo === "clienta" ? "¿Qué dijo? Ej: no encontraba el talle en la web" : "¿Qué pasa? Ej: se termina el protector solar antes de que llegue el pedido"} value={v.titulo || ""} onChange={e => set({ titulo: e.target.value })} />
+    <textarea className="inp" style={{ marginTop: 8, minHeight: 64 }} maxLength={1500} placeholder="Más detalles (opcional): cuándo pasa, a quién, alguna idea de cómo resolverlo" value={v.detalle || ""} onChange={e => set({ detalle: e.target.value })} />
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8, fontSize: 13, alignItems: "center" }}>
+      <label>Área: <select className="sel" value={v.area || "otro"} onChange={e => set({ area: e.target.value })}>{MJ_AREAS.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+      {!UN_SOLO_LOCAL && <label>Local: <select className="sel" value={v.local_id || ""} onChange={e => set({ local_id: e.target.value ? Number(e.target.value) : null })}><option value="">Los dos</option><option value={1}>{nombreLocal(1)}</option><option value={2}>{nombreLocal(2)}</option></select></label>}
+      <label>Prioridad: <select className="sel" value={v.prioridad || "importante"} onChange={e => set({ prioridad: e.target.value })}>{MJ_PRIO.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</select></label>
+    </div>
+  </>);
+  const tarjeta = (m) => {
+    const ic = tipo(m.tipo)[1];
+    const ab = abierta && abierta.id === m.id ? abierta : null;
+    const setA = (c) => setAbierta(x => ({ ...x, ...c }));
+    return (
+      <div key={m.id} className="mj-card" style={{ borderColor: venc(m) ? tp.red : tp.border, background: tp.card }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <span style={{ fontSize: 18 }} title={tipo(m.tipo)[2]}>{ic}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 13.5, lineHeight: 1.35 }}>{m.titulo}</div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
+              <span className="tag tag-neutral">{area(m.area)}</span>
+              {m.local_id && !UN_SOLO_LOCAL && <span className="tag tag-neutral">{nombreLocal(m.local_id)}</span>}
+              {m.estado !== "hecha" && m.prioridad === "urgente" && <span className="tag" style={{ background: tp.red + "1f", color: tp.red }}>🔥 Urgente</span>}
+              {m.estado === "hecha" && m.funciono && <span className={"tag " + (m.funciono === "si" ? "tag-ok" : "tag-neutral")}>{(MJ_FUNC.find(f => f[0] === m.funciono) || [])[1]}</span>}
+            </div>
+          </div>
+        </div>
+        {m.detalle && <div style={{ fontSize: 12.5, color: tp.textMuted, marginTop: 6, whiteSpace: "pre-wrap" }}>{m.detalle}</div>}
+        {m.estado === "en_marcha" && <div style={{ fontSize: 12.5, marginTop: 6 }}>👤 <b>{m.responsable || "Sin responsable"}</b>{m.fecha_limite && <span style={{ color: venc(m) ? tp.red : tp.textMuted, fontWeight: venc(m) ? 800 : 500 }}> · {venc(m) ? "venció el " : "para el "}{fechaC(String(m.fecha_limite).slice(0, 10) + "T12:00:00")}</span>}</div>}
+        {m.estado === "hecha" && m.resultado && <div style={{ fontSize: 12.5, marginTop: 6, padding: "6px 8px", borderRadius: 8, background: tp.green + "14" }}>✔️ {m.resultado}</div>}
+        <div style={{ fontSize: 11, color: tp.textMuted, marginTop: 6 }}>{m.creado_por ? "Lo anotó " + m.creado_por + " · " : ""}{fechaC(m.creado_en)}{m.estado === "hecha" && m.resuelto_en ? " · hecha el " + fechaC(m.resuelto_en) : ""}</div>
+        {!ab && <div className="mj-btns">
+          {m.estado !== "hecha" && <button className={"btn btn-sm " + (m.vote ? "btn-p" : "btn-g")} onClick={() => votar(m)} title="A mí también me pasa / me parece bien">👍 {m.votos || ""}</button>}
+          {m.estado === "nueva" && <button className="btn btn-p btn-sm" onClick={() => setAbierta({ id: m.id, modo: "empezar", responsable: m.responsable || usuario?.nombre || "", fecha_limite: "" })}>Empezar →</button>}
+          {m.estado === "en_marcha" && <button className="btn btn-p btn-sm" onClick={() => setAbierta({ id: m.id, modo: "terminar", resultado: "", funciono: "" })}>✓ Hecho</button>}
+          {m.estado === "hecha" && m.funciono === "no" && <button className="btn btn-g btn-sm" onClick={() => cambiar(m, { estado: "en_marcha" }, "Volvió a En marcha")}>Probar otra cosa</button>}
+          <button className="btn btn-g btn-sm" onClick={() => setAbierta({ id: m.id, modo: "editar", ...m })}>Editar</button>
+        </div>}
+        {ab && ab.modo === "empezar" && <div className="mj-panel pop-in">
+          <label style={{ fontSize: 12.5 }}>¿Quién se encarga?<input className="inp" list="mj-resp" value={ab.responsable} onChange={e => setA({ responsable: e.target.value })} /></label>
+          <label style={{ fontSize: 12.5, display: "block", marginTop: 6 }}>¿Para cuándo? <span style={{ color: tp.textMuted }}>(opcional)</span><input className="inp" type="date" value={ab.fecha_limite} onChange={e => setA({ fecha_limite: e.target.value })} /></label>
+          <div className="mj-btns"><button className="btn btn-g btn-sm" onClick={() => setAbierta(null)}>Cancelar</button><button className="btn btn-p btn-sm" onClick={() => cambiar(m, { estado: "en_marcha", responsable: ab.responsable, fecha_limite: ab.fecha_limite || null }, "✓ En marcha")}>Empezar</button></div>
+        </div>}
+        {ab && ab.modo === "terminar" && <div className="mj-panel pop-in">
+          <label style={{ fontSize: 12.5 }}>¿Qué se hizo?<textarea className="inp" style={{ minHeight: 54 }} maxLength={1500} placeholder="Ej: ahora pedimos protector cada 15 días en vez de una vez por mes" value={ab.resultado} onChange={e => setA({ resultado: e.target.value })} /></label>
+          <div style={{ fontSize: 12.5, marginTop: 6 }}>¿Funcionó?</div>
+          <div className="seg" role="group" aria-label="¿Funcionó?" style={{ flexWrap: "wrap" }}>{MJ_FUNC.map(([k, t]) => <button key={k} className={ab.funciono === k ? "on" : ""} onClick={() => setA({ funciono: k })}>{t}</button>)}</div>
+          <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 4 }}>Si todavía no sabés, dejalo sin marcar y lo completás más adelante con "Editar".</div>
+          <div className="mj-btns"><button className="btn btn-g btn-sm" onClick={() => setAbierta(null)}>Cancelar</button><button className="btn btn-p btn-sm" onClick={() => cambiar(m, { estado: "hecha", resultado: ab.resultado, funciono: ab.funciono || null }, "🎉 ¡Una mejora más!")}>Guardar como hecha</button></div>
+        </div>}
+        {ab && ab.modo === "editar" && <div className="mj-panel pop-in">
+          {formCampos(ab, setA)}
+          {ab.estado !== "nueva" && <label style={{ fontSize: 12.5, display: "block", marginTop: 8 }}>Responsable<input className="inp" list="mj-resp" value={ab.responsable || ""} onChange={e => setA({ responsable: e.target.value })} /></label>}
+          {ab.estado === "en_marcha" && <label style={{ fontSize: 12.5, display: "block", marginTop: 6 }}>Para cuándo<input className="inp" type="date" value={ab.fecha_limite ? String(ab.fecha_limite).slice(0, 10) : ""} onChange={e => setA({ fecha_limite: e.target.value })} /></label>}
+          {ab.estado === "hecha" && <>
+            <label style={{ fontSize: 12.5, display: "block", marginTop: 6 }}>Qué se hizo<textarea className="inp" style={{ minHeight: 54 }} maxLength={1500} value={ab.resultado || ""} onChange={e => setA({ resultado: e.target.value })} /></label>
+            <div className="seg" role="group" aria-label="¿Funcionó?" style={{ flexWrap: "wrap", marginTop: 6 }}>{MJ_FUNC.map(([k, t]) => <button key={k} className={ab.funciono === k ? "on" : ""} onClick={() => setA({ funciono: ab.funciono === k ? "" : k })}>{t}</button>)}</div>
+          </>}
+          <div className="mj-btns" style={{ flexWrap: "wrap" }}>
+            {m.estado !== "nueva" && <button className="btn btn-g btn-sm" onClick={() => cambiar(m, { estado: "nueva" }, "Volvió a Nuevas")}>↩ Volver a Nuevas</button>}
+            <button className="btn btn-g btn-sm" onClick={() => cambiar(m, { estado: "descartada" }, "Descartada")}>Descartar</button>
+            {d.puede_borrar && <button className="btn btn-g btn-sm" style={{ color: tp.red }} onClick={() => borrar(m)}>Borrar</button>}
+            <span style={{ flex: 1 }} />
+            <button className="btn btn-g btn-sm" onClick={() => setAbierta(null)}>Cancelar</button>
+            <button className="btn btn-p btn-sm" onClick={() => cambiar(m, { titulo: ab.titulo, detalle: ab.detalle, tipo: ab.tipo, area: ab.area, local_id: ab.local_id, prioridad: ab.prioridad, responsable: ab.responsable, fecha_limite: ab.fecha_limite ? String(ab.fecha_limite).slice(0, 10) : null, resultado: ab.resultado, funciono: ab.funciono || null }, "✓ Guardado")}>Guardar</button>
+          </div>
+        </div>}
+      </div>
+    );
+  };
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <datalist id="mj-resp">{d.responsables.map(n => <option key={n} value={n} />)}</datalist>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ flex: 1, minWidth: 220 }}><div className="pt">💡 Ideas y mejoras</div><div className="ps">Lo que se puede hacer mejor en el negocio, anotado por todo el equipo</div></div>
+        <button className="btn btn-p" onClick={() => setNueva({ tipo: "problema", titulo: "", detalle: "", area: "otro", local_id: UN_SOLO_LOCAL ? null : (Number(localId) || null), prioridad: "importante" })}>+ Anotar</button>
+      </div>
+      {msg && <div className="card" role="status" style={{ padding: "10px 14px", fontSize: 13 }}>{msg}</div>}
+      {nueva && <div className="card pop-in">
+        <div className="ct">¿Qué querés anotar?</div>
+        {formCampos(nueva, (c) => setNueva(x => ({ ...x, ...c })))}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setNueva(null)}>Cancelar</button><button className="btn btn-p" disabled={!String(nueva.titulo || "").trim()} onClick={guardarNueva}>Anotar</button></div>
+      </div>}
+      <div className="mj-stats">
+        {[["📥", r.nuevas, "nuevas"], ["🛠️", r.en_marcha, "en marcha"], ...(r.vencidas ? [["⏰", r.vencidas, r.vencidas === 1 ? "vencida" : "vencidas", tp.red]] : []), ["✅", r.hechas_mes, "hechas este mes"], ...(r.dias_promedio !== null ? [["⏱️", r.dias_promedio < 1 ? "< 1 día" : r.dias_promedio + (r.dias_promedio === 1 ? " día" : " días"), "en resolverse (promedio)"]] : [])].map(([ic, n, t, c]) => (
+          <div key={t} className="mj-stat" style={{ borderColor: tp.border, background: tp.card }}><span>{ic}</span><b style={{ color: c || tp.text }}>{n}</b><small style={{ color: tp.textMuted }}>{t}</small></div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "4px 0 12px" }}>
+        <button className={"chip-btn" + (!filtro ? " on" : "")} onClick={() => setFiltro("")}>Todas</button>
+        {MJ_AREAS.filter(([k]) => d.lista.some(m => m.area === k)).map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(filtro === k ? "" : k)}>{t}</button>)}
+      </div>
+      {d.lista.length === 0 && !nueva ? (
+        <div className="card" style={{ textAlign: "center", padding: 28 }}>
+          <div style={{ fontSize: 38 }}>💡</div>
+          <b>Todavía no hay nada anotado</b>
+          <div style={{ color: tp.textMuted, fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>Cuando algo se repite (una clienta que pregunta siempre lo mismo, un producto que se agota, algo que tarda), anotalo acá.<br />Así no se pierde y se puede resolver de a una cosa por vez.</div>
+        </div>
+      ) : (
+        <div className="mj-cols">
+          {MJ_COLS.map(([k, t, sub]) => {
+            const items = lista.filter(m => m.estado === k).sort((a, b) => k === "hecha" ? new Date(b.resuelto_en || 0) - new Date(a.resuelto_en || 0) : (venc(b) - venc(a)) || (prioN[a.prioridad] - prioN[b.prioridad]) || (b.votos - a.votos) || (new Date(b.creado_en) - new Date(a.creado_en)));
+            return (
+              <div key={k} className="mj-col" style={{ background: tp.bg }}>
+                <div className="mj-col-t"><b>{t}</b><em>{items.length}</em><small style={{ color: tp.textMuted }}>{sub}</small></div>
+                {items.length === 0 ? <div style={{ fontSize: 12.5, color: tp.textMuted, padding: "6px 2px" }}>{k === "nueva" ? "Nada nuevo por ahora." : k === "en_marcha" ? "Nada en marcha." : "Todavía ninguna."}</div> : items.map(m => tarjeta(m))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Testers({ localId, usuario, paletaActual }) {
   const tp = paletaActual || PALETA_CLARA;
   const [d, setD] = useState(null);
@@ -26397,7 +26572,8 @@ function Promociones({ paletaActual }) {
 // soloJefe = solo lo ve el dueno (como antes, cuando iban aparte en CONFIGURACION).
 const NAV_SECTIONS = [
   { section: "TU GERENTE", color: "#c9a84c", items: [
-    { id: "gerente", icon: "✨", label: "Lumiere, tu gerente", k: "gerente salud analisis mejora continua preguntas logros medallas decisiones" }] },
+    { id: "gerente", icon: "✨", label: "Lumiere, tu gerente", k: "gerente salud analisis mejora continua preguntas logros medallas decisiones" },
+    { id: "mejoras", icon: "💡", label: "Ideas y mejoras", k: "mejora continua ideas problemas quejas sugerencias equipo kaizen pendientes" }] },
   { section: "CONSULTORIO", color: "#16a085", items: [
     { id: "agenda", icon: "📅", label: "Agenda", k: "turnos turno citas agenda pacientes consultorio", soloConsultorio: true },
     { id: "pacientes", icon: "🩺", label: "Pacientes", k: "historia clinica ficha fotos antes despues evolucion paciente", soloConsultorio: true },
@@ -32686,7 +32862,7 @@ function TiendaPublica({ slug }) {
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
         <div className="tw-cab1">
           <button className="tw-marca" onClick={() => { if (codigoUrl) window.location.href = "?tienda=" + encodeURIComponent(slug); else irInicio(); }} aria-label="Inicio">
-            {tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} onLoad={e => { const im = e.currentTarget; if (im.naturalWidth && im.naturalWidth / im.naturalHeight < 1.35) im.classList.add("cuadrado"); }} /> : <b>{tienda.titulo}</b>}
+            {tienda.logo ? <img src={tienda.logo} alt={tienda.titulo} onLoad={e => { const im = e.currentTarget; if (im.naturalWidth && im.naturalWidth / im.naturalHeight < 1.6) im.classList.add("cuadrado"); }} /> : <b>{tienda.titulo}</b>}
           </button>
           {!codigoUrl && (
             <label className="tw-busca"><TwIcono d={TW_LUPA} size={18} />
@@ -38220,6 +38396,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               {cfg.logo && <button className="btn btn-g btn-sm" onClick={() => set("logo", "")}>Quitar</button>}
             </div>
             <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Mejor si tiene fondo transparente (PNG). Si es redondo o cuadrado, en la tienda se ve más grande. Tocá Guardar para que se vea en la tienda.</div>
+            {(() => {
+              // Volver a un logo anterior (ej. después de uno de temporada) o al original del negocio
+              const ops = [...(cfg.logo_original ? [[cfg.logo_original, "Original"]] : []), ...(cfg.logos_previos || []).map((x, i) => [x, i === 0 ? "El anterior" : "Antes"])].filter(([x], i, arr) => x !== cfg.logo && arr.findIndex(y => y[0] === x) === i);
+              if (!ops.length) return null;
+              return (<div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: temaPal.textMuted, marginBottom: 4 }}>Volver a un logo anterior</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{ops.map(([x, t]) => (
+                  <button key={x.slice(0, 80) + t} className="btn btn-g btn-sm" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 6, background: "#fff" }} onClick={() => set("logo", x)} title="Usar este logo">
+                    <img src={x} alt="" style={{ height: 34, maxWidth: 120, objectFit: "contain" }} /><span style={{ fontSize: 10.5, color: "#555" }}>{t}</span>
+                  </button>))}</div>
+                <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Tocá uno y después Guardar.</div>
+              </div>);
+            })()}
             <div className="fl" style={{ marginTop: 12 }}>Ícono para el celular (acceso directo y pestaña)</div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ width: 64, height: 64, borderRadius: 14, overflow: "hidden", border: "1px solid " + temaPal.border, background: "#f4f4f4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -38230,6 +38419,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </label>
               {cfg.icono && <button className="btn btn-g btn-sm" onClick={() => set("icono", "")}>Quitar</button>}
             </div>
+            {(cfg.iconos_previos || []).filter(x => x !== cfg.icono).length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: temaPal.textMuted }}>Íconos anteriores:</span>
+              {(cfg.iconos_previos || []).filter(x => x !== cfg.icono).map((x, i) => <button key={i} onClick={() => set("icono", x)} title="Usar este ícono" style={{ width: 40, height: 40, borderRadius: 10, overflow: "hidden", border: "1px solid " + temaPal.border, padding: 0, cursor: "pointer", background: "#f4f4f4" }}><img src={x} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></button>)}
+            </div>}
             <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>Imagen cuadrada con fondo de color (ej: el logo sobre violeta). Es el ícono que queda en el celular cuando agregan la tienda a la pantalla de inicio. Si ya la tenían agregada, tienen que borrarla y volver a agregarla para ver el nuevo.</div>
             <div className="fl" style={{ marginTop: 12 }}>Nombre que se ve</div>
             <input className="inp" placeholder="Ej: Girasoles" value={cfg.titulo || ""} onChange={e => set("titulo", e.target.value)} />
@@ -40646,6 +40839,7 @@ function AppWrapper() {
     if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
     if (id === "calculadoras") return <Calculadoras usuario={usuario} paletaActual={paletaActual} />;
     if (id === "comprobantes") return <Comprobantes localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "mejoras") return <IdeasMejoras localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "testers") return <Testers localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "del-mes") return <DelMes usuario={usuario} paletaActual={paletaActual} />;
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
