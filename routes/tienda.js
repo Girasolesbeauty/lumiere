@@ -32,6 +32,17 @@ router.use(async (req, res, next) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo abrir la tienda' }); }
 });
 
+// El logo original del negocio que viene con el sistema (archivo de /logos), además de las imágenes subidas
+const LOGO_PROPIO = /^\/logos\/[a-z0-9-]+\.svg$/;
+// Al cambiar el logo o el ícono, el que estaba queda guardado entre los últimos 6, para poder volver a usarlo
+async function guardarConHistorial(col, colPrev, nuevo) {
+  const r = (await pool.query(`SELECT ${col} AS actual, ${colPrev} AS prev FROM tienda_config WHERE id = 1`)).rows[0] || {};
+  if ((r.actual || null) === nuevo) return;
+  let prev = Array.isArray(r.prev) ? r.prev.filter(x => x && x !== nuevo) : [];
+  if (r.actual) prev = [r.actual, ...prev.filter(x => x !== r.actual)];
+  await pool.query(`UPDATE tienda_config SET ${col} = $1, ${colPrev} = $2 WHERE id = 1`, [nuevo, JSON.stringify(prev.slice(0, 6))]);
+}
+
 router.get('/config', async (req, res) => {
   try {
     const c = await tienda.leerConfig();
@@ -40,7 +51,7 @@ router.get('/config', async (req, res) => {
     const neg = (await pool.query('SELECT nombre_negocio FROM configuracion_negocio LIMIT 1').catch(() => ({ rows: [] }))).rows[0] || {};
     const sugerido = String(neg.nombre_negocio || 'mi-tienda').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'mi-tienda';
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);
-    res.json({ ...c, ayuda_pago: tienda.ayudaPagoDe(c), ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), legales: tienda.legalesDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
+    res.json({ ...c, logo_original: Number(req.negocio ? req.negocio.id : 1) === 1 ? '/logos/girasoles-logo.svg' : null, ayuda_pago: tienda.ayudaPagoDe(c), ruleta: tienda.ruletaDe(c), preventa: tienda.preventaDe(c), misiones: misiones.misionesDe(c), misiones_tipos: misiones.TIPOS, rutinas: tienda.rutinasDe(c), referidos: tienda.referidosDe(c), puntos_dia: tienda.puntosDiaDe(c), legales: tienda.legalesDe(c), ofertas: tienda.ofertasDe(c), regalos: tienda.regalosDe(c), links: tienda.linksDe(c), muestras: tienda.muestrasDe(c), cumple: tienda.cumpleDe(c), express: tienda.expressDe(c), diagnostico: tienda.diagnosticoDe(c), packs: tienda.packsDe(c), regalos_hoy: tienda.temaRegaloHoy(tienda.regalosDe(c)), mp_conectado: mp, slug_sugerido: sugerido, dominio: dominio || '' });
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
@@ -111,13 +122,13 @@ router.put('/config', async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(b, 'icono')) {
       const ic = String(b.icono || '');
       if (ic && (!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(ic) || ic.length > 700000)) return res.status(400).json({ error: 'El ícono tiene que ser una imagen PNG o JPG' });
-      await pool.query('UPDATE tienda_config SET icono = $1 WHERE id = 1', [ic || null]);
+      await guardarConHistorial('icono', 'iconos_previos', ic || null);
     }
     // Logo propio de la tienda (imagen chica, ya achicada en el navegador). Vacio = usar el del negocio
     if (Object.prototype.hasOwnProperty.call(b, 'logo')) {
       const logo = String(b.logo || '');
-      if (logo && (!/^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo) || logo.length > 600000)) return res.status(400).json({ error: 'El logo tiene que ser una imagen PNG o JPG' });
-      await pool.query('UPDATE tienda_config SET logo = $1 WHERE id = 1', [logo || null]);
+      if (logo && !LOGO_PROPIO.test(logo) && (!/^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo) || logo.length > 600000)) return res.status(400).json({ error: 'El logo tiene que ser una imagen PNG o JPG' });
+      await guardarConHistorial('logo', 'logos_previos', logo || null);
     }
     res.json({ ok: true });
   } catch (e) {
