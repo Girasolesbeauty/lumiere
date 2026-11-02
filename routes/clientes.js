@@ -7,6 +7,24 @@ router.get('/', controller.getAll);
 // escrito con puntos o espacios, con ceros adelante, y también si la clienta está guardada con su CUIT
 // (27-32456789-4 → DNI 32456789) o si escriben el CUIT y está guardada con el DNI.
 const pool = require('../config/database');
+// Buscar clientas por celular (Punto de Venta, señas y preventas): se comparan los últimos 6 números, así encuentra
+// el mismo celular escrito con o sin 0, 15, código de área o +54 9. Devuelve hasta 6, las más parecidas primero.
+router.get('/buscar-tel', async (req, res) => {
+  try {
+    const q = String(req.query.tel || '').replace(/[^0-9]/g, '');
+    if (q.length < 6) return res.json([]);
+    const r = await pool.query(`
+      WITH c AS (SELECT cl.*, regexp_replace(COALESCE(cl.telefono, ''), '[^0-9]', '', 'g') AS dig FROM clientes cl)
+      SELECT c.id, c.nombre, c.email, c.cuit_dni, c.telefono, c.fecha_nacimiento, c.puntos, c.nivel, c.total_compras, c.local_id, c.creado_en,
+             (c.password_hash IS NOT NULL) AS portal_activo, c.portal_registrado_en,
+             (SELECT COUNT(*) FROM ventas v WHERE v.cliente_id = c.id AND COALESCE(v.anulada, FALSE) = FALSE AND v.total > 0)::int AS compras
+      FROM c
+      WHERE length(c.dig) >= 6 AND right(c.dig, 6) = right($1, 6)
+      ORDER BY (right(c.dig, 8) = right($1, 8)) DESC, (c.dig = $1) DESC, compras DESC, c.id
+      LIMIT 6`, [q]);
+    res.json(r.rows);
+  } catch (e) { console.error('[clientes] buscar-tel:', e.message); res.status(500).json({ error: 'No se pudo buscar la clienta' }); }
+});
 router.get('/buscar-dni', async (req, res) => {
   try {
     const d = String(req.query.dni || '').replace(/\D/g, '').replace(/^0+/, '');
