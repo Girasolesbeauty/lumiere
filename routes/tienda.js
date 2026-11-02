@@ -1139,7 +1139,7 @@ router.put('/turnos/:id', async (req, res) => {
       [estado, piel, nec && nec.length ? JSON.stringify(nec) : null, resultado, por, id]);
     if (estado === 'atendido' && t.cliente_id && (piel || (nec && nec.length))) {
       const antes = ((await pool.query('SELECT perfil_piel FROM clientes WHERE id = $1', [t.cliente_id])).rows[0] || {}).perfil_piel || {};
-      await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [JSON.stringify({ piel: piel || antes.piel || null, nec: nec && nec.length ? nec : (antes.nec || []) }), t.cliente_id]);
+      await pool.query('UPDATE clientes SET perfil_piel = $1 WHERE id = $2', [JSON.stringify({ piel: piel || antes.piel || null, pieles: piel ? ((antes.pieles || []).includes(piel) ? antes.pieles : [piel]) : (antes.pieles || []), nec: nec && nec.length ? nec : (antes.nec || []) }), t.cliente_id]);
     }
     res.json((await pool.query(`${SQL_TURNOS} WHERE t.id = $1`, [id])).rows[0]);
   } catch (e) { console.error('[tienda] turno:', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
