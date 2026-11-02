@@ -27160,7 +27160,14 @@ button.tw-puntosdia-barra{cursor:pointer}
 .tw-puntos-card.tw-vip{--mx:50%;--my:50%;--rx:0deg;--ry:0deg;margin:0;border-radius:20px;padding:18px 20px 16px;min-height:200px;transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .25s ease-out;animation:twVipEntra .8s cubic-bezier(.2,.9,.25,1.15) both;box-shadow:0 18px 40px -14px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.45)}
 @keyframes twVipEntra{from{opacity:0;transform:translateY(24px) rotateX(18deg) scale(.96)}}
 .tw-puntos-card.tw-vip::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 100% 0%,rgba(255,255,255,.35),transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 7px);pointer-events:none;z-index:0}
-.tw-vip-holo{position:absolute!important;inset:0;z-index:0!important;pointer-events:none;mix-blend-mode:overlay;opacity:.55;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.75),transparent 40%),linear-gradient(115deg,rgba(255,0,170,.18),rgba(0,200,255,.18),rgba(255,230,0,.18),rgba(255,0,170,.18));background-size:100% 100%,300% 100%;animation:twVipHolo 6s linear infinite}
+.tw-puntos-card.tw-vip::after{background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.65) 48%,rgba(255,255,255,.15) 54%,transparent 64%);width:85%;animation:twBrillo 4s ease-in-out .6s infinite;z-index:2}
+.tw-vip-luz{position:absolute!important;z-index:0!important;inset:-30%;pointer-events:none;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.55),transparent 32%);mix-blend-mode:soft-light;animation:twVipLuz 7s ease-in-out infinite alternate}
+@keyframes twVipLuz{0%{transform:translate(-28%,-18%)}50%{transform:translate(10%,12%)}100%{transform:translate(28%,-10%)}}
+.tw-vip-chispas{position:absolute!important;inset:0;z-index:2!important;pointer-events:none}
+.tw-vip-chispas i{position:absolute;font-style:normal;font-size:15px;color:#fff;text-shadow:0 0 6px rgba(255,255,255,.9),0 0 12px rgba(255,240,200,.8);opacity:0;animation:twVipChispa 3.4s ease-in-out infinite}
+.nivel-silver .tw-vip-chispas i,.nivel-platinum .tw-vip-chispas i,.nivel-gold .tw-vip-chispas i{color:#fffdf5}
+@keyframes twVipChispa{0%,100%{opacity:0;transform:scale(.3) rotate(0)}45%{opacity:1;transform:scale(1.15) rotate(45deg)}60%{opacity:.2;transform:scale(.7) rotate(70deg)}}
+.tw-vip-holo{position:absolute!important;inset:0;z-index:0!important;pointer-events:none;mix-blend-mode:overlay;opacity:.8;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.75),transparent 40%),linear-gradient(115deg,rgba(255,0,170,.18),rgba(0,200,255,.18),rgba(255,230,0,.18),rgba(255,0,170,.18));background-size:100% 100%,300% 100%;animation:twVipHolo 6s linear infinite}
 @keyframes twVipHolo{to{background-position:0 0,300% 0}}
 .tw-vip-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .tw-vip-marca{font-weight:900;font-size:15px;letter-spacing:.06em;text-transform:uppercase;line-height:1.1}
@@ -27189,7 +27196,7 @@ button.tw-puntosdia-barra{cursor:pointer}
 .tw-vip-prox{margin-top:10px;font-size:11.5px;font-weight:600;opacity:.85}
 .tw-vip-pie{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.14em;opacity:.75;text-shadow:0 1px 0 rgba(255,255,255,.2)}
 .tw-vip-pie span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (prefers-reduced-motion:reduce){.tw-puntos-card.tw-vip,.tw-vip-holo,.tw-vip-x2,.tw-vip-barra i,.tw-vip-barra i::after{animation:none!important;transform:none!important}}
+@media (prefers-reduced-motion:reduce){.tw-vip-luz,.tw-vip-chispas,.tw-puntos-card.tw-vip::after{display:none}.tw-puntos-card.tw-vip,.tw-vip-holo,.tw-vip-x2,.tw-vip-barra i,.tw-vip-barra i::after{animation:none!important;transform:none!important}}
 .tw-puntos-card.nivel-bronze{background:linear-gradient(135deg,#7a4a22,#b9773d 45%,#e2a970 75%,#a8662f);color:#fff8f0}
 .tw-puntos-card.nivel-silver{background:linear-gradient(135deg,#8a9097,#cfd4d9 40%,#f4f6f8 60%,#a9b0b7);color:#1f2328}
 .tw-puntos-card.nivel-gold{background:linear-gradient(135deg,#a7791f,#e3bf62 40%,#f8e6a8 60%,#c0942f);color:#2b1f05}
@@ -28820,6 +28827,8 @@ function TwTarjetaSocia({ nivel, sigNiv, pts, faltaNivPts, pctNiv, proximo, nomb
     <div className="tw-vip-escena">
       <div ref={ref} className={"tw-puntos-card tw-vip nivel-" + String(nivel).toLowerCase()}>
         <span className="tw-vip-holo" aria-hidden="true" />
+        <span className="tw-vip-luz" aria-hidden="true" />
+        <span className="tw-vip-chispas" aria-hidden="true">{[[18, 22, 0], [72, 14, 1.1], [88, 58, 2.3], [46, 78, .6], [30, 48, 1.8], [62, 40, 2.9]].map(([x, y, d], k) => <i key={k} style={{ left: x + "%", top: y + "%", animationDelay: d + "s" }}>✦</i>)}</span>
         <div className="tw-vip-top">
           <span className="tw-vip-marca">{marca || "Club"}<small>CLUB DE BENEFICIOS</small></span>
           <span className="tw-nivel tw-vip-nivel">✦ {nivel}</span>
@@ -29717,15 +29726,44 @@ function SegmentarTienda({ lista, temaPal, avisar, onCerrar, onListo }) {
 const twRaiz = (w) => { let r = w.replace(/(es|s)$/, ""); if (r.length > 5) r = r.replace(/(dor|dora|nte|cion)$/, ""); else if (r.length > 4) r = r.replace(/[ao]$/, ""); return r; };
 const TW_PALABRAS_VACIAS = new Set(["de", "la", "el", "los", "las", "para", "con", "y", "en", "un", "una", "del", "al", "por", "piel", "pieles", "tipo"]);
 // Cuanto dura cada tipo de producto, aproximado (mismo criterio que "Para reponer" en Lumiere: controllers/postventaController.js)
+// [texto, días que dura con uso diario, tipo, femenino]; 0 = no se termina (accesorios). El primero que coincide gana.
 const TW_DURACIONES = [
-  [/protector solar|proteccion solar|\bfps\b|\bspf\b|sunscreen/, 45, "protector solar"], [/mascarilla|sheet ?mask|\bmask\b|parches?/, 45, "mascarilla"],
-  [/contorno|eye cream|ojeras/, 30, "contorno de ojos"], [/^(?!.*hia?luron).*(\bacido|\bacid\b|\baha\b|\bbha\b|\bpha\b|glicolico|salicilico|mandelico|lactico|azelaico)/, 90, "ácido"],
-  [/exfolia|peeling|scrub/, 90, "exfoliante"], [/serum|ampolla|booster|concentrado/, 30, "sérum"],
-  [/tonico|toner|esencia|essence|bruma/, 120, "tónico"], [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, "limpiador"],
-  [/hidratante|crema|moistur|gel crema|emulsion/, 30, "crema"], [/shampoo|acondicionador|mascara capilar|capilar/, 45, "producto capilar"],
-  [/perfume|fragancia|eau de|colonia|body mist|splash/, 120, "perfume"], [/labial|lip|base de maquillaje|corrector|mascara de pesta|rimel|delineador|polvo|rubor/, 120, "maquillaje"],
+  [/brocha|pincel|esponja|beauty ?blender|vincha|bincha|neceser|cosmetiquero|pinza|rizador|espejo|accesorio|hebilla|scrunchie|toalla|gua ?sha|roller|rodillo|organizador|cepillo|peine|bolso|cartuchera/, 0, "accesorio"],
+  [/protector solar|proteccion solar|\bfps\b|\bspf\b|sunscreen/, 45, "protector solar"],
+  [/skala/, 60, "pote de Skala"],
+  [/tratamiento capilar|mascarilla capilar|mascara capilar|bano de crema|botox capilar|keratina|nutricion capilar|mascarilla (para el |de )?(pelo|cabello)/, 60, "tratamiento capilar"],
+  [/protector termico|termoprotector|crema (de|para) peinar|leave.?in|spray capilar|spray (para el )?(pelo|cabello)/, 30, "producto de peinado"],
+  [/aceite (de |para )?(las )?puntas|aceite capilar|oleo capilar|serum capilar|elixir/, 30, "aceite capilar"],
+  [/ampollas? (capilar|de (pelo|cabello)|para (el )?(pelo|cabello))|capilar.*ampolla/, 30, "ampolla capilar", true],
+  [/shampoo|champu|champoo/, 30, "shampoo"],
+  [/acondicionador/, 30, "acondicionador"],
+  [/capilar/, 30, "producto capilar"],
+  [/perfume|fragancia|eau de|colonia|body mist|splash/, 60, "perfume"],
+  [/difusor/, 60, "difusor"],
+  [/crema corporal|locion corporal|body lotion|body butter|manteca corporal|crema (de|para el) cuerpo|aceite corporal|crema hidratante corporal/, 90, "crema corporal", true],
+  [/crema de manos|hand cream/, 60, "crema de manos", true],
+  [/parches?|patch/, 30, "caja de parches", true],
+  [/mascarilla|sheet ?mask|\bmask\b/, 1, "mascarilla", true],
+  [/mascara de pesta|rimel|pestanina/, 90, "máscara de pestañas", true],
+  [/delineador|eyeliner|kohl/, 90, "delineador"],
+  [/base de maquillaje|base liquida|foundation|bb cream|cc cream/, 90, "base de maquillaje", true],
+  [/corrector|concealer/, 90, "corrector"],
+  [/primer|prebase/, 90, "primer"],
+  [/fijador|setting spray/, 60, "fijador de maquillaje"],
+  [/labial|lipstick|lip ?gloss|\bgloss|tinta de labios|lip tint|balsamo labial|\blip\b/, 90, "labial"],
+  [/polvo|powder/, 120, "polvo"],
+  [/rubor|blush|bronzer|iluminador|highlighter|contouring/, 150, "rubor o iluminador"],
+  [/sombra|paleta|eyeshadow/, 180, "paleta de sombras", true],
+  [/cejas|brow/, 90, "producto para cejas"],
+  [/contorno|eye cream|ojeras/, 30, "contorno de ojos"],
+  [/^(?!.*hia?luron).*(\bacido|\bacid\b|\baha\b|\bbha\b|\bpha\b|glicolico|salicilico|mandelico|lactico|azelaico)/, 90, "ácido"],
+  [/exfolia|peeling|scrub/, 90, "exfoliante"],
+  [/serum|ampolla|booster|concentrado/, 30, "sérum"],
+  [/tonico|toner|esencia|essence|bruma/, 120, "tónico"],
+  [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, "limpiador"],
+  [/hidratante|crema|moistur|gel crema|emulsion/, 30, "crema", true],
 ];
-const twDuracion = (nombre, categoria) => { const t = twNorm([nombre, categoria].join(" ")); const d = TW_DURACIONES.find(([r]) => r.test(t)); return d ? { dias: d[1], tipo: d[2] } : null; };
+const twDuracion = (nombre, categoria) => { const t = twNorm([nombre, categoria].join(" ")); const d = TW_DURACIONES.find(([r]) => r.test(t)); return d && d[1] > 0 ? { dias: d[1], tipo: d[2], fem: !!d[3] } : null; };
 // Rutina de cuidado facial: pasos de mañana y de noche (tipo de producto, titulo, frecuencia)
 const TW_RUTINA_DIA = [["limpiador", "🫧 Limpieza"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["ojos", "👁️ Contorno de ojos"], ["hidratante", "🧴 Hidratante"], ["solar", "☀️ Protector solar", "Siempre último, todos los días (aunque esté nublado)"]];
 const TW_RUTINA_NOCHE = [["desmaquillante", "🌙 Desmaquillar"], ["limpiador", "🫧 Limpieza"], ["exfoliante", "🍃 Exfoliante", "2 o 3 veces por semana, no todos los días"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["ojos", "👁️ Contorno de ojos"], ["hidratante", "🧴 Hidratante"], ["mascarilla", "🎭 Mascarilla", "1 o 2 veces por semana, en lugar de la crema o antes"]];
@@ -32922,7 +32960,7 @@ function TiendaPublica({ slug }) {
     const vista = ALIAS_VISTA[formCuenta.pestana] || "inicio";
     const sec = vista === "codigos" || vista === "premios" ? "puntos" : vista === "pedidos" || vista === "resenas" || vista === "local" || vista === "restock" ? "compras" : vista === "piel" ? "piel" : "inicio";
     // Restockearme: lo que compró, cuánto suele durar cada tipo y cuánto le queda (aprox.)
-    const restock = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d ? { ...i, dur: d.dias, tipo: d.tipo, queda: d.dias - i.dias } : null; }).filter(Boolean);
+    const restock = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); return d ? { ...i, dur: d.dias, tipo: d.tipo, fem: d.fem, queda: d.dias - i.dias } : null; }).filter(Boolean);
     const restockYa = restock.filter(i => i.queda <= 10 && i.queda >= -90).sort((a, b) => a.queda - b.queda);
     const restockDespues = restock.filter(i => i.queda > 10).sort((a, b) => a.queda - b.queda);
     const irA = (v) => { setFormCuenta(x => ({ ...x, pestana: v, verLogros: false })); try { document.querySelector(".tw-cajon-cuerpo").scrollTop = 0; } catch (e) {} };
@@ -33183,12 +33221,12 @@ function TiendaPublica({ slug }) {
           {restock.length > 0 && restockYa.length === 0 && <div className="tw-rs-ok">✨ ¡Todo bien! Por ahora no se te está terminando nada.</div>}
           {restockYa.length > 0 && <>
             <div className="tw-sec-tit">Se te está terminando</div>
-            {restockYa.map(i => { const hay = i.p && !agotado(i.p); const durTxt = i.dur >= 55 ? Math.round(i.dur / 30) + " meses" : i.dur >= 28 ? "1 mes" : i.dur + " días"; return (
+            {restockYa.map(i => { const hay = i.p && !agotado(i.p); const durTxt = i.dur >= 55 ? Math.round(i.dur / 30) + " meses" : i.dur >= 28 ? "1 mes" : i.dur === 1 ? "1 uso" : i.dur + " días"; return (
               <div key={i.producto_id} className="tw-rs-card">
                 {i.p && i.p.foto ? <img src={foto(i.p)} alt="" /> : <span className="tw-rs-ph" aria-hidden="true">🧴</span>}
                 <div className="tw-rs-txt">
                   <b>{i.nombre}</b>
-                  <small>Lo compraste hace {i.dias} días · {["crema", "mascarilla"].includes(i.tipo) ? "una" : "un"} {i.tipo} dura ~{durTxt}</small>
+                  <small>Lo compraste hace {i.dias} {i.dias === 1 ? "día" : "días"} · {i.dur === 1 ? (i.fem ? "es de un solo uso" : "es de un solo uso") : (i.fem ? "una " : "un ") + i.tipo + " dura ~" + durTxt}</small>
                   <span className={"tw-rs-pill" + (i.queda <= 0 ? " ya" : "")}>{i.queda <= 0 ? "Ya se te debería haber terminado" : "Te quedan unos " + i.queda + (i.queda === 1 ? " día" : " días")}</span>
                 </div>
                 {hay ? <button className="tw-btn tw-rs-btn" onClick={() => recomprar([i])}>Agregar</button> : i.p ? <button className="tw-btn tw-btn-claro tw-rs-btn" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}

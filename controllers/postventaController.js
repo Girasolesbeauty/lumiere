@@ -356,21 +356,43 @@ const getResultados = async (req, res) => {
 // Para reponer: clientas a las que se les esta por terminar un producto que compraron (segun cuanto dura
 // cada tipo de producto, aproximado). Ventana: desde 7 dias antes hasta 30 dias despues de que se termina.
 const DURACIONES = [
+  [/brocha|pincel|esponja|beauty ?blender|vincha|bincha|neceser|cosmetiquero|pinza|rizador|espejo|accesorio|hebilla|scrunchie|toalla|gua ?sha|roller|rodillo|organizador|cepillo|peine|bolso|cartuchera/, 0, 'Accesorio'],
   [/protector solar|proteccion solar|\bfps\b|\bspf\b|sunscreen/, 45, 'Protector solar'],
-  [/mascarilla|sheet ?mask|\bmask\b|parches?/, 45, 'Mascarilla'],
+  [/skala/, 60, 'Pote de Skala'],
+  [/tratamiento capilar|mascarilla capilar|mascara capilar|bano de crema|botox capilar|keratina|nutricion capilar|mascarilla (para el |de )?(pelo|cabello)/, 60, 'Tratamiento capilar'],
+  [/protector termico|termoprotector|crema (de|para) peinar|leave.?in|spray capilar|spray (para el )?(pelo|cabello)/, 30, 'Producto de peinado'],
+  [/aceite (de |para )?(las )?puntas|aceite capilar|oleo capilar|serum capilar|elixir/, 30, 'Aceite capilar'],
+  [/ampollas? (capilar|de (pelo|cabello)|para (el )?(pelo|cabello))|capilar.*ampolla/, 30, 'Ampolla capilar'],
+  [/shampoo|champu|champoo/, 30, 'Shampoo'],
+  [/acondicionador/, 30, 'Acondicionador'],
+  [/capilar/, 30, 'Producto capilar'],
+  [/perfume|fragancia|eau de|colonia|body mist|splash/, 60, 'Perfume'],
+  [/difusor/, 60, 'Difusor'],
+  [/crema corporal|locion corporal|body lotion|body butter|manteca corporal|crema (de|para el) cuerpo|aceite corporal|crema hidratante corporal/, 90, 'Crema corporal'],
+  [/crema de manos|hand cream/, 60, 'Crema de manos'],
+  [/parches?|patch/, 30, 'Caja de parches'],
+  [/mascarilla|sheet ?mask|\bmask\b/, 1, 'Mascarilla'],
+  [/mascara de pesta|rimel|pestanina/, 90, 'Máscara de pestañas'],
+  [/delineador|eyeliner|kohl/, 90, 'Delineador'],
+  [/base de maquillaje|base liquida|foundation|bb cream|cc cream/, 90, 'Base de maquillaje'],
+  [/corrector|concealer/, 90, 'Corrector'],
+  [/primer|prebase/, 90, 'Primer'],
+  [/fijador|setting spray/, 60, 'Fijador de maquillaje'],
+  [/labial|lipstick|lip ?gloss|\bgloss|tinta de labios|lip tint|balsamo labial|\blip\b/, 90, 'Labial'],
+  [/polvo|powder/, 120, 'Polvo'],
+  [/rubor|blush|bronzer|iluminador|highlighter|contouring/, 150, 'Rubor o iluminador'],
+  [/sombra|paleta|eyeshadow/, 180, 'Paleta de sombras'],
+  [/cejas|brow/, 90, 'Producto para cejas'],
   [/contorno|eye cream|ojeras/, 30, 'Contorno de ojos'],
   [/^(?!.*hia?luron).*(\bacido|\bacid\b|\baha\b|\bbha\b|\bpha\b|glicolico|salicilico|mandelico|lactico|azelaico)/, 90, 'Ácido'],
   [/exfolia|peeling|scrub/, 90, 'Exfoliante'],
   [/serum|ampolla|booster|concentrado/, 30, 'Sérum'],
   [/tonico|toner|esencia|essence|bruma/, 120, 'Tónico'],
-  [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, 'Limpieza'],
+  [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, 'Limpiador'],
   [/hidratante|crema|moistur|gel crema|emulsion/, 30, 'Crema'],
-  [/shampoo|acondicionador|mascara capilar|capilar/, 45, 'Capilar'],
-  [/perfume|fragancia|eau de|colonia|body mist|splash/, 120, 'Fragancia'],
-  [/labial|lip|base de maquillaje|corrector|mascara de pesta|rimel|delineador|polvo|rubor/, 120, 'Maquillaje'],
 ];
 const normTxt = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-const duracionDe = (p) => { const t = normTxt([p.nombre, p.categoria].join(' ')); const d = DURACIONES.find(([r]) => r.test(t)); return d ? { dias: d[1], tipo: d[2] } : null; };
+const duracionDe = (p) => { const t = normTxt([p.nombre, p.categoria].join(' ')); const d = DURACIONES.find(([r]) => r.test(t)); return d && d[1] > 0 ? { dias: d[1], tipo: d[2] } : null; };
 const getReponer = async (req, res) => {
   try {
     await asegurarColumnas();
@@ -387,7 +409,7 @@ const getReponer = async (req, res) => {
       const av = avisos.find(a => a.cliente_id === x.cliente_id && a.plantilla === 'p' + x.producto_id && new Date(a.f) > new Date(x.fecha));
       return { id: x.cliente_id, nombre: x.nombre, telefono: x.telefono, producto_id: x.producto_id, producto: x.producto, tipo: d.tipo, fecha: x.fecha, dias: x.dias, duracion: d.dias, avisado: av ? av.f : null };
     }).filter(Boolean).sort((a, b) => (a.dias - a.duracion) - (b.dias - b.duracion));
-    res.json({ clientes: lista, duraciones: DURACIONES.map(([, d, t]) => ({ tipo: t, dias: d })) });
+    res.json({ clientes: lista, duraciones: DURACIONES.filter(([, d]) => d > 0).map(([, d, t]) => ({ tipo: t, dias: d })) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'No se pudo armar la lista' });
