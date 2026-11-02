@@ -33265,8 +33265,6 @@ function TiendaPublica({ slug }) {
           );
         })}
         {vista === "restock" && <>
-          <p className="tw-rs-intro">Según cuándo compraste cada producto y cuánto suele durar usándolo todos los días.</p>
-          {restock.length === 0 && <div className="tw-vacio-grande"><span aria-hidden="true">🧴</span>Todavía no tenemos compras tuyas de skincare.<small>Cuando compres (online o en el local diciendo tu DNI), acá te avisamos cuándo se te está por terminar cada producto.</small></div>}
           {formCuenta.rsGracias && <div className="tw-rs-gracias">💛 ¡Gracias! Te avisamos más adelante, cuando se te esté por terminar.</div>}
           {restock.length > 0 && restockYa.length === 0 && <div className="tw-rs-ok">✨ ¡Todo bien! Por ahora no se te está terminando nada.</div>}
           {restockYa.length > 0 && <>
@@ -33296,6 +33294,24 @@ function TiendaPublica({ slug }) {
               </div>); })}
             {restockYa.filter(i => i.p && !agotado(i.p)).length > 1 && <button className="tw-btn full" style={{ marginTop: 4 }} onClick={() => recomprar(restockYa.filter(i => i.p && !agotado(i.p)))}>Agregar todo al carrito</button>}
           </>}
+          {restockYa.length === 0 && (() => {
+            // Lo que más se repone en la tienda (los más vendidos que se terminan), para que tenga algo lindo para elegir
+            const mios = new Set(restock.map(i => i.producto_id));
+            const favs = lista0.filter(x => !agotado(x) && !mios.has(x.id) && twDuracion(x.nombre, x.categoria)).sort((a, b) => (a.rk || 9999) - (b.rk || 9999)).slice(0, 4);
+            if (!favs.length) return null;
+            return <>
+              <div className="tw-sec-tit">✨ Los favoritos que más se reponen</div>
+              {favs.map(x => (
+                <div key={x.id} className="tw-rs-card">
+                  {x.foto ? <img src={foto(x)} alt="" /> : <span className="tw-rs-ph" aria-hidden="true">🧴</span>}
+                  <button className="tw-rs-txt" style={{ background: "none", border: 0, padding: 0, textAlign: "left", font: "inherit", color: "inherit", cursor: "pointer" }} onClick={() => { setPaso(null); abrir(x); }}>
+                    <b>{x.nombre}</b><small>{x.marca ? x.marca + " · " : ""}{fmtTienda(x.precio)}</small>
+                  </button>
+                  <div className="tw-rs-acciones"><button className="tw-btn tw-rs-btn" onClick={() => { if (x.variantes) { setPaso(null); abrir(x); } else agregar(x, null, 1, null); }}>{x.variantes ? "Ver" : "Agregar"}</button></div>
+                </div>
+              ))}
+            </>;
+          })()}
           {restockDespues.length > 0 && <details className="tw-sec-plegado tw-rs-despues" open={restockYa.length === 0}>
             <summary>Todavía te queda ({restockDespues.length})</summary>
             {restockDespues.map(i => (
