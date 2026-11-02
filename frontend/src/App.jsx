@@ -27386,9 +27386,16 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-tr-datos{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:14px;background:#fff;border-radius:8px;padding:8px 10px;margin:6px 0 8px;line-height:1.45;color:#222;user-select:all}
 .tw-tr-plazo{font-size:12.5px;color:#555;line-height:1.4;margin:0 0 8px}
 .tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
-.tw-pagar-chip{background:#fff4e5!important;border-color:#f5c27a!important;animation:twLatePago 2.4s ease-in-out infinite}
-@keyframes twLatePago{50%{box-shadow:0 0 0 4px rgba(245,166,35,.25)}}
-.tw-tr-chip{background:#eaf7ef!important;border-color:#bfe3cb!important}
+.tw-pedido-chip.tw-pagar-chip,.tw-pedido-chip.tw-tr-chip{position:relative;overflow:visible;font-size:14px;padding:12px 14px;border-width:2px;animation:twChipTiembla 4s ease-in-out .6s infinite,twChipLate 1.6s ease-in-out infinite}
+.tw-pedido-chip.tw-pagar-chip{background:linear-gradient(90deg,#ff7a45,#ffb03a)!important;border-color:#ff7a45!important;color:#fff!important;--anillo:rgba(255,122,69,.45)}
+.tw-pedido-chip.tw-tr-chip{background:linear-gradient(90deg,#1f9d55,#3cc47c)!important;border-color:#1f9d55!important;color:#fff!important;--anillo:rgba(31,157,85,.45)}
+.tw-pagar-chip b,.tw-tr-chip b{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.tw-pagar-chip .tw-pedido-chip-ic,.tw-tr-chip .tw-pedido-chip-ic{font-size:22px;animation:twChipIco 1.6s ease-in-out infinite}
+.tw-pagar-chip::after,.tw-tr-chip::after{content:"!";position:absolute;top:-8px;right:-6px;width:22px;height:22px;border-radius:50%;background:#e8193c;color:#fff;font-weight:900;font-size:14px;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.25);animation:twChipIco 1.6s ease-in-out infinite}
+@keyframes twChipLate{0%,100%{box-shadow:0 0 0 0 var(--anillo)}50%{box-shadow:0 0 0 8px rgba(0,0,0,0)}}
+@keyframes twChipTiembla{0%,86%,100%{transform:none}88%{transform:translateX(-5px) rotate(-1deg)}90%{transform:translateX(5px) rotate(1deg)}92%{transform:translateX(-4px)}94%{transform:translateX(4px)}96%{transform:translateX(-2px)}}
+@keyframes twChipIco{50%{transform:scale(1.18)}}
+@media (prefers-reduced-motion:reduce){.tw-pagar-chip,.tw-tr-chip,.tw-pagar-chip *,.tw-tr-chip *,.tw-pagar-chip::after,.tw-tr-chip::after{animation:none!important}}
 .tw-pedido-curso-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
 .tw-pedido-curso-cab b{font-size:14px}
 .tw-pedido-chip{display:flex;align-items:center;gap:10px;margin:8px 20px 0;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,#fff3f8,#fff8ee);border:1px solid #f3dfe8;text-decoration:none;color:#222;font-size:13px;animation:twSegPaso .5s ease both}
@@ -28664,6 +28671,17 @@ function TwBarraEnvio({ subtotal, gratisDesde }) {
 const TW_PASO_PEDIDO = { pendiente_pago: 0, confirmado: 1, preparado: 2, en_caja: 2, entregado: 3 };
 // Pedido con transferencia sin pagar: los datos para transferir quedan a mano (en la cuenta y en la página del pedido)
 // hasta que el local marca el pago. Con botón para copiarlos y para mandar el comprobante.
+// Avisos de compra sin pagar: el celular vibra una vez (los navegadores solo dejan vibrar después de que la persona toca la pantalla)
+function TwVibraUnaVez() {
+  useEffect(() => {
+    let hecho = false;
+    try { if (sessionStorage.getItem("tw_vibro")) return; } catch (e) {}
+    const f = () => { if (hecho) return; hecho = true; twVibrar([70, 50, 70]); try { sessionStorage.setItem("tw_vibro", "1"); } catch (e) {} window.removeEventListener("pointerdown", f); };
+    window.addEventListener("pointerdown", f, { once: true });
+    return () => window.removeEventListener("pointerdown", f);
+  }, []);
+  return null;
+}
 function TwTransferir({ pd, datos, linkWa, conTitulo = true, conPlazo = false }) {
   const [copiado, setCopiado] = useState(false);
   const nro = pd.numero || pd.codigo;
@@ -32377,16 +32395,16 @@ function TiendaPublica({ slug }) {
         <button className="tw-pedido-chip tw-reponer-chip" onClick={() => setPaso("cuenta")}><span className="tw-pedido-chip-ic" aria-hidden="true">🔁</span><span style={{ flex: 1, textAlign: "left" }}>{porReponer.length === 1 ? <>Tu {porReponer[0].tipo} se está por terminar: <b>¿lo reponés?</b></> : <>Se te están por terminar <b>{porReponer.length} productos</b></>}</span><span aria-hidden="true">›</span></button>
       )}
       {!codigoUrl && !logueada && pedidoTransf && (pedidoTransf.transferencia
-        ? <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>{pedidoTransf.tipo === "giftcard" || pedidoTransf.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pedidoTransf)} espera tu transferencia de <b>{fmtTienda(pedidoTransf.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>
-        : <a className="tw-pedido-chip tw-pagar-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💳</span><span style={{ flex: 1 }}>{pedidoTransf.tipo === "giftcard" || pedidoTransf.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pedidoTransf)} quedó sin pagar ({fmtTienda(pedidoTransf.total)}) · <b>terminá de pagar acá</b></span><span aria-hidden="true">›</span></a>)}
+        ? <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>{pedidoTransf.tipo === "giftcard" || pedidoTransf.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pedidoTransf)} espera tu transferencia de <b>{fmtTienda(pedidoTransf.total)}</b> · ver datos</span><span aria-hidden="true">›</span><TwVibraUnaVez /></a>
+        : <a className="tw-pedido-chip tw-pagar-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pedidoTransf.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💳</span><span style={{ flex: 1 }}>{pedidoTransf.tipo === "giftcard" || pedidoTransf.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pedidoTransf)} quedó sin pagar ({fmtTienda(pedidoTransf.total)}) · <b>terminá de pagar acá</b></span><span aria-hidden="true">›</span><TwVibraUnaVez /></a>)}
       {!codigoUrl && logueada && miCuenta && (() => {
         // Pedido en curso: a un toque de ver cómo va
         // Primero, cualquier compra (también gift cards) que quedó sin pagar, con cualquier medio online o transferencia
         const sinPagar = (miCuenta.pedidos || []).find(x => x.estado === "pendiente_pago" && !x.pagado && (["mp", "gocuotas"].includes(x.pago) || x.transferencia));
         const pd = sinPagar || (miCuenta.pedidos || []).find(x => x.tipo !== "giftcard" && !["entregado", "cancelado"].includes(x.estado));
         if (!pd) return null;
-        if (pd.estado === "pendiente_pago" && !pd.pagado && ["mp", "gocuotas"].includes(pd.pago)) return <a className="tw-pedido-chip tw-pagar-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💳</span><span style={{ flex: 1 }}>{pd.tipo === "giftcard" || pd.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pd)} quedó sin pagar ({fmtTienda(pd.total)}) · <b>terminá de pagar acá</b></span><span aria-hidden="true">›</span></a>;
-        if (pd.transferencia) return <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>{pd.tipo === "giftcard" || pd.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pd)} espera tu transferencia de <b>{fmtTienda(pd.total)}</b> · ver datos</span><span aria-hidden="true">›</span></a>;
+        if (pd.estado === "pendiente_pago" && !pd.pagado && ["mp", "gocuotas"].includes(pd.pago)) return <a className="tw-pedido-chip tw-pagar-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💳</span><span style={{ flex: 1 }}>{pd.tipo === "giftcard" || pd.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pd)} quedó sin pagar ({fmtTienda(pd.total)}) · <b>terminá de pagar acá</b></span><span aria-hidden="true">›</span><TwVibraUnaVez /></a>;
+        if (pd.transferencia) return <a className="tw-pedido-chip tw-tr-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">💸</span><span style={{ flex: 1 }}>{pd.tipo === "giftcard" || pd.giftcard ? "Tu gift card" : "Tu pedido N° " + nroPedido(pd)} espera tu transferencia de <b>{fmtTienda(pd.total)}</b> · ver datos</span><span aria-hidden="true">›</span><TwVibraUnaVez /></a>;
         const txt = { pendiente_pago: "esperando el pago", confirmado: "lo estamos preparando 💝", preparado: pd.entrega === "envio" ? "¡ya está empaquetado! 🎁" : "¡listo para retirar! 🎁", en_caja: "¡listo para retirar! 🎁" }[pd.estado] || "en curso";
         return <a className="tw-pedido-chip" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}><span className="tw-pedido-chip-ic" aria-hidden="true">📦</span><span style={{ flex: 1 }}>Tu pedido N° {nroPedido(pd)}: <b>{txt}</b></span><span aria-hidden="true">›</span></a>;
       })()}
