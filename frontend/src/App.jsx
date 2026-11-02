@@ -4122,14 +4122,18 @@ function POS({ localId, usuario, paletaActual }) {
     if (dni.length < 7) { setClienteSeleccionado(null); return; }
     setBuscandoCliente(true);
     try {
-      const res = await API.get("/clientes");
+      // Búsqueda en el servidor: encuentra el DNI aunque la clienta esté guardada con CUIT, puntos o ceros adelante
+      const res = await API.get("/clientes/buscar-dni?dni=" + encodeURIComponent(dni));
       if (ultimoDniBuscadoRef.current !== dni) return;
-      const dniLimpio = (dni || "").replace(/[^0-9]/g, "");
-      const encontrado = res.data.find(c => (c.cuit_dni || "").replace(/[^0-9]/g, "") === dniLimpio);
-      if (encontrado) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); cargarFicha(encontrado.id, cartRef.current.length === 0); }
-      else { setClienteSeleccionado(null); if (dni.length >= 8) setShowNuevoCliente(true); }
-    } catch (e) {}
-    setBuscandoCliente(false);
+      const encontrado = res.data;
+      if (encontrado && encontrado.id) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); cargarFicha(encontrado.id, cartRef.current.length === 0); }
+      else { setClienteSeleccionado(null); if (dni.replace(/[^0-9]/g, "").length >= 8) setShowNuevoCliente(true); }
+    } catch (e) {
+      // Si falla la búsqueda, se avisa (antes no pasaba nada y parecía que la clienta no existía)
+      if (ultimoDniBuscadoRef.current === dni) setMensaje("⚠️ No se pudo buscar la clienta (revisá la conexión). Probá de nuevo.");
+    } finally {
+      if (ultimoDniBuscadoRef.current === dni) setBuscandoCliente(false);
+    }
   };
 
   // Alta de cliente en ventana emergente (desde el Punto de Venta)
