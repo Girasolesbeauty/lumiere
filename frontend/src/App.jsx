@@ -27392,6 +27392,42 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-tr-btns{display:flex;gap:8px;flex-wrap:wrap}.tw-tr-btns .tw-btn2{padding:8px 14px;font-size:12px}.tw-tr-wa{background:#25d366!important;color:#fff!important;border-color:#25d366!important}
 .tw-fila-sinpagar{background:#fff7ef;border-radius:10px;padding-left:8px!important;padding-right:8px!important}
 .tw-retomar{color:#d35400;font-size:12.5px;white-space:nowrap}
+.tw-cuenta-grande{font-size:16px}
+.tw-cuenta-grande .tw-sec-tit{font-size:18px}
+.tw-cuenta-grande .tw-btn,.tw-cuenta-grande .tw-btn2{min-height:46px}
+.tw-menu-cuenta{display:flex;flex-direction:column;gap:10px;margin:18px 0 6px}
+.tw-menu-tit{font-size:19px;font-weight:800;margin:0 2px 4px;color:#222}
+.tw-menu-op{display:flex;align-items:center;gap:14px;width:100%;text-align:left;font:inherit;color:#222;background:#fff;border:1.5px solid #ece6dc;border-radius:18px;padding:14px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(80,60,30,.06);transition:transform .15s,box-shadow .15s}
+.tw-menu-op:active{transform:scale(.98)}
+.tw-menu-op:hover{box-shadow:0 4px 16px rgba(80,60,30,.12)}
+.tw-menu-op.alerta{border-color:#f5a35c;background:linear-gradient(90deg,#fff6ec,#fff)}
+.tw-menu-ic{flex:0 0 auto;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;font-size:28px;background:#faf5ec}
+.tw-menu-op.alerta .tw-menu-ic{background:#ffe7d1}
+.tw-menu-txt{flex:1;min-width:0}
+.tw-menu-txt b{display:block;font-size:17.5px;line-height:1.25}
+.tw-menu-txt small{display:block;font-size:14px;color:#6b6b6b;margin-top:3px;line-height:1.35}
+.tw-menu-op.alerta .tw-menu-txt small{color:#c0560a;font-weight:700}
+.tw-menu-n{flex:0 0 auto;min-width:28px;height:28px;padding:0 8px;border-radius:99px;background:#e8193c;color:#fff;font-weight:900;font-size:15px;display:grid;place-items:center}
+.tw-menu-flecha{flex:0 0 auto;font-size:26px;color:#b5ab9b;line-height:1}
+.tw-vista-cab{position:sticky;top:-1px;z-index:4;background:#fff;margin:0 -4px 10px;padding:10px 4px 12px;border-bottom:1px solid #f0ebe3}
+.tw-vista-cab h3{margin:10px 2px 0;font-size:22px;font-weight:800;color:#222}
+.tw-volver{font:inherit;font-size:16px;font-weight:800;color:#222;background:#f4efe6;border:0;border-radius:99px;padding:10px 18px;cursor:pointer;min-height:44px}
+.tw-vacio-grande{text-align:center;padding:30px 16px;color:#444;font-size:16px;font-weight:700;line-height:1.4}
+.tw-vacio-grande span{display:block;font-size:44px;margin-bottom:8px}
+.tw-vacio-grande small{display:block;font-weight:400;color:#777;font-size:14.5px;margin-top:6px}
+.tw-ped-card{background:#fff;border:1.5px solid #ece6dc;border-radius:18px;padding:16px;margin:0 0 12px;box-shadow:0 2px 10px rgba(80,60,30,.06)}
+.tw-ped-card.alerta{border-color:#f5a35c;box-shadow:0 2px 14px rgba(245,163,92,.25)}
+.tw-ped-card.cerrado{background:#fbfaf8}
+.tw-ped-card-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.tw-ped-card-cab b{font-size:17px}
+.tw-ped-card-cab small{display:block;font-size:14px;color:#777;margin-top:3px}
+.tw-ped-card-total{font-size:19px!important;white-space:nowrap}
+.tw-ped-card-items{font-size:14.5px;color:#555;margin:10px 0 0;line-height:1.4}
+.tw-ped-card-estado{display:inline-block;margin-top:12px;padding:8px 12px;border-radius:12px;border:1.5px solid;font-weight:800;font-size:15px}
+.tw-ped-card-btns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.tw-ped-card-btns .tw-btn{width:100%;font-size:14px;padding:13px 16px;text-align:center;justify-content:center}
+.tw-btn.tw-btn-pagar{background:linear-gradient(90deg,#ff7a45,#ffb03a)!important;color:#fff!important}
+.tw-btn.tw-btn-claro{background:#fff!important;color:#222!important;border:1.5px solid #222!important}
 .tw-sinpagar-otras{margin:6px 20px 0;text-align:left}
 .tw-sinpagar-otras .tw-link{font-size:13px;color:#b34a00;text-align:left;line-height:1.35}
 .tw-sinpagar-fila{display:flex;align-items:center;gap:10px;margin-top:6px;padding:9px 12px;border-radius:12px;background:#fff7ef;border:1px solid #f5c9a3;color:#222;text-decoration:none;font-size:13px}
@@ -29740,7 +29776,7 @@ function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, otrosPagos = [
   const waTel = linkWa("¡Hola! Quise pagar online mi pedido N° " + nro + " (" + monto + ") y no me salió el pago. ¿Me ayudan a pagarlo por teléfono?" + (pedido.entrega === "envio" ? " Es con envío." : ""));
   const waLocal = linkWa("¡Hola! No me salió el pago online del pedido N° " + nro + " (" + monto + "). ¿Lo puedo pagar en el local" + (ayuda.cuotas_local ? " (" + ayuda.cuotas_local + ")" : "") + "?");
 
-  if (!abierta) return <button className="tw-link" style={{ display: "block", margin: "0 auto 14px", fontSize: 14 }} onClick={() => setAbierta(true)}>¿Problemas para pagar? Mirá otras opciones</button>;
+  if (!abierta) return <button className="tw-link" style={{ display: "block", margin: "0 auto 14px", fontSize: 14 }} onClick={() => setAbierta(true)}>{pedido.pago === "transferencia" ? "¿Preferís pagar de otra forma? Mirá las opciones" : "¿Problemas para pagar? Mirá otras opciones"}</button>;
   return (
     <div className={"tw-ayuda-pago" + (falla ? " falla" : "")}>
       <div className="tw-ap-tit">{falla ? "¿No te salió el pago? ¡No pasa nada!" : "Otras formas de pagar"}</div>
@@ -32107,7 +32143,8 @@ function TiendaPublica({ slug }) {
     if (!r || !Array.isArray(r.items)) return;
     recomprarRef.current(r.items);
     const nomPago = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia" }[r.pago];
-    if (nomPago) setTimeout(() => setRecompraAviso(a => a && a.van ? { ...a, texto: "✅ Te armamos el carrito de nuevo. Tocá «Finalizar compra»: ya queda elegido pagar con " + nomPago + "." } : a), 0);
+    const nomAntes = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia" }[r.antes];
+    if (nomPago) setTimeout(() => setRecompraAviso(a => a && a.van ? { ...a, texto: "✅ Te armamos el carrito de nuevo. Tocá «Finalizar compra»: ya queda elegido pagar con " + nomPago + "." + (nomAntes ? " Si te arrepentís, ahí mismo podés volver a elegir " + nomAntes + " o cualquier otra forma de pago." : "") } : a), 0);
     if (r.pago) setDatos(x => ({ ...x, pago: r.pago }));
     if (r.cupon) setCuponIn(r.cupon);
   }, [productos, codigoUrl, !!recomprarRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -32534,7 +32571,7 @@ function TiendaPublica({ slug }) {
               {pedido.estado === "pendiente_pago" && pedido.pago === "gocuotas" && params.get("gc") !== "no" && <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>Si ya pagaste con GoCuotas, en unos minutos se confirma solo.</div>}
               {pedido.estado === "pendiente_pago" && pedido.pago === "mp" && (pedido.pago_rechazado || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")) && <div style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 12, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>El pago con Mercado Pago no se completó. Podés volver a intentarlo{tienda.ayuda_pago ? " o elegir otra opción de abajo" : ""}.</div>}
               {pedido.estado === "pendiente_pago" && pedido.link_pago && <a className="tw-btn full" style={{ marginBottom: 14 }} href={pedido.link_pago}>{pedido.pago === "gocuotas" ? "Pagar con GoCuotas" : "Pagar con Mercado Pago"}</a>}
-              {pedido.estado === "pendiente_pago" && ["mp", "gocuotas"].includes(pedido.pago) && !pedido.giftcard && tienda.ayuda_pago && (
+              {pedido.estado === "pendiente_pago" && !pedido.pagado && ["mp", "gocuotas", "transferencia"].includes(pedido.pago) && !pedido.giftcard && tienda.ayuda_pago && (
                 <TwAyudaPago pedido={pedido} ayuda={tienda.ayuda_pago} linkWa={(t) => wa(t, pedido.local_id)}
                   falla={pedido.pago_rechazado || params.get("gc") === "no" || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")}
                   nombreLocal={pedido.local && pedido.local.nombre}
@@ -32544,7 +32581,7 @@ function TiendaPublica({ slug }) {
                     if (!window.confirm("¿Pagar con " + ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia" })[k] + "? Te armamos el carrito con los mismos productos para que termines la compra.")) throw new Error("no");
                     try {
                       const r = await pedir("/pedidos/" + pedido.codigo + "/otro-pago", { method: "POST" });
-                      try { sessionStorage.setItem("tw_rehacer_" + slug, JSON.stringify({ items: r.items, pago: k, cupon: r.cupon })); } catch (e) {}
+                      try { sessionStorage.setItem("tw_rehacer_" + slug, JSON.stringify({ items: r.items, pago: k, cupon: r.cupon, antes: pedido.pago })); } catch (e) {}
                       window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug);
                     } catch (e) { alert(e.message); throw e; }
                   }} />
@@ -32797,8 +32834,13 @@ function TiendaPublica({ slug }) {
       .sort((a, b) => (a.no - b.no) || (a.puntos_requeridos - b.puntos_requeridos));
     const proximo = premios.filter(pr => !pr.agotado && !pr.fuera_de_mes && pr.falta > 0).sort((a, b) => a.falta - b.falta)[0];
     const codigos = (miCuenta.canjes || []).filter(c => c.cupon && c.cupon.usable);
-    const SEC_DE = { premios: "puntos", logros: "puntos", codigos: "puntos", resenas: "compras", pedidos: "compras", compras: "compras" };
-    const sec = SEC_DE[formCuenta.pestana] || (["puntos", "compras", "piel"].includes(formCuenta.pestana) ? formCuenta.pestana : "puntos");
+    // Perfil por pantallas: un inicio con botones grandes y cada sección en su propia pantalla (con "Volver" bien visible)
+    const ALIAS_VISTA = { puntos: "premios", logros: "premios", premios: "premios", codigos: "codigos", resenas: "resenas", pedidos: "pedidos", compras: "pedidos", local: "local", piel: "piel", inicio: "inicio" };
+    const vista = ALIAS_VISTA[formCuenta.pestana] || "inicio";
+    const sec = vista === "codigos" || vista === "premios" ? "puntos" : vista === "pedidos" || vista === "resenas" || vista === "local" ? "compras" : vista === "piel" ? "piel" : "inicio";
+    const irA = (v) => { setFormCuenta(x => ({ ...x, pestana: v, verLogros: false })); try { document.querySelector(".tw-cajon-cuerpo").scrollTop = 0; } catch (e) {} };
+    const pedSinPagar = (miCuenta.pedidos || []).filter(x => x.estado === "pendiente_pago" && !x.pagado && (["mp", "gocuotas"].includes(x.pago) || x.transferencia));
+    const nCodigos = codigos.length + (miCuenta.codigos || []).filter(c => c.estado === "para_usar").length;
     const verLogros = formCuenta.pestana === "logros" || !!formCuenta.verLogros;
     // Nivel: sale de todo lo que compró (no de los puntos que le quedan); 1 punto = pesos_por_punto de compra
     const NIV = ["Bronze", "Silver", "Gold", "Platinum", "Black"];
@@ -32813,8 +32855,8 @@ function TiendaPublica({ slug }) {
     const logrosOk = logros.filter(l => l.ok);
     const medSel = logros.find(l => l.id === formCuenta.medalla) || null;
     return (
-      <div className="tw-cajon-cuerpo">
-        <div className={"tw-puntos-card nivel-" + nivelC.toLowerCase()}>
+      <div className="tw-cajon-cuerpo tw-cuenta-grande">
+        {vista === "inicio" && <div className={"tw-puntos-card nivel-" + nivelC.toLowerCase()}>
           <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{nivelC}</span>}</div>
           <div style={{ fontSize: 12.5, opacity: .8 }}>Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
@@ -32828,8 +32870,8 @@ function TiendaPublica({ slug }) {
             <div style={{ fontSize: 12.5 }}>Te faltan <b>{proximo.falta.toLocaleString("es-AR")}</b> para <b>{proximo.nombre}</b></div>
             <div className="tw-barra-pts"><i style={{ width: Math.min(100, pts / proximo.puntos_requeridos * 100) + "%" }} /></div>
           </div>}
-        </div>
-        {(miCuenta.pedidos || []).filter(pd => pd.tipo !== "giftcard" && !["entregado", "cancelado"].includes(pd.estado)).map(pd => (
+        </div>}
+        {vista === "inicio" && (miCuenta.pedidos || []).filter(pd => pd.tipo !== "giftcard" && !["entregado", "cancelado"].includes(pd.estado)).slice(0, 1).map(pd => (
           <Fragment key={pd.codigo}>
             <a className="tw-pedido-curso" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}>
               <div className="tw-pedido-curso-cab"><b>📦 Tu pedido N° {nroPedido(pd)}</b><span style={{ color: "#888" }}>{fmtTienda(pd.total)} · Ver ›</span></div>
@@ -32838,8 +32880,8 @@ function TiendaPublica({ slug }) {
             {pd.transferencia && <TwTransferir pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} conPlazo />}
           </Fragment>
         ))}
-        {(miCuenta.pedidos || []).filter(pd => pd.tipo === "giftcard" && pd.transferencia).map(pd => <TwTransferir key={pd.codigo + "-trg"} pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} />)}
-        {miCuenta.regalo_cumple && (() => { const r = miCuenta.regalo_cumple; return r.usado ? <div className="tw-cumple-regalo usado">🎂 Ya usaste tu regalo de cumple. ¡Gracias por festejarlo con nosotras! 💝</div> : (
+        {vista === "inicio" && (miCuenta.pedidos || []).filter(pd => pd.tipo === "giftcard" && pd.transferencia).map(pd => <TwTransferir key={pd.codigo + "-trg"} pd={pd} datos={pd.transferencia} linkWa={(t) => wa(t, pd.local_id)} />)}
+        {vista === "inicio" && miCuenta.regalo_cumple && (() => { const r = miCuenta.regalo_cumple; return r.usado ? <div className="tw-cumple-regalo usado">🎂 Ya usaste tu regalo de cumple. ¡Gracias por festejarlo con nosotras! 💝</div> : (
           <div className="tw-cumple-regalo">
             <div style={{ fontSize: 26 }} aria-hidden="true">🎂🎁</div>
             <b>{r.hoy ? "¡Feliz cumple, " + String(miCuenta.nombre || "").split(" ")[0] + "!" : "¡Se viene tu cumple!"}</b>
@@ -32856,16 +32898,33 @@ function TiendaPublica({ slug }) {
           {canjeHecho.descuento_pct > 0 && <button className="tw-btn" style={{ marginTop: 10, padding: "10px 18px", fontSize: 12 }} onClick={() => { setCuponIn(canjeHecho.codigo); setPaso(carrito.length ? "carrito" : null); }}>Usar ahora</button>}
         </div>}
         {avisoCuenta && <div role="alert" style={{ background: "#fdecea", color: "#c0392b", borderRadius: 6, padding: 10, fontSize: 13.5, fontWeight: 600, marginBottom: 10 }}>{avisoCuenta}</div>}
-        {/* Tres secciones grandes en vez de todo junto: puntos y premios, compras, y la piel */}
-        <div className="tw-cuenta-secs" role="tablist" aria-label="Secciones de mi cuenta">
-          {[["puntos", "🎁", "Puntos y premios", premios.filter(pr => !pr.no).length + codigos.length], ["compras", "🛍️", "Mis pedidos", (misRes ? misRes.para_resenar.length : 0) + (miCuenta.pedidos || []).filter(x => x.estado === "pendiente_pago" && !x.pagado && (["mp", "gocuotas"].includes(x.pago) || x.transferencia)).length], ["piel", "🌿", "Mi piel", 0]].map(([k, ic, t, n]) => (
-            <button key={k} role="tab" aria-selected={sec === k} className={sec === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pestana: k }))}>
-              <span className="tw-cuenta-secs-ic" aria-hidden="true">{ic}</span>{t}{n ? <i>{n}</i> : null}
-            </button>
-          ))}
-        </div>
+        {vista === "inicio" ? (
+          <nav className="tw-menu-cuenta" aria-label="Mi cuenta">
+            <div className="tw-menu-tit">¿Qué querés hacer?</div>
+            {[
+              ["pedidos", "📦", "Mis pedidos", pedSinPagar.length ? (pedSinPagar.length === 1 ? "Tenés 1 sin terminar de pagar" : "Tenés " + pedSinPagar.length + " sin terminar de pagar") : "Ver cómo van tus compras online", pedSinPagar.length, true],
+              ["codigos", "🎟️", "Mis códigos", nCodigos ? (nCodigos === 1 ? "Tenés 1 descuento para usar" : "Tenés " + nCodigos + " descuentos para usar") : "Tus descuentos y cuándo vencen", nCodigos],
+              ["premios", "🎁", "Mis puntos y premios", "Tenés " + pts.toLocaleString("es-AR") + " puntos para canjear", premios.filter(pr => !pr.no).length],
+              ["resenas", "⭐", "Opinar de lo que compré", misRes && misRes.para_resenar.length ? "Ganás puntos por cada opinión" : "Tus opiniones", misRes ? misRes.para_resenar.length : 0],
+              ["local", "🧾", "Mis compras en el local", "Lo que compraste en la tienda física", 0],
+              ["piel", "🌿", "Mi piel y mi rutina", "Tu tipo de piel y tus productos", 0],
+            ].map(([k, ic, t, d, n, alerta]) => (
+              <button key={k} className={"tw-menu-op" + (alerta && n ? " alerta" : "")} onClick={() => irA(k)}>
+                <span className="tw-menu-ic" aria-hidden="true">{ic}</span>
+                <span className="tw-menu-txt"><b>{t}</b><small>{d}</small></span>
+                {n > 0 && <span className="tw-menu-n" aria-label={n + " para ver"}>{n}</span>}
+                <span className="tw-menu-flecha" aria-hidden="true">›</span>
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <div className="tw-vista-cab">
+            <button className="tw-volver" onClick={() => irA("inicio")}>‹ Volver</button>
+            <h3>{{ pedidos: "📦 Mis pedidos", codigos: "🎟️ Mis códigos", premios: "🎁 Mis puntos y premios", resenas: "⭐ Opinar de lo que compré", local: "🧾 Mis compras en el local", piel: "🌿 Mi piel y mi rutina" }[vista]}</h3>
+          </div>
+        )}
         {sec === "puntos" && <>
-        {miCuenta.falta_cumple && (
+        {vista === "premios" && miCuenta.falta_cumple && (
           <div className="tw-cumple-card">
             <b>🎂 ¿Cuándo es tu cumple?</b>
             <p>Contanos el día y el mes y te esperamos con un regalo en tu mes.</p>
@@ -32873,7 +32932,8 @@ function TiendaPublica({ slug }) {
             <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5, marginTop: 8 }} disabled={!formCuenta.cumpleTmp} onClick={() => pedir("/cuenta/cumple", { method: "PUT", body: JSON.stringify({ fecha_nacimiento: formCuenta.cumpleTmp }) }).then(() => { setMiCuenta(m => ({ ...m, falta_cumple: false })); setFormCuenta(x => ({ ...x, cumpleTmp: null })); }).catch(e => setAvisoCuenta(e.message))}>Guardar mi cumple</button>
           </div>
         )}
-        {((miCuenta.canjes || []).length > 0 || (miCuenta.codigos || []).length > 0) && (() => { const filaCod = (c) => {
+        {vista === "codigos" && (miCuenta.canjes || []).length === 0 && (miCuenta.codigos || []).length === 0 && <div className="tw-vacio-grande"><span aria-hidden="true">🎟️</span>Todavía no tenés códigos.<small>Cuando ganes un descuento (canjeando puntos, en la ruleta o en un juego) lo vas a ver acá, con su fecha de vencimiento.</small></div>}
+        {vista === "codigos" && ((miCuenta.canjes || []).length > 0 || (miCuenta.codigos || []).length > 0) && (() => { const filaCod = (c) => {
           const usable = c.cupon ? c.cupon.usable : c.estado === "pendiente";
           return (
             <div key={c.id} className={"tw-cupon" + (usable ? "" : " usado")}>
@@ -32910,11 +32970,11 @@ function TiendaPublica({ slug }) {
         const usables = canjes.filter(c => c.cupon ? c.cupon.usable : c.estado === "pendiente"), usados = canjes.filter(c => !(c.cupon ? c.cupon.usable : c.estado === "pendiente"));
         const otrosOk = otros.filter(c => ["para_usar", "pronto", "se_activa"].includes(c.estado)), otrosNo = otros.filter(c => !["para_usar", "pronto", "se_activa"].includes(c.estado));
         return <>
-          <div className="tw-sec-tit">🎟️ Mis códigos</div>
           {usables.length + otrosOk.length === 0 && <p className="tw-vacio">Ahora no tenés códigos para usar.</p>}
           {usables.map(filaCod)}{otrosOk.map(filaOtro)}
           {usados.length + otrosNo.length > 0 && <details className="tw-sec-plegado"><summary>Usados o vencidos ({usados.length + otrosNo.length})</summary>{usados.map(filaCod)}{otrosNo.map(filaOtro)}</details>}
         </>; })()}
+        {vista === "premios" && <>
         <div className="tw-sec-tit">🎁 Canjeá tus puntos</div>
         {(premios.length === 0 ? <p className="tw-vacio">Todavía no hay premios para canjear.</p> : (
           <div className="tw-premios">
@@ -33018,11 +33078,31 @@ function TiendaPublica({ slug }) {
           );
         })()}
         </>}
+        </>}
         {sec === "compras" && <>
-        {(miCuenta.pedidos || []).length > 0 && <div className="tw-sec-tit">📦 Mis pedidos</div>}
-        {(miCuenta.pedidos || []).map(pd => { const sinPagar = pd.estado === "pendiente_pago" && !pd.pagado && (["mp", "gocuotas"].includes(pd.pago) || pd.transferencia);
-          const est = sinPagar ? (pd.transferencia ? "💸 Falta la transferencia" : "⚠️ Sin terminar de pagar") : (ESTADOS_PEDIDO_WEB[pd.estado] || ["", ""])[0].split(":")[0];
-          return <div key={pd.codigo} className={"tw-fila-cuenta" + (sinPagar ? " tw-fila-sinpagar" : "")}><a href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo} style={{ display: "flex", flex: 1, justifyContent: "space-between", gap: 8, color: "inherit", textDecoration: "none", minWidth: 0 }}><span><b>{pd.tipo === "giftcard" ? "Gift card" : "N° " + nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR")} · {est}</small></span><span>{fmtTienda(pd.total)} {sinPagar ? <b className="tw-retomar">Retomar ›</b> : "›"}</span></a>{pd.tipo !== "giftcard" && pd.estado === "entregado" && <button className="tw-recompra-btn" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a pedir</button>}</div>; })}
+        {vista === "pedidos" && (miCuenta.pedidos || []).length === 0 && <div className="tw-vacio-grande"><span aria-hidden="true">📦</span>Todavía no hiciste pedidos online.<small>Cuando compres en la tienda, acá vas a ver cómo va cada uno.</small></div>}
+        {vista === "pedidos" && (miCuenta.pedidos || []).map(pd => {
+          const sinPagar = pd.estado === "pendiente_pago" && !pd.pagado && (["mp", "gocuotas"].includes(pd.pago) || pd.transferencia);
+          const gc = pd.tipo === "giftcard", envio = pd.entrega === "envio";
+          const [txt, col] = sinPagar ? [pd.transferencia ? "💸 Falta que hagas la transferencia" : "⚠️ No se terminó de pagar", "#d35400"]
+            : ({ pendiente_pago: ["⏳ Esperando el pago", "#b7950b"], confirmado: ["💝 Lo estamos preparando", "#2471a3"], preparado: [envio ? "📦 Listo para enviar" : "🎁 ¡Listo para retirar!", "#1e8449"], en_caja: [envio ? "📦 Listo para enviar" : "🎁 ¡Listo para retirar!", "#1e8449"], entregado: ["✅ Entregado", "#6b6b6b"], cancelado: ["✖ Cancelado", "#999"] })[pd.estado] || ["En curso", "#555"];
+          const link = "?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo;
+          return (
+            <div key={pd.codigo} className={"tw-ped-card" + (sinPagar ? " alerta" : "") + (["entregado", "cancelado"].includes(pd.estado) ? " cerrado" : "")}>
+              <div className="tw-ped-card-cab">
+                <span><b>{gc ? "🎁 Gift card" : "Pedido N° " + nroPedido(pd)}</b><small>{new Date(pd.creado_en).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}{gc ? "" : envio ? " · Envío a domicilio" : " · Retiro en el local"}</small></span>
+                <b className="tw-ped-card-total">{fmtTienda(pd.total)}</b>
+              </div>
+              {pd.resumen && <div className="tw-ped-card-items">{pd.resumen}</div>}
+              <div className="tw-ped-card-estado" style={{ color: col, background: col + "16", borderColor: col + "40" }}>{txt}</div>
+              <div className="tw-ped-card-btns">
+                <a className={"tw-btn" + (sinPagar ? " tw-btn-pagar" : " tw-btn-claro")} href={link}>{sinPagar ? (pd.transferencia ? "Ver los datos para transferir" : "Terminar de pagar") : "Ver mi pedido"}</a>
+                {!gc && pd.estado === "entregado" && <button className="tw-btn tw-btn-claro" onClick={() => recomprarPedido(pd.codigo)}>🔁 Volver a comprar</button>}
+              </div>
+            </div>
+          );
+        })}
+        {vista === "pedidos" && <>
         {porReponer.length > 0 && (
           <div className="tw-reponer-card">
             <b>🔁 Se te está por terminar</b>
@@ -33050,7 +33130,9 @@ function TiendaPublica({ slug }) {
             </div>
           );
         })()}
-        {misRes && (misRes.para_resenar.length > 0 || misRes.mias.length > 0) && <div className="tw-sec-tit">⭐ Reseñas</div>}
+        </>}
+        {vista === "resenas" && misRes && !misRes.para_resenar.length && !misRes.mias.length && <div className="tw-vacio-grande"><span aria-hidden="true">⭐</span>No tenés productos para opinar ahora.<small>Después de tu próxima compra, vas a poder contarnos qué te pareció y sumar puntos.</small></div>}
+        {vista === "resenas" && <>
         {misRes && !misRes.para_resenar.length && !misRes.mias.length ? null : (!misRes ? <div className="tw-skel" style={{ height: 100 }} /> : (
           <div>
             {misRes.para_resenar.length > 0 ? <>
@@ -33077,8 +33159,10 @@ function TiendaPublica({ slug }) {
             </>}
           </div>
         ))}
-        <div className="tw-sec-tit">🧾 Todas tus compras</div>
-        {((miCuenta.compras || []).length === 0 ? <p className="tw-vacio">Todavía no hay compras registradas.</p> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta" style={{ flexWrap: "wrap" }}><span style={{ flex: 1, minWidth: 0 }}><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span>{(c.items || []).some(i => i.producto_id) && <button className="tw-recompra-btn" onClick={() => recomprar(c.items)}>🔁 Volver a pedir</button>}</div>))}
+        </>}
+        {vista === "local" && <>
+        {((miCuenta.compras || []).length === 0 ? <div className="tw-vacio-grande"><span aria-hidden="true">🧾</span>Todavía no hay compras registradas.<small>Cuando compres en el local diciendo tu DNI, aparecen acá.</small></div> : miCuenta.compras.map(c => <div key={c.id} className="tw-fila-cuenta" style={{ flexWrap: "wrap" }}><span style={{ flex: 1, minWidth: 0 }}><b>{new Date(c.creado_en).toLocaleDateString("es-AR")}</b><small>{(c.items || []).map(i => i.cantidad + " × " + i.nombre).join(", ")}</small></span><span>{fmtTienda(c.total)}</span>{(c.items || []).some(i => i.producto_id) && <button className="tw-recompra-btn" onClick={() => recomprar(c.items)}>🔁 Volver a pedir</button>}</div>))}
+        </>}
         </>}
         {sec === "piel" && <>
         {(() => {
@@ -33153,7 +33237,8 @@ function TiendaPublica({ slug }) {
           );
         })()}
         </>}
-        <button className="tw-btn2" style={{ marginTop: 22 }} onClick={salirCuenta}>Cerrar sesión</button>
+        {vista === "inicio" ? <button className="tw-btn2" style={{ marginTop: 22 }} onClick={salirCuenta}>Cerrar sesión</button>
+          : <button className="tw-volver" style={{ marginTop: 22 }} onClick={() => irA("inicio")}>‹ Volver a mi cuenta</button>}
       </div>
     );
   })();
