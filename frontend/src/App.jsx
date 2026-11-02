@@ -7446,20 +7446,29 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
   const [marcasSel, setMarcasSel] = useState([]);
   const [catalogo, setCatalogo] = useState([]);
   useEffect(() => { API.get("/productos").then(r => setCatalogo((r.data || []).filter(x => x.activo !== false))).catch(() => {}); }, []);
-  const marcaDe = (x) => String(x.marca || "").trim() || "Sin marca";
-  const marcasCatalogo = [...new Set(catalogo.map(marcaDe))].filter(m => m !== "Sin marca").sort((a, b) => a.localeCompare(b, "es"));
-  const provsDeMarca = (m) => [...new Set(catalogo.filter(x => marcaDe(x) === m && x.proveedor_id).map(x => String(x.proveedor_id)))];
+  // La marca se compara sin espacios, puntos ni mayúsculas: "Skin1004", "SKIN 1004" y "skin 1004" son la misma
+  const claveMarca = (m) => String(m || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+  const nombresMarca = {};
+  catalogo.forEach(x => { const k = claveMarca(x.marca); if (!k) return; const n = String(x.marca).trim(); (nombresMarca[k] = nombresMarca[k] || {})[n] = (nombresMarca[k][n] || 0) + 1; });
+  const nombreMarca = (k) => nombresMarca[k] ? Object.entries(nombresMarca[k]).sort((a, b) => b[1] - a[1])[0][0] : k;
+  const marcaDe = (x) => claveMarca(x.marca) ? nombreMarca(claveMarca(x.marca)) : "Sin marca";
+  const marcasCatalogo = Object.keys(nombresMarca).map(nombreMarca).sort((a, b) => a.localeCompare(b, "es"));
+  const provsDeMarca = (m) => [...new Set(catalogo.filter(x => claveMarca(x.marca) === claveMarca(m) && x.proveedor_id).map(x => String(x.proveedor_id)))];
+  const sinProvDeMarca = (m) => catalogo.filter(x => claveMarca(x.marca) === claveMarca(m) && !x.proveedor_id).length;
+  // Elegir una marca trae TODOS sus productos (de cualquier proveedor o sin proveedor cargado)
+  const [marcaApi, setMarcaApi] = useState("");
   const elegirMarca = (m) => {
-    if (!m) { setMarcasSel([]); return; }
-    setMarcasSel([m]);
+    setMarcasSel([]); setMarcaApi(m || "");
+    if (!m) return;
     const pv = provsDeMarca(m);
     if (pv.length === 1 && pv[0] !== String(provSel)) setProvSel(pv[0]);
   };
 
   const calcularSug = () => {
-    if (!provSel) { setSug(null); return; }
+    if (!provSel && !marcaApi) { setSug(null); return; }
     setCargandoSug(true);
-    const q = new URLSearchParams({ proveedor_id: provSel, dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, dias_seguridad: diasSeguridad });
+    const q = new URLSearchParams({ proveedor_id: provSel || "", dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, dias_seguridad: diasSeguridad });
+    if (marcaApi) q.set("marca", marcaApi);
     if (leadTime !== "") q.set("lead_time", leadTime);
     API.get("/productos/sugerencia-compra?" + q.toString())
       .then(res => {
@@ -7473,7 +7482,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
       .finally(() => setCargandoSug(false));
   };
   useEffect(() => { setLeadTime(""); }, [provSel]);
-  useEffect(() => { const t = setTimeout(calcularSug, 300); return () => clearTimeout(t); }, [provSel, diasAnalisis, diasCobertura, diasSeguridad, leadTime]);
+  useEffect(() => { const t = setTimeout(calcularSug, 300); return () => clearTimeout(t); }, [provSel, marcaApi, diasAnalisis, diasCobertura, diasSeguridad, leadTime]);
 
   // Cantidad a pedir de un producto segun la vista (por local o total)
   const cantDe = (id, l) => Math.max(0, parseInt((cant[id] || {})[l]) || 0);
@@ -7503,7 +7512,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
       return "• " + n + " × " + pr.nombre + (pr.marca ? " — " + pr.marca : "") + (pr.codigo_barras ? " [" + pr.codigo_barras + "]" : "") + detalleLocal;
     });
     const para = vistaLocal === "todos" ? "" : " para " + nombreLocal(parseInt(vistaLocal));
-    const deMarca = marcasSel.length ? " de " + marcasSel.join(", ") : "";
+    const deMarca = marcasSel.length ? " de " + marcasSel.join(", ") : marcaApi ? " de " + marcaApi : "";
     return "¡Hola" + (provObj?.nombre ? " " + provObj.nombre : "") + "! Te paso el pedido" + deMarca + (nombreNegocio ? (deMarca ? " para " : " de ") + nombreNegocio : "") + para + ":\n\n" +
       lineas.join("\n") + "\n\nTotal: " + unidades + " unidades. ¡Gracias!";
   };
@@ -7520,6 +7529,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
     window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(textoPedido()), "_blank");
   };
   const registrarEnCamino = async () => {
+    if (!provSel) { setConfirmarOrden(false); return avisar("Error: elegí arriba a qué proveedor le hacés este pedido"); }
     setGuardando(true);
     try {
       const items = enPedido.map(pr => {
@@ -7530,7 +7540,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
       await API.post("/ordenes-ingreso", {
         proveedor_id: parseInt(provSel), numero_factura: null,
         total: items.reduce((s, it) => s + it.cantidad_total * it.costo_unitario, 0),
-        notas: "Pedido armado en Qué pedir (" + items.length + " productos" + (marcasSel.length ? " · " + marcasSel.join(", ") : "") + ")", items,
+        notas: "Pedido armado en Qué pedir (" + items.length + " productos" + (marcasSel.length ? " · " + marcasSel.join(", ") : marcaApi ? " · " + marcaApi : "") + ")", items,
       });
       setConfirmarOrden(false);
       avisar("✓ Pedido registrado: " + unidades + " unidades quedaron como mercadería en camino. Lo recibís desde Ingresos.");
@@ -7632,19 +7642,22 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
             <div className="qp-fila">
               <div style={{ flex: "2 1 220px" }}>
                 <div className="fl">Proveedor</div>
-                <select className="sel" value={provSel} onChange={e => { setProvSel(e.target.value); setMarcasSel(ms => ms.filter(m => provsDeMarca(m).includes(e.target.value))); }} aria-label="Proveedor">
+                <select className="sel" value={provSel} onChange={e => { setProvSel(e.target.value); setMarcasSel([]); }} aria-label="Proveedor">
                   <option value="">Elegí un proveedor...</option>
                   {proveedores.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
                 </select>
               </div>
               <div style={{ flex: "2 1 200px" }}>
                 <div className="fl">Marca</div>
-                <select className="sel" value={marcasSel.length === 1 ? marcasSel[0] : ""} onChange={e => elegirMarca(e.target.value)} aria-label="Marca">
-                  <option value="">{marcasSel.length > 1 ? marcasSel.length + " marcas elegidas" : "Todas las marcas"}</option>
+                <select className="sel" value={marcaApi} onChange={e => elegirMarca(e.target.value)} aria-label="Marca">
+                  <option value="">Todas las marcas</option>
                   {marcasCatalogo.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                {marcasSel.length === 1 && (() => { const pv = provsDeMarca(marcasSel[0]); if (pv.length < 2) return pv.length === 0 ? <div style={{ fontSize: 11.5, color: p.warn, marginTop: 4 }}>Esta marca no tiene proveedor cargado en sus productos.</div> : null;
-                  return <div style={{ fontSize: 11.5, marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}><span style={{ color: p.textMuted }}>La traen:</span>{pv.map(id => { const pr = proveedores.find(x => String(x.id) === id); return <button key={id} className={"mini-chip" + (String(provSel) === id ? " on" : "")} onClick={() => setProvSel(id)}>{pr ? pr.nombre : "Proveedor " + id}</button>; })}</div>; })()}
+                {marcaApi && (() => { const pv = provsDeMarca(marcaApi), sp = sinProvDeMarca(marcaApi);
+                  return <div style={{ fontSize: 11.5, marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                    {pv.length > 0 && <><span style={{ color: p.textMuted }}>{pv.length > 1 ? "La traen:" : "La trae:"}</span>{pv.map(id => { const pr = proveedores.find(x => String(x.id) === id); return <button key={id} className={"mini-chip" + (String(provSel) === id ? " on" : "")} onClick={() => setProvSel(id)}>{pr ? pr.nombre : "Proveedor " + id}</button>; })}</>}
+                    {sp > 0 && <span style={{ color: p.warn }}>· {sp} {sp === 1 ? "producto" : "productos"} sin proveedor cargado (igual aparecen)</span>}
+                  </div>; })()}
               </div>
               {!UN_SOLO_LOCAL && <div>
                 <div className="fl">Para</div>
@@ -7699,8 +7712,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
             )}
           </div>
 
-          {!provSel ? (
-            <div className="empty chart-card">Elegí un proveedor y te armo la lista de lo que hay que pedirle.</div>
+          {!provSel && !marcaApi ? (
+            <div className="empty chart-card">Elegí un proveedor o una marca y te armo la lista de lo que hay que pedir.</div>
           ) : cargandoSug && !sug ? (
             <div className="skel" style={{ height: 260 }} />
           ) : !sug ? null : (
@@ -7722,7 +7735,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                 );
               })()}
               <div className="kpi-grid" style={{ opacity: cargandoSug ? 0.6 : 1 }}>
-                <KpiCard p={p} titulo="Productos a pedir" valor={enPedido.length} color={p.accentText} indice={0} sub={"de " + productos.length + " del proveedor"} />
+                <KpiCard p={p} titulo="Productos a pedir" valor={enPedido.length} color={p.accentText} indice={0} sub={"de " + productos.length + (sug.por_marca ? " de la marca" : " del proveedor")} />
                 <KpiCard p={p} titulo="Unidades" valor={unidades} color="#2471a3" indice={1} sub={"para " + diasCobertura + " días"} />
                 <KpiCard p={p} titulo="Costo estimado" valor={costoTotal} formato={fmt} color={p.red} indice={2} sub="al costo cargado" />
                 <KpiCard p={p} titulo="Urgentes" valor={urgentes} color={urgentes > 0 ? p.red : p.green} indice={3} sub={urgentes > 0 ? "ya pasaron el punto de pedido" : "ninguno por debajo"} />
@@ -7777,6 +7790,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                                   {pr.dias_venta < sug.dias_analisis && <span className="tag tag-neutral" title={"Producto nuevo: se midió sobre " + pr.dias_venta + " días"}>nuevo</span>}
                                 </div>
                                 {hint && <div style={{ fontSize: 10, color: p.accentText, marginTop: 3 }}>💡 {nombreLocal(hint.de)} tiene {hint.n} de sobra: podés traspasarlas a {nombreLocal(hint.a)}</div>}
+                                {sug.por_marca && (!pr.proveedor_id ? <div style={{ fontSize: 10, color: p.warn, marginTop: 3 }}>⚠ Sin proveedor cargado en el producto</div>
+                                  : provSel && String(pr.proveedor_id) !== String(provSel) ? <div style={{ fontSize: 10, color: p.textMuted, marginTop: 3 }}>Cargado con proveedor: {pr.proveedor_nombre || "otro"}</div> : null)}
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
                                 <b>{d.stock}</b>
