@@ -629,8 +629,14 @@ const getRotacion = async (req, res) => {
 // el punto de pedido, cuanto pedir para cubrir N dias y el costo estimado del pedido.
 const getSugerenciaCompra = async (req, res) => {
   try {
-    const { proveedor_id } = req.query;
-    if (!proveedor_id) return res.status(400).json({ error: 'Elegi un proveedor' });
+    const proveedor_id = parseInt(req.query.proveedor_id) || null;
+    // Por marca: trae todos los productos de esa marca, sin importar el proveedor que tengan cargado
+    // (o si no tienen), y sin importar cómo esté escrita ("Skin1004", "SKIN 1004", "skin 1004"...)
+    const marcaClave = String(req.query.marca || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+    if (!proveedor_id && !marcaClave) return res.status(400).json({ error: 'Elegi un proveedor o una marca' });
+    const CLAVE_MARCA = `regexp_replace(lower(translate(COALESCE(p.marca, ''), 'áéíóúÁÉÍÓÚñÑ', 'aeiouAEIOUnN')), '[^a-z0-9]', '', 'g')`;
+    const filtroP = marcaClave ? `${CLAVE_MARCA} = $1` : 'p.proveedor_id = $1';
+    const valorP = marcaClave || proveedor_id;
     const diasAnalisis = Math.min(365, Math.max(7, parseInt(req.query.dias_analisis) || 30));
     const diasCobertura = Math.min(365, Math.max(1, parseInt(req.query.dias_cobertura) || 30));
     const diasSeguridad = Math.min(90, Math.max(0, parseInt(req.query.dias_seguridad ?? 7) || 0));
@@ -638,7 +644,7 @@ const getSugerenciaCompra = async (req, res) => {
 
     const hayVariantes = !!(await pool.query(`SELECT to_regclass('producto_variantes') AS t`)).rows[0].t;
     const [provRes, prodRes, ventasRes, varRes, anioRes] = await Promise.all([
-      pool.query('SELECT id, nombre, whatsapp, telefono, email FROM proveedores WHERE id = $1', [proveedor_id]),
+      proveedor_id ? pool.query('SELECT id, nombre, whatsapp, telefono, email FROM proveedores WHERE id = $1', [proveedor_id]) : { rows: [] },
       pool.query(`
         SELECT id, nombre, marca, codigo_barras, categoria, COALESCE(costo, 0) AS costo, COALESCE(precio, 0) AS precio,
           COALESCE(stock_rg, 0) AS stock_rg, COALESCE(stock_ush, 0) AS stock_ush,
@@ -647,26 +653,27 @@ const getSugerenciaCompra = async (req, res) => {
           COALESCE(stock_minimo, 0) AS stock_minimo, COALESCE(lead_time_dias, 7) AS lead_time_dias,
           GREATEST(1, LEAST($2::int, CEIL(EXTRACT(EPOCH FROM (NOW() - COALESCE(creado_en, NOW() - INTERVAL '365 days'))) / 86400)::int)) AS dias_vida,
           GREATEST(1, LEAST(365, CEIL(EXTRACT(EPOCH FROM (NOW() - COALESCE(creado_en, NOW() - INTERVAL '365 days'))) / 86400)::int)) AS dias_vida_anio
-        FROM productos WHERE proveedor_id = $1 AND activo = TRUE ORDER BY nombre`, [proveedor_id, diasAnalisis]),
+        , proveedor_id, (SELECT nombre FROM proveedores pr WHERE pr.id = p.proveedor_id) AS proveedor_nombre
+        FROM productos p WHERE ${filtroP} AND activo = TRUE ORDER BY nombre`, [valorP, diasAnalisis]),
       pool.query(`
         SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
-        WHERE p.proveedor_id = $1 AND v.creado_en >= NOW() - ($2 || ' days')::interval AND ${VENTA_VALIDA_SQL}
-        GROUP BY vi.producto_id, v.local_id`, [proveedor_id, diasAnalisis]),
+        WHERE ${filtroP} AND v.creado_en >= NOW() - ($2 || ' days')::interval AND ${VENTA_VALIDA_SQL}
+        GROUP BY vi.producto_id, v.local_id`, [valorP, diasAnalisis]),
       // Productos con variantes (talles, colores): su stock esta en cada variante
       !hayVariantes ? { rows: [] } : pool.query(`
         SELECT pv.producto_id, SUM(COALESCE(pv.stock_rg, 0)) AS stock_rg, SUM(COALESCE(pv.stock_ush, 0)) AS stock_ush, COUNT(*) AS cantidad
         FROM producto_variantes pv JOIN productos p ON p.id = pv.producto_id
-        WHERE p.proveedor_id = $1 AND COALESCE(pv.activo, TRUE) = TRUE
-        GROUP BY pv.producto_id`, [proveedor_id]),
+        WHERE ${filtroP} AND COALESCE(pv.activo, TRUE) = TRUE
+        GROUP BY pv.producto_id`, [valorP]),
       // Ventas del ultimo año: para lo que esta agotado y por eso no se vendio en el periodo elegido
       pool.query(`
         SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido, MIN(v.creado_en) AS primera, MAX(v.creado_en) AS ultima
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
-        WHERE p.proveedor_id = $1 AND v.creado_en >= NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA_SQL}
-        GROUP BY vi.producto_id, v.local_id`, [proveedor_id]),
+        WHERE ${filtroP} AND v.creado_en >= NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA_SQL}
+        GROUP BY vi.producto_id, v.local_id`, [valorP]),
     ]);
-    if (provRes.rows.length === 0) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    if (proveedor_id && provRes.rows.length === 0) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
     const vendidos = {};
     ventasRes.rows.forEach(r => {
@@ -742,6 +749,7 @@ const getSugerenciaCompra = async (req, res) => {
       });
       return {
         id: p.id, nombre: p.nombre, marca: p.marca, codigo_barras: p.codigo_barras, categoria: p.categoria,
+        proveedor_id: p.proveedor_id, proveedor_nombre: p.proveedor_nombre,
         costo: parseFloat(p.costo), precio: parseFloat(p.precio),
         lead_time_dias: leadTime, dias_venta: diasVenta, stock_minimo_guardado: parseInt(p.stock_minimo),
         tiene_variantes: !!vv, cantidad_variantes: vv ? parseInt(vv.cantidad) : 0,
@@ -757,7 +765,7 @@ const getSugerenciaCompra = async (req, res) => {
     productos.sort((a, b) => orden(a) - orden(b) || (a.dias_de_stock ?? 9999) - (b.dias_de_stock ?? 9999));
 
     res.json({
-      proveedor: provRes.rows[0],
+      proveedor: provRes.rows[0] || null, por_marca: !!marcaClave,
       dias_analisis: diasAnalisis, dias_cobertura: diasCobertura, dias_seguridad: diasSeguridad,
       lead_time: leadOverride !== null ? leadOverride : leadComun, lead_time_comun: leadComun,
       productos,
