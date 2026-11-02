@@ -31131,6 +31131,18 @@ const TW_RUT_PIEL = [
   ["sensible", "Se irrita fácil", "Se enrojece, pica o arde con algunos productos"],
   ["normal", "Cómoda todo el día", "Ni brillo ni tirantez: está equilibrada"],
 ];
+// Tipos de piel del perfil: se puede elegir más de uno (ej. sensible + mixta). "Normal" va sola y grasa/seca no van juntas.
+const twPieles = (pf) => pf ? (Array.isArray(pf.pieles) && pf.pieles.length ? pf.pieles : pf.piel ? [pf.piel] : []) : [];
+const twTogglePiel = (lista, k) => {
+  if (lista.includes(k)) return lista.filter(x => x !== k);
+  if (k === "normal") return ["normal"];
+  const fuera = { grasa: "seca", seca: "grasa" }[k];
+  return [...lista.filter(x => x !== "normal" && x !== fuera), k].slice(-3);
+};
+const twPielesTxt = (l) => { const n = l.map(k => ((TW_FILTROS[1].op.find(o => o[0] === k) || ["", k])[1] || "").toLowerCase()); return n.length > 1 ? n.slice(0, -1).join(", ") + " y " + n[n.length - 1] : n[0] || ""; };
+// Aceites y bálsamos de limpieza: son la primera limpieza, siempre van seguidos de un limpiador de base acuosa
+const twEsAceiteLimpieza = (p) => /aceite|\boil\b|balsamo|\bbalm\b|cleansing (oil|balm)/.test(twNorm(p.nombre || ""));
+const twTiposRutina = (r) => { const t = TW_RUT_PASOS[r.pasos] || TW_RUT_PASOS.completa; return r.maquillaje === "si" && t.includes("limpiador") && !t.includes("desmaquillante") ? ["desmaquillante", ...t] : t; };
 const TW_RUT_PASOS = {
   basica: ["limpiador", "hidratante", "solar"],
   completa: ["limpiador", "serum", "hidratante", "solar"],
@@ -31143,7 +31155,9 @@ const TW_RUT_CUANDO = { desmaquillante: "noche", limpiador: "mañana y noche", t
 // (si no, el mismo kit salía de limpiador y de protector). También lo que trae 3 o más pasos de la rutina facial.
 const TW_PASOS_FACIALES = ["limpiador", "desmaquillante", "tonico", "serum", "hidratante", "solar", "ojos", "mascarilla", "exfoliante"];
 const twEsKit = (p) => /\b(kits?|sets?|packs?|combos?|d[uú]o|tr[ií]o|box)\b/i.test(twNorm([p.nombre, p.categoria].join(" "))) || ((p._et || twEtiquetas(p)).tipo || []).filter(t => TW_PASOS_FACIALES.includes(t)).length >= 3;
-function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, coreano, soloTipos }) {
+function twArmarRutina(productos, dispo, { piel, pieles, nec, pasos, presupuesto, coreano, soloTipos, maquillaje }) {
+  const misPieles = (pieles && pieles.length ? pieles : piel ? [piel] : []);
+  const doble = maquillaje === "si";
   // Solo lo facial (asi no entran, por ejemplo, ampollas para el pelo como "serum"): la categoria Facial o la linea
   // "Facial / skincare" de la segmentacion (ej. un cushion con protector, de la categoria Maquillaje, marcado facial).
   // Si la tienda no tiene nada de eso, se usan todos.
@@ -31151,18 +31165,23 @@ function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, corean
   const base = faciales.length ? faciales : productos;
   // Skincare coreano: solo los productos del proveedor de coreano (BEK)
   const conStock = base.filter(p => !twEsKit(p) && (!coreano || p.coreano) && (p.variantes ? p.variantes.some(v => dispo(p, v) > 0) : dispo(p) > 0));
-  const tipos = soloTipos || TW_RUT_PASOS[pasos] || TW_RUT_PASOS.completa;
+  const tipos = soloTipos || twTiposRutina({ pasos, maquillaje });
   const usados = new Set();
   const puntaje = (p) => {
     let w = 1 + (p.rk ? Math.max(0, 40 - p.rk) * 0.12 : 0) + (p.top ? (12 - p.top) * 0.3 : 0) + (p.resenas ? Math.max(0, p.resenas[0] - 3) * 1.2 : 0) + (p.foto ? 0.6 : -0.8) + (p.descripcion ? 0.3 : 0);
-    const pi = p._et.piel || [];
-    if (piel && (pi.includes(piel) || p._et.todoTipo)) w *= 2.6; else if (piel && pi.length) w *= 0.12;
+    const pi = p._et.piel || [], van = misPieles.filter(k => pi.includes(k)).length;
+    // Más de un tipo de piel: cuantos más le sirvan, mejor (y lo que es para piel sensible pesa más si la marcó)
+    if (misPieles.length && (van || p._et.todoTipo)) w *= 2.6 * (1 + Math.max(0, van - 1) * 0.6) * (misPieles.includes("sensible") && pi.includes("sensible") ? 1.4 : 1); else if (misPieles.length && pi.length) w *= 0.12;
+    // Doble limpieza: de segundo limpiador, uno en espuma o gel
+    if (doble && (p._et.tipo || []).includes("limpiador") && /espuma|foam|gel/.test(twNorm(p.nombre || ""))) w *= 1.8;
     (nec || []).forEach(n => { if ((p._et.necesidad || []).includes(n)) w *= 1.9; });
     return w;
   };
   // Lo que se le puede dar a cada paso: primero lo mejor puntuado
-  const aptaPiel = (p) => !piel || !(p._et.piel || []).length || (p._et.piel || []).includes(piel) || p._et.todoTipo;
-  const opciones = tipos.map(t => { const deTipo = conStock.filter(p => (p._et.tipo || []).includes(t) && (t === "mascarilla" || !twMascNombre(twNorm(p.nombre)))); const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
+  const aptaPiel = (p) => !misPieles.length || !(p._et.piel || []).length || misPieles.some(k => (p._et.piel || []).includes(k)) || p._et.todoTipo;
+  // El limpiador nunca es un aceite o bálsamo solo; en la doble limpieza, el primer paso sí es aceite o bálsamo (si hay)
+  const sirvePaso = (t, p) => t === "limpiador" ? !twEsAceiteLimpieza(p) : true;
+  const opciones = tipos.map(t => { let deTipo = conStock.filter(p => (p._et.tipo || []).includes(t) && sirvePaso(t, p) && (t === "mascarilla" || !twMascNombre(twNorm(p.nombre)))); if (t === "desmaquillante" && doble) { const ac = deTipo.filter(twEsAceiteLimpieza); if (ac.length) deTipo = ac; } const aptos = deTipo.filter(aptaPiel); return { t, lista: aptos.length ? aptos : deTipo }; }).map(({ t, lista }) => ({ t, ops: lista.map(p => ({ p, v: p.variantes ? p.variantes.find(v => dispo(p, v) > 0) : null, w: puntaje(p) })).sort((a, b) => b.w - a.w) })).filter(x => x.ops.length);
   let pasosR = opciones.map(x => { const ops = x.ops.filter(o => !usados.has(o.p.id)); const o = ops[0] || x.ops[0]; usados.add(o.p.id); return { t: x.t, ops: x.ops, i: x.ops.indexOf(o) }; });
   // Presupuesto: mientras se pase, cambia el paso donde bajar de precio cueste menos puntaje
   const precio = (o) => o.p.precio;
@@ -31194,22 +31213,22 @@ function twArmarRutina(productos, dispo, { piel, nec, pasos, presupuesto, corean
 
 function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, copiado, perfil, onPerfil }) {
   const [paso, setPaso] = useState(0);
-  const [r, setR] = useState(() => ({ piel: (perfil && perfil.piel) || "", nec: (perfil && perfil.nec) || [], pasos: "completa", presupuesto: 0, coreano: false }));
+  const [r, setR] = useState(() => ({ piel: (perfil && perfil.piel) || "", pieles: twPieles(perfil), nec: ((perfil && perfil.nec) || []).slice(0, 3), pasos: "completa", presupuesto: 0, coreano: false, maquillaje: "" }));
   const hayCoreano = productos.some(p => p.coreano);
   // Ya no se pregunta el presupuesto: se arma la rutina ideal y al final se puede abaratar (un paso o toda la rutina)
-  const PASOS_TEST = ["piel", "nec", ...(hayCoreano ? ["corea"] : []), "pasos"];
+  const PASOS_TEST = ["piel", "nec", "maquillaje", ...(hayCoreano ? ["corea"] : []), "pasos"];
   const fin = PASOS_TEST.length, actual = PASOS_TEST[paso];
   const [rutina, setRutina] = useState(null);
   const [agregada, setAgregada] = useState(false);
   const [avisoEco, setAvisoEco] = useState("");
-  const armar = (datos) => { setAvisoEco(""); setRutina(twArmarRutina(productos, dispo, datos)); setPaso(fin); setAgregada(false); twSonar.pop(); onPerfil && onPerfil({ piel: datos.piel, nec: datos.nec }); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} };
+  const armar = (datos) => { setAvisoEco(""); setRutina(twArmarRutina(productos, dispo, datos)); setPaso(fin); setAgregada(false); twSonar.pop(); onPerfil && onPerfil({ piel: (datos.pieles || [])[0] || datos.piel || null, pieles: datos.pieles || [], nec: datos.nec }); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} };
   const sigue = (cambio, auto) => { const n = { ...r, ...cambio }; setR(n); if (auto) setTimeout(() => setPaso(p => p + 1), 180); };
   const necOps = TW_FILTROS.find(f => f.k === "necesidad").op;
   const total = rutina ? rutina.reduce((s, x) => s + x.ops[x.i].p.precio, 0) : 0;
   const cambiar = (k) => setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); let i = x.i; for (let n = 0; n < x.ops.length; n++) { i = (i + 1) % x.ops.length; if (!otros.includes(x.ops[i].p.id)) break; } return { ...x, i }; }));
   // Un paso más barato: la mejor opción (las opciones ya vienen de mejor a peor) que cueste menos y no esté en otro paso
   // Si pidió coreano, al abaratar se abre a todas las marcas: se suman las opciones de la rutina armada sin el filtro coreano
-  const abierta = useMemo(() => r.coreano ? twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: 0 }) : null, [productos, dispo, r.piel, r.nec, r.pasos, r.coreano]);
+  const abierta = useMemo(() => r.coreano ? twArmarRutina(productos, dispo, { ...r, coreano: false, presupuesto: 0 }) : null, [productos, dispo, r.piel, r.pieles, r.nec, r.pasos, r.coreano, r.maquillaje]);
   const opsDe = (x) => { const a = abierta && abierta.find(y => y.t === x.t); if (!a) return x.ops; const ids = new Set(x.ops.map(o => o.p.id)); return [...x.ops, ...a.ops.filter(o => !ids.has(o.p.id))].sort((p, q) => q.w - p.w); };
   const opBarata = (rt, k) => { const x = rt[k], act = x.ops[x.i], otros = rt.filter((_, j) => j !== k).map(y => y.ops[y.i].p.id); const ok = (o) => o.p.precio < act.p.precio && !otros.includes(o.p.id), ops = opsDe(x); return (r.coreano && ops.find(o => o.p.coreano && ok(o))) || ops.find(ok) || null; };
   const abaratar = (k) => { setAvisoEco(""); setRutina(rt => rt.map((x, kk) => { if (kk !== k) return x; const o = opBarata(rt, k); if (!o) return x; const ops = opsDe(x); return { ...x, ops, i: ops.indexOf(o) }; })); setAgregada(false); };
@@ -31225,8 +31244,8 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
     setRutina(nueva); setR(x => ({ ...x, presupuesto: t2 })); setAgregada(false); setAvisoEco("✓ Te armamos una rutina " + fmtTienda(total - t2) + " más económica." + (r.coreano && nueva.some(x => !x.ops[x.i].p.coreano) ? " Para eso sumamos productos de otras marcas." : ""));
   };
   const volverIdeal = () => { const n = { ...r, presupuesto: 0 }; setR(n); setRutina(twArmarRutina(productos, dispo, n)); setAgregada(false); setAvisoEco(""); };
-  const pielTxt = (TW_FILTROS[1].op.find(o => o[0] === r.piel) || ["", ""])[1].toLowerCase();
-  const TITULOS = { piel: "¿Cómo sentís tu piel a media tarde?", nec: "¿Qué te gustaría mejorar?", corea: "¿Querés una rutina de skincare coreano?", pasos: "¿Cuántos pasos querés hacer?" };
+  const pielTxt = twPielesTxt(r.pieles);
+  const TITULOS = { piel: "¿Cómo sentís tu piel?", nec: "¿Qué te gustaría mejorar?", maquillaje: "¿Te maquillás todos los días?", corea: "¿Querés una rutina de skincare coreano?", pasos: "¿Cuántos pasos querés hacer?" };
   return (
     <div className="tw-rut">
       {paso < fin ? (
@@ -31234,20 +31253,26 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
           <div className="tw-rut-ceja">✨ Encontrá tu rutina · Paso {paso + 1} de {fin}</div>
           <div className="tw-rut-prog">{PASOS_TEST.map((x, i) => <i key={x} className={i <= paso ? "on" : ""} />)}</div>
           <h1 key={"t" + paso}>{TITULOS[actual]}</h1>
-          {actual === "piel" && <div className="tw-rut-ops" key="p0">{TW_RUT_PIEL.map(([k, t, d], i) => { const [col, dib] = TW_ICONOS_PIEL[k] || ["#999", null]; return (
-            <button key={k} className={"tw-rut-op" + (r.piel === k ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ piel: k }, true)}>
+          {actual === "piel" && <><p className="tw-rut-sub">Podés elegir más de una</p><div className="tw-rut-ops" key="p0">{TW_RUT_PIEL.map(([k, t, d], i) => { const [col, dib] = TW_ICONOS_PIEL[k] || ["#999", null]; return (
+            <button key={k} className={"tw-rut-op" + (r.pieles.includes(k) ? " on" : "")} style={{ "--i": i }} onClick={() => { const l = twTogglePiel(r.pieles, k); sigue({ pieles: l, piel: l[0] || "" }); }}>
               <svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: col }} aria-hidden="true">{dib}</svg>
               <span><b>{t}</b><small>{d}</small></span>
-            </button>); })}</div>}
+            </button>); })}</div>
+            <button className="tw-btn full" style={{ marginTop: 14 }} disabled={!r.pieles.length} onClick={() => setPaso(p => p + 1)}>{r.pieles.length ? "Seguir" : "Elegí al menos una"}</button>
+          </>}
           {actual === "nec" && <>
-            <p className="tw-rut-sub">Elegí hasta 2</p>
+            <p className="tw-rut-sub">Elegí hasta 3</p>
             <div className="tw-rut-ops dos" key="p1">{necOps.map(([k, t], i) => { const [col, dib] = TW_ICONOS_PIEL[k] || ["#999", null]; const on = r.nec.includes(k); return (
-              <button key={k} className={"tw-rut-op" + (on ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ nec: on ? r.nec.filter(x => x !== k) : [...r.nec, k].slice(-2) })}>
+              <button key={k} className={"tw-rut-op" + (on ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ nec: on ? r.nec.filter(x => x !== k) : [...r.nec, k].slice(-3) })}>
                 <svg viewBox="0 0 48 48" width="34" height="34" fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: col }} aria-hidden="true">{dib}</svg>
                 <span><b>{t}</b></span>
               </button>); })}</div>
             <button className="tw-btn full" style={{ marginTop: 14 }} onClick={() => setPaso(p => p + 1)}>{r.nec.length ? "Seguir" : "Nada en especial, seguir"}</button>
           </>}
+          {actual === "maquillaje" && <div className="tw-rut-ops" key="pm">{[["si", "💄", "Sí, todos los días", "Te sumamos la doble limpieza: aceite limpiador y después un limpiador en espuma"], ["no", "🌿", "No todos los días", "A veces o casi nunca"]].map(([v, ic, t, d], i) => (
+            <button key={v} className={"tw-rut-op" + (r.maquillaje === v ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ maquillaje: v }, true)}>
+              <span className="tw-rut-num">{ic}</span><span><b>{t}</b><small>{d}</small></span>
+            </button>))}</div>}
           {actual === "corea" && <div className="tw-rut-ops" key="pc">{[[true, "🇰🇷", "Sí, skincare coreano", "Rutina armada solo con productos coreanos"], [false, "✨", "Me da lo mismo", "Lo mejor para tu piel, de cualquier origen"]].map(([v, ic, t, d], i) => (
             <button key={t} className={"tw-rut-op" + (r.coreano === v ? " on" : "")} style={{ "--i": i }} onClick={() => sigue({ coreano: v }, true)}>
               <span className="tw-rut-num">{ic}</span><span><b>{t}</b><small>{d}</small></span>
@@ -31267,7 +31292,7 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
             <div className="tw-rut-lista">
               {rutina.map((x, k) => { const o = x.ops[x.i]; return (
                 <div key={x.t} className="tw-rut-item" style={{ "--i": k }}>
-                  <div className="tw-rut-n"><b>{k + 1}</b><span>{TW_RUT_NOMBRE[x.t]}</span><small>{TW_RUT_CUANDO[x.t]}</small></div>
+                  <div className="tw-rut-n"><b>{k + 1}</b><span>{r.maquillaje === "si" && x.t === "desmaquillante" ? "Aceite limpiador" : r.maquillaje === "si" && x.t === "limpiador" ? "Limpiador en espuma" : TW_RUT_NOMBRE[x.t]}</span><small>{r.maquillaje === "si" && x.t === "desmaquillante" ? "1ª limpieza · noche" : r.maquillaje === "si" && x.t === "limpiador" ? "2ª limpieza · mañana y noche" : TW_RUT_CUANDO[x.t]}</small></div>
                   <button className="tw-rut-img" onClick={() => onAbrir(o.p)} aria-label={"Ver " + o.p.nombre}>{o.p.foto ? <img src={foto(o.p)} alt="" /> : <span className="tw-ph" style={{ fontSize: 30 }}>✿</span>}</button>
                   <div className="tw-rut-info">
                     {o.p.marca && <small>{o.p.marca}</small>}
@@ -31281,7 +31306,7 @@ function TwRutina({ productos, dispo, foto, onAgregar, onAbrir, onCompartir, cop
                   </div>
                 </div>); })}
             </div>
-            {(() => { const falta = (TW_RUT_PASOS[r.pasos] || []).filter(t => !rutina.some(x => x.t === t)); return falta.length ? <div className="tw-rut-falta">{r.presupuesto ? "Para que sea más económica (o porque no hay stock) sacamos: " : "Por ahora no tenemos con stock: "}<b>{falta.map(t => TW_RUT_NOMBRE[t].toLowerCase()).join(", ")}</b>. ¡Escribinos y te asesoramos!</div> : null; })()}
+            {(() => { const falta = twTiposRutina(r).filter(t => !rutina.some(x => x.t === t)); return falta.length ? <div className="tw-rut-falta">{r.presupuesto ? "Para que sea más económica (o porque no hay stock) sacamos: " : "Por ahora no tenemos con stock: "}<b>{falta.map(t => TW_RUT_NOMBRE[t].toLowerCase()).join(", ")}</b>. ¡Escribinos y te asesoramos!</div> : null; })()}
             <div className="tw-rut-total"><span>Total de tu rutina</span><b>{fmtTienda(total)}</b></div>
             <div className="tw-rut-eco">
               <button className="tw-btn2" onClick={masEconomica}>💸 Quiero una rutina más económica</button>
@@ -32855,8 +32880,9 @@ function TiendaPublica({ slug }) {
   const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => TW_TIPOS_FACIALES.includes(o[0]) && base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
   const ofertaP = tienda.ofertas && tienda.ofertas.dia ? visibles.find(p => p.id === tienda.ofertas.dia.producto_id && p.precio_antes) || null : null;
   // Recomendados para su piel (perfil guardado con el test o en su cuenta)
-  const paraTuPiel = perfilPiel && perfilPiel.piel ? visibles.filter(p => !agotado(p) && ((p._et.piel || []).includes(perfilPiel.piel) || p._et.todoTipo))
-    .map(p => ({ p, w: 1 + (perfilPiel.nec || []).filter(n => (p._et.necesidad || []).includes(n)).length * 2 + ((p._et.piel || []).includes(perfilPiel.piel) ? 1 : 0) + (p.rk ? Math.max(0, 40 - p.rk) / 40 : 0) + (p.resenas ? p.resenas[0] / 5 : 0) }))
+  const misPieles = twPieles(perfilPiel);
+  const paraTuPiel = misPieles.length ? visibles.filter(p => !agotado(p) && (misPieles.some(k => (p._et.piel || []).includes(k)) || p._et.todoTipo))
+    .map(p => ({ p, w: 1 + (perfilPiel.nec || []).filter(n => (p._et.necesidad || []).includes(n)).length * 2 + misPieles.filter(k => (p._et.piel || []).includes(k)).length + (p.rk ? Math.max(0, 40 - p.rk) / 40 : 0) + (p.resenas ? p.resenas[0] / 5 : 0) }))
     .sort((a, b) => b.w - a.w).slice(0, 12).map(x => x.p) : [];
   const hayRutina = ["limpiador", "hidratante", "solar", "serum"].filter(t => visibles.some(p => (p._et.tipo || []).includes(t))).length >= 2;
   const hayMenuSkin = catSkin ? true : visibles.some(p => p._et.piel.length || p._et.necesidad.length);
@@ -33387,17 +33413,17 @@ function TiendaPublica({ slug }) {
             <div className="tw-piel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <b>🌿 Mi piel</b>
-                {!editando && <button className="tw-link" onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { piel: pf.piel || "", nec: pf.nec || [] } }))}>{pf.piel || (pf.nec || []).length ? "Editar" : "Completar"}</button>}
+                {!editando && <button className="tw-link" onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { pieles: twPieles(pf), nec: pf.nec || [] } }))}>{pf.piel || (pf.nec || []).length ? "Editar" : "Completar"}</button>}
               </div>
-              {!editando ? (pf.piel || (pf.nec || []).length ? <div className="tw-piel-chips">{pf.piel && <span className="on">Piel {(pielOps.find(o => o[0] === pf.piel) || ["", pf.piel])[1].toLowerCase()}</span>}{(pf.nec || []).map(n => <span key={n}>{nombreNec(n)}</span>)}</div>
+              {!editando ? (pf.piel || (pf.nec || []).length ? <div className="tw-piel-chips">{twPieles(pf).length > 0 && <span className="on">Piel {twPielesTxt(twPieles(pf))}</span>}{(pf.nec || []).map(n => <span key={n}>{nombreNec(n)}</span>)}</div>
                 : <p>Contanos cómo es tu piel y te recomendamos los productos ideales para vos.</p>) : (
                 <>
-                  <div className="tw-piel-lbl">Tipo de piel</div>
-                  <div className="tw-piel-chips">{pielOps.map(([k, t]) => <button key={k} className={tmp.piel === k ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { ...x.pielTmp, piel: x.pielTmp.piel === k ? "" : k } }))}>{t}</button>)}</div>
+                  <div className="tw-piel-lbl">Tipo de piel <small>(podés elegir más de uno)</small></div>
+                  <div className="tw-piel-chips">{pielOps.map(([k, t]) => <button key={k} className={(tmp.pieles || []).includes(k) ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { ...x.pielTmp, pieles: twTogglePiel(x.pielTmp.pieles || [], k) } }))}>{t}</button>)}</div>
                   <div className="tw-piel-lbl">Qué querés mejorar <small>(hasta 3)</small></div>
                   <div className="tw-piel-chips">{necOps.map(([k, t]) => { const on = (tmp.nec || []).includes(k); return <button key={k} className={on ? "on" : ""} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: { ...x.pielTmp, nec: on ? x.pielTmp.nec.filter(n => n !== k) : [...(x.pielTmp.nec || []), k].slice(-3) } }))}>{t}</button>; })}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5 }} onClick={() => { guardarPerfilPiel({ piel: tmp.piel || null, nec: tmp.nec || [] }); setFormCuenta(x => ({ ...x, pielTmp: null })); }}>Guardar</button>
+                    <button className="tw-btn" style={{ padding: "9px 16px", fontSize: 11.5 }} onClick={() => { guardarPerfilPiel({ piel: (tmp.pieles || [])[0] || null, pieles: tmp.pieles || [], nec: tmp.nec || [] }); setFormCuenta(x => ({ ...x, pielTmp: null })); }}>Guardar</button>
                     <button className="tw-btn2" style={{ padding: "9px 16px", fontSize: 11.5 }} onClick={() => setFormCuenta(x => ({ ...x, pielTmp: null }))}>Cancelar</button>
                   </div>
                 </>
@@ -33591,7 +33617,7 @@ function TiendaPublica({ slug }) {
             {ofertaP && <TwOfertaDia p={ofertaP} oferta={tienda.ofertas.dia} foto={foto} onAbrir={abrir} onAgregar={(x, el) => agregar(x, null, 1, el)} sin={agotado(ofertaP)} />}
             <TwFila titulo="Destacados" items={destacados} render={tarjeta} />
             {vistosLista.length >= 2 && <TwFila titulo="👀 Lo viste hace poco" items={vistosLista} render={tarjeta} />}
-            {paraTuPiel.length >= 3 && <TwFila titulo={"🌿 Para tu piel " + ((TW_FILTROS[1].op.find(o => o[0] === perfilPiel.piel) || ["", ""])[1] || "").toLowerCase()} sub={<div className="tw-pre-txt">Elegidos según tu perfil de piel{perfilPiel.nec && perfilPiel.nec.length ? " y lo que querés mejorar" : ""}.</div>} items={paraTuPiel} render={tarjeta} />}
+            {paraTuPiel.length >= 3 && <TwFila titulo={"🌿 Para tu piel " + twPielesTxt(misPieles)} sub={<div className="tw-pre-txt">Elegidos según tu perfil de piel{perfilPiel.nec && perfilPiel.nec.length ? " y lo que querés mejorar" : ""}.</div>} items={paraTuPiel} render={tarjeta} />}
             {hayRutina && !paraTuPiel.length && <TwRutinaBanner onIr={() => irCat("rutina")} />}
             {tienda.diagnostico && <TwDiagBanner d={tienda.diagnostico} onIr={() => irCat("diagnostico")} />}
             {(tienda.rutinas || []).length > 0 && <TwRutinasLocal rutinas={tienda.rutinas} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />}
@@ -33662,7 +33688,7 @@ function TiendaPublica({ slug }) {
         const notas = enComparar.map(p => p.resenas ? p.resenas[0] : 0), mejorNota = enComparar.length > 1 && Math.max(...notas) > 0 && notas.filter(n => n === Math.max(...notas)).length === 1 ? Math.max(...notas) : null;
         const fila = (titulo, celda) => <><tr className="tw-comp-lbl"><th colSpan={enComparar.length}>{titulo}</th></tr><tr>{enComparar.map((p, i) => <td key={p.id}>{celda(p, ets[i])}</td>)}</tr></>;
         const chips = (l) => l.length ? <div className="tw-comp-chips">{l.map(x => <span key={x}>{x}</span>)}</div> : <span className="tw-comp-nada">—</span>;
-        const miPiel = perfilPiel && perfilPiel.piel;
+        const miPieles = twPieles(perfilPiel);
         return (
           <>
             <div className="tw-velo" onClick={() => setVerComparar(false)} />
@@ -33683,7 +33709,7 @@ function TiendaPublica({ slug }) {
                       {fila("Precio", p => <><div className="tw-comp-precio">{p.precio_antes && <s className="tw-antes">{fmtTienda(p.precio_antes)}</s>} {fmtTienda(p.precio)}</div>{masBarato === p.precio && <span className="tw-comp-mejor">💚 Más económico</span>}</>)}
                       {fila("Opiniones", p => p.resenas ? <><TwEstrellas v={p.resenas[0]} size={12} /> <small>({p.resenas[1]})</small>{mejorNota === p.resenas[0] && <div><span className="tw-comp-mejor">⭐ Mejor puntuado</span></div>}</> : <span className="tw-comp-nada">Sin opiniones todavía</span>)}
                       {fila("Qué es", (p, e) => chips(nombres("tipo", e)))}
-                      {fila("Tipo de piel", (p, e) => <>{chips(e.todoTipo ? ["Todo tipo de piel"] : nombres("piel", e))}{miPiel && (e.todoTipo || (e.piel || []).includes(miPiel)) && <span className="tw-comp-mejor">✓ Va con tu piel</span>}</>)}
+                      {fila("Tipo de piel", (p, e) => <>{chips(e.todoTipo ? ["Todo tipo de piel"] : nombres("piel", e))}{miPieles.length > 0 && (e.todoTipo || miPieles.some(k => (e.piel || []).includes(k))) && <span className="tw-comp-mejor">✓ Va con tu piel</span>}</>)}
                       {fila("Para qué sirve", (p, e) => chips(nombres("necesidad", e)))}
                       {fila("Ingredientes destacados", (p, e) => chips(nombres("ingrediente", e)))}
                       {fila("Disponibilidad", p => agotado(p) ? <span className="tw-comp-nada">✕ Agotado</span> : esPreventa(p) ? <span>⏳ Preventa</span> : <span className="tw-comp-ok">✓ En stock</span>)}
