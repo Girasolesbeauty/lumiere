@@ -27156,6 +27156,40 @@ button.tw-puntosdia-barra{cursor:pointer}
 .tw-puntos-card::after{content:"";position:absolute;inset:-40% -20% auto auto;width:70%;height:140%;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.28) 48%,transparent 62%);transform:rotate(8deg);pointer-events:none;animation:twBrillo 5s ease-in-out 1s infinite}
 @keyframes twBrillo{0%,70%{transform:translateX(-160%) rotate(8deg)}100%{transform:translateX(160%) rotate(8deg)}}
 .tw-puntos-card>*{position:relative;z-index:1}
+.tw-vip-escena{perspective:900px;margin-bottom:16px}
+.tw-puntos-card.tw-vip{--mx:50%;--my:50%;--rx:0deg;--ry:0deg;margin:0;border-radius:20px;padding:18px 20px 16px;min-height:200px;transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .25s ease-out;animation:twVipEntra .8s cubic-bezier(.2,.9,.25,1.15) both;box-shadow:0 18px 40px -14px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.45)}
+@keyframes twVipEntra{from{opacity:0;transform:translateY(24px) rotateX(18deg) scale(.96)}}
+.tw-puntos-card.tw-vip::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 100% 0%,rgba(255,255,255,.35),transparent 55%),repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 2px,transparent 2px 7px);pointer-events:none;z-index:0}
+.tw-vip-holo{position:absolute!important;inset:0;z-index:0!important;pointer-events:none;mix-blend-mode:overlay;opacity:.55;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.75),transparent 40%),linear-gradient(115deg,rgba(255,0,170,.18),rgba(0,200,255,.18),rgba(255,230,0,.18),rgba(255,0,170,.18));background-size:100% 100%,300% 100%;animation:twVipHolo 6s linear infinite}
+@keyframes twVipHolo{to{background-position:0 0,300% 0}}
+.tw-vip-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.tw-vip-marca{font-weight:900;font-size:15px;letter-spacing:.06em;text-transform:uppercase;line-height:1.1}
+.tw-vip-marca small{display:block;font-size:8.5px;letter-spacing:.32em;opacity:.7;font-weight:800;margin-top:3px}
+.tw-vip-nivel{font-size:10.5px!important;letter-spacing:.14em;padding:5px 11px!important;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.tw-vip-medio{display:flex;align-items:center;gap:16px;margin:18px 0 6px}
+.tw-vip-chip{flex:0 0 auto;width:44px;height:33px;border-radius:7px;background:linear-gradient(135deg,#f6e3a1,#c9a24a 45%,#f0d98b 60%,#a9832f);box-shadow:inset 0 0 0 1px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.2);position:relative;overflow:hidden}
+.tw-vip-chip i{position:absolute;left:0;right:0;height:1px;background:rgba(0,0,0,.28)}
+.tw-vip-chip i:nth-child(1){top:33%}.tw-vip-chip i:nth-child(2){top:66%}
+.tw-vip-chip i:nth-child(3){top:0;bottom:0;left:50%;width:1px;height:auto}
+.tw-vip-pts{display:flex;align-items:baseline;gap:7px}
+.tw-vip-pts b{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1;text-shadow:0 1px 0 rgba(255,255,255,.25)}
+.tw-vip-pts span{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+.tw-vip-x2{display:inline-block;margin:6px 0 2px;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.35);backdrop-filter:blur(4px);animation:twVipLate 2.2s ease-in-out infinite}
+@keyframes twVipLate{50%{transform:scale(1.05)}}
+.tw-vip-prog{margin-top:12px}
+.tw-vip-prog-txt{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;opacity:.9;letter-spacing:.02em}
+.tw-vip-prog-txt span:first-child{text-transform:uppercase;letter-spacing:.12em;font-size:10.5px;font-weight:900;opacity:.75}
+.tw-vip-barra{height:6px;border-radius:99px;background:rgba(0,0,0,.15);margin-top:6px;overflow:hidden}
+.nivel-bronze .tw-vip-barra,.nivel-black .tw-vip-barra{background:rgba(255,255,255,.22)}
+.tw-vip-barra i{display:block;height:100%;border-radius:99px;background:currentColor;position:relative;overflow:hidden;animation:twVipBarra 1.4s cubic-bezier(.2,.8,.2,1) .4s both}
+.tw-vip-barra i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:twVipBarraBrillo 2.6s ease-in-out 1.8s infinite;transform:translateX(-100%)}
+.nivel-black .tw-vip-barra i{background:linear-gradient(90deg,#c9a84c,#f3dc95)}
+@keyframes twVipBarra{from{width:0!important}}
+@keyframes twVipBarraBrillo{60%,100%{transform:translateX(100%)}}
+.tw-vip-prox{margin-top:10px;font-size:11.5px;font-weight:600;opacity:.85}
+.tw-vip-pie{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.14em;opacity:.75;text-shadow:0 1px 0 rgba(255,255,255,.2)}
+.tw-vip-pie span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.tw-puntos-card.tw-vip,.tw-vip-holo,.tw-vip-x2,.tw-vip-barra i,.tw-vip-barra i::after{animation:none!important;transform:none!important}}
 .tw-puntos-card.nivel-bronze{background:linear-gradient(135deg,#7a4a22,#b9773d 45%,#e2a970 75%,#a8662f);color:#fff8f0}
 .tw-puntos-card.nivel-silver{background:linear-gradient(135deg,#8a9097,#cfd4d9 40%,#f4f6f8 60%,#a9b0b7);color:#1f2328}
 .tw-puntos-card.nivel-gold{background:linear-gradient(135deg,#a7791f,#e3bf62 40%,#f8e6a8 60%,#c0942f);color:#2b1f05}
@@ -28752,6 +28786,44 @@ function TwSinPagar({ lista, slug }) {
         </div>
       )}
     </>
+  );
+}
+// Tarjeta de socia: como una tarjeta de crédito premium del color de su nivel, con chip, brillo que pasa,
+// reflejo holográfico que sigue el movimiento (celular o mouse) y los puntos contando
+function TwTarjetaSocia({ nivel, sigNiv, pts, faltaNivPts, pctNiv, proximo, nombre, desde, marca, hoyExtra }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const mover = (x, y) => { el.style.setProperty("--mx", (x * 100).toFixed(1) + "%"); el.style.setProperty("--my", (y * 100).toFixed(1) + "%"); el.style.setProperty("--rx", ((0.5 - y) * 8).toFixed(2) + "deg"); el.style.setProperty("--ry", ((x - 0.5) * 10).toFixed(2) + "deg"); };
+    const raton = (e) => { const r = el.getBoundingClientRect(); mover(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))); };
+    const salir = () => mover(0.5, 0.5);
+    const giro = (e) => { if (e.gamma == null) return; mover(Math.min(1, Math.max(0, 0.5 + e.gamma / 60)), Math.min(1, Math.max(0, 0.5 + (e.beta - 45) / 60))); };
+    el.addEventListener("pointermove", raton); el.addEventListener("pointerleave", salir);
+    window.addEventListener("deviceorientation", giro);
+    return () => { el.removeEventListener("pointermove", raton); el.removeEventListener("pointerleave", salir); window.removeEventListener("deviceorientation", giro); };
+  }, []);
+  const anio = desde ? new Date(desde).getFullYear() : null;
+  return (
+    <div className="tw-vip-escena">
+      <div ref={ref} className={"tw-puntos-card tw-vip nivel-" + String(nivel).toLowerCase()}>
+        <span className="tw-vip-holo" aria-hidden="true" />
+        <div className="tw-vip-top">
+          <span className="tw-vip-marca">{marca || "Club"}<small>CLUB DE BENEFICIOS</small></span>
+          <span className="tw-nivel tw-vip-nivel">✦ {nivel}</span>
+        </div>
+        <div className="tw-vip-medio">
+          <span className="tw-vip-chip" aria-hidden="true"><i /><i /><i /></span>
+          <div className="tw-vip-pts"><b><CountUp value={pts} formato={(n) => Math.round(n).toLocaleString("es-AR")} duracion={1200} /></b><span>puntos</span></div>
+        </div>
+        {hoyExtra && <div className="tw-vip-x2">🌻 Hoy sumás {hoyExtra}</div>}
+        {sigNiv ? <div className="tw-vip-prog">
+          <div className="tw-vip-prog-txt"><span>{nivel}</span><span>Te faltan <b>{faltaNivPts.toLocaleString("es-AR")} pts</b> para {sigNiv}</span></div>
+          <div className="tw-vip-barra"><i style={{ width: pctNiv + "%" }} /></div>
+        </div> : <div className="tw-vip-prog-txt" style={{ marginTop: 12 }}><span>✦ Nivel máximo</span></div>}
+        {proximo && <div className="tw-vip-prox">🎁 {proximo.nombre} · te faltan {proximo.falta.toLocaleString("es-AR")}</div>}
+        <div className="tw-vip-pie"><span>{String(nombre || "").toUpperCase()}</span>{anio && <span>SOCIA DESDE {anio}</span>}</div>
+      </div>
+    </div>
   );
 }
 function TwTransferir({ pd, datos, linkWa, conTitulo = true, conPlazo = false }) {
@@ -32853,21 +32925,8 @@ function TiendaPublica({ slug }) {
     const medSel = logros.find(l => l.id === formCuenta.medalla) || null;
     return (
       <div className="tw-cajon-cuerpo tw-cuenta-grande">
-        {vista === "inicio" && <div className={"tw-puntos-card nivel-" + nivelC.toLowerCase()}>
-          <div style={{ fontSize: 13, opacity: .85 }}>Hola, {String(miCuenta.nombre || "").split(" ")[0]} 👋</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "6px 0 2px" }}><span style={{ fontSize: 42, fontWeight: 800, lineHeight: 1 }}>{pts.toLocaleString("es-AR")}</span><span style={{ fontSize: 15, fontWeight: 700 }}>puntos</span>{miCuenta.nivel && <span className="tw-nivel">{nivelC}</span>}</div>
-          <div style={{ fontSize: 12.5, opacity: .8 }}>Sumás 1 punto cada {fmtTienda(miCuenta.pesos_por_punto || 100)} de compra</div>
-          {tienda.puntos_dia && <div className="tw-puntosdia-cuenta">🌻 {twMultHoy(tienda.puntos_dia) ? <><b>¡Hoy sumás {twMultTxt(tienda.puntos_dia.mult)}!</b> {twDiasTxt(tienda.puntos_dia.dias).replace(/^l/, "L")} tus compras online suman {twMultTxt(tienda.puntos_dia.mult)} de puntos.</> : <>{twDiasTxt(tienda.puntos_dia.dias).replace(/^l/, "L")} tus compras online suman <b>{twMultTxt(tienda.puntos_dia.mult)} de puntos</b>.</>}</div>}
-          {miCuenta.umbrales && (sigNiv ? <div className="tw-niv-prox">
-            <div style={{ fontSize: 12.5 }}>Te {faltaNivPts === 1 ? "falta" : "faltan"} <b>{faltaNivPts.toLocaleString("es-AR")} {faltaNivPts === 1 ? "punto" : "puntos"}</b> para ser <b>{sigNiv}</b> <span style={{ opacity: .75 }}>(≈ {fmtTienda(faltaNivPts * ppp)} en compras)</span></div>
-            <div className="tw-barra-pts tw-barra-niv"><i style={{ width: pctNiv + "%" }} /></div>
-            <div className="tw-niv-extremos"><span>{nivelC}</span><span>{sigNiv}</span></div>
-          </div> : <div className="tw-niv-prox" style={{ fontSize: 12.5 }}>✦ ¡Llegaste al nivel máximo! Gracias por elegirnos siempre.</div>)}
-          {proximo && <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 12.5 }}>Te faltan <b>{proximo.falta.toLocaleString("es-AR")}</b> para <b>{proximo.nombre}</b></div>
-            <div className="tw-barra-pts"><i style={{ width: Math.min(100, pts / proximo.puntos_requeridos * 100) + "%" }} /></div>
-          </div>}
-        </div>}
+        {vista === "inicio" && <TwTarjetaSocia nivel={nivelC} sigNiv={sigNiv} pts={pts} faltaNivPts={faltaNivPts} pctNiv={pctNiv} proximo={proximo}
+          nombre={miCuenta.nombre} desde={miCuenta.creado_en} marca={tienda.titulo} hoyExtra={tienda.puntos_dia && twMultHoy(tienda.puntos_dia) ? twMultTxt(tienda.puntos_dia.mult) : null} />}
         {vista === "inicio" && (miCuenta.pedidos || []).filter(pd => pd.tipo !== "giftcard" && !["entregado", "cancelado"].includes(pd.estado)).slice(0, 1).map(pd => (
           <Fragment key={pd.codigo}>
             <a className="tw-pedido-curso" href={"?tienda=" + encodeURIComponent(slug) + "&pedido=" + pd.codigo}>
