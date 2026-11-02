@@ -31906,7 +31906,10 @@ function TiendaPublica({ slug }) {
     try {
       const m = /[#&]vista=([^&]+)/.exec(window.location.hash || "");
       if (m) { sessionStorage.setItem("tienda_vista_" + slug, decodeURIComponent(m[1])); window.history.replaceState(null, "", window.location.pathname + window.location.search); }
-      return sessionStorage.getItem("tienda_vista_" + slug) || "";
+      // Solo una llave de verdad (antes acá también se guardaba por error dónde estaba mirando la clienta, y eso la deslogueaba al recargar)
+      const v = sessionStorage.getItem("tienda_vista_" + slug) || "";
+      if (v && !v.startsWith("eyJ")) { sessionStorage.removeItem("tienda_vista_" + slug); return ""; }
+      return v;
     } catch (e) { return ""; }
   });
   const salirVista = () => { try { sessionStorage.removeItem("tienda_vista_" + slug); } catch (e) {} setVistaTk(""); window.location.reload(); };
@@ -31936,7 +31939,7 @@ function TiendaPublica({ slug }) {
   const navAtras = useRef(false), catPrev = useRef(null);
   const histN = useRef((window.history.state && window.history.state.n) || 0); // posicion en el historial (para saber si se fue atras o adelante)
   // Al actualizar vuelve a la misma seccion (categoria, preventa, regalos...), con sus filtros y a la misma altura
-  const vistaGuardada = useRef((() => { try { return JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "null"); } catch (e) { return null; } })());
+  const vistaGuardada = useRef((() => { try { return JSON.parse(sessionStorage.getItem("tienda_nav_" + slug) || "null"); } catch (e) { return null; } })());
   const segInicial = useRef(twSeccionDeUrl());
   if (vistaGuardada.current && (vistaGuardada.current.seg || null) !== segInicial.current) vistaGuardada.current = null; // otra seccion: no se usa lo guardado
   const [cat, setCat] = useState(() => (vistaGuardada.current && vistaGuardada.current.cat) || TW_SECC_RUTAS[segInicial.current] || ""); // "" = inicio; "*" = todos; o una categoria
@@ -32040,10 +32043,10 @@ function TiendaPublica({ slug }) {
   const [legal, setLegal] = useState(() => { const k = new URLSearchParams(window.location.search).get("legal"); return k && TW_LEGALES[k] ? k : null; });
   const [regModo, setRegModo] = useState(() => (vistaGuardada.current && vistaGuardada.current.regModo) || "gift"); // sector de regalos: "gift" (gift card) o "armar"
   // Se guarda la vista para volver a ella si se actualiza la pagina (solo dura lo que la pestaña)
-  useEffect(() => { try { sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify({ cat, seg: segDeCat(cat), subcat, filtros, orden, regModo, y: window.scrollY })); } catch (e) {} }, [cat, subcat, filtros, orden, regModo, productos]);
+  useEffect(() => { try { sessionStorage.setItem("tienda_nav_" + slug, JSON.stringify({ cat, seg: segDeCat(cat), subcat, filtros, orden, regModo, y: window.scrollY })); } catch (e) {} }, [cat, subcat, filtros, orden, regModo, productos]);
   useEffect(() => {
     let t = null;
-    const guardarY = () => { clearTimeout(t); t = setTimeout(() => { try { const v = JSON.parse(sessionStorage.getItem("tienda_vista_" + slug) || "{}"); v.y = window.scrollY; sessionStorage.setItem("tienda_vista_" + slug, JSON.stringify(v)); } catch (e) {} }, 250); };
+    const guardarY = () => { clearTimeout(t); t = setTimeout(() => { try { const v = JSON.parse(sessionStorage.getItem("tienda_nav_" + slug) || "{}"); v.y = window.scrollY; sessionStorage.setItem("tienda_nav_" + slug, JSON.stringify(v)); } catch (e) {} }, 250); };
     window.addEventListener("scroll", guardarY, { passive: true });
     return () => { window.removeEventListener("scroll", guardarY); clearTimeout(t); };
   }, []);
