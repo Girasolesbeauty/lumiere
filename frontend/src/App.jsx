@@ -8054,6 +8054,66 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
 // Actualizar precios en masa (desde Inventario): subir o bajar un %, o calcular desde el costo
 // con un recargo, a todos los productos o a una categoria, marca o proveedor. Primero muestra
 // como quedan, despues aplica, y cada cambio se puede deshacer.
+// 🏷️ Marcas: lista de marcas con cuántos productos tienen; las escritas de varias formas ("Skin1004", "SKIN 1004")
+// aparecen juntas arriba para unificarlas, y cualquier marca se puede renombrar en todos sus productos de una vez.
+function MarcasProductos({ temaPal, onCerrar, onCambio }) {
+  const [d, setD] = useState(null);
+  const [error, setError] = useState("");
+  const [editando, setEditando] = useState(null); // { de: [nombres], a: "nuevo" }
+  const [buscar, setBuscar] = useState("");
+  const [msg, setMsg] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const cargar = () => API.get("/productos/marcas/lista").then(r => setD(r.data)).catch(e => setError(e.response?.data?.error || "No se pudieron cargar las marcas"));
+  useEffect(() => { cargar(); }, []);
+  const guardar = async () => {
+    if (!editando || !editando.a.trim()) return;
+    setGuardando(true);
+    try { const r = await API.put("/productos/marcas/renombrar", { de: editando.de, a: editando.a.trim() }); setMsg("✓ Listo: " + r.data.productos_actualizados + " productos ahora dicen \"" + editando.a.trim() + "\""); setEditando(null); cargar(); onCambio && onCambio(); }
+    catch (e) { setMsg(e.response?.data?.error || "No se pudo cambiar"); }
+    setGuardando(false);
+  };
+  const q = normTxt(buscar);
+  const lista = d ? d.marcas.filter(g => !q || g.formas.some(f => normTxt(f.marca).includes(q))) : [];
+  const repetidas = d ? d.marcas.filter(g => g.formas.length > 1).length : 0;
+  return (
+    <div className="pos-overlay" onClick={onCerrar}>
+      <div className="card pop-in" role="dialog" aria-label="Marcas" style={{ maxWidth: 640, width: "100%", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>🏷️ Marcas</div>
+          <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
+        </div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>Corregí cómo está escrita una marca y se cambia en todos sus productos de una vez.</div>
+        {msg && <div role="status" style={{ fontSize: 13, padding: "8px 10px", borderRadius: 8, background: temaPal.green + "14", marginBottom: 10 }}>{msg}</div>}
+        {error ? <div className="empty">{error}</div> : !d ? <div className="skel" style={{ height: 200 }} /> : (<>
+          {repetidas > 0 && <div style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, background: temaPal.warn + "18", color: temaPal.text, marginBottom: 10 }}>⚠️ Hay <b>{repetidas}</b> {repetidas === 1 ? "marca escrita" : "marcas escritas"} de varias formas. Están arriba: tocá <b>Unificar</b>.</div>}
+          <input className="inp" placeholder="Buscar marca" value={buscar} onChange={e => setBuscar(e.target.value)} style={{ marginBottom: 8 }} />
+          {lista.map(g => {
+            const k = g.formas.map(f => f.marca).join("|"), abierta = editando && editando.k === k;
+            return (
+              <div key={k} style={{ padding: "8px 2px", borderTop: "1px solid " + temaPal.border }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    {g.formas.length > 1 ? <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{g.formas.map(f => <span key={f.marca} className="tag tag-neutral" style={{ fontSize: 11.5 }}>"{f.marca}" · {f.productos}</span>)}</div>
+                      : <><b style={{ fontSize: 13.5 }}>{g.formas[0].marca}</b> <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>· {g.productos} {g.productos === 1 ? "producto" : "productos"}</span></>}
+                  </div>
+                  {d.puede_editar && !abierta && <button className={"btn btn-sm " + (g.formas.length > 1 ? "btn-p" : "btn-g")} onClick={() => setEditando({ k, de: g.formas.map(f => f.marca), a: g.formas[0].marca })}>{g.formas.length > 1 ? "Unificar" : "Renombrar"}</button>}
+                </div>
+                {abierta && <div className="pop-in" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                  <span style={{ fontSize: 12.5 }}>Que diga:</span>
+                  <input className="inp" autoFocus style={{ flex: "1 1 160px", maxWidth: 260 }} value={editando.a} onChange={e => setEditando(x => ({ ...x, a: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardar(); }} />
+                  <button className="btn btn-g btn-sm" onClick={() => setEditando(null)}>Cancelar</button>
+                  <button className="btn btn-p btn-sm" disabled={guardando || !editando.a.trim()} onClick={guardar}>Cambiar en {g.productos} {g.productos === 1 ? "producto" : "productos"}</button>
+                </div>}
+              </div>
+            );
+          })}
+          {lista.length === 0 && <div className="empty">No hay marcas con ese nombre.</div>}
+          {d.sin_marca > 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 10 }}>Hay {d.sin_marca} {d.sin_marca === 1 ? "producto activo" : "productos activos"} sin marca cargada.</div>}
+        </>)}
+      </div>
+    </div>
+  );
+}
 function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio }) {
   const [alcance, setAlcance] = useState("todos");
   const [filtro, setFiltro] = useState("");
@@ -8312,6 +8372,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const tabsModo = TABS_INVENTARIO[modo] || TABS_INVENTARIO.productos;
   const [showPrecios, setShowPrecios] = useState(false);
+  const [showMarcas, setShowMarcas] = useState(false);
   const [showEliminarTr, setShowEliminarTr] = useState(false);
   const [tab, setTab] = useState(tabsModo[0]);
   const [filtroInicial] = useState(() => modo === "productos" ? tabInicialDe("inventory") : null);
@@ -8878,6 +8939,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
         {modo === "productos" && <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
           {puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" onClick={() => setShowPrecios(true)} title="Subir o bajar muchos precios de una vez">📈 Actualizar precios</button>}
+          <button className="btn btn-g btn-sm" onClick={() => setShowMarcas(true)} title="Ver las marcas y corregir cómo están escritas">🏷️ Marcas</button>
           <button className="btn btn-g btn-sm" onClick={() => irASeccion("etiquetas")} title="Imprimir etiquetas de precio">🏷️ Etiquetas</button>
           {puedeHacer("inventario.crear") && <button className="btn btn-p btn-sm" onClick={() => { setEditandoProd(null); setFotoProd({ imagen: null, cambiada: false }); setNuevo({ nombre: "", marca: "", codigo: "", categoria: "", precio: "", costo: "", stock: "", stock_minimo: "", proveedor_id: "", descripcion: "", tiene_variantes: false, tipo_variante: "" }); setShowForm(true); }}>+ Nuevo producto</button>}
         </div>}
@@ -8888,6 +8950,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
         </div>
       )}
 
+      {showMarcas && <MarcasProductos temaPal={temaPal} onCerrar={() => setShowMarcas(false)} onCambio={cargar} />}
       {showPrecios && <ActualizarPrecios productos={productos} proveedores={proveedores} temaPal={temaPal} onCerrar={() => setShowPrecios(false)} onCambio={cargar} />}
 
       {showForm && (

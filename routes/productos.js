@@ -58,6 +58,40 @@ router.get('/tambien-llevan', async (req, res) => {
     res.json(sug.map(x => ({ id: x.id, nombre: x.nombre, marca: x.marca, precio: parseFloat(x.precio) || 0, stock: Number(x.stock) || 0, motivo: x.motivo })));
   } catch (e) { console.error('[productos] tambien llevan:', e.message); res.json([]); }
 });
+// Marcas: la lista con cuántos productos tiene cada una, agrupando las que están escritas distinto
+// ("Skin1004", "SKIN 1004", "skin 1004"), y corregir el nombre en todos los productos de una vez.
+const claveMarca = (m) => String(m || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+async function puedeEditarProductos(u) {
+  if (!u || !u.id) return false;
+  if (u.rol === 'jefe' || Number(u.rol_id) === 1) return true;
+  return (await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso = 'inventario.editar'`, [u.id])).rows.length > 0;
+}
+router.get('/marcas/lista', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT TRIM(marca) AS marca, COUNT(*)::int AS productos, COUNT(*) FILTER (WHERE activo)::int AS activos
+      FROM productos WHERE COALESCE(TRIM(marca), '') <> '' GROUP BY TRIM(marca) ORDER BY TRIM(marca)`);
+    const grupos = {};
+    r.rows.forEach(x => { const k = claveMarca(x.marca); (grupos[k] = grupos[k] || []).push(x); });
+    const sinMarca = (await pool.query(`SELECT COUNT(*)::int AS n FROM productos WHERE activo AND COALESCE(TRIM(marca), '') = ''`)).rows[0].n;
+    res.json({
+      marcas: Object.values(grupos).map(g => ({ formas: g.sort((a, b) => b.productos - a.productos), productos: g.reduce((s, x) => s + x.productos, 0) }))
+        .sort((a, b) => (b.formas.length > 1) - (a.formas.length > 1) || a.formas[0].marca.localeCompare(b.formas[0].marca, 'es')),
+      sin_marca: sinMarca,
+      puede_editar: await puedeEditarProductos(req.usuario),
+    });
+  } catch (e) { console.error('[marcas]', e.message); res.status(500).json({ error: 'No se pudieron cargar las marcas' }); }
+});
+router.put('/marcas/renombrar', async (req, res) => {
+  try {
+    if (!(await puedeEditarProductos(req.usuario))) return res.status(403).json({ error: 'No tenés permiso para editar productos' });
+    const de = [...new Set((Array.isArray(req.body.de) ? req.body.de : [req.body.de]).map(x => String(x || '').trim()).filter(Boolean))].slice(0, 50);
+    const a = String(req.body.a || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+    if (!de.length || !a) return res.status(400).json({ error: 'Escribí el nombre correcto de la marca' });
+    const r = await pool.query(`UPDATE productos SET marca = $1 WHERE TRIM(marca) = ANY($2::text[]) AND marca IS DISTINCT FROM $1`, [a, de]);
+    res.json({ ok: true, productos_actualizados: r.rowCount });
+  } catch (e) { console.error('[marcas]', e.message); res.status(500).json({ error: 'No se pudo cambiar la marca' }); }
+});
+
 router.get('/:id', controller.getById);
 router.post('/', controller.create);
 router.put('/:id', controller.update);
