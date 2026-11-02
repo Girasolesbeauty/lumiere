@@ -370,6 +370,7 @@ const DURACIONES = [
   [/difusor/, 60, 'Difusor'],
   [/crema corporal|locion corporal|body lotion|body butter|manteca corporal|crema (de|para el) cuerpo|aceite corporal|crema hidratante corporal/, 90, 'Crema corporal'],
   [/crema de manos|hand cream/, 60, 'Crema de manos'],
+  [/eye ?patch|parches?.*(ojera|ojo)|(ojera|ojo).*parches?|\b(30|60) (pares|parches)/, 30, 'Parches para ojeras (1 mes diario, 2-3 meses si no)'],
   [/parches?|patch/, 30, 'Caja de parches'],
   [/mascarilla|sheet ?mask|\bmask\b/, 1, 'Mascarilla'],
   [/mascara de pesta|rimel|pestanina/, 90, 'Máscara de pestañas'],
@@ -412,7 +413,7 @@ const getDuracionReal = async (req, res) => {
       const mediana = est.length ? (est.length % 2 ? est[(est.length - 1) / 2] : (est[est.length / 2 - 1] + est[est.length / 2]) / 2) : null;
       return { producto_id: e.producto_id, nombre: e.nombre, respuestas: e.respuestas, sin_responder: e.sin_responder, mucho: e.mucho, mitad: e.mitad, poco: e.poco,
         dura_real: mediana ? Math.round(mediana) : null, dura_estimada: d ? d.dias : null, tipo: d ? d.tipo : null };
-    }).sort((a, b) => b.respuestas - a.respuestas || b.sin_responder - a.sin_responder);
+    }).filter(x => x.dura_estimada !== 1).sort((a, b) => b.respuestas - a.respuestas || b.sin_responder - a.sin_responder); // las de un solo uso no suman a la estadística
     res.json({ productos });
   } catch (error) {
     console.error(error);

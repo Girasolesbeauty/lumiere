@@ -29784,6 +29784,7 @@ const TW_DURACIONES = [
   [/difusor/, 60, "difusor"],
   [/crema corporal|locion corporal|body lotion|body butter|manteca corporal|crema (de|para el) cuerpo|aceite corporal|crema hidratante corporal/, 90, "crema corporal", true],
   [/crema de manos|hand cream/, 60, "crema de manos", true],
+  [/eye ?patch|parches?.*(ojera|ojo)|(ojera|ojo).*parches?|\b(30|60) (pares|parches)/, 30, "caja de parches para ojeras", true, "si los usás todos los días; si no, 2 o 3 meses"],
   [/parches?|patch/, 30, "caja de parches", true],
   [/mascarilla|sheet ?mask|\bmask\b/, 1, "mascarilla", true],
   [/mascara de pesta|rimel|pestanina/, 90, "máscara de pestañas", true],
@@ -29806,7 +29807,7 @@ const TW_DURACIONES = [
   [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, "limpiador"],
   [/hidratante|crema|moistur|gel crema|emulsion/, 30, "crema", true],
 ];
-const twDuracion = (nombre, categoria) => { const t = twNorm([nombre, categoria].join(" ")); const d = TW_DURACIONES.find(([r]) => r.test(t)); return d && d[1] > 0 ? { dias: d[1], tipo: d[2], fem: !!d[3] } : null; };
+const twDuracion = (nombre, categoria) => { const t = twNorm([nombre, categoria].join(" ")); const d = TW_DURACIONES.find(([r]) => r.test(t)); return d && d[1] > 0 ? { dias: d[1], tipo: d[2], fem: !!d[3], nota: d[4] || "" } : null; };
 // Rutina de cuidado facial: pasos de mañana y de noche (tipo de producto, titulo, frecuencia)
 const TW_RUTINA_DIA = [["limpiador", "🫧 Limpieza"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["ojos", "👁️ Contorno de ojos"], ["hidratante", "🧴 Hidratante"], ["solar", "☀️ Protector solar", "Siempre último, todos los días (aunque esté nublado)"]];
 const TW_RUTINA_NOCHE = [["desmaquillante", "🌙 Desmaquillar"], ["limpiador", "🫧 Limpieza"], ["exfoliante", "🍃 Exfoliante", "2 o 3 veces por semana, no todos los días"], ["tonico", "💧 Tónico"], ["serum", "✨ Sérum"], ["ojos", "👁️ Contorno de ojos"], ["hidratante", "🧴 Hidratante"], ["mascarilla", "🎭 Mascarilla", "1 o 2 veces por semana, en lugar de la crema o antes"]];
@@ -33008,9 +33009,9 @@ function TiendaPublica({ slug }) {
     // "Todavía tengo": se pospone hasta la fecha que calculó el servidor (o la de recién, si lo acaba de tocar)
     const rsPosp = { ...Object.fromEntries((miCuenta.restock_pospuestos || []).map(x => [x.producto_id, x.hasta])), ...(formCuenta.rsPosp || {}) };
     const restock = compradosCuenta.map(i => { const d = twDuracion(i.nombre, i.p && i.p.categoria); if (!d) return null; const h = rsPosp[i.producto_id];
-      return { ...i, dur: d.dias, tipo: d.tipo, fem: d.fem, queda: h ? Math.max(11, Math.ceil((new Date(h) - Date.now()) / 864e5)) : d.dias - i.dias, pospuesto: !!h }; }).filter(Boolean);
+      return { ...i, dur: d.dias, tipo: d.tipo, fem: d.fem, nota: d.nota, queda: h ? Math.max(11, Math.ceil((new Date(h) - Date.now()) / 864e5)) : d.dias - i.dias, pospuesto: !!h }; }).filter(Boolean);
     const todaviaTengo = async (i, queda) => {
-      setFormCuenta(x => ({ ...x, rsPreg: null, rsGracias: queda ? i.producto_id : null }));
+      setFormCuenta(x => ({ ...x, rsPreg: null, rsGracias: queda || i.dur === 1 ? i.producto_id : null }));
       try { const r = await pedir("/cuenta/restock", { method: "POST", body: JSON.stringify({ producto_id: i.producto_id, dias: i.dias, queda }) });
         setFormCuenta(x => ({ ...x, rsPosp: { ...(x.rsPosp || {}), [i.producto_id]: r.hasta || new Date(Date.now() + 14 * 864e5).toISOString() } })); } catch (e) {}
     };
@@ -33278,14 +33279,14 @@ function TiendaPublica({ slug }) {
                 {i.p && i.p.foto ? <img src={foto(i.p)} alt="" /> : <span className="tw-rs-ph" aria-hidden="true">🧴</span>}
                 <div className="tw-rs-txt">
                   <b>{i.nombre}</b>
-                  <small>Lo compraste hace {i.dias} {i.dias === 1 ? "día" : "días"} · {i.dur === 1 ? (i.fem ? "es de un solo uso" : "es de un solo uso") : (i.fem ? "una " : "un ") + i.tipo + " dura ~" + durTxt}</small>
-                  <span className={"tw-rs-pill" + (i.queda <= 0 ? " ya" : "")}>{i.queda <= 0 ? "Ya se te debería haber terminado" : "Te quedan unos " + i.queda + (i.queda === 1 ? " día" : " días")}</span>
+                  <small>Lo compraste hace {i.dias} {i.dias === 1 ? "día" : "días"} · {i.dur === 1 ? "es de un solo uso" : (i.fem ? "una " : "un ") + i.tipo + " dura ~" + durTxt + (i.nota ? " " + i.nota : "")}</small>
+                  <span className={"tw-rs-pill" + (i.queda <= 0 ? " ya" : "")}>{i.queda <= 0 ? (i.nota ? "Si lo usás a diario, ya se estaría terminando" : "Ya se te debería haber terminado") : "Te quedan unos " + i.queda + (i.queda === 1 ? " día" : " días")}</span>
                 </div>
                 <div className="tw-rs-acciones">
                   {hay ? <button className="tw-btn tw-rs-btn" onClick={() => recomprar([i])}>Agregar</button> : i.p ? <button className="tw-btn tw-btn-claro tw-rs-btn" onClick={() => { setPaso(null); abrir(i.p); }}>🔔 Avisame</button> : null}
-                  <button className="tw-rs-tengo" onClick={() => setFormCuenta(x => ({ ...x, rsPreg: x.rsPreg === i.producto_id ? null : i.producto_id }))}>Todavía tengo</button>
+                  <button className="tw-rs-tengo" onClick={() => i.dur === 1 ? todaviaTengo(i, null) : setFormCuenta(x => ({ ...x, rsPreg: x.rsPreg === i.producto_id ? null : i.producto_id }))}>{i.dur === 1 ? "Todavía tengo más" : "Todavía tengo"}</button>
                 </div>
-                {formCuenta.rsPreg === i.producto_id && (
+                {formCuenta.rsPreg === i.producto_id && i.dur !== 1 && (
                   <div className="tw-rs-preg">
                     <b>¿Cuánto te queda?</b>
                     <div className="tw-rs-opciones">
