@@ -7786,7 +7786,7 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
                                 {d.ritmo_diario > 0 ? <><b>{d.ritmo_diario}</b><span style={{ fontSize: 10, color: p.textMuted }}>/día</span></> : <span style={{ color: p.textMuted }}>—</span>}
-                                {d.ritmo_historico ? <div style={{ fontSize: 10, color: p.accentText }} title={"Estuvo agotado y por eso no se vendió en los últimos " + pr.dias_venta + " días: se calcula con lo que vendía en el último año"}>{d.vendido_anio} en el último año</div>
+                                {d.ritmo_historico ? <div style={{ fontSize: 10, color: p.accentText }} title={"Está agotado o le queda poco, y por eso casi no se vendió en los últimos " + pr.dias_venta + " días: se calcula con lo que vendía cuando había stock (sin contar los meses que estuvo agotado)"}>🔁 {d.vendido_anio} en el año · ritmo con stock</div>
                                   : <div style={{ fontSize: 10, color: p.textMuted }}>{d.vendido} en {pr.dias_venta} días</div>}
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>

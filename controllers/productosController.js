@@ -661,7 +661,7 @@ const getSugerenciaCompra = async (req, res) => {
         GROUP BY pv.producto_id`, [proveedor_id]),
       // Ventas del ultimo año: para lo que esta agotado y por eso no se vendio en el periodo elegido
       pool.query(`
-        SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido, MIN(v.creado_en) AS primera
+        SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido, MIN(v.creado_en) AS primera, MAX(v.creado_en) AS ultima
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
         WHERE p.proveedor_id = $1 AND v.creado_en >= NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA_SQL}
         GROUP BY vi.producto_id, v.local_id`, [proveedor_id]),
@@ -677,10 +677,14 @@ const getSugerenciaCompra = async (req, res) => {
     const vendidosAnio = {};
     anioRes.rows.forEach(r => {
       const k = r.producto_id;
-      if (!vendidosAnio[k]) vendidosAnio[k] = { 1: 0, 2: 0, primera: null };
-      vendidosAnio[k][Number(r.local_id) === 2 ? 2 : 1] += parseFloat(r.vendido) || 0;
-      const f = r.primera ? new Date(r.primera).getTime() : null;
+      if (!vendidosAnio[k]) vendidosAnio[k] = { 1: 0, 2: 0, primera: null, ultima: null, rango: {} };
+      const l = Number(r.local_id) === 2 ? 2 : 1;
+      vendidosAnio[k][l] += parseFloat(r.vendido) || 0;
+      const f = r.primera ? new Date(r.primera).getTime() : null, u = r.ultima ? new Date(r.ultima).getTime() : null;
       if (f && (!vendidosAnio[k].primera || f < vendidosAnio[k].primera)) vendidosAnio[k].primera = f;
+      if (u && (!vendidosAnio[k].ultima || u > vendidosAnio[k].ultima)) vendidosAnio[k].ultima = u;
+      const rg = vendidosAnio[k].rango[l] || {};
+      vendidosAnio[k].rango[l] = { primera: f && (!rg.primera || f < rg.primera) ? f : rg.primera, ultima: u && (!rg.ultima || u > rg.ultima) ? u : rg.ultima };
     });
     const variantes = {};
     varRes.rows.forEach(r => { variantes[r.producto_id] = r; });
@@ -704,13 +708,20 @@ const getSugerenciaCompra = async (req, res) => {
       // Dias del año en que se pudo vender: desde que se cargo o desde su primera venta (si se cargo despues)
       const desdePrimera = vendAnio.primera ? Math.ceil((Date.now() - vendAnio.primera) / 864e5) : 0;
       const diasAnio = Math.max(diasVenta, Math.min(365, Math.max(parseInt(p.dias_vida_anio) || 365, desdePrimera)));
-      // Agotado (sin stock ni nada en camino) y sin ventas en el periodo: no se vendio porque no habia.
-      // Se calcula con lo que vendia en el ultimo año, asi no queda afuera de la lista.
-      const reponer = ({ vendido, vendidoAnio, stock, transito, reservado }) => {
-        const agotado = stock - reservado + transito <= 0;
-        const historico = agotado && vendido === 0 && vendidoAnio > 0;
+      // Ritmo "cuando habia stock": lo vendido en el año sobre los dias entre la primera y la ultima venta
+      // (si estuvo agotado meses, esos meses no cuentan). Minimo 60 dias para no exagerar con pocas ventas.
+      const ventana = (rg) => rg && rg.primera && rg.ultima ? Math.min(diasAnio, Math.max(60, Math.ceil((rg.ultima - rg.primera) / 864e5) + 7)) : diasAnio;
+      // Si esta agotado o le queda poco, se usa ese ritmo cuando es mayor que el del periodo elegido: lo que se
+      // agoto no se vendio porque no habia (o se vendio la ultima unidad), y asi igual entra en el pedido.
+      const reponer = ({ vendido, vendidoAnio, diasAnioActivo, stock, transito, reservado }) => {
+        const disponible = stock + transito - reservado;
+        const agotado = disponible <= 0;
+        const ritmoPeriodo = vendido / diasVenta;
+        const ritmoAnio = vendidoAnio > 0 ? vendidoAnio / diasAnioActivo : 0;
+        const bajo = ritmoAnio > 0 && disponible <= Math.ceil(ritmoAnio * leadTime) + Math.ceil(ritmoAnio * diasSeguridad);
+        const historico = ritmoAnio > ritmoPeriodo && (agotado || bajo);
         const r = calcularReposicion({
-          vendido: historico ? vendidoAnio : vendido, diasVenta: historico ? diasAnio : diasVenta,
+          vendido: historico ? vendidoAnio : vendido, diasVenta: historico ? diasAnioActivo : diasVenta,
           stock, transito, reservado, leadTime, diasSeguridad, diasCobertura,
         });
         return { ...r, agotado: stock <= 0 && transito <= 0, ritmo_historico: historico, necesita_pedido: r.necesita_pedido || (stock <= 0 && transito <= 0 && vendidoAnio > 0) };
@@ -721,11 +732,11 @@ const getSugerenciaCompra = async (req, res) => {
         const reservado = parseInt(l === 1 ? p.reservado_rg : p.reservado_ush) || 0;
         porLocal[l] = {
           stock: stock[l], transito, reservado, vendido: vend[l], vendido_anio: vendAnio[l],
-          ...reponer({ vendido: vend[l], vendidoAnio: vendAnio[l], stock: stock[l], transito, reservado }),
+          ...reponer({ vendido: vend[l], vendidoAnio: vendAnio[l], diasAnioActivo: ventana((vendAnio.rango || {})[l]), stock: stock[l], transito, reservado }),
         };
       });
       const total = reponer({
-        vendido: vend[1] + vend[2], vendidoAnio: vendAnio[1] + vendAnio[2], stock: stock[1] + stock[2],
+        vendido: vend[1] + vend[2], vendidoAnio: vendAnio[1] + vendAnio[2], diasAnioActivo: ventana(vendAnio), stock: stock[1] + stock[2],
         transito: porLocal[1].transito + porLocal[2].transito,
         reservado: porLocal[1].reservado + porLocal[2].reservado,
       });
