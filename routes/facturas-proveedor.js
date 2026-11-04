@@ -44,6 +44,8 @@ const similitud = (a, b) => {
 // "11057,00", "12.500,00" y "1.048.754,39" matchean todos.
 // El OCR a veces mete un espacio despues de la coma ("150316, 60"): se tolera y se limpia al convertir.
 const NUM = '[\\d.]+,\\s?\\d{2}';
+// Codigos comparables: sin signos ni ceros adelante ("0007791234" = "7791234")
+const normCod = (c) => String(c || '').replace(/[^0-9a-z]/gi, '').replace(/^0+/, '').toLowerCase();
 const aNum = (x) => parseFloat(String(x || '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.')) || 0;
 
 // Heuristica de lineas de factura. Prueba primero el formato "con codigo" (codigo interno
@@ -51,7 +53,7 @@ const aNum = (x) => parseFloat(String(x || '').replace(/\s/g, '').replace(/\./g,
 // comun en facturas de laboratorios/distribuidoras tipo formulario continuo), y si no
 // matchea cae al formato simple (cantidad + descripcion + precio). Ninguno es perfecto
 // para todos los formatos -- por eso siempre se revisa antes de confirmar.
-const reConCodigo = new RegExp(`^(\\d{1,10})\\s+(\\d{6,14})\\s+(\\d{1,4})\\s+[Uu]n\\.?\\s+(.{3,80}?)\\s+(${NUM})\\s+(${NUM})\\s+(${NUM})\\s*$`);
+const reConCodigo = new RegExp(`^(\\d{1,10})\\s+(\\d{6,18})\\s+(\\d{1,4})\\s+[Uu]n\\.?\\s+(.{3,80}?)\\s+(${NUM})\\s+(${NUM})\\s+(${NUM})\\s*$`);
 const reSimple = /^(\d{1,4})\s+(.{3,80}?)\s+\$?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*$/;
 
 const parsearLineasTexto = (texto) => {
@@ -80,7 +82,10 @@ const parsearLineasTexto = (texto) => {
       const precioStr = m[3].replace(/\./g, '').replace(',', '.');
       const costo_unitario = parseFloat(precioStr) || 0;
       if (cantidad > 0 && cantidad < 10000 && nombre.length >= 3) {
-        items.push({ codigo_interno: null, codigo_barras: null, nombre_crudo: nombre, cantidad, costo_unitario });
+        // Si en la descripcion viene un codigo de barras (8 a 18 digitos), se separa para vincular por codigo
+        const cod = nombre.match(/(?:^|\s)(\d{8,18})(?=\s|$)/);
+        const limpio = cod ? nombre.replace(cod[0], ' ').replace(/\s+/g, ' ').replace(/^\s*\d{1,6}\s+(?:un\.?\s+)?/i, '').trim() : nombre;
+        items.push({ codigo_interno: null, codigo_barras: cod ? cod[1] : null, nombre_crudo: limpio.length >= 3 ? limpio : nombre, cantidad, costo_unitario });
       }
     }
   }
@@ -209,7 +214,16 @@ async function analizarFactura(file, proveedor_id) {
 
     const productosRes = await pool.query('SELECT id, nombre, codigo_barras FROM productos WHERE activo = TRUE');
     const productos = productosRes.rows;
-    const barcodeMap = new Map(productos.filter(p => p.codigo_barras).map(p => [String(p.codigo_barras).trim(), p]));
+    const nombreDe = new Map(productos.map(p => [p.id, p.nombre]));
+    // Todos los codigos del catalogo (producto y variantes), comparados sin ceros adelante ni signos.
+    // Un producto puede tener varios codigos separados por coma.
+    const codMap = new Map();
+    const sumarCod = (c, id) => String(c || '').split(/[,;\s]+/).map(normCod).filter(x => x.length >= 4).forEach(k => { if (!codMap.has(k)) codMap.set(k, id); });
+    productos.forEach(p => sumarCod(p.codigo_barras, p.id));
+    try {
+      const vr = await pool.query('SELECT v.producto_id, v.codigo_barras FROM producto_variantes v JOIN productos p ON p.id = v.producto_id WHERE p.activo = TRUE AND v.codigo_barras IS NOT NULL');
+      vr.rows.forEach(v => sumarCod(v.codigo_barras, v.producto_id));
+    } catch (e) { /* sin variantes */ }
 
     let aliasCodigoMap = new Map();
     let aliasNombreMap = new Map();
@@ -219,39 +233,38 @@ async function analizarFactura(file, proveedor_id) {
         [proveedor_id]
       );
       for (const a of aliasRes.rows) {
-        if (a.codigo_factura) aliasCodigoMap.set(String(a.codigo_factura), a.producto_id);
-        aliasNombreMap.set(normalizar(a.nombre_factura), a.producto_id);
+        if (a.codigo_factura) aliasCodigoMap.set(normCod(a.codigo_factura), a.producto_id);
+        else aliasNombreMap.set(normalizar(a.nombre_factura), a.producto_id);
       }
     }
 
+    // Como se vincula cada renglon (de mas a menos confiable):
+    // 1) codigo del proveedor ya aprendido, 2) codigo de barras del catalogo, 3) el codigo del proveedor cargado como
+    //    codigo del producto. Si el renglon TRAE codigo y no coincide con nada, NO se elige por nombre: se ofrecen
+    //    parecidos para que la persona elija (antes elegia solo por nombre y a veces el equivocado sin que se note).
+    // Sin codigo en la factura: nombre ya aprendido, o un parecido muy claro que queda marcado para revisar.
     const items = itemsCrudos.map(it => {
-      let productoIdSugerido = null;
-      let esAliasConocido = false;
+      let productoIdSugerido = null, metodo = null;
+      const ci = normCod(it.codigo_interno), cb = normCod(it.codigo_barras);
+      const tieneCodigo = !!(ci || cb);
 
-      if (it.codigo_interno && aliasCodigoMap.has(String(it.codigo_interno))) {
-        productoIdSugerido = aliasCodigoMap.get(String(it.codigo_interno));
-        esAliasConocido = true;
-      } else if (it.codigo_barras && barcodeMap.has(String(it.codigo_barras))) {
-        productoIdSugerido = barcodeMap.get(String(it.codigo_barras)).id;
-        esAliasConocido = true;
-      } else {
-        const key = normalizar(it.nombre_crudo);
-        if (aliasNombreMap.has(key)) {
-          productoIdSugerido = aliasNombreMap.get(key);
-          esAliasConocido = true;
-        } else {
-          let mejor = null, mejorScore = 0;
-          for (const p of productos) {
-            const score = similitud(it.nombre_crudo, p.nombre);
-            if (score > mejorScore) { mejorScore = score; mejor = p; }
-          }
-          if (mejor && mejorScore >= 0.4) productoIdSugerido = mejor.id;
-        }
+      if (ci && aliasCodigoMap.has(ci)) { productoIdSugerido = aliasCodigoMap.get(ci); metodo = 'codigo_proveedor'; }
+      else if (cb && codMap.has(cb)) { productoIdSugerido = codMap.get(cb); metodo = 'codigo_barras'; }
+      else if (ci && codMap.has(ci)) { productoIdSugerido = codMap.get(ci); metodo = 'codigo_producto'; }
+
+      const aliasNombre = aliasNombreMap.get(normalizar(it.nombre_crudo)) || null;
+      const ranking = productos.map(p => ({ p, score: similitud(it.nombre_crudo, p.nombre) })).filter(x => x.score >= 0.25)
+        .sort((a, b) => b.score - a.score).slice(0, 4);
+
+      if (!productoIdSugerido && !tieneCodigo) {
+        if (aliasNombre) { productoIdSugerido = aliasNombre; metodo = 'nombre_aprendido'; }
+        else if (ranking[0] && ranking[0].score >= 0.6 && (!ranking[1] || ranking[0].score - ranking[1].score >= 0.15)) { productoIdSugerido = ranking[0].p.id; metodo = 'parecido'; }
       }
+      if (productoIdSugerido && !nombreDe.has(productoIdSugerido)) { productoIdSugerido = null; metodo = null; } // producto dado de baja
 
-      const productoNombreSugerido = productoIdSugerido
-        ? ((productos.find(pr => pr.id === productoIdSugerido) || {}).nombre || null)
-        : null;
+      const sugerencias = [];
+      if (aliasNombre && aliasNombre !== productoIdSugerido && nombreDe.has(aliasNombre)) sugerencias.push({ id: aliasNombre, nombre: nombreDe.get(aliasNombre) });
+      ranking.forEach(x => { if (x.p.id !== productoIdSugerido && !sugerencias.some(s => s.id === x.p.id)) sugerencias.push({ id: x.p.id, nombre: x.p.nombre }); });
 
       return {
         codigo_interno: it.codigo_interno || null,
@@ -264,8 +277,11 @@ async function analizarFactura(file, proveedor_id) {
         total_linea: it.total_linea || null,
         dudoso: !!it.dudoso,
         producto_id_sugerido: productoIdSugerido,
-        producto_nombre_sugerido: productoNombreSugerido,
-        es_alias_conocido: esAliasConocido
+        producto_nombre_sugerido: productoIdSugerido ? nombreDe.get(productoIdSugerido) : null,
+        es_alias_conocido: !!metodo && metodo !== 'parecido',
+        metodo, // codigo_proveedor | codigo_barras | codigo_producto | nombre_aprendido | parecido | null
+        revisar: metodo === 'parecido',
+        sugerencias: sugerencias.slice(0, 3),
       };
     });
 

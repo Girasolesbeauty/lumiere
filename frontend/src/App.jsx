@@ -22137,7 +22137,7 @@ function CorregirConFactura({ orden, productos, temaPal, onCerrar, onListo }) {
             {!cambian.length ? <div style={{ fontSize: 12.5, color: p.textMuted }}>Los costos ya coinciden con la factura.</div> : <>
               <div style={{ fontSize: 11.5, color: p.textMuted, marginBottom: 6 }}>Costo de la factura con el descuento del proveedor. En los productos que ya se recibieron también se actualiza el costo del producto.</div>
               {(verTodos ? cambian : cambian.slice(0, 8)).map(c => <div key={c.item_id} style={{ display: "flex", gap: 8, fontSize: 12.5, padding: "4px 0", borderTop: "1px solid " + p.border, alignItems: "baseline" }}>
-                <span style={{ flex: 1, minWidth: 0 }}>{c.producto_nombre} <span style={{ color: p.textMuted }}>· {c.cantidad} u.{ords.length > 1 ? " · " + nombreOrd(c.orden_id) : ""}{c.recibido ? " · ya recibido" : ""}</span>{c.cantidad_distinta && <span style={{ color: p.warn, fontWeight: 700 }}> · ⚠️ en la factura son {c.cantidad_factura}</span>}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>{c.producto_nombre} <span style={{ color: p.textMuted }}>· {c.cantidad} u.{ords.length > 1 ? " · " + nombreOrd(c.orden_id) : ""}{c.recibido ? " · ya recibido" : ""}</span>{c.cantidad_distinta && <span style={{ color: p.warn, fontWeight: 700 }}> · ⚠️ en la factura son {c.cantidad_factura}</span>}{c.por_nombre && <span style={{ color: p.warn, fontWeight: 700 }}> · ⚠️ por nombre: en la factura dice "{c.nombre_factura}"</span>}</span>
                 <span style={{ whiteSpace: "nowrap" }}><s style={{ color: p.textMuted }}>{$(c.costo_actual)}</s> → <b>{$(c.costo_nuevo)}</b></span>
               </div>)}
               {cambian.length > 8 && <button className="chip-btn" style={{ marginTop: 6 }} onClick={() => setVerTodos(v => !v)}>{verTodos ? "Ver menos" : "Ver los " + cambian.length}</button>}
@@ -22155,6 +22155,8 @@ function CorregirConFactura({ orden, productos, temaPal, onCerrar, onListo }) {
                     <div style={{ color: f.producto_id ? p.green : p.warn }}>{f.producto_id ? "→ " + f.producto_nombre : "No sé qué producto es: buscalo"} {f.producto_id && <span className="chip-btn" style={{ padding: "0 6px", fontSize: 11 }} onClick={e => { e.preventDefault(); setFalt(l => l.map((x, j) => j === i ? { ...x, producto_id: null, producto_nombre: "", usar: false } : x)); }}>cambiar</span>}</div></span>
                 </label>
                 {!f.producto_id && <div style={{ marginLeft: 24, marginTop: 4 }}>
+                  {(f.sugerencias || []).length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}><span style={{ fontSize: 11, color: p.textMuted, width: "100%" }}>¿Es alguno de estos?</span>
+                    {f.sugerencias.map(sg => <button key={sg.id} type="button" className="chip-btn" style={{ fontSize: 11 }} onClick={() => setFalt(l => l.map((y, j) => j === i ? { ...y, producto_id: sg.id, producto_nombre: sg.nombre, usar: true, busca: "" } : y))}>{sg.nombre}</button>)}</div>}
                   <input className="inp" placeholder="Buscar producto…" value={f.busca} onChange={e => set("busca", e.target.value)} style={{ width: "100%", maxWidth: 360 }} />
                   {sug.map(x => <div key={x.id} onClick={() => setFalt(l => l.map((y, j) => j === i ? { ...y, producto_id: x.id, producto_nombre: x.nombre, usar: true, busca: "" } : y))} style={{ cursor: "pointer", padding: "5px 8px", borderBottom: "1px solid " + p.border, maxWidth: 360 }}>{x.nombre}</div>)}
                 </div>}
@@ -22318,6 +22320,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
           codigo_interno: it.codigo_interno || "", codigo_barras: it.codigo_barras || "",
           producto_id: it.producto_id_sugerido || "", producto_nombre: it.producto_nombre_sugerido || "",
           es_alias_conocido: it.es_alias_conocido,
+          metodo: it.metodo || null, revisar: !!it.revisar, sugerencias: it.sugerencias || [],
           // El costo sale de la factura (total del renglón / cantidad: ya con el descuento del proveedor).
           // Si la factura no trae precio, se usa el que tiene cargado el producto. Se puede corregir antes de confirmar.
           costo: it.costo_unitario > 0 ? String(it.costo_unitario) : "", precio_lista: it.precio_lista, descuento_pct: it.descuento_pct, dudoso: !!it.dudoso,
@@ -22369,7 +22372,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   };
 
   const vincularItemFactura = (idx, prod) => {
-    setFacturaItems(prev => prev.map((it, i) => i === idx ? { ...it, producto_id: prod.id, producto_nombre: prod.nombre } : it));
+    setFacturaItems(prev => prev.map((it, i) => i === idx ? { ...it, producto_id: prod.id, producto_nombre: prod.nombre, metodo: "manual", revisar: false } : it));
     setFacturaBuscarProd(prev => ({ ...prev, [idx]: "" }));
   };
 
@@ -22773,9 +22776,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                     const prodVinculado = productos.find(p => String(p.id) === String(it.producto_id));
                     const costoProducto = parseFloat(prodVinculado?.costo) || 0;
                     return (
-                    <tr key={idx} style={it.dudoso ? { background: temaPal.warnDim || "#f39c1222" } : undefined} title={it.dudoso ? "La cuenta de este renglón no da: revisá cantidad y costo contra la factura" : undefined}>
+                    <tr key={idx} style={it.dudoso || (it.revisar && it.producto_id) ? { background: temaPal.warnDim || "#f39c1222" } : undefined} title={it.dudoso ? "La cuenta de este renglón no da: revisá cantidad y costo contra la factura" : undefined}>
                       <td style={{ fontSize: 11, color: temaPal.textMuted }}>{it.nombre_crudo}</td>
-                      <td style={{ fontSize: 10, color: temaPal.textMuted }}>{it.codigo_interno || "-"}</td>
+                      <td style={{ fontSize: 10, color: temaPal.textMuted }}>{it.codigo_interno || "-"}{it.codigo_barras && it.codigo_barras !== it.codigo_interno ? <div>{it.codigo_barras}</div> : null}</td>
                       <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_rg} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: parseInt(e.target.value) || 0 } : x))} /></td>
                       {!UN_SOLO_LOCAL && <td><input className="inp" type="number" style={{ width: 60, padding: "4px 6px" }} value={it.cantidad_ush} onChange={e => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_ush: parseInt(e.target.value) || 0 } : x))} /></td>}
                       <td>
@@ -22787,12 +22790,21 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                         {it.producto_id ? (
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
                             <span style={{ fontSize: 12, color: it.es_alias_conocido ? "#2d7a4f" : temaPal.text }}>{it.producto_nombre}
+                              <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2, color: it.revisar ? temaPal.warn : temaPal.green }}>
+                                {{ codigo_proveedor: "✓ por código del proveedor", codigo_barras: "✓ por código de barras", codigo_producto: "✓ por código", nombre_aprendido: "✓ como la vez anterior", manual: "✓ elegido a mano", revisado: "✓ revisado" }[it.metodo] || (it.revisar ? "⚠️ solo por el nombre: ¿es este?" : "")}
+                                {it.revisar && <button type="button" className="chip-btn" style={{ marginLeft: 6, padding: "1px 8px", fontSize: 10.5 }} onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, revisar: false, metodo: "revisado" } : x))}>Sí, es este</button>}
+                              </div>
                               {!UN_SOLO_LOCAL && repFact[String(it.producto_id)] && <RepartoLocales chico d={repFact[String(it.producto_id)]} total={(parseInt(it.cantidad_rg) || 0) + (parseInt(it.cantidad_ush) || 0)} actual={{ 1: it.cantidad_rg, 2: it.cantidad_ush }}
                                 onUsar={r => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, cantidad_rg: r[1], cantidad_ush: r[2] } : x))} temaPal={temaPal} />}</span>
-                            <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "" } : x))} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
+                            <span onClick={() => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: "", producto_nombre: "", revisar: false } : x))} style={{ cursor: "pointer", color: "var(--acento-texto)", fontSize: 11, whiteSpace: "nowrap" }}>cambiar</span>
                           </div>
                         ) : (
                           <div>
+                            {(it.codigo_interno || it.codigo_barras) && <div style={{ fontSize: 10.5, color: temaPal.warn, fontWeight: 700, marginBottom: 4 }}>El código no coincide con ningún producto: elegilo una vez y la próxima lo reconoce solo.</div>}
+                            {(it.sugerencias || []).length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+                              <span style={{ fontSize: 10.5, color: temaPal.textMuted, width: "100%" }}>¿Es alguno de estos?</span>
+                              {it.sugerencias.map(sg => <button key={sg.id} type="button" className="chip-btn" style={{ fontSize: 10.5, padding: "2px 8px", textAlign: "left" }} onClick={() => vincularItemFactura(idx, sg)}>{sg.nombre}</button>)}
+                            </div>}
                             <input className="inp" placeholder="Buscar producto..." style={{ fontSize: 11 }} value={facturaBuscarProd[idx] || ""} onChange={e => setFacturaBuscarProd(p => ({ ...p, [idx]: e.target.value }))} />
                             {(facturaBuscarProd[idx] || "").trim().length > 0 && (
                               <div style={{ border: "1px solid " + temaPal.border, borderRadius: 6, marginTop: 4, maxHeight: 140, overflowY: "auto", position: "relative", zIndex: 5, background: temaPal.card }}>
@@ -22802,8 +22814,8 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                               </div>
                             )}
                             <div onClick={() => abrirCrearProductoRapido(
-                              { nombre: it.nombre_crudo, codigo_barras: it.codigo_interno || it.codigo_barras, costo: it.costo_unitario, proveedor_id: facturaForm.proveedor_id },
-                              (nuevoProd) => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: nuevoProd.id, producto_nombre: nuevoProd.nombre } : x))
+                              { nombre: it.nombre_crudo, codigo_barras: it.codigo_barras || it.codigo_interno, costo: it.costo_unitario, proveedor_id: facturaForm.proveedor_id },
+                              (nuevoProd) => setFacturaItems(prev => prev.map((x, i) => i === idx ? { ...x, producto_id: nuevoProd.id, producto_nombre: nuevoProd.nombre, metodo: "manual", revisar: false } : x))
                             )} style={{ cursor: "pointer", color: "#2471a3", fontSize: 11, marginTop: 4, fontWeight: 600 }}>
                               + Este producto no existe, crearlo
                             </div>
@@ -22833,7 +22845,9 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               })()}
               <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                 <button className="btn btn-g" onClick={() => { setFacturaItems(null); setFacturaArchivo(null); }}>Cancelar</button>
-                <button className="btn btn-p" onClick={confirmarFactura}>Confirmar y crear orden{facturaItems.some(it => it.cantidad_rg > 0) && facturaItems.some(it => it.cantidad_ush > 0) ? "es" : ""} de ingreso</button>
+                {(() => { const sinRevisar = facturaItems.filter(it => it.revisar && it.producto_id).length; return sinRevisar > 0
+                  ? <button className="btn btn-p" disabled title="Confirmá o cambiá los productos marcados en naranja">Revisá {sinRevisar} producto{sinRevisar > 1 ? "s" : ""} elegido{sinRevisar > 1 ? "s" : ""} por nombre</button>
+                  : <button className="btn btn-p" onClick={confirmarFactura}>Confirmar y crear orden{facturaItems.some(it => it.cantidad_rg > 0) && facturaItems.some(it => it.cantidad_ush > 0) ? "es" : ""} de ingreso</button>; })()}
               </div>
             </div>
           )}
