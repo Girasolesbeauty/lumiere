@@ -38257,7 +38257,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </button>
         ))}
       </div>}
-      <div style={{ textAlign: "right", marginBottom: 4 }}><button className="chip-btn" onClick={sonarVenta} title="Así suena cuando entra una compra en la tienda">🔊 Probar sonido de venta</button></div>
+      <SelectorSonidoVenta />
       <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
         {[["pedidos", "📦 Pedidos" + (abiertos.length + nRevisar ? " (" + (abiertos.length + nRevisar) + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientes web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [["halloween", "🎃 Halloween"]])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
@@ -41086,47 +41086,98 @@ function sonarAviso() {
     });
   } catch (e) {}
 }
-// Sonido de venta: caja registradora. "¡Ka-ching!" (golpe del cajón + campanita) y unas monedas cayendo.
-// Se genera con el navegador, no usa ninguna grabación.
-function armarSonidoCaja(ctx, destino, t0) {
+// Sonido de venta: caja registradora. Hay 3 versiones para elegir (Tienda online › 🔊). Todas se generan con el
+// navegador, sin ninguna grabación: golpecitos del mecanismo, el cajón que se desliza y golpea el tope, la
+// campanita metálica y las monedas.
+function armarSonidoCaja(ctx, destino, t0, variante = 1) {
   const master = ctx.createGain(); master.gain.value = 0.6; master.connect(destino);
   const ruido = (dur) => {
     const n = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     const f = ctx.createBufferSource(); f.buffer = b; return f;
   };
-  // "ka": el golpe seco del cajón al abrirse
-  const golpe = ruido(0.14), filtro = ctx.createBiquadFilter(), gg = ctx.createGain();
-  filtro.type = "bandpass"; filtro.frequency.value = 1500; filtro.Q.value = 0.7;
-  gg.gain.setValueAtTime(0.9, t0); gg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
-  golpe.connect(filtro).connect(gg).connect(master); golpe.start(t0); golpe.stop(t0 + 0.14);
-  const grave = ctx.createOscillator(), gb = ctx.createGain();
-  grave.type = "sine"; grave.frequency.setValueAtTime(240, t0); grave.frequency.exponentialRampToValueAtTime(70, t0 + 0.12);
-  gb.gain.setValueAtTime(0.8, t0); gb.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
-  grave.connect(gb).connect(master); grave.start(t0); grave.stop(t0 + 0.15);
-  // "ching": la campanita (varias notas metálicas que se apagan despacio)
-  const campana = (t, base, vol) => [[1, 1], [2.76, 0.55], [5.4, 0.3], [8.93, 0.15]].forEach(([m, a]) => {
+  // golpecito seco del mecanismo (una tecla)
+  const clic = (t, vol) => {
+    const s = ruido(0.03), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = "highpass"; f.frequency.value = 2200; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.014);
+    s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.03);
+  };
+  // el cajón que se desliza por los rieles ("shhhk")
+  const deslizar = (t, dur, vol) => {
+    const s = ruido(dur + 0.05), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    f.type = "bandpass"; f.Q.value = 1.1; f.frequency.setValueAtTime(700, t); f.frequency.exponentialRampToValueAtTime(3800, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + dur + 0.05);
+  };
+  // el cajón pega contra el tope ("tun")
+  const tope = (t, vol) => {
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = "sine"; o.frequency.value = base * m;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4 / Math.sqrt(m));
-    o.connect(g).connect(master); o.start(t); o.stop(t + 1.5);
+    o.type = "sine"; o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.09);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 0.14);
+    const s = ruido(0.06), f = ctx.createBiquadFilter(), gg = ctx.createGain();
+    f.type = "lowpass"; f.frequency.value = 1000; gg.gain.setValueAtTime(vol * 0.9, t); gg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    s.connect(f).connect(gg).connect(master); s.start(t); s.stop(t + 0.06);
+  };
+  // la campanita: golpe metálico brillante (síntesis FM) que se va apagando
+  const campana = (t, fc, vol, dur) => {
+    const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+    car.type = "sine"; car.frequency.value = fc; mod.type = "sine"; mod.frequency.value = fc * 1.4;
+    mg.gain.setValueAtTime(fc * 3.2, t); mg.gain.exponentialRampToValueAtTime(fc * 0.05, t + 0.4);
+    mod.connect(mg).connect(car.frequency);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    car.connect(g).connect(master); mod.start(t); car.start(t); mod.stop(t + dur + 0.05); car.stop(t + dur + 0.05);
+  };
+  // monedas que caen: tintineos metálicos muy agudos
+  const monedas = (t, tiempos, vol) => tiempos.forEach((d, k) => {
+    const f0 = 3300 + ((k * 377) % 1500), dur = 0.11 + (k % 3) * 0.03;
+    [[1, 1], [1.504, 0.6], [2.24, 0.35]].forEach(([m, a]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f0 * m;
+      g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(vol * a, t + d + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + d + dur);
+      o.connect(g).connect(master); o.start(t + d); o.stop(t + d + dur + 0.02);
+    });
+    clic(t + d, vol * 0.5);
   });
-  campana(t0 + 0.09, 1568, 0.5);
-  campana(t0 + 0.31, 1760, 0.32);
-  // monedas: tintineos cortos y agudos
-  [0.52, 0.6, 0.71, 0.79, 0.92, 1.03].forEach((d, k) => {
-    const o = ctx.createOscillator(), g = ctx.createGain(), f0 = 2600 + (k % 3) * 540 + (k * 97) % 180;
-    o.type = "triangle"; o.frequency.setValueAtTime(f0, t0 + d); o.frequency.exponentialRampToValueAtTime(f0 * 1.25, t0 + d + 0.05);
-    g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.34, t0 + d + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.17);
-    o.connect(g).connect(master); o.start(t0 + d); o.stop(t0 + d + 0.19);
-  });
+  if (variante === 2) {
+    // "Moderna": un "cha" rápido y dos campanitas brillantes seguidas, con una lluvia de monedas
+    deslizar(t0, 0.09, 0.5); clic(t0, 0.35);
+    campana(t0 + 0.09, 3136, 0.85, 0.8);
+    campana(t0 + 0.24, 4186, 0.75, 1.0);
+    monedas(t0, [0.42, 0.48, 0.54, 0.6, 0.67, 0.73, 0.8, 0.86, 0.93], 0.3);
+  } else if (variante === 3) {
+    // "Mecánica": se escucha el engranaje de la caja, el cajón se abre fuerte y suena una campana grave y larga
+    for (let k = 0; k < 8; k++) clic(t0 + k * (0.05 - k * 0.003), 0.4 + k * 0.03);
+    deslizar(t0 + 0.12, 0.3, 0.5); tope(t0 + 0.42, 0.95);
+    campana(t0 + 0.44, 2093, 0.6, 1.5); campana(t0 + 0.44, 2099, 0.4, 1.3);
+    monedas(t0, [0.62, 0.69, 0.75, 0.83, 0.9, 0.96, 1.05, 1.12, 1.2, 1.3], 0.3);
+  } else {
+    // "Clásica": dos golpecitos, el cajón que sale y pega, un "¡ching!" con eco y las monedas
+    clic(t0, 0.5); clic(t0 + 0.035, 0.4); deslizar(t0 + 0.02, 0.17, 0.55); tope(t0 + 0.18, 0.8);
+    campana(t0 + 0.2, 2790, 0.55, 1.1); campana(t0 + 0.2, 3320, 0.22, 0.8);
+    monedas(t0, [0.55, 0.62, 0.7, 0.76, 0.85, 0.93], 0.3);
+  }
 }
-function sonarVenta() {
+const VERSION_SONIDO_VENTA = () => { try { const v = parseInt(localStorage.getItem("lumiere_sonido_venta"), 10); return v >= 1 && v <= 3 ? v : 1; } catch (e) { return 1; } };
+function sonarVenta(variante) {
   try {
     prepararSonido();
     const ctx = audioAviso; if (!ctx) return;
-    armarSonidoCaja(ctx, ctx.destination, ctx.currentTime + 0.05);
+    armarSonidoCaja(ctx, ctx.destination, ctx.currentTime + 0.05, variante || VERSION_SONIDO_VENTA());
   } catch (e) {}
+}
+// Elegir cuál de las 3 cajas registradoras suena (se guarda en este navegador)
+function SelectorSonidoVenta() {
+  const [v, setV] = useState(VERSION_SONIDO_VENTA);
+  const elegir = (n) => { setV(n); try { localStorage.setItem("lumiere_sonido_venta", String(n)); } catch (e) {} sonarVenta(n); };
+  return (
+    <div style={{ textAlign: "right", marginBottom: 4, display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
+      <span style={{ fontSize: 12 }}>🔊 Sonido de venta:</span>
+      {[[1, "Clásica"], [2, "Moderna"], [3, "Mecánica"]].map(([n, nombre]) => (
+        <button key={n} className={"chip-btn" + (v === n ? " on" : "")} aria-pressed={v === n} onClick={() => elegir(n)} title="Tocá para escucharla y usarla cuando entre una compra">{nombre}</button>
+      ))}
+    </div>
+  );
 }
 function AvisoVentaWeb({ usuario, local, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
