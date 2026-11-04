@@ -38257,6 +38257,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           </button>
         ))}
       </div>}
+      <div style={{ textAlign: "right", marginBottom: 4 }}><button className="chip-btn" onClick={sonarVenta} title="Así suena cuando entra una compra en la tienda">🔊 Probar sonido de venta</button></div>
       <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
         {[["pedidos", "📦 Pedidos" + (abiertos.length + nRevisar ? " (" + (abiertos.length + nRevisar) + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientes web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [["halloween", "🎃 Halloween"]])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
@@ -41071,7 +41072,8 @@ let audioAviso = null;
 const prepararSonido = () => {
   try { if (!audioAviso) audioAviso = new (window.AudioContext || window.webkitAudioContext)(); if (audioAviso.state === "suspended") audioAviso.resume(); } catch (e) {}
 };
-function sonarVenta() {
+// Sonido de aviso de una reseña nueva (los tres pitidos de siempre)
+function sonarAviso() {
   try {
     prepararSonido();
     const ctx = audioAviso; if (!ctx) return;
@@ -41082,6 +41084,48 @@ function sonarVenta() {
       g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.35, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.45);
       o.connect(g).connect(ctx.destination); o.start(t0 + d); o.stop(t0 + d + 0.5);
     });
+  } catch (e) {}
+}
+// Sonido de venta: caja registradora. "¡Ka-ching!" (golpe del cajón + campanita) y unas monedas cayendo.
+// Se genera con el navegador, no usa ninguna grabación.
+function armarSonidoCaja(ctx, destino, t0) {
+  const master = ctx.createGain(); master.gain.value = 0.6; master.connect(destino);
+  const ruido = (dur) => {
+    const n = Math.floor(ctx.sampleRate * dur), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    const f = ctx.createBufferSource(); f.buffer = b; return f;
+  };
+  // "ka": el golpe seco del cajón al abrirse
+  const golpe = ruido(0.14), filtro = ctx.createBiquadFilter(), gg = ctx.createGain();
+  filtro.type = "bandpass"; filtro.frequency.value = 1500; filtro.Q.value = 0.7;
+  gg.gain.setValueAtTime(0.9, t0); gg.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
+  golpe.connect(filtro).connect(gg).connect(master); golpe.start(t0); golpe.stop(t0 + 0.14);
+  const grave = ctx.createOscillator(), gb = ctx.createGain();
+  grave.type = "sine"; grave.frequency.setValueAtTime(240, t0); grave.frequency.exponentialRampToValueAtTime(70, t0 + 0.12);
+  gb.gain.setValueAtTime(0.8, t0); gb.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+  grave.connect(gb).connect(master); grave.start(t0); grave.stop(t0 + 0.15);
+  // "ching": la campanita (varias notas metálicas que se apagan despacio)
+  const campana = (t, base, vol) => [[1, 1], [2.76, 0.55], [5.4, 0.3], [8.93, 0.15]].forEach(([m, a]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine"; o.frequency.value = base * m;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4 / Math.sqrt(m));
+    o.connect(g).connect(master); o.start(t); o.stop(t + 1.5);
+  });
+  campana(t0 + 0.09, 1568, 0.5);
+  campana(t0 + 0.31, 1760, 0.32);
+  // monedas: tintineos cortos y agudos
+  [0.52, 0.6, 0.71, 0.79, 0.92, 1.03].forEach((d, k) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(), f0 = 2600 + (k % 3) * 540 + (k * 97) % 180;
+    o.type = "triangle"; o.frequency.setValueAtTime(f0, t0 + d); o.frequency.exponentialRampToValueAtTime(f0 * 1.25, t0 + d + 0.05);
+    g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.34, t0 + d + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.17);
+    o.connect(g).connect(master); o.start(t0 + d); o.stop(t0 + d + 0.19);
+  });
+}
+function sonarVenta() {
+  try {
+    prepararSonido();
+    const ctx = audioAviso; if (!ctx) return;
+    armarSonidoCaja(ctx, ctx.destination, ctx.currentTime + 0.05);
   } catch (e) {}
 }
 function AvisoVentaWeb({ usuario, local, paletaActual }) {
@@ -41110,7 +41154,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
           if (rs.length) {
             setNuevasRes(n => [...n, ...rs.filter(x => !n.some(y => y.id === x.id))]);
             window.dispatchEvent(new Event("lumiere-avisos"));
-            if (!(r.data.pedidos || []).length) sonarVenta();
+            if (!(r.data.pedidos || []).length) sonarAviso();
             try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("⭐ Nueva reseña para revisar", { body: rs.map(x => (x.clienta || "Cliente") + ": " + "★".repeat(x.estrellas) + " " + (x.producto || "")).join("\n") }); } catch (e) {}
           }
         }
