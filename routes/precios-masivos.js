@@ -140,6 +140,15 @@ router.get('/ingresos/:id/productos', async (req, res) => {
   } catch (e) { console.error('[precios] productos de ingreso:', e.message); res.status(500).json({ error: 'No se pudieron traer los productos de la orden' }); }
 });
 
+// Productos de una orden de ingreso con sus unidades por local (para imprimir una etiqueta por unidad que llegó)
+router.get('/ingresos/:id/items', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT i.producto_id, SUM(COALESCE(i.cantidad_total, 0))::int AS total, SUM(COALESCE(i.cantidad_rg, 0))::int AS rg, SUM(COALESCE(i.cantidad_ush, 0))::int AS ush
+      FROM ordenes_ingreso_items i WHERE i.orden_id = $1 AND i.producto_id IS NOT NULL GROUP BY i.producto_id`, [parseInt(req.params.id) || 0]);
+    res.json(r.rows);
+  } catch (e) { console.error('[precios] items de ingreso:', e.message); res.status(500).json({ error: 'No se pudieron traer los productos de la orden' }); }
+});
+
 // Ver como quedarian los precios (no cambia nada)
 router.post('/vista', async (req, res) => {
   try {

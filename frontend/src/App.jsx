@@ -23404,6 +23404,10 @@ function Etiquetas({ paletaActual, localId }) {
   const [aviso, setAviso] = useState("");
   const [ultimoCambio, setUltimoCambio] = useState(null);
   const [agregarPor, setAgregarPor] = useState({ tipo: "categoria", valor: "" });
+  // Órdenes de ingreso recientes: etiquetas de lo que llegó (una por unidad, para este local)
+  const [ordenesIng, setOrdenesIng] = useState([]);
+  const [porUnidad, setPorUnidad] = useState(true);
+  useEffect(() => { API.get("/precios-masivos/ingresos").then(r => setOrdenesIng(r.data || [])).catch(() => {}); }, []);
   const esUsh = Number(localId) === 2;
   // QR de la tienda online: al escanearlo en el local se abre el producto en la tienda y su video
   const [tiendaQR, setTiendaQR] = useState(null); // { base, publicados: Set } o { sinTienda: true }
@@ -23469,6 +23473,26 @@ function Etiquetas({ paletaActual, localId }) {
   };
   const agregarGrupo = async () => {
     if (!agregarPor.valor) return;
+    if (agregarPor.tipo === "ingreso") {
+      try {
+        const r = await API.get("/precios-masivos/ingresos/" + agregarPor.valor + "/items");
+        const cant = new Map((r.data || []).map(x => [x.producto_id, esUsh ? (x.ush || 0) : (x.rg || 0)]));
+        const total = new Map((r.data || []).map(x => [x.producto_id, x.total || 0]));
+        const lista = productos.filter(p => cant.has(p.id));
+        const nuevos = [];
+        for (const p of lista) {
+          // Una etiqueta por unidad que llegó a este local (si la orden es del otro local, una por unidad del total)
+          const u = porUnidad ? Math.max(1, cant.get(p.id) || total.get(p.id) || 1) : 1;
+          const its = await itemsDe(p);
+          its.forEach(x => nuevos.push({ ...x, cantidad: its.length > 1 ? 1 : u }));
+        }
+        let agregados = 0;
+        setItems(prev => { const ya = new Set(prev.map(x => x.key)); const n = nuevos.filter(x => !ya.has(x.key)); agregados = n.length; return [...prev, ...n]; });
+        const unidades = nuevos.reduce((a, x) => a + (parseInt(x.cantidad) || 0), 0);
+        avisar(lista.length ? "Se agregaron " + lista.length + " productos de la orden (" + unidades + " etiquetas)." : "Esa orden no tiene productos activos.");
+      } catch (e) { avisar("No se pudieron traer los productos de la orden."); }
+      return;
+    }
     const campo = agregarPor.tipo === "categoria" ? "categoria" : agregarPor.tipo === "marca" ? "marca" : "proveedor_nombre";
     const n = await agregar(productos.filter(p => p[campo] === agregarPor.valor));
     avisar(n ? "Se agregaron " + n + " etiquetas." : "No hay productos activos con ese filtro.");
@@ -23602,14 +23626,17 @@ function Etiquetas({ paletaActual, localId }) {
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
             <span style={{ fontSize: 12, color: temaPal.textMuted }}>Agregar todos los de</span>
-            <select className="sel" style={{ width: 120 }} value={agregarPor.tipo} onChange={e => setAgregarPor({ tipo: e.target.value, valor: "" })} aria-label="Agregar por">
-              <option value="categoria">categoría</option><option value="marca">marca</option><option value="proveedor">proveedor</option>
+            <select className="sel" style={{ width: 175 }} value={agregarPor.tipo} onChange={e => setAgregarPor({ tipo: e.target.value, valor: "" })} aria-label="Agregar por">
+              <option value="categoria">categoría</option><option value="marca">marca</option><option value="proveedor">proveedor</option><option value="ingreso">orden de ingreso</option>
             </select>
             <select className="sel" style={{ flex: "1 1 140px" }} value={agregarPor.valor} onChange={e => setAgregarPor(a => ({ ...a, valor: e.target.value }))} aria-label="Cuál">
-              <option value="">Elegí...</option>{grupos[agregarPor.tipo].map(x => <option key={x} value={x}>{x}</option>)}
+              <option value="">{agregarPor.tipo === "ingreso" && !ordenesIng.length ? "No hay órdenes de los últimos 4 meses" : "Elegí..."}</option>
+              {agregarPor.tipo === "ingreso" ? ordenesIng.map(o => <option key={o.id} value={o.id}>{new Date(o.creado_en).toLocaleDateString("es-AR")} · {o.proveedor || "Sin proveedor"}{o.numero_factura ? " · Fact. " + o.numero_factura : ""}{o.notas && /Ushuaia|R[ií]o Grande/i.test(o.notas) ? " · " + (o.notas.match(/Ushuaia|R[ií]o Grande/i) || [""])[0] : ""} · {o.productos} productos{o.estado === "pendiente" ? " (en camino)" : ""}</option>)
+                : grupos[agregarPor.tipo].map(x => <option key={x} value={x}>{x}</option>)}
             </select>
             <button className="btn btn-g btn-sm" disabled={!agregarPor.valor} onClick={agregarGrupo}>Agregar</button>
           </div>
+          {agregarPor.tipo === "ingreso" && <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, marginTop: 6, cursor: "pointer" }}><input type="checkbox" checked={porUnidad} onChange={e => setPorUnidad(e.target.checked)} /> Una etiqueta por cada unidad que llegó a {nombreLocal(localId || 1)} (si no, una por producto)</label>}
           {ultimoCambio && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => agregarDeCambio(ultimoCambio.id)} title={ultimoCambio.descripcion}>📈 Agregar los {ultimoCambio.cantidad} del último cambio de precios</button>}
 
           {items.length === 0 ? <div className="empty" style={{ padding: 22 }}>Buscá un producto o agregá una categoría entera.</div> : (
