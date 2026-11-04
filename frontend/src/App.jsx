@@ -5934,7 +5934,7 @@ function POS({ localId, usuario, paletaActual }) {
             onClick={() => { const v = !sonidoOn; setSonidoOn(v); try { localStorage.setItem("lumiere_pos_sonido", v ? "on" : "off"); } catch (e) {} }}>
             {sonidoOn ? "🔊" : "🔇"}
           </button>
-          <div className="seg" role="group" aria-label="Modo de vista" title="Cómo se ve el Punto de Venta en este dispositivo">
+          <div className="seg" data-tour="pos-vistas" role="group" aria-label="Modo de vista" title="Cómo se ve el Punto de Venta en este dispositivo">
             {[["clasico", "🖥", "Clásico"], ["catalogo", "🖼", "Catálogo"], ["celular", "📱", "Celular"], ["tactil", "👆", "Táctil"]].map(([id, ic, l]) => (
               <button key={id} className={modoVista === id ? "on" : ""} aria-pressed={modoVista === id} onClick={() => setModoVista(id)} title={"Modo " + l}><span aria-hidden="true">{ic}</span><span className="pos-modo-txt"> {l}</span></button>
             ))}
@@ -6033,7 +6033,7 @@ function POS({ localId, usuario, paletaActual }) {
       {(modoVista === "catalogo" || modoVista === "tactil") && (
         <div className={"pos-cat" + (modoVista === "tactil" ? " pos-tactil" : "")}>
           {modoVista === "tactil" && categoriasJSX(true)}
-          <div className="pos-cat-izq">
+          <div className="pos-cat-izq" data-tour="pos-catalogo">
             {buscadorCatalogoJSX}
             {avisoEscaneo && <div className="pop-in" role="alert" style={{ background: temaPal.redDim, border: "1px solid " + temaPal.red, color: temaPal.red, borderRadius: 6, padding: "8px 12px", fontSize: 12, fontWeight: 700 }}>⚠ {avisoEscaneo}</div>}
             {modoVista === "catalogo" && categoriasJSX(false)}
@@ -14924,7 +14924,7 @@ function AgendaConsultorio({ localId, paletaActual }) {
           <button className="btn btn-g" onClick={() => setDia(diaISO(new Date()))}>Hoy</button>
           <input className="inp" type="date" value={dia} onChange={e => e.target.value && setDia(e.target.value)} style={{ width: 150 }} aria-label="Elegir día" />
           <button className="btn btn-g" aria-label="Día siguiente" onClick={() => setDia(d => sumarDias(d, 1))}>▶</button>
-          {!esCel && <button className="btn btn-p" onClick={() => nuevo(null, deMin(Math.max(desde, Math.ceil(((ahoraMin ?? desde)) / paso) * paso)))}>+ Turno</button>}
+          {!esCel && <button className="btn btn-p" data-tour="agenda-nuevo" onClick={() => nuevo(null, deMin(Math.max(desde, Math.ceil(((ahoraMin ?? desde)) / paso) * paso)))}>+ Turno</button>}
         </div>
       </div>
       {avisoCaja(temaPal, aviso)}
@@ -20665,7 +20665,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
             </div>
 
             {/* Arqueo de efectivo */}
-            <div className="chart-card anim-in" style={{ animationDelay: "180ms", borderTop: "3px solid " + p.green }}>
+            <div className="chart-card anim-in" data-tour="cierre-arqueo" style={{ animationDelay: "180ms", borderTop: "3px solid " + p.green }}>
               <div className="chart-head">
                 <div className="chart-title">💵 Arqueo de efectivo</div>
                 {cierre && !editandoArqueo && <button className="chip-btn no-captura" onClick={() => setEditandoArqueo(true)}>✏️ Corregir</button>}
@@ -39383,28 +39383,70 @@ const tutIrA = (id, grupo, nombreGrupo, titulo, texto, pagina) => ({
   objetivos: ['[data-tour="nav-' + id + '"]', '[data-tour="sec-' + grupo + '"]', '[data-tour="menu-hamburguesa"]'],
   avanzaCuando: (p) => p === pagina,
 });
-const PASOS_TUTORIAL = [
-  { modo: "centro", titulo: "¡Bienvenido a Lumiere! 👋", texto: "Te muestro cómo se usa en 2 minutos. Te voy marcando los botones que tenés que tocar. Si querés, podés saltarlo y volver a verlo cuando quieras desde el menú.", boton: "Empezar" },
-  tutIrA("pos", "VENTAS", "Ventas", "Empecemos por vender 🛒", "Tocá Punto de Venta. Desde ahí cobrás todas tus ventas.", "pos"),
-  { modo: "next", pagina: "pos", opcional: true, objetivos: ['[data-tour="pos-prueba"]'], titulo: "Practicá sin miedo 🧪", texto: "Prendé el Modo prueba y vendé de práctica: no se anota nada, no baja el stock y no se factura. Apagalo cuando quieras vender de verdad." },
-  { modo: "next", pagina: "pos", objetivos: ['[data-tour="pos-buscar"]'], titulo: "1. Buscá el producto", texto: "Escribí el nombre o el código, o escaneá con el lector. También podés tocar el producto directamente. Si todavía no cargaste productos, enseguida te muestro dónde." },
-  { modo: "next", pagina: "pos", objetivos: ['[data-tour="pos-carrito"]'], titulo: "2. Se arma el carrito", texto: "Lo que elegís va apareciendo acá. Podés cambiar las cantidades, sacar productos o ponerle un descuento." },
-  { modo: "next", pagina: "pos", titulo: "3. Continuar y cobrar 💵", texto: "Cuando el carrito está listo, tocás Continuar: ahí elegís el cliente, la forma de pago y cobrás. ¡Con eso ya sabés vender!" },
-  tutIrA("inventory", "PRODUCTOS", "Productos", "Ahora, tus productos 📦", "Tocá Productos. Es donde cargás lo que vendés.", "inventory"),
-  { modo: "next", pagina: "inventory", titulo: "Acá cargás tu mercadería", texto: "Creás cada producto con su precio y su stock, y lo editás cuando cambian. Lo que cargues acá aparece en el Punto de Venta." },
-  tutIrA("caja", "CAJA", "Caja", "La plata del día 💰", "Tocá Caja para ver cómo se mueve la plata.", "caja"),
-  { modo: "next", pagina: "caja", titulo: "Entradas y salidas", texto: "Acá se anotan las ventas en efectivo y los gastos del día. Al final de la jornada hacés el Cierre de Caja desde el mismo grupo del menú." },
-  tutIrA("clients", "CLIENTES", "Clientes", "Tus clientes 👥", "Tocá Clientes para ver tu lista.", "clients"),
-  { modo: "next", pagina: "clients", titulo: "Todos tus clientes", texto: "Cada cliente guarda sus compras y sus puntos. Cuando cobrás con su DNI, la venta queda anotada en su ficha." },
-  tutIrA("gerente", "TU GERENTE", "Tu gerente", "Y tu gerente ✨", "Tocá Lumiere, tu gerente.", "gerente"),
-  { modo: "next", pagina: "gerente", titulo: "Te dice cómo viene el negocio", texto: "Mirá tu salud del negocio, qué conviene hacer y qué falta atender. Cuanto más lo uses, mejores consejos te da." },
-  { modo: "centro", titulo: "¡Listo, ya sabés lo básico! 🎉", texto: "Para volver a ver este recorrido, tocá 🎓 Ver tutorial abajo en el menú. Y si te trabás, el botón ❓ Ayuda te responde.", boton: "Terminar" },
-];
+// Los pasos cambian según el tipo de negocio que eligió la persona en la bienvenida
+function armarPasosTutorial() {
+  const centro = (titulo, texto, boton) => ({ modo: "centro", titulo, texto, boton });
+  const info = (pagina, titulo, texto, objetivo) => ({ modo: "next", pagina, titulo, texto, ...(objetivo ? { objetivos: ['[data-tour="' + objetivo + '"]'] } : {}) });
+  const bienvenida = centro("¡Bienvenido a Lumiere! 👋", "Te muestro cómo se usa en unos minutos. Te voy marcando los botones que tenés que tocar. Si querés, podés saltarlo y volver a verlo cuando quieras desde el menú.", "Empezar");
+  const final = centro("¡Listo, ya sabés lo básico! 🎉", "Para volver a ver este recorrido, tocá 🎓 Ver tutorial abajo en el menú. Y si te trabás, el botón ❓ Ayuda te responde.", "Terminar");
+  const vender = [
+    tutIrA("pos", "VENTAS", "Ventas", "Empecemos por vender 🛒", "Tocá Punto de Venta. Desde ahí cobrás todas tus ventas.", "pos"),
+    { modo: "next", pagina: "pos", opcional: true, objetivos: ['[data-tour="pos-prueba"]'], titulo: "Practicá sin miedo 🧪", texto: "Prendé el Modo prueba y vendé de práctica: no se anota nada, no baja el stock y no se factura. Apagalo cuando quieras vender de verdad." },
+    info("pos", "1. Buscá el producto", "Escribí el nombre o el código, o escaneá con el lector. También podés tocar el producto directamente. Si todavía no cargaste productos, enseguida te muestro dónde.", "pos-buscar"),
+    info("pos", "2. Se arma el carrito", "Lo que elegís va apareciendo acá. Podés cambiar las cantidades, sacar productos o ponerle un descuento.", "pos-carrito"),
+    info("pos", "3. Continuar y cobrar 💵", "Cuando el carrito está listo, tocás Continuar: ahí elegís el cliente, la forma de pago y cobrás. ¡Con eso ya sabés vender!"),
+  ];
+  const catalogo = [
+    info("pos", "Elegí cómo ver el Punto de Venta", "Tenés 4 vistas: Clásico, Catálogo, Celular y Táctil. En un bar o restaurante conviene Catálogo o Táctil: los productos se ven como fotos grandes para tocar.", "pos-vistas"),
+    info("pos", "Tocá y listo 👆", "En la vista Catálogo tocás el producto y se suma al carrito. Cada toque suma una unidad; después podés cambiar la cantidad en el carrito.", "pos-catalogo"),
+  ];
+  const mesas = [
+    tutIrA("mesas", "VENTAS", "Ventas", "Las mesas 🍽️", "Tocá Mesas para ver tu salón.", "mesas"),
+    info("mesas", "Armá tus mesas", "La primera vez tocás Crear mesas y ponés cuántas tenés. Cada mesa muestra si está libre u ocupada y cuánto lleva sin cobrar."),
+    info("mesas", "Abrí una cuenta", "Tocás una mesa, agregás lo que piden y tocás 🔥 Enviar a cocina. Para pedidos sin mesa usás 🥡 Para llevar."),
+    info("mesas", "Cobrar y dividir la cuenta 💵", "Cuando piden la cuenta tocás Cobrar todo. Si cada uno quiere pagar lo suyo, podés dividir la cuenta en partes."),
+    tutIrA("cocina", "VENTAS", "Ventas", "La cocina 👨‍🍳", "Tocá Cocina.", "cocina"),
+    info("cocina", "Las comandas llegan solas", "Todo lo que se manda a cocina aparece acá, con un pitido. Cuando un plato está terminado, se toca ✅ Listo y el mozo se entera."),
+  ];
+  const productos = [
+    tutIrA("inventory", "PRODUCTOS", "Productos", "Ahora, tus productos 📦", "Tocá Productos. Es donde cargás lo que vendés.", "inventory"),
+    info("inventory", "Acá cargás tu mercadería", "Creás cada producto con su precio y su stock, y lo editás cuando cambian. Lo que cargues acá aparece en el Punto de Venta."),
+  ];
+  const caja = [
+    tutIrA("caja", "CAJA", "Caja", "La plata del día 💰", "Tocá Caja para ver cómo se mueve la plata.", "caja"),
+    info("caja", "Entradas y salidas", "Acá se anotan las ventas en efectivo y los gastos del día."),
+    tutIrA("cierre", "CAJA", "Caja", "Cerrar la caja del día 🔒", "Tocá Cierre de Caja. Es lo último que hacés cada día, cuando terminás de atender.", "cierre"),
+    info("cierre", "Así termina cada día", "Acá ves todo lo que vendiste hoy separado por medio de pago: efectivo, tarjeta, transferencia… Con las flechitas de arriba podés mirar otros días."),
+    info("cierre", "1. Contá el efectivo 💵", "Anotá cuánta plata había al empezar el día (el fondo) y contá los billetes que hay ahora. Lumiere te dice cuánto debería haber en la caja.", "cierre-arqueo"),
+    info("cierre", "2. ¿Cuadra la caja?", "Si lo que contaste coincide, dice \"La caja cuadra\". Si no, te muestra cuánto sobra o falta. Después tocás 🔒 Cerrar caja y el cierre queda guardado en el Historial de cierres.", "cierre-arqueo"),
+  ];
+  const clientes = [
+    tutIrA("clients", "CLIENTES", "Clientes", "Tus clientes 👥", "Tocá Clientes para ver tu lista.", "clients"),
+    info("clients", "Todos tus clientes", "Cada cliente guarda sus compras y sus puntos. Cuando cobrás con su DNI, la venta queda anotada en su ficha."),
+  ];
+  const agenda = [
+    tutIrA("config-consultorio", "CONSULTORIO", "Consultorio", "Primero, tus tratamientos ⚙️", "Tocá Tratamientos y equipo.", "config-consultorio"),
+    info("config-consultorio", "Cargá lo que ofrecés", "Acá ponés los tratamientos que hacés, los profesionales y sus horarios. Con eso la Agenda sabe cuándo hay lugar para dar turnos."),
+    tutIrA("agenda", "CONSULTORIO", "Consultorio", "Ahora, la agenda 📅", "Tocá Agenda.", "agenda"),
+    info("agenda", "Cargá un turno", "Tocá Nuevo turno, buscá al paciente (o cargalo ahí mismo), elegí el tratamiento, el día y la hora, y guardá.", "agenda-nuevo"),
+    info("agenda", "Manejá tus turnos", "Cada turno aparece en su horario. Si lo tocás, podés confirmarlo, cancelarlo, cambiar el día o la hora, mandar un recordatorio por WhatsApp o cobrarlo cuando termina la atención."),
+    tutIrA("pacientes", "CONSULTORIO", "Consultorio", "Tus pacientes 🩺", "Tocá Pacientes.", "pacientes"),
+    info("pacientes", "La historia de cada paciente", "Guarda la ficha, lo que se hizo en cada atención y las fotos de antes y después."),
+  ];
+  const gerente = [
+    tutIrA("gerente", "TU GERENTE", "Tu gerente", "Y tu gerente ✨", "Tocá Lumiere, tu gerente.", "gerente"),
+    info("gerente", "Te dice cómo viene el negocio", "Mirá la salud de tu negocio, qué conviene hacer y qué falta atender. Cuanto más lo uses, mejores consejos te da."),
+  ];
+  if (CONSULTORIO_ACTIVO) return [bienvenida, ...agenda, ...vender, ...caja, ...gerente, final];
+  if (GASTRO_ACTIVO) return [bienvenida, ...vender, ...catalogo, ...mesas, ...productos, ...caja, ...clientes, ...gerente, final];
+  return [bienvenida, ...vender, ...productos, ...caja, ...clientes, ...gerente, final];
+}
 
 function TutorialGuiado({ page, setPage, clave, onCerrar }) {
-  const N = PASOS_TUTORIAL.length;
+  const PASOS = useMemo(armarPasosTutorial, [GASTRO_ACTIVO, CONSULTORIO_ACTIVO]);
+  const N = PASOS.length;
   const [i, setI] = useState(() => { try { const g = parseInt(localStorage.getItem(clave + "_paso"), 10); return g > 0 && g < N - 1 ? g : 0; } catch (e) { return 0; } });
-  const paso = PASOS_TUTORIAL[i];
+  const paso = PASOS[Math.min(i, N - 1)];
   const [obj, setObj] = useState({ rect: null, k: -1 });
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
   const yaDesplazo = useRef(-1);
@@ -39430,7 +39472,7 @@ function TutorialGuiado({ page, setPage, clave, onCerrar }) {
         if (!el) continue;
         const r = el.getBoundingClientRect();
         if (r.width < 2 || r.height < 2 || r.right <= 0 || r.left >= window.innerWidth) continue;
-        if ((r.top < 0 || r.bottom > window.innerHeight) && yaDesplazo.current !== i) { yaDesplazo.current = i; try { el.scrollIntoView({ block: "center" }); } catch (e) {} }
+        if ((r.top < 0 || r.bottom > window.innerHeight) && yaDesplazo.current !== i + ":" + k) { yaDesplazo.current = i + ":" + k; try { el.scrollIntoView({ block: "center" }); } catch (e) {} }
         nuevo = { rect: { x: r.left, y: r.top, w: r.width, h: r.height }, k };
         break;
       }
