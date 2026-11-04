@@ -525,10 +525,16 @@ router.post('/:id/factura-revisar', subirFactura.single('archivo'), async (req, 
     items.forEach(it => { if (it.producto_id) { if (!porProd.has(it.producto_id)) porProd.set(it.producto_id, []); porProd.get(it.producto_id).push(it); } });
     const usados = new Set(), cambios = [], faltantes = [];
     for (const l of fac.items) {
-      const deEse = l.producto_id_sugerido ? (porProd.get(l.producto_id_sugerido) || []).filter(it => !usados.has(it.id)) : [];
+      let deEse = l.producto_id_sugerido ? (porProd.get(l.producto_id_sugerido) || []).filter(it => !usados.has(it.id)) : [];
+      // Sin vinculo por codigo: si uno de los parecidos por nombre esta en la orden, se usa pero marcado para revisar
+      let porNombre = l.metodo === 'parecido';
+      if (!deEse.length && !l.producto_id_sugerido) {
+        const s = (l.sugerencias || []).find(x => (porProd.get(x.id) || []).some(it => !usados.has(it.id)));
+        if (s) { deEse = porProd.get(s.id).filter(it => !usados.has(it.id)); porNombre = true; }
+      }
       if (!deEse.length) {
         faltantes.push({ nombre_crudo: l.nombre_crudo, codigo_interno: l.codigo_interno, codigo_barras: l.codigo_barras, cantidad: l.cantidad, costo_unitario: l.costo_unitario,
-          producto_id: l.producto_id_sugerido, producto_nombre: l.producto_nombre_sugerido, dudoso: l.dudoso });
+          producto_id: l.producto_id_sugerido, producto_nombre: l.producto_nombre_sugerido, dudoso: l.dudoso, metodo: l.metodo, sugerencias: l.sugerencias || [] });
         continue;
       }
       const cantOrden = deEse.reduce((t, it) => t + (parseInt(it.cantidad_total) || 0), 0);
@@ -536,7 +542,7 @@ router.post('/:id/factura-revisar', subirFactura.single('archivo'), async (req, 
         usados.add(it.id);
         cambios.push({ item_id: it.id, orden_id: it.orden_id, producto_id: it.producto_id, producto_nombre: it.producto_nombre, nombre_factura: l.nombre_crudo,
           cantidad: parseInt(it.cantidad_total) || 0, cantidad_factura: l.cantidad, cantidad_distinta: cantOrden !== l.cantidad,
-          costo_actual: parseFloat(it.costo_unitario) || 0, costo_nuevo: l.costo_unitario, recibido: (it.recibido_rg || 0) + (it.recibido_ush || 0) > 0, dudoso: l.dudoso });
+          costo_actual: parseFloat(it.costo_unitario) || 0, costo_nuevo: l.costo_unitario, recibido: (it.recibido_rg || 0) + (it.recibido_ush || 0) > 0, dudoso: l.dudoso, por_nombre: porNombre });
       });
     }
     const sobrantes = items.filter(it => !usados.has(it.id)).map(it => ({ item_id: it.id, orden_id: it.orden_id, producto_nombre: it.producto_nombre, cantidad: parseInt(it.cantidad_total) || 0, costo: parseFloat(it.costo_unitario) || 0 }));
