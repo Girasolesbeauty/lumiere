@@ -41387,10 +41387,10 @@ function AppWrapper() {
   const [tutorial, setTutorial] = useState(false);
   const claveTutorial = "lumiere_tutorial_" + (miNegocio?.id || 0) + "_" + (usuario?.id || 0);
   useEffect(() => {
-    if (!usuario || !local || faltaTerminos !== false || !miNegocio || !miNegocio.id || Number(miNegocio.id) === 1 || miNegocio.bienvenida_pendiente) return;
+    if (!usuario || !local || faltaTerminos !== false || !miNegocio || !miNegocio.id || !miNegocio.demo_registro || miNegocio.bienvenida_pendiente) return;
     if (usuario.rol !== "jefe" && usuario.rol_id !== 1) return;
     try { if (!localStorage.getItem(claveTutorial)) setTutorial(true); } catch (e) {}
-  }, [usuario?.id, local?.id, faltaTerminos, miNegocio?.id, miNegocio?.bienvenida_pendiente]);
+  }, [usuario?.id, local?.id, faltaTerminos, miNegocio?.id, miNegocio?.demo_registro, miNegocio?.bienvenida_pendiente]);
   useEffect(() => {
     if (!usuario) { setAdminPlataforma(false); setMiNegocio(null); setFaltaTerminos(null); return; }
     API.get("/plataforma/acceso").then(r => setAdminPlataforma(r.data?.admin === true)).catch(() => setAdminPlataforma(false));
@@ -41670,9 +41670,9 @@ function AppWrapper() {
               ))}
             </div>
 
-            <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: paletaActual.logoText, cursor: "pointer" }} role="button" tabIndex={0}
+            {miNegocio?.demo_registro && <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: paletaActual.logoText, cursor: "pointer" }} role="button" tabIndex={0}
               onClick={() => { try { localStorage.removeItem(claveTutorial); localStorage.removeItem(claveTutorial + "_paso"); } catch (e) {} setMenuAbierto(false); setTutorial(true); }}
-              onKeyDown={e => { if (e.key === "Enter") e.currentTarget.click(); }}>🎓 Ver tutorial</div>
+              onKeyDown={e => { if (e.key === "Enter") e.currentTarget.click(); }}>🎓 Ver tutorial</div>}
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>

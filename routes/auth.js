@@ -76,7 +76,7 @@ router.post('/registro', async (req, res) => {
 
     const neg = await negocios.crearNegocio({
       nombre: b.negocio, email: b.email, password: b.password, nombre_dueno: b.nombre,
-      telefono: b.telefono, pais: b.pais, moneda: b.moneda, local: b.local,
+      telefono: b.telefono, pais: b.pais, moneda: b.moneda, local: b.local, origen: 'registro',
     });
     recientes.push(ahora); intentosRegistro.set(ip, recientes); registrosHoy.n++;
     if (intentosRegistro.size > 5000) intentosRegistro.clear();
