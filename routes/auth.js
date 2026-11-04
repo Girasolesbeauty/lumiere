@@ -41,6 +41,75 @@ router.post('/login', async (req, res) => {
   enNegocio({ id: neg.id, schema: neg.schema }, () => iniciarSesion(req, res, neg));
 });
 
+// Registro desde la web: cualquiera puede crearse su cuenta de prueba de 7 dias sin hablar
+// con nadie. Crea un negocio nuevo (su propio cajon, con el plan completo) y lo deja adentro.
+// Freno contra abusos: limite por IP y por dia, campo trampa para robots y tiempo minimo.
+const intentosRegistro = new Map(); // ip -> [momentos]
+let registrosHoy = { dia: '', n: 0 };
+const MAX_POR_IP_HORA = 3;
+const MAX_POR_DIA = Number(process.env.REGISTROS_MAX_POR_DIA) || 150;
+function ipDe(req) { return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(); }
+
+const canjes = new Map(); // codigo de un solo uso -> { t, datos de sesion }
+router.post('/canje', (req, res) => {
+  const codigo = String((req.body || {}).codigo || '');
+  const c = canjes.get(codigo);
+  canjes.delete(codigo);
+  if (!c || Date.now() - c.t > 120000) return res.status(400).json({ error: 'El enlace venció. Ingresá con tu mail y contraseña.' });
+  res.json(c.datos);
+});
+
+router.post('/registro', async (req, res) => {
+  const b = req.body || {};
+  try {
+    // Un robot suele llenar todos los campos, incluso el que una persona no ve
+    if (b.web) return res.status(201).json({ ok: true });
+    if (Number(b.tardo_ms) < 2500) return res.status(400).json({ error: 'Revisá los datos y probá de nuevo.' });
+    const ip = ipDe(req);
+    const ahora = Date.now();
+    const recientes = (intentosRegistro.get(ip) || []).filter(t => ahora - t < 3600000);
+    if (recientes.length >= MAX_POR_IP_HORA) return res.status(429).json({ error: 'Ya creaste varias cuentas desde esta conexión. Probá más tarde o escribinos a hola@sistemalumiere.com' });
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (registrosHoy.dia !== hoy) registrosHoy = { dia: hoy, n: 0 };
+    if (registrosHoy.n >= MAX_POR_DIA) return res.status(429).json({ error: 'Hoy tuvimos muchísimos registros. Escribinos a hola@sistemalumiere.com y te armamos la cuenta.' });
+    if (!b.acepta) return res.status(400).json({ error: 'Para crear la cuenta tenés que aceptar los Términos y la Política de Privacidad' });
+
+    const neg = await negocios.crearNegocio({
+      nombre: b.negocio, email: b.email, password: b.password, nombre_dueno: b.nombre,
+      telefono: b.telefono, pais: b.pais, moneda: b.moneda, local: b.local,
+    });
+    recientes.push(ahora); intentosRegistro.set(ip, recientes); registrosHoy.n++;
+    if (intentosRegistro.size > 5000) intentosRegistro.clear();
+    console.log('[registro] negocio nuevo ' + neg.id + ' (' + neg.nombre + ')');
+    // Queda con la sesion iniciada, igual que si hubiera puesto su mail y contraseña
+    req.body = { email: neg.email_contacto, password: b.password };
+    const captura = { c: 200, o: null, status(c) { this.c = c; return this; }, json(o) { this.o = o; return this; } };
+    await enNegocio({ id: neg.id, schema: neg.schema }, () => iniciarSesion(req, captura, neg));
+    if (captura.c !== 200 || !captura.o) return res.status(500).json({ error: 'Tu cuenta se creó, pero no pudimos abrirla. Ingresá con tu mail y contraseña en app.sistemalumiere.com' });
+    // Aceptó los Terminos en el formulario: queda la constancia (asi la app no se los pide de nuevo)
+    try {
+      await negocios.registrarAceptacion({
+        negocio_id: neg.id, usuario_id: captura.o.usuario.id, email: neg.email_contacto, nombre: b.nombre, negocio_nombre: neg.nombre,
+        version: legal.VERSION, ip, navegador: req.headers['user-agent'],
+      });
+    } catch (e) { console.error('[registro] constancia de términos:', e.message); }
+    if (b.desde_web) {
+      // Se registro en la pagina de ventas (otra direccion que la app): se le da un codigo de un
+      // solo uso (dura 2 minutos) para que la app lo cambie por su sesion, sin pasar la llave por la direccion
+      const codigo = require('crypto').randomBytes(24).toString('hex');
+      canjes.set(codigo, { t: Date.now(), datos: captura.o });
+      for (const [k, v] of canjes) if (Date.now() - v.t > 120000) canjes.delete(k);
+      return res.status(201).json({ ok: true, codigo });
+    }
+    res.status(201).json(captura.o);
+  } catch (e) {
+    if (e.codigo === 'DATOS') return res.status(400).json({ error: e.message });
+    if (e.codigo === 'MAIL_USADO') return res.status(400).json({ error: 'Ya hay una cuenta con ese mail. Ingresá con tu contraseña desde la pantalla de inicio.' });
+    console.error('[registro]', e.message);
+    res.status(500).json({ error: 'No pudimos crear la cuenta. Probá de nuevo en un momento.' });
+  }
+});
+
 async function iniciarSesion(req, res, neg) {
   try {
     const { email, password } = req.body;

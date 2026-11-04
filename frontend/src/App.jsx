@@ -39394,6 +39394,44 @@ function LoginScreen({ onLogin }) {
     return "";
   });
 
+  // Viene de la pagina de ventas con la cuenta ya creada: cambia el codigo de un solo uso por la sesion
+  useEffect(() => {
+    let codigo = null;
+    try { codigo = new URLSearchParams(window.location.search).get("c"); } catch (e) {}
+    if (!codigo) return;
+    try { window.history.replaceState({}, "", window.location.pathname); } catch (e) {}
+    setLoading(true);
+    API.post("/auth/canje", { codigo }).then(res => {
+      localStorage.setItem("lumiere_token", res.data.token);
+      localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
+      try { localStorage.setItem("lumiere_neg", String(res.data.negocio?.id || 1)); } catch (e) {}
+      onLogin(res.data.usuario);
+    }).catch(e => { setError(e.response?.data?.error || "No pudimos abrir tu cuenta. Ingresá con tu mail y contraseña."); setLoading(false); });
+  }, []); // eslint-disable-line
+  // Crear cuenta de prueba (se llega desde el boton "Probar 7 días gratis" de la web)
+  const [registro, setRegistro] = useState(() => { try { return /registro/.test(window.location.search + window.location.hash); } catch (e) { return false; } });
+  const [rg, setRg] = useState({ nombre: "", negocio: "", telefono: "", acepta: false, web: "" });
+  const [desde] = useState(() => Date.now());
+  const handleRegistro = async (e) => {
+    if (e) e.preventDefault();
+    if (loading) return;
+    if (!rg.nombre.trim() || !rg.negocio.trim()) return setError("Escribí tu nombre y el nombre de tu negocio");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Escribí un mail válido");
+    if (password.length < 6) return setError("La contraseña tiene que tener al menos 6 caracteres");
+    if (!rg.acepta) return setError("Para crear la cuenta tenés que aceptar los Términos y la Política de Privacidad");
+    setLoading(true);
+    try {
+      const res = await API.post("/auth/registro", { ...rg, email: email.trim(), password, tardo_ms: Date.now() - desde });
+      localStorage.setItem("lumiere_token", res.data.token);
+      localStorage.setItem("lumiere_user", JSON.stringify(res.data.usuario));
+      try { localStorage.setItem("lumiere_neg", String(res.data.negocio?.id || 1)); } catch (e) {}
+      onLogin(res.data.usuario);
+    } catch (e) {
+      setError(e.response?.data?.error || "No pudimos conectarnos. Revisá tu internet y probá de nuevo.");
+    }
+    setLoading(false);
+  };
+
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
     if (loading) return;
@@ -39419,9 +39457,35 @@ function LoginScreen({ onLogin }) {
       <div className="ls-barras" aria-hidden="true">{[30, 48, 40, 62, 55, 78, 70, 100].map((h, k) => <span key={k} style={{ height: h + "%", animationDelay: k * 70 + "ms" }} />)}</div>
       <main className="ls-caja" aria-labelledby="lg-titulo" style={{ maxWidth: 420 }}>
         <div className="ls-logo"><LogoLumiere alto={44} color="#ffffff" /></div>
-        <h1 id="lg-titulo" className="ls-hola">Ingresá a tu negocio</h1>
-        <div className="ls-sub">Tu gerente te está esperando.</div>
-        <form className="lg-form" onSubmit={handleLogin} noValidate>
+        <h1 id="lg-titulo" className="ls-hola">{registro ? "Probá Lumiere 7 días gratis" : "Ingresá a tu negocio"}</h1>
+        <div className="ls-sub">{registro ? "Creá tu cuenta en un minuto. No hace falta tarjeta." : "Tu gerente te está esperando."}</div>
+        <form className="lg-form" onSubmit={registro ? handleRegistro : handleLogin} noValidate>
+          {registro && <>
+            {error && <div className="lg-error" role="alert">{error}</div>}
+            <div className="lg-campo"><label htmlFor="rg-nombre">Tu nombre</label>
+              <input id="rg-nombre" className="lg-input" autoComplete="name" placeholder="Ej: Laura Pérez" value={rg.nombre} onChange={e => { setRg({ ...rg, nombre: e.target.value }); setError(""); }} autoFocus /></div>
+            <div className="lg-campo"><label htmlFor="rg-negocio">Nombre de tu negocio</label>
+              <input id="rg-negocio" className="lg-input" autoComplete="organization" placeholder="Ej: Kiosco Laura" value={rg.negocio} onChange={e => { setRg({ ...rg, negocio: e.target.value }); setError(""); }} /></div>
+            <div className="lg-campo"><label htmlFor="rg-mail">Mail</label>
+              <input id="rg-mail" className="lg-input" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="tu@mail.com" value={email} onChange={e => { setEmail(e.target.value); setError(""); }} /></div>
+            <div className="lg-campo"><label htmlFor="rg-pass">Elegí una contraseña</label>
+              <div className="lg-pass">
+                <input id="rg-pass" className="lg-input" type={verPass ? "text" : "password"} autoComplete="new-password" placeholder="Mínimo 6 caracteres" value={password} onChange={e => { setPassword(e.target.value); setError(""); }} />
+                <button type="button" className="lg-ver" onClick={() => setVerPass(v => !v)} aria-pressed={verPass}>{verPass ? "Ocultar" : "Mostrar"}</button>
+              </div></div>
+            <div className="lg-campo"><label htmlFor="rg-tel">WhatsApp (opcional)</label>
+              <input id="rg-tel" className="lg-input" type="tel" inputMode="tel" autoComplete="tel" placeholder="Para ayudarte si te trabás" value={rg.telefono} onChange={e => setRg({ ...rg, telefono: e.target.value })} /></div>
+            {/* Campo trampa: las personas no lo ven, los robots lo llenan */}
+            <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", height: 0, overflow: "hidden" }}>
+              <input tabIndex={-1} autoComplete="off" value={rg.web} onChange={e => setRg({ ...rg, web: e.target.value })} />
+            </div>
+            <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13, color: "rgba(255,255,255,.75)", lineHeight: 1.4 }}>
+              <input type="checkbox" checked={rg.acepta} onChange={e => { setRg({ ...rg, acepta: e.target.checked }); setError(""); }} style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0 }} />
+              <span>Acepto los <a href="https://www.sistemalumiere.com/terminos.html" target="_blank" rel="noopener" style={{ color: "#f5b400" }}>Términos y Condiciones</a> y la <a href="https://www.sistemalumiere.com/privacidad.html" target="_blank" rel="noopener" style={{ color: "#f5b400" }}>Política de Privacidad</a>.</span>
+            </label>
+            <button type="submit" className="lg-entrar" disabled={loading}>{loading ? "Creando tu cuenta…" : "Crear mi cuenta gratis"}</button>
+          </>}
+          {!registro && <>
           {error && <div className="lg-error" role="alert">{error}</div>}
           <div className="lg-campo">
             <label htmlFor="lg-mail">Mail</label>
@@ -39437,9 +39501,12 @@ function LoginScreen({ onLogin }) {
             </div>
           </div>
           <button type="submit" className="lg-entrar" disabled={loading}>{loading ? "Ingresando…" : "Ingresar"}</button>
+          </>}
         </form>
         <div className="lg-pie">
-          ¿Todavía no usás Lumiere? <a href="https://www.sistemalumiere.com/#contacto" target="_blank" rel="noopener">Probalo 7 días gratis</a>
+          {registro
+            ? <>¿Ya tenés cuenta? <a href="#" onClick={e => { e.preventDefault(); setRegistro(false); setError(""); }}>Ingresá</a></>
+            : <>¿Todavía no usás Lumiere? <a href="#" onClick={e => { e.preventDefault(); setRegistro(true); setError(""); }}>Probalo 7 días gratis</a></>}
           <div className="lg-ayuda">¿No podés entrar? Escribinos a <a href="mailto:hola@sistemalumiere.com">hola@sistemalumiere.com</a></div>
         </div>
       </main>

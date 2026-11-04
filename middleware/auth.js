@@ -8,7 +8,7 @@ const { enNegocio } = require('../lib/contexto');
 function rutaLibre(req) {
   if (req.method === 'OPTIONS') return true;
   const p = req.path;
-  if (p === '/auth/login') return true;
+  if (p === '/auth/login' || p === '/auth/registro' || p === '/auth/canje') return true;
   if (p === '/portal' || p.startsWith('/portal/')) return true;
   if (p === '/legal' || p === '/legal/') return true; // los terminos se pueden leer sin sesion
   if (p.startsWith('/tienda-publica/') || p === '/tienda-dominio') return true; // la tienda web la ve cualquiera (el negocio sale de la direccion)

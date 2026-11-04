@@ -8,6 +8,12 @@ const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://lumiere-production-79d0.up.railway.app/api',
 });
 
+// Si se llega desde la pagina de ventas con una cuenta recien creada (?c=codigo), se descarta
+// cualquier sesion vieja guardada en este navegador antes de arrancar, para que no pise la nueva.
+try {
+  if (new URLSearchParams(window.location.search).get('c')) { localStorage.removeItem('lumiere_token'); localStorage.removeItem('lumiere_user'); }
+} catch (e) {}
+
 // Cada pedido lleva la llave de la sesion; sin ella el servidor no devuelve datos.
 API.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('lumiere_token');
@@ -17,7 +23,9 @@ API.interceptors.request.use((cfg) => {
 // Si la sesion vencio, se vuelve al inicio de sesion con un aviso (una sola vez, sin quedar en bucle)
 API.interceptors.response.use((r) => r, (err) => {
   const esLogin = (err.config?.url || '').includes('/auth/login');
-  if (err.response?.status === 401 && err.response?.data?.sesion && !esLogin && localStorage.getItem('lumiere_token')) {
+  // Solo cuenta si el pedido que fallo iba con la sesion actual (un pedido sin sesion que llega tarde no debe borrar una sesion recien abierta)
+  const mismaSesion = err.config?.headers?.Authorization === 'Bearer ' + localStorage.getItem('lumiere_token');
+  if (err.response?.status === 401 && err.response?.data?.sesion && !esLogin && localStorage.getItem('lumiere_token') && mismaSesion) {
     localStorage.removeItem('lumiere_token');
     localStorage.removeItem('lumiere_user');
     sessionStorage.setItem('lumiere_sesion_vencida', '1');
