@@ -12701,6 +12701,10 @@ function Pedidos({ localId, usuario, paletaActual }) {
   const [cliSel, setCliSel] = useState(null);
   const [prodSel, setProdSel] = useState(null);
   const [itemNuevo, setItemNuevo] = useState("");
+  // Varios productos por clienta: se anotan todos juntos (un pedido por producto, así cada uno tiene su aviso)
+  const [prodLista, setProdLista] = useState([]); // [{ id, nombre, stock }] o [{ texto }]
+  const sumarProd = (pr) => setProdLista(l => l.some(x => x.id === pr.id) ? l : [...l, { id: pr.id, nombre: pr.nombre, stock: Number(localId) === 2 ? (pr.stock_ush || 0) : (pr.stock_rg || 0) }]);
+  const sumarTexto = () => { const t = itemNuevo.trim(); if (!t) return; setProdLista(l => l.some(x => x.texto && x.texto.toLowerCase() === t.toLowerCase()) ? l : [...l, { texto: t }]); setItemNuevo(""); };
   const [filtroLista, setFiltroLista] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [sinRegistrar, setSinRegistrar] = useState(false);
@@ -12868,23 +12872,32 @@ function Pedidos({ localId, usuario, paletaActual }) {
     } else if (!cliSel) {
       return setMensaje("Error: elegí el cliente, o marcá 'Cliente sin registrar'");
     }
-    if (!prodSel && !itemNuevo.trim()) return setMensaje("Error: elegí un producto o escribí una sugerencia");
+    // Lo que se anota: la lista de productos (y la sugerencia escrita, si quedó sin agregar)
+    const lista = [...prodLista, ...(itemNuevo.trim() && !prodLista.some(x => x.texto && x.texto.toLowerCase() === itemNuevo.trim().toLowerCase()) ? [{ texto: itemNuevo.trim() }] : [])];
+    if (!lista.length) return setMensaje("Error: elegí al menos un producto o escribí una sugerencia");
     if (guardandoPed) return; // evita que un doble clic anote dos veces
     setGuardandoPed(true);
-    try {
-      await API.post("/pedidos", {
-        cliente_id: sinRegistrar ? null : cliSel.id,
-        nombre_manual: sinRegistrar ? nombreManual.trim() : null,
-        telefono_manual: sinRegistrar ? telefonoManual.trim() : null,
-        producto_id: prodSel ? prodSel.id : null,
-        producto_texto: !prodSel && itemNuevo.trim() ? itemNuevo.trim() : null,
-        local_id: localId || 1
-      });
-      setMensaje(prodSel ? "✓ Pedido anotado. Cuando llegue stock aparece en \"Ya hay stock\"." : "✓ Sugerencia de producto anotada");
-      setCliSel(null); setProdSel(null); setBuscarCli(""); setBuscarProd(""); setItemNuevo("");
+    let ok = 0, fallo = "";
+    for (const it of lista) {
+      try {
+        await API.post("/pedidos", {
+          cliente_id: sinRegistrar ? null : cliSel.id,
+          nombre_manual: sinRegistrar ? nombreManual.trim() : null,
+          telefono_manual: sinRegistrar ? telefonoManual.trim() : null,
+          producto_id: it.id || null,
+          producto_texto: it.id ? null : it.texto,
+          local_id: localId || 1
+        });
+        ok++;
+      } catch (e) { fallo = e.response?.data?.error || "no se pudo anotar " + (it.nombre || it.texto); }
+    }
+    if (fallo && !ok) { setMensaje("Error: " + fallo); setGuardandoPed(false); return; }
+    {
+      setMensaje(fallo ? "Se anotaron " + ok + " de " + lista.length + ". Error: " + fallo : ok === 1 ? (lista[0].id ? "✓ Pedido anotado. Cuando llegue stock aparece en \"Ya hay stock\"." : "✓ Sugerencia de producto anotada") : "✓ Se anotaron " + ok + " pedidos para " + (sinRegistrar ? nombreManual.trim() : cliSel.nombre) + ". Cada uno avisa cuando llega.");
+      setCliSel(null); setProdSel(null); setProdLista([]); setBuscarCli(""); setBuscarProd(""); setItemNuevo("");
       setSinRegistrar(false); setNombreManual(""); setTelefonoManual(""); setMostrarForm(false);
       cargar(); cargarPedidosListos();
-    } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo anotar el pedido")); }
+    }
     setGuardandoPed(false);
   };
   const borrar = async (p) => {
@@ -13171,40 +13184,42 @@ function Pedidos({ localId, usuario, paletaActual }) {
                   )}
                 </div>
                 <div>
-                  <div className="fl">📦 Producto que espera</div>
-                  {prodSel ? (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: pal.bg, borderRadius: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>{prodSel.nombre}</span>
-                      <button className="mini-chip" onClick={() => setProdSel(null)}>cambiar</button>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ position: "relative" }}>
-                        <input className="inp" placeholder="Buscar producto" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
-                        {prodFiltrados.length > 0 && (
-                          <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: pal.card, border: "1px solid " + pal.border, borderRadius: 8, boxShadow: "0 8px 24px " + pal.shadowCol }}>
-                            {prodFiltrados.map(pr => {
-                              const st = Number(localId) === 2 ? (pr.stock_ush || 0) : (pr.stock_rg || 0);
-                              return (
-                                <div key={pr.id} onClick={() => { setProdSel(pr); setBuscarProd(""); setItemNuevo(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12, display: "flex", justifyContent: "space-between", gap: 8 }}>
-                                  <span>{pr.nombre}</span><span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st > 0 ? st + " en stock" : "sin stock"}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                  <div className="fl">📦 Productos que espera <span style={{ fontWeight: 500, color: pal.textMuted }}>· podés sumar varios</span></div>
+                  <div style={{ position: "relative" }}>
+                    <input className="inp" placeholder="Buscar producto y tocarlo para sumarlo" value={buscarProd} onChange={e => setBuscarProd(e.target.value)} />
+                    {prodFiltrados.length > 0 && (
+                      <div style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 20, background: pal.card, border: "1px solid " + pal.border, borderRadius: 8, boxShadow: "0 8px 24px " + pal.shadowCol }}>
+                        {prodFiltrados.map(pr => {
+                          const st = Number(localId) === 2 ? (pr.stock_ush || 0) : (pr.stock_rg || 0);
+                          const ya = prodLista.some(x => x.id === pr.id);
+                          return (
+                            <div key={pr.id} onClick={() => { sumarProd(pr); setBuscarProd(""); }} style={{ padding: "8px 10px", cursor: "pointer", borderBottom: "1px solid " + pal.border, fontSize: 12, display: "flex", justifyContent: "space-between", gap: 8, background: ya ? pal.accentDim : "transparent" }}>
+                              <span>{ya ? "✓ " : "+ "}{pr.nombre}</span><span className={"tag " + (st > 0 ? "tag-ok" : "tag-bad")}>{st > 0 ? st + " en stock" : "sin stock"}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <input className="inp" style={{ marginTop: 6 }} placeholder="¿No existe? Escribí una sugerencia (ej: zapatillas urbanas talle 40)" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} />
-                    </>
-                  )}
-                  {prodSel && (Number(localId) === 2 ? (prodSel.stock_ush || 0) : (prodSel.stock_rg || 0)) > 0 && (
-                    <div style={{ fontSize: 11, color: pal.green, marginTop: 6, fontWeight: 700 }}>✓ Este producto ya tiene stock en {nombreLocal(localId)}: podés vendérselo ahora.</div>
-                  )}
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <input className="inp" style={{ flex: 1 }} placeholder="¿No existe? Escribí una sugerencia (ej: zapatillas urbanas talle 40)" value={itemNuevo} onChange={e => setItemNuevo(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); sumarTexto(); } }} />
+                    <button className="btn btn-g btn-sm" disabled={!itemNuevo.trim()} onClick={sumarTexto}>＋ Sumar</button>
+                  </div>
+                  {prodLista.length > 0 && <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+                    {prodLista.map((x, k) => (
+                      <div key={(x.id || x.texto) + "-" + k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: pal.bg, borderRadius: 8, fontSize: 12 }}>
+                        <span style={{ flex: 1, fontWeight: 700 }}>{x.id ? x.nombre : "💡 " + x.texto}</span>
+                        {x.id ? (x.stock > 0 ? <span className="tag tag-ok" title="Tiene stock: podés vendérselo ahora">{x.stock} en stock</span> : <span className="tag tag-bad">sin stock</span>) : <span className="tag tag-neutral">sugerencia</span>}
+                        <button className="mini-chip" aria-label={"Sacar " + (x.nombre || x.texto)} onClick={() => setProdLista(l => l.filter((_, j) => j !== k))}>✕</button>
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 11, color: pal.textMuted }}>{prodLista.length} {prodLista.length === 1 ? "producto" : "productos"}: se anota un pedido por cada uno, así cada uno avisa cuando llega.</div>
+                  </div>}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button className="btn btn-g" onClick={() => setMostrarForm(false)}>Cancelar</button>
-                <button className="btn btn-p" disabled={guardandoPed} onClick={guardar}>{guardandoPed ? "Anotando..." : "Anotar pedido"}</button>
+                <button className="btn btn-p" disabled={guardandoPed} onClick={guardar}>{guardandoPed ? "Anotando..." : prodLista.length > 1 ? "Anotar " + prodLista.length + " pedidos" : "Anotar pedido"}</button>
               </div>
             </div>
           )}
