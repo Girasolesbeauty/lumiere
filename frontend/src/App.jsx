@@ -35966,8 +35966,14 @@ async function iconoCuadrado(archivo) {
   } finally { URL.revokeObjectURL(obj); }
 }
 // Carritos abandonados (en Pedidos, junto a vencidos y cancelados): clientas con cuenta que armaron un carrito y no compraron
-function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, urlTienda, alCambiar }) {
+function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, urlTienda, alCambiar, puedeEditar, avisar }) {
   const tCarrito = (mensajes && mensajes.carrito) || MSJ_CARRITO;
+  const [editMsj, setEditMsj] = useState(null); // texto del mensaje en edicion
+  const guardarMsjCarrito = async () => {
+    const t = editMsj.trim() === MSJ_CARRITO ? "" : editMsj.trim();
+    try { await API.put("/tienda/mensajes", { carrito: t }); avisar && avisar(true, t ? "✓ Mensaje guardado" : "✓ Se volvió al mensaje de siempre"); setEditMsj(null); alCambiar(); }
+    catch (e) { avisar && avisar(false, e.response?.data?.error || "No se pudo guardar"); }
+  };
   const hace = (f) => { const h = Math.round((Date.now() - new Date(f).getTime()) / 36e5); return h < 1 ? "recién" : h < 24 ? "hace " + h + " h" : "hace " + Math.round(h / 24) + " días"; };
   const primer = (n) => String(n || "").trim().split(/\s+/)[0] || "";
   const textoCarrito = (k) => llenarMsj(tCarrito, { nombre: primer(k.nombre), tienda: nombreTienda || "la tienda", total: fmt(k.subtotal), link: urlTienda || "",
@@ -35980,8 +35986,20 @@ function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, 
   const d = { carritos };
   return (
         <div className="card">
-          <div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>
-          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje (lo cambiás en Clientas web › Editar mensajes).</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>
+            {puedeEditar && !editMsj && <button className="btn btn-g btn-sm" onClick={() => setEditMsj(tCarrito)}>✏️ Editar mensaje</button>}
+          </div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje.</div>
+          {editMsj !== null && (
+            <div style={{ border: "1px solid " + temaPal.border, borderRadius: 10, padding: 12, marginBottom: 10, background: temaPal.bg }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><b style={{ fontSize: 13 }}>✏️ Mensaje del carrito abandonado</b><button className="chip-btn" style={{ fontSize: 11 }} onClick={() => setEditMsj(MSJ_CARRITO)}>↺ Volver al de siempre</button></div>
+              <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "4px 0 6px" }}>Podés usar <b>{"{nombre}"}</b> (primer nombre), <b>{"{productos}"}</b>, <b>{"{total}"}</b>, <b>{"{tienda}"}</b> y <b>{"{link}"}</b>: se reemplazan solos con los datos de cada clienta.</div>
+              <textarea className="inp" rows={4} maxLength={700} value={editMsj} onChange={e => setEditMsj(e.target.value)} style={{ width: "100%" }} aria-label="Mensaje del carrito abandonado" />
+              <div style={{ fontSize: 12, background: "#e7fbe9", color: "#1d4d2b", borderRadius: 8, padding: "8px 10px", marginTop: 6, whiteSpace: "pre-wrap" }}><b>Así le llega:</b> {llenarMsj(editMsj, { nombre: "Laura", tienda: nombreTienda || "la tienda", total: fmt(25900), link: urlTienda || "", productos: (carritos && carritos[0] && (carritos[0].items || []).length ? carritos[0].items.map(i => i.nombre + (i.cantidad > 1 ? " x" + i.cantidad : "")).join(", ") : "Serum de vitamina C, Protector solar x2") })}</div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}><button className="btn btn-g btn-sm" onClick={() => setEditMsj(null)}>Cancelar</button><button className="btn btn-p btn-sm" disabled={!editMsj.trim()} onClick={guardarMsjCarrito}>Guardar</button></div>
+            </div>
+          )}
           {!d.carritos.length ? <div className="empty">No hay carritos abandonados.</div> : d.carritos.map(k => {
             const items = k.items || [];
             const sinStock = items.filter(i => !i.preventa && (i.stock || 0) < (i.cantidad || 1)).length;
@@ -38470,7 +38488,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   </div>
                 );
             };
-            if (filtro === "carritos") return <CarritosAbandonados temaPal={temaPal} carritos={carritosAb && carritosAb.carritos} mensajes={carritosAb && carritosAb.mensajes} slug={cfg?.slug} nombreTienda={cfg?.titulo} urlTienda={url} alCambiar={cargarCarritos} />;
+            if (filtro === "carritos") return <CarritosAbandonados temaPal={temaPal} carritos={carritosAb && carritosAb.carritos} mensajes={carritosAb && carritosAb.mensajes} slug={cfg?.slug} nombreTienda={cfg?.titulo} urlTienda={url} alCambiar={cargarCarritos} puedeEditar={esJefeT} avisar={avisar} />;
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}

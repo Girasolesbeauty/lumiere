@@ -930,7 +930,13 @@ router.put('/mensajes', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const b = req.body || {};
-    const m = {}; for (const k of ['carrito', 'aviso', 'resena']) { const t = String(b[k] || '').trim().slice(0, 700); if (t) m[k] = t; }
+    // Se cambian solo los mensajes que vienen (vacio = volver al de siempre); los demas quedan como estaban
+    const prev = (await pool.query('SELECT mensajes FROM tienda_config WHERE id = 1')).rows[0];
+    const m = { ...((prev && prev.mensajes) || {}) };
+    for (const k of ['carrito', 'aviso', 'resena']) {
+      if (!Object.prototype.hasOwnProperty.call(b, k)) continue;
+      const t = String(b[k] || '').trim().slice(0, 700); if (t) m[k] = t; else delete m[k];
+    }
     await pool.query('UPDATE tienda_config SET mensajes = $1 WHERE id = 1', [JSON.stringify(m)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
