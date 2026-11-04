@@ -40915,6 +40915,17 @@ function AppWrapper() {
     try { const g = sessionStorage.getItem("lumiere_pagina"); if (g) return g; } catch (e) {}
     return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard";
   });
+  // Cuantas veces abre cada grupo del menu este usuario (para ordenar el menu de las vendedoras).
+  // Se lee una vez al entrar, asi el menu no se mueve mientras lo usa; las visitas se van sumando para la proxima vez.
+  const claveUso = "lumiere_uso_menu_" + (usuario?.id || usuario?.email || "");
+  const [usoMenu, setUsoMenu] = useState({});
+  useEffect(() => { if (!usuario) return; try { setUsoMenu(JSON.parse(localStorage.getItem(claveUso) || "{}") || {}); } catch (e) { setUsoMenu({}); } }, [claveUso]);
+  useEffect(() => {
+    if (!usuario) return;
+    const sec = (NAV_SECTIONS.find(s => s.items.some(i => i.id === page)) || {}).section;
+    if (!sec) return;
+    try { const u = JSON.parse(localStorage.getItem(claveUso) || "{}") || {}; u[sec] = (u[sec] || 0) + 1; localStorage.setItem(claveUso, JSON.stringify(u)); } catch (e) {}
+  }, [page, claveUso]);
   useEffect(() => {
     try { sessionStorage.setItem("lumiere_pagina", page); } catch (e) {}
     // La direccion sigue a la seccion ("atras" del navegador vuelve a la anterior)
@@ -41263,10 +41274,21 @@ function AppWrapper() {
   };
 
   const esJefeMenu = usuario.rol === "jefe" || usuario.rol_id === 1;
-  const NAV_CON_PERMISOS = NAV_SECTIONS.map(sec => ({
+  // Para las vendedoras el menu va en el orden en que trabajan: Ventas (con el Punto de Venta primero), Caja y Clientes;
+  // despues el resto, primero lo que mas abre cada una. La jefa y el administrativo lo ven en el orden de siempre.
+  const menuDeVenta = !(esJefeMenu || ["jefe", "admin", "administrativo"].includes(usuario.rol));
+  const ordenarMenu = (lista) => {
+    if (!menuDeVenta) return lista;
+    const primero = ["VENTAS", "CAJA", "CLIENTES"];
+    const pos = (s) => { const i = primero.indexOf(s.section); return i >= 0 ? i : 100; };
+    return lista.map((s, k) => ({ s: s.section === "VENTAS" ? { ...s, items: [...s.items].sort((a, b) => (b.id === "pos") - (a.id === "pos")) } : s, k }))
+      .sort((a, b) => (pos(a.s) - pos(b.s)) || ((usoMenu[b.s.section] || 0) - (usoMenu[a.s.section] || 0)) || (a.k - b.k))
+      .map(x => x.s);
+  };
+  const NAV_CON_PERMISOS = ordenarMenu(NAV_SECTIONS.map(sec => ({
     ...sec,
     items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO) && !(it.soloConsultorio && !CONSULTORIO_ACTIVO) && !(CONSULTORIO_ACTIVO && OCULTAS_EN_CONSULTORIO.has(it.id)))
-  })).filter(sec => sec.items.length > 0)
+  })).filter(sec => sec.items.length > 0))
     // Solo para quien administra Lumiere
     .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);
 
