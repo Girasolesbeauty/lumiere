@@ -208,6 +208,8 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .sidebar.comprimido .logo { display: flex; justify-content: center; padding: 16px 0 14px; }
 .sidebar.comprimido .logo-name { font-size: 20px; }
 .sidebar.comprimido .nav-item { justify-content: center; padding: 9px 0; }
+.sidebar.comprimido .nav-grupo, .sidebar.comprimido .nav-grupo.abierta { background: transparent; border-color: transparent; padding: 0; }
+.sidebar.comprimido .nav-items { margin: 0; padding: 0; border-left: none; }
 .sidebar-toggle-row { display: flex; justify-content: flex-end; padding: 10px 14px 0; }
 .sidebar-toggle { width: 22px; height: 22px; border-radius: 50%; background: ${p.navHover}; color: ${p.logoText}; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; transition: transform .18s ease, background .15s; }
 .sidebar-toggle:hover { background: ${p.navActive}; }
@@ -237,15 +239,21 @@ ${p.textHalo ? `.main { text-shadow: ${p.textHalo}; } .main .btn, .main .tab.on,
 .nav-globo.chico { min-width: 16px; height: 16px; font-size: 9.5px; padding: 0 4px; }
 .nav-globo.chico:empty { min-width: 8px; width: 8px; height: 8px; padding: 0; }
 .nav-punto { position: absolute; top: -2px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 0 2px ${p.sidebar && p.sidebar.startsWith("#") ? p.sidebar : "#1B2431"}; }
-.nav-grupo { margin-bottom: 4px; }
-.nav-section { display: flex; align-items: center; gap: 8px; width: 100%; background: transparent; border: none; font-family: inherit; cursor: pointer; text-align: left; border-radius: 6px; }
+.nav-grupo { margin-bottom: 6px; border-radius: 12px; border: 1px solid transparent; transition: background .18s, border-color .18s; }
+.nav-grupo.abierta { background: ${p.navHover}; border-color: ${p.navLine}; padding-bottom: 6px; }
+.nav-section { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; border: 1px solid ${p.navLine}; font-family: inherit; cursor: pointer; text-align: left; border-radius: 12px; padding: 8px 10px; color: ${p.navText}; text-transform: none; letter-spacing: 0; font-size: 13px; transition: background .15s, border-color .15s; }
+.nav-grupo.abierta .nav-section { border-color: transparent; }
 .nav-section:hover { background: ${p.navHover}; }
 .nav-section:focus-visible { outline: 2px solid var(--acento); }
-.nav-sec-color { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; opacity: .85; }
-.nav-sec-txt { flex: 1; }
-.nav-flecha { font-size: 14px; line-height: 1; transition: transform .2s; opacity: .7; }
+.nav-sec-ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 15px; flex-shrink: 0; }
+.nav-sec-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nav-sec-nombre { font-size: 13.5px; font-weight: 800; letter-spacing: .01em; color: ${p.logoText}; line-height: 1.2; }
+.nav-sec-sub { font-size: 10.5px; font-weight: 500; line-height: 1.35; color: ${p.navTextDim}; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nav-sec-aca { font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-flecha { font-size: 16px; line-height: 1; transition: transform .2s; opacity: .7; color: ${p.navText}; }
 .nav-flecha.abierta { transform: rotate(90deg); }
-.nav-items { animation: fadeUp .2s ease-out both; }
+.nav-items { animation: fadeUp .2s ease-out both; margin: 2px 6px 0 20px; padding-left: 8px; border-left: 2px solid var(--sec-col, ${p.navLine}); }
+.nav-items .nav-item { padding: 7px 10px; }
 .nav-buscar { position: relative; margin: 0 2px 10px; }
 .nav-buscar input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 12.5px; padding: 8px 52px 8px 10px; border-radius: 8px; border: 1px solid ${p.navActiveBorder}; background: ${p.navHover}; color: ${p.logoText}; outline: none; }
 .nav-buscar input::placeholder { color: ${p.navTextDim}; }
@@ -39127,10 +39135,14 @@ function etiquetarTablas(raiz) {
 const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // Menu lateral: grupos que se abren y cierran, buscador (Ctrl+K) y globitos con lo que hay que atender
+// Cada grupo del menu es un boton con su icono y color; abajo se leen sus secciones para encontrarlas sin abrirlo.
+// Se abre un grupo a la vez, asi todos los grupos quedan siempre a la vista.
+const ICONO_SECCION = { "TU GERENTE": "✨", "CONSULTORIO": "🩺", "VENTAS": "🛒", "PRODUCTOS": "📦", "STOCK": "🚚", "ANÁLISIS DE INVENTARIO": "📈", "CAJA": "💵", "CLIENTES": "👥", "EQUIPO": "🤝", "FINANZAS": "💰", "NEGOCIO": "⚙️", "LUMIERE": "🛠️" };
+const nombreSeccion = (t) => { const x = String(t || "").toLowerCase(); return x.charAt(0).toUpperCase() + x.slice(1); };
 function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir }) {
   const seccionDe = (id) => (secciones.find(s => s.items.some(i => i.id === id)) || {}).section;
   const [abiertas, setAbiertas] = useState(() => {
-    try { const g = JSON.parse(localStorage.getItem("lumiere_menu_abiertas") || "null"); if (Array.isArray(g)) return g; } catch (e) {}
+    try { const g = JSON.parse(localStorage.getItem("lumiere_menu_abiertas") || "null"); if (Array.isArray(g) && g.length) return g.slice(-1); } catch (e) {}
     return [seccionDe(page)].filter(Boolean);
   });
   const [buscar, setBuscar] = useState("");
@@ -39138,7 +39150,7 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
   const buscador = useRef(null);
   const guardar = (lista) => { setAbiertas(lista); try { localStorage.setItem("lumiere_menu_abiertas", JSON.stringify(lista)); } catch (e) {} };
   // Al entrar a una seccion (desde el menu, el buscador o un boton de otra pantalla) se abre su grupo
-  useEffect(() => { const s = seccionDe(page); if (s && !abiertas.includes(s)) guardar([...abiertas, s]); }, [page]);
+  useEffect(() => { const s = seccionDe(page); if (s && !abiertas.includes(s)) guardar([s]); }, [page]);
   // Ctrl+K (o Cmd+K) desde cualquier pantalla abre el buscador
   useEffect(() => {
     const tecla = (e) => {
@@ -39168,7 +39180,7 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
     return (
       <button key={it.id} type="button" className={"nav-item" + (activo ? " active" : "") + (marcadoItem ? " marcado" : "")}
         aria-current={activo ? "page" : undefined} title={comprimido ? it.label : undefined}
-        style={activo ? { background: col + "25", borderColor: col + "60", color: p.logoText } : {}}
+        style={activo ? { background: "color-mix(in srgb, " + col + " 26%, transparent)", borderColor: "color-mix(in srgb, " + col + " 60%, transparent)", color: p.logoText } : {}}
         onClick={() => elegir(it.id)}>
         <span className="nav-ico" aria-hidden="true">{it.icon}{n > 0 && comprimido && <i className="nav-punto" />}</span>
         <span className="nav-txt" style={{ color: activo ? p.logoText : p.navText }}>{it.label}</span>
@@ -39193,15 +39205,23 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
           : resultados.map((it, k) => item(it, it.sec.color || "#c9a84c", k === marcado))
       ) : secciones.map(sec => {
         const abierta = comprimido || abiertas.includes(sec.section);
+        const col = sec.color || p.accent;
         const pendientes = sec.items.reduce((t, i) => t + (avisos && avisos[i.id] && i.id !== "control-inv" ? avisos[i.id] : 0), 0);
         const tienePunto = sec.items.some(i => avisos && avisos[i.id] > 0);
+        const actual = sec.items.find(i => i.id === page);
+        const mezcla = (pct) => "color-mix(in srgb, " + col + " " + pct + "%, transparent)";
         return (
-          <div key={sec.section} className="nav-grupo">
+          <div key={sec.section} className={"nav-grupo" + (abierta ? " abierta" : "")} style={{ "--sec-col": mezcla(55) }}>
             <button type="button" className="nav-section" aria-expanded={abierta}
-              onClick={() => guardar(abierta ? abiertas.filter(x => x !== sec.section) : [...abiertas, sec.section])}
-              style={{ color: p.navTextDim }}>
-              <span className="nav-sec-color" style={{ background: sec.color || p.accent }} aria-hidden="true" />
-              <span className="nav-sec-txt">{sec.section}</span>
+              onClick={() => guardar(abierta ? [] : [sec.section])}
+              style={actual && !abierta ? { borderColor: mezcla(70), background: mezcla(14) } : undefined}>
+              <span className="nav-sec-ico" style={{ background: mezcla(abierta || actual ? 38 : 24), boxShadow: "inset 0 0 0 1px " + mezcla(45) }} aria-hidden="true">{ICONO_SECCION[sec.section] || "•"}</span>
+              <span className="nav-sec-txt">
+                <span className="nav-sec-nombre">{nombreSeccion(sec.section)}</span>
+                {!abierta && (actual
+                  ? <span className="nav-sec-aca" style={{ color: p.logoText }}>● {actual.label}</span>
+                  : <span className="nav-sec-sub">{sec.items.map(i => i.label).join(" · ")}</span>)}
+              </span>
               {!abierta && tienePunto && <span className="nav-globo chico">{pendientes > 0 ? pendientes : ""}</span>}
               <span className={"nav-flecha" + (abierta ? " abierta" : "")} aria-hidden="true">›</span>
             </button>
