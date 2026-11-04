@@ -144,6 +144,76 @@ router.put('/halloween-tienda', async (req, res) => {
     res.json({ halloween: h, en_curso: tienda.halloweenVigente(h) });
   } catch (e) { console.error('[halloween tienda]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 });
+// ===== Resultado de una liquidación (ej. Cyber Monday) =====
+// Los eventos se reconocen por el nombre de sus promos: "<evento> · <oferta>" (así las crea el plan de liquidación).
+const AR_FECHA = (col) => `((((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`;
+router.get('/liquidacion/eventos', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT split_part(nombre, ' · ', 1) AS nombre, MIN(fecha_inicio)::text AS desde, MAX(fecha_fin)::text AS hasta, COUNT(*)::int AS promos
+      FROM promociones WHERE nombre LIKE '% · %' AND fecha_inicio IS NOT NULL GROUP BY 1 ORDER BY MAX(fecha_fin) DESC NULLS LAST LIMIT 20`);
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los eventos' }); }
+});
+// Qué se vendió de los productos del evento, separados por cómo estaban según la rotación el día que empezó
+// (mismo criterio que Análisis de inventario › Rotación, con los 90 días anteriores al evento).
+router.get('/liquidacion/resultado', async (req, res) => {
+  try {
+    const nombre = String(req.query.nombre || '').trim().slice(0, 80);
+    if (!nombre) return res.status(400).json({ error: 'Falta el evento' });
+    const pr = (await pool.query(`SELECT productos_ids, fecha_inicio::text AS desde, fecha_fin::text AS hasta FROM promociones WHERE nombre LIKE $1`,
+      [nombre.replace(/[%_\\]/g, '\\$&') + ' · %'])).rows;
+    if (!pr.length) return res.status(404).json({ error: 'No encontré ofertas de "' + nombre + '"' });
+    const ids = [...new Set(pr.flatMap(x => (x.productos_ids || []).map(Number)).filter(n => n > 0))];
+    const desde = pr.map(x => x.desde).filter(Boolean).sort()[0];
+    const hasta = pr.map(x => x.hasta).filter(Boolean).sort().slice(-1)[0];
+    const { IMPORTE_VI } = require('../lib/importeReal');
+    const VALIDA = `COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba' AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')`;
+    let diasEval = 45;
+    try { const c = (await pool.query('SELECT rotacion_dias_evaluacion FROM configuracion_negocio WHERE id = 1')).rows[0]; const v = c && parseInt(c.rotacion_dias_evaluacion); if (v >= 0) diasEval = v; } catch (e) {}
+    const hayIngresos = !!(await pool.query(`SELECT to_regclass('ordenes_ingreso_items') AS t`)).rows[0].t;
+    const r = await pool.query(`
+      SELECT p.id, p.nombre, p.marca, COALESCE(p.costo, 0) AS costo, COALESCE(p.precio, 0) AS precio,
+        COALESCE(p.stock_rg, 0) + COALESCE(p.stock_ush, 0) AS stock_hoy,
+        COALESCE(ev.unidades, 0) AS vendidas, COALESCE(ev.cobrado, 0) AS cobrado,
+        COALESCE(desp.unidades, 0) AS vendidas_desde, COALESCE(ant.unidades, 0) AS antes90,
+        ${hayIngresos ? 'COALESCE(ing.unidades, 0)' : '0'} AS ingresaron, ${hayIngresos ? 'ing0.primero' : 'NULL::timestamp'} AS llego_en
+      FROM productos p
+      LEFT JOIN (SELECT vi.producto_id, SUM(vi.cantidad) AS unidades, SUM(${IMPORTE_VI}) AS cobrado FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE ${VALIDA} AND ${AR_FECHA('v.creado_en')} BETWEEN $2::date AND $3::date GROUP BY 1) ev ON ev.producto_id = p.id
+      LEFT JOIN (SELECT vi.producto_id, SUM(vi.cantidad) AS unidades FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE ${VALIDA} AND ${AR_FECHA('v.creado_en')} >= $2::date GROUP BY 1) desp ON desp.producto_id = p.id
+      LEFT JOIN (SELECT vi.producto_id, SUM(vi.cantidad) AS unidades FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE ${VALIDA} AND ${AR_FECHA('v.creado_en')} >= $2::date - 90 AND ${AR_FECHA('v.creado_en')} < $2::date GROUP BY 1) ant ON ant.producto_id = p.id
+      ${hayIngresos ? `LEFT JOIN (SELECT producto_id, SUM(CASE WHEN fecha_recepcion_rg::date >= $2::date THEN COALESCE(recibido_rg, 0) ELSE 0 END
+          + CASE WHEN fecha_recepcion_ush::date >= $2::date THEN COALESCE(recibido_ush, 0) ELSE 0 END) AS unidades FROM ordenes_ingreso_items GROUP BY 1) ing ON ing.producto_id = p.id
+        LEFT JOIN (SELECT oii.producto_id, MIN(oi.creado_en) AS primero FROM ordenes_ingreso_items oii JOIN ordenes_ingreso oi ON oi.id = oii.orden_id GROUP BY 1) ing0 ON ing0.producto_id = p.id` : ''}
+      WHERE p.id = ANY($1)`, [ids, desde, hasta]);
+    const inicio = new Date(desde + 'T12:00:00-03:00').getTime();
+    const productos = r.rows.map(x => {
+      const n = (k) => parseFloat(x[k]) || 0;
+      // Stock el día que empezó (aprox.): el de hoy + lo vendido desde entonces - lo que entró desde entonces
+      const stockInicio = Math.max(0, n('stock_hoy') + n('vendidas_desde') - n('ingresaron'));
+      const edad = x.llego_en ? Math.floor((inicio - new Date(x.llego_en).getTime()) / 864e5) : null;
+      const diasVenta = edad !== null && edad < 90 ? Math.max(7, edad) : 90;
+      const ritmo = n('antes90') / diasVenta, diasStock = ritmo > 0 ? stockInicio / ritmo : null;
+      const estado = stockInicio <= 0 ? 'sin_stock' : diasStock !== null && diasStock <= 30 ? 'rapido' : edad !== null && edad < diasEval ? 'nuevo'
+        : n('antes90') <= 0 ? 'parado' : diasStock <= 90 ? 'normal' : 'lento';
+      return { id: x.id, nombre: x.nombre, marca: x.marca, estado, stock_inicio: stockInicio, stock_hoy: n('stock_hoy'), vendidas: n('vendidas'),
+        cobrado: Math.round(n('cobrado')), costo: n('costo'), precio: n('precio'), antes90: n('antes90'),
+        recuperado_costo: Math.round(n('vendidas') * n('costo')), pct: stockInicio > 0 ? Math.round(Math.min(1, n('vendidas') / stockInicio) * 100) : null };
+    }).sort((a, b) => b.vendidas - a.vendidas || b.stock_inicio - a.stock_inicio);
+    const grupos = {};
+    productos.forEach(x => {
+      const g = grupos[x.estado] = grupos[x.estado] || { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado_costo: 0, capital_inicio: 0, quedan: 0, capital_queda: 0 };
+      g.productos++; if (x.vendidas > 0) g.vendieron++;
+      g.stock_inicio += x.stock_inicio; g.vendidas += x.vendidas; g.cobrado += x.cobrado; g.recuperado_costo += x.recuperado_costo;
+      g.capital_inicio += x.stock_inicio * x.costo; g.quedan += x.stock_hoy; g.capital_queda += x.stock_hoy * x.costo;
+    });
+    const tot = (await pool.query(`SELECT COALESCE(SUM(v.total), 0) AS total, COUNT(*)::int AS ventas FROM ventas v WHERE ${VALIDA} AND ${AR_FECHA('v.creado_en')} BETWEEN $1::date AND $2::date`, [desde, hasta])).rows[0];
+    res.json({ nombre, desde, hasta, productos, grupos, ventas_evento: { total: Math.round(parseFloat(tot.total) || 0), cantidad: tot.ventas } });
+  } catch (e) { console.error('[liquidacion resultado]', e.message); res.status(500).json({ error: 'No se pudo armar el resultado: ' + e.message }); }
+});
+
 router.get('/plan-liquidacion', async (req, res) => {
   try {
     await asegurarPlan();

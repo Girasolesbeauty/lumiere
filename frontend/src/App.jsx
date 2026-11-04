@@ -26788,6 +26788,78 @@ function PaginaClubWa({ paletaActual }) {
     </div>
   );
 }
+// Resultado de una liquidación (ej. Cyber Monday): cuánto se vendió de lo que estaba parado o lento el día que empezó
+const ESTADOS_LIQ = { parado: ["🧊", "Parados", "#2471a3", "no se habían vendido en los 90 días antes"], lento: ["🐢", "Lentos", "#b9770e", "con stock para más de 90 días"],
+  normal: ["🙂", "Normales", "#2d7a4f", "rotación normal"], rapido: ["⚡", "Rápidos", "#c0392b", "se vendían rápido"], nuevo: ["🆕", "Nuevos", "#8e44ad", "llegaron hace poco"], sin_stock: ["∅", "Sin stock al empezar", "#7f8c8d", "no tenían stock"] };
+function CyberResultado({ temaPal }) {
+  const p = temaPal;
+  const [eventos, setEventos] = useState(null);
+  const [ev, setEv] = useState("");
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState("");
+  const [filtro, setFiltro] = useState("quietos");
+  const [abierto, setAbierto] = useState(true);
+  useEffect(() => { API.get("/promociones/liquidacion/eventos").then(r => { setEventos(r.data || []); if ((r.data || [])[0]) setEv(r.data[0].nombre); }).catch(() => setEventos([])); }, []);
+  useEffect(() => { if (!ev) return; setD(null); setErr(""); API.get("/promociones/liquidacion/resultado?nombre=" + encodeURIComponent(ev)).then(r => setD(r.data)).catch(e => setErr(e.response?.data?.error || "No se pudo cargar")); }, [ev]);
+  if (eventos && !eventos.length) return null;
+  const $ = (n) => fmt(n).replace(SIN_CEROS, "");
+  const fecha = (f) => f ? new Date(f + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : "";
+  const g = (k) => (d && d.grupos[k]) || { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado_costo: 0, capital_inicio: 0, quedan: 0, capital_queda: 0 };
+  const quietos = ["parado", "lento"].map(g).reduce((a, x) => { Object.keys(a).forEach(k => a[k] += x[k] || 0); return a; }, { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado_costo: 0, capital_inicio: 0, quedan: 0, capital_queda: 0 });
+  const pct = (a, b) => b > 0 ? Math.round(a / b * 100) : 0;
+  const lista = d ? d.productos.filter(x => filtro === "todos" ? true : filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "sin_venta" ? ["parado", "lento"].includes(x.estado) && x.vendidas === 0 && x.stock_hoy > 0 : x.estado === filtro) : [];
+  const enCurso = d && d.hasta >= new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+  const tarjeta = (k) => { const x = g(k), [ic, t, col, ayuda] = ESTADOS_LIQ[k]; if (!x.productos) return null; return (
+    <div key={k} style={{ border: "1px solid " + p.border, borderTop: "4px solid " + col, borderRadius: 12, padding: 12, background: p.card }}>
+      <div style={{ fontWeight: 800, fontSize: 14 }}>{ic} {t} <span style={{ fontWeight: 500, fontSize: 11.5, color: p.textMuted }}>· {ayuda}</span></div>
+      <div style={{ fontSize: 26, fontWeight: 900, color: col, marginTop: 6 }}>{pct(x.vendidas, x.stock_inicio)}%<span style={{ fontSize: 12, fontWeight: 600, color: p.textMuted }}> del stock vendido</span></div>
+      <div className="reto-bar" style={{ height: 7, margin: "6px 0 8px" }}><div className="reto-fill" style={{ width: Math.min(100, pct(x.vendidas, x.stock_inicio)) + "%", background: col }} /></div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+        <b>{x.vendidas}</b> de {x.stock_inicio} unidades · <b>{x.vendieron}</b> de {x.productos} productos vendieron algo<br />
+        Cobrado <b>{$(x.cobrado)}</b> · plata recuperada (a costo) <b>{$(x.recuperado_costo)}</b><br />
+        <span style={{ color: p.textMuted }}>Quedan {x.quedan} u. ({$(x.capital_queda)} a costo)</span>
+      </div>
+    </div>); };
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="ct" style={{ marginBottom: 0, cursor: "pointer" }} onClick={() => setAbierto(a => !a)}>📊 Resultado {ev ? "· " + ev : ""} {abierto ? "▾" : "▸"}</div>
+        {eventos && eventos.length > 1 && <select className="sel" style={{ width: "auto" }} value={ev} onChange={e => setEv(e.target.value)}>{eventos.map(x => <option key={x.nombre} value={x.nombre}>{x.nombre} ({fecha(x.desde)} al {fecha(x.hasta)})</option>)}</select>}
+      </div>
+      {abierto && <>
+        {err && <div className="empty" style={{ color: p.red }}>{err}</div>}
+        {!d && !err && <div className="skel" style={{ height: 160, marginTop: 10 }} />}
+        {d && <>
+          <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 12px" }}>Del {fecha(d.desde)} al {fecha(d.hasta)}{enCurso ? " (todavía en curso: se actualiza solo)" : ""} · {d.productos.length} productos en oferta · ventas totales del período {$(d.ventas_evento.total)} en {d.ventas_evento.cantidad} ventas. Cada producto se clasifica como estaba según la rotación el día que empezó (ventas de los 90 días anteriores y su stock de ese día).</div>
+          {quietos.productos > 0 && <div style={{ background: p.greenDim, border: "1px solid " + p.green, borderRadius: 12, padding: "12px 14px", marginBottom: 12, fontSize: 13.5, lineHeight: 1.55 }}>
+            De lo que estaba <b>parado o lento</b> se vendieron <b>{quietos.vendidas} de {quietos.stock_inicio} unidades ({pct(quietos.vendidas, quietos.stock_inicio)}%)</b>, en {quietos.vendieron} de {quietos.productos} productos.
+            Se cobraron <b>{$(quietos.cobrado)}</b> y se recuperaron <b>{$(quietos.recuperado_costo)}</b> de plata que estaba quieta en mercadería ({pct(quietos.recuperado_costo, quietos.capital_inicio)}% de los {$(quietos.capital_inicio)} a costo).
+            Siguen quietos {quietos.quedan} u. ({$(quietos.capital_queda)} a costo).
+          </div>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 10 }}>{["parado", "lento", "normal", "rapido", "nuevo"].map(tarjeta)}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0 8px" }}>
+            {[["quietos", "Parados y lentos"], ["sin_venta", "No se vendió ninguno"], ["parado", "Parados"], ["lento", "Lentos"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+          </div>
+          {!lista.length ? <div className="empty">No hay productos acá.</div> : (
+            <table>
+              <thead><tr><th>Producto</th><th>Cómo estaba</th><th>Stock al empezar</th><th>Vendidas</th><th>% vendido</th><th>Cobrado</th><th>Quedan</th></tr></thead>
+              <tbody>{lista.slice(0, 200).map(x => { const e = ESTADOS_LIQ[x.estado]; return (
+                <tr key={x.id}>
+                  <td><b style={{ fontSize: 12.5 }}>{x.nombre}</b>{x.marca && <div style={{ fontSize: 11, color: p.textMuted }}>{x.marca}</div>}</td>
+                  <td style={{ fontSize: 12, color: e[2], fontWeight: 700, whiteSpace: "nowrap" }}>{e[0]} {e[1].replace(/s$/, "").replace("Sin stock al empezar", "Sin stock")}</td>
+                  <td>{x.stock_inicio}</td>
+                  <td style={{ fontWeight: 800, color: x.vendidas ? p.green : p.textMuted }}>{x.vendidas}</td>
+                  <td>{x.pct === null ? "—" : x.pct + "%"}</td>
+                  <td>{x.cobrado ? $(x.cobrado) : "—"}</td>
+                  <td>{x.stock_hoy}</td>
+                </tr>); })}</tbody>
+            </table>)}
+          {filtro === "sin_venta" && lista.length > 0 && <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>💡 Estos no se movieron ni con la oferta: conviene probar otra cosa (combo con algo que se venda, muestra o tester, regalo con la compra, o devolverlos al proveedor).</div>}
+        </>}
+      </>}
+    </div>
+  );
+}
 function PaginaCyber({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [medios, setMedios] = useState(null);
@@ -26797,6 +26869,7 @@ function PaginaCyber({ paletaActual }) {
     <div className="fade">
       <div className="ph"><div><div className="pt">⚡ Cyber Monday</div><div className="ps">ofertas para vender lo que está quieto</div></div></div>
       {mensaje && <div className="cli-tip" style={{ margin: "0 0 12px", borderColor: temaPal.green }}>{mensaje}</div>}
+      <CyberResultado temaPal={temaPal} />
       <CyberTienda temaPal={temaPal} />
       <CyberVideos temaPal={temaPal} />
       {medios === null ? <div className="card"><div className="skel" style={{ height: 200 }} /></div>
