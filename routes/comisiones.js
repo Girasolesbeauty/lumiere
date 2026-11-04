@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { IMPORTE_VI } = require('../lib/importeReal');
 const { schemaActual } = require('../lib/contexto');
 const { esVentaWeb } = require('../lib/tiendaWeb');
 
@@ -282,9 +283,9 @@ router.get('/config/sugerencia/:local_id', async (req, res) => {
       pool.query(`SELECT COALESCE(SUM(v.total), 0) AS total, MIN(${AR('v.creado_en')})::date AS desde,
                          (${AR('NOW()')})::date - MIN(${AR('v.creado_en')})::date AS dias
                   FROM ventas v WHERE ${FILTRO}`, [localId]),
-      pool.query(`SELECT COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+      pool.query(`SELECT COALESCE(SUM(${IMPORTE_VI}), 0) AS ingresos,
                          COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos,
-                         COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN vi.cantidad * vi.precio_unitario ELSE 0 END), 0) AS ingresos_con_costo
+                         COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN ${IMPORTE_VI} ELSE 0 END), 0) AS ingresos_con_costo
                   FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
                   WHERE ${FILTRO}`, [localId]),
     ]);
