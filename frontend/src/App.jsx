@@ -8213,6 +8213,7 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
   const [elegidos, setElegidos] = useState(() => { try { const v = JSON.parse(localStorage.getItem("lumiere_precios_elegidos") || "[]"); return Array.isArray(v) ? v.filter(x => Number.isInteger(x)) : []; } catch (e) { return []; } });
   useEffect(() => { try { if (elegidos.length) localStorage.setItem("lumiere_precios_elegidos", JSON.stringify(elegidos)); else localStorage.removeItem("lumiere_precios_elegidos"); } catch (e) {} }, [elegidos]);
   const [buscaProd, setBuscaProd] = useState("");
+  const [verTodosSel, setVerTodosSel] = useState(false);
   useEffect(() => { API.get("/precios-masivos/ingresos").then(r => setIngresos(r.data || [])).catch(() => {}); }, []);
   const esMonto = modo === "sumar" || modo === "restar";
 
@@ -8269,13 +8270,13 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
         <div className="fg">
           <div className="fl">¿A qué productos?</div>
           <div className="seg" role="group" aria-label="A qué productos" style={{ display: "flex", flexWrap: "wrap" }}>
-            {[["todos", "Todos"], ["categoria", "Una categoría"], ["marca", "Una marca"], ["proveedor", "Un proveedor"], ["ingreso", "📦 Lo que llegó"], ["productos", "Elegir productos"]].map(([k, l]) => (
+            {[["todos", "Todos"], ["categoria", "Una categoría"], ["marca", "Una marca"], ["proveedor", "Un proveedor"], ["ingreso", "📦 Orden de ingreso"], ["productos", "Elegir productos"]].map(([k, l]) => (
               <button key={k} style={{ flex: 1 }} className={alcance === k ? "on" : ""} aria-pressed={alcance === k} onClick={() => { setAlcance(k); setFiltro(""); }}>{l}</button>
             ))}
           </div>
           {alcance === "ingreso" && (
             <select className="sel" style={{ marginTop: 8 }} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label="Elegir el ingreso">
-              <option value="">{ingresos.length ? "Elegí el ingreso de mercadería..." : "No hay ingresos de los últimos 4 meses"}</option>
+              <option value="">{ingresos.length ? "Elegí la orden de ingreso..." : "No hay órdenes de ingreso de los últimos 4 meses"}</option>
               {ingresos.map(o => <option key={o.id} value={o.id}>{new Date(o.creado_en).toLocaleDateString("es-AR")} · {o.proveedor || "Sin proveedor"}{o.numero_factura ? " · Fact. " + o.numero_factura : ""}{o.notas && /Ushuaia|Rio Grande|Río Grande/i.test(o.notas) ? " · " + (o.notas.match(/Ushuaia|R[ií]o Grande/i) || [""])[0] : ""} · {o.productos} productos{o.estado === "pendiente" ? " (en camino)" : ""}</option>)}
             </select>
           )}
@@ -8284,12 +8285,21 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
             const res = q ? productos.filter(p => p.activo !== false && q.split(" ").every(w => normTxt([p.nombre, p.marca, p.codigo_barras].join(" ")).includes(w))).slice(0, 12) : [];
             const sel = elegidos.map(id => productos.find(p => p.id === id)).filter(Boolean);
             return (<div style={{ marginTop: 8 }}>
+              {ingresos.length > 0 && <select className="sel" style={{ marginBottom: 8 }} value="" aria-label="Sumar los productos de una orden de ingreso" onChange={async e => {
+                const id = e.target.value; if (!id) return;
+                try { const r = await API.get("/precios-masivos/ingresos/" + id + "/productos"); const ids = r.data || []; let nuevos = 0; setElegidos(x => { const set = new Set(x); ids.forEach(i => { if (!set.has(i)) { set.add(i); nuevos++; } }); return [...set]; }); setAviso({ ok: true, texto: "✓ Se sumaron los productos de la orden (" + ids.length + "). Podés sacar los que no quieras cambiar." }); }
+                catch (er) { setAviso({ ok: false, texto: er.response?.data?.error || "No se pudieron traer los productos de la orden" }); }
+              }}>
+                <option value="">➕ Sumar todos los productos de una orden de ingreso...</option>
+                {ingresos.map(o => <option key={o.id} value={o.id}>{new Date(o.creado_en).toLocaleDateString("es-AR")} · {o.proveedor || "Sin proveedor"}{o.numero_factura ? " · Fact. " + o.numero_factura : ""}{o.notas && /Ushuaia|R[ií]o Grande/i.test(o.notas) ? " · " + (o.notas.match(/Ushuaia|R[ií]o Grande/i) || [""])[0] : ""} · {o.productos} productos</option>)}
+              </select>}
               <input className="inp" placeholder="Buscá por nombre, marca o código y tocá para sumarlo" value={buscaProd} onChange={e => setBuscaProd(e.target.value)} />
               {res.length > 0 && <div style={{ border: "1px solid " + temaPal.border, borderRadius: 8, marginTop: 4, maxHeight: 220, overflowY: "auto" }}>
                 {res.map(p => { const on = elegidos.includes(p.id); return <button key={p.id} type="button" onClick={() => setElegidos(x => on ? x.filter(i => i !== p.id) : [...x, p.id])} style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, padding: "7px 10px", border: "none", borderBottom: "1px solid " + temaPal.border, background: on ? temaPal.accentDim : "transparent", color: temaPal.text, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}><span>{on ? "✓ " : "+ "}<b>{p.nombre}</b> <span style={{ color: temaPal.textMuted }}>{p.marca || ""}</span></span><span>{fmt(p.precio)}</span></button>; })}
               </div>}
               {sel.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                {sel.map(p => <span key={p.id} className="tag tag-neutral" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{p.nombre}<button type="button" aria-label={"Sacar " + p.nombre} onClick={() => setElegidos(x => x.filter(i => i !== p.id))} style={{ border: "none", background: "transparent", cursor: "pointer", color: temaPal.textMuted }}>✕</button></span>)}
+                {(verTodosSel ? sel : sel.slice(0, 12)).map(p => <span key={p.id} className="tag tag-neutral" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{p.nombre}<button type="button" aria-label={"Sacar " + p.nombre} onClick={() => setElegidos(x => x.filter(i => i !== p.id))} style={{ border: "none", background: "transparent", cursor: "pointer", color: temaPal.textMuted }}>✕</button></span>)}
+                {sel.length > 12 && <button type="button" className="mini-chip" onClick={() => setVerTodosSel(v => !v)}>{verTodosSel ? "Ver menos" : "+" + (sel.length - 12) + " más"}</button>}
                 <button type="button" className="mini-chip" onClick={() => setElegidos([])}>Sacar todos</button>
               </div>}
               <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>{sel.length ? sel.length + (sel.length === 1 ? " producto elegido" : " productos elegidos") : "Todavía no elegiste ninguno."}</div>

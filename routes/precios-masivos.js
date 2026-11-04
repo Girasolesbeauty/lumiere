@@ -131,6 +131,15 @@ router.get('/ingresos', async (req, res) => {
   } catch (e) { console.error('[precios] ingresos:', e.message); res.json([]); }
 });
 
+// Los productos de una orden de ingreso (para sumarlos de una a la lista de "Elegir productos")
+router.get('/ingresos/:id/productos', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT DISTINCT i.producto_id AS id FROM ordenes_ingreso_items i JOIN productos p ON p.id = i.producto_id
+      WHERE i.orden_id = $1 AND COALESCE(p.activo, TRUE)`, [parseInt(req.params.id) || 0]);
+    res.json(r.rows.map(x => x.id));
+  } catch (e) { console.error('[precios] productos de ingreso:', e.message); res.status(500).json({ error: 'No se pudieron traer los productos de la orden' }); }
+});
+
 // Ver como quedarian los precios (no cambia nada)
 router.post('/vista', async (req, res) => {
   try {
