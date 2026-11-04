@@ -12823,6 +12823,22 @@ function Pedidos({ localId, usuario, paletaActual }) {
       .join("\n").replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m)).trim();
   };
   const textoAviso = (pd) => armarAviso(mensajeAviso || AVISO_BASE, pd);
+  // Varios productos de la misma clienta: un solo mensaje con todo lo que llegó y lo que todavía falta
+  const listaY = (arr) => arr.length <= 1 ? (arr[0] || "") : arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1];
+  const textoAvisoGrupo = (g) => {
+    if (g.listos.length === 1 && g.faltan.length === 0) return textoAviso(g.listos[0]);
+    const nombres = g.listos.map(x => x.producto_nombre || "");
+    let plantilla = mensajeAviso || AVISO_BASE;
+    if (nombres.length > 1 && !mensajeAviso) plantilla = plantilla.replace("ya llegó", "ya llegaron").replace("Te lo guardamos", "Te los guardamos");
+    let texto = armarAviso(plantilla, { ...g.listos[0], producto_nombre: nombres.length > 1 ? nombres.join("*, *").replace(/\*, \*([^*]*)$/, "* y *$1") : nombres[0] });
+    if (g.faltan.length) {
+      const linea = (g.faltan.length === 1 ? "Todavía estamos esperando *" + g.faltan[0] + "*" : "Todavía estamos esperando *" + listaY(g.faltan) + "*") + ", te avisamos apenas llegue" + (g.faltan.length > 1 ? "n." : ".");
+      const lineas = texto.split("\n");
+      const firma = lineas.length > 1 && /^\s*[—-]/.test(lineas[lineas.length - 1]) ? lineas.pop() : null;
+      texto = [...lineas, linea, ...(firma ? [firma] : [])].join("\n");
+    }
+    return texto;
+  };
   const puedeEditarAviso = ["jefe", "admin", "administrativo", "encargado"].includes(usuario?.rol);
   const guardarAviso = async (texto) => {
     const valor = texto.trim() === AVISO_BASE ? "" : texto.trim();
@@ -12843,6 +12859,23 @@ function Pedidos({ localId, usuario, paletaActual }) {
       setPedidos(prev => prev.filter(x => x.id !== pd.id));
       setMensaje("✓ " + (pd.cliente_nombre || "") + " quedó como avisado. Lo ves en la pestaña Avisados.");
     } catch (e) { setMensaje("Error: no se pudo marcar como avisado"); }
+  };
+  const avisarGrupo = async (g, sinEnviar) => {
+    if (g.listos.length === 1) return avisarPedido(g.listos[0], sinEnviar);
+    const texto = textoAvisoGrupo(g);
+    if (!sinEnviar) {
+      const numero = telWa(g.telefono);
+      if (!numero) return setMensaje("Error: este cliente no tiene teléfono cargado");
+      window.open("https://wa.me/" + numero + "?text=" + encodeURIComponent(texto), "_blank");
+    }
+    const ok = [];
+    for (const pd of g.listos) {
+      try { await API.post("/pedidos/" + pd.id + "/avisar", { mensaje: sinEnviar ? null : texto, usuario_nombre: usuario?.nombre || null }); ok.push(pd.id); } catch (e) {}
+    }
+    setPedidosListos(prev => prev.filter(x => !ok.includes(x.id)));
+    setPedidos(prev => prev.filter(x => !ok.includes(x.id)));
+    if (ok.length < g.listos.length) setMensaje("Error: no se pudieron marcar todos como avisados, probá de nuevo");
+    else setMensaje("✓ " + (g.nombre || "") + " quedó avisada de " + ok.length + " productos." + (g.faltan.length ? " Lo que falta sigue En espera." : ""));
   };
   const reenviar = (pd) => {
     const numero = telWa(pd.telefono);
@@ -12907,6 +12940,19 @@ function Pedidos({ localId, usuario, paletaActual }) {
 
   const esperaLocal = pedidos.filter(delLocal);
   const listosLocal = pedidosListos.filter(delLocal);
+  // "Ya hay stock" agrupado por clienta (y local): si de 3 productos llegaron 2, sale una sola tarjeta con los 2 y lo que falta
+  const claveCli = (p) => (p.cliente_id ? "c" + p.cliente_id : "m" + String(p.cliente_nombre || "").trim().toLowerCase() + "|" + String(p.telefono || "").replace(/[^0-9]/g, "")) + "@" + (p.local_id || 1);
+  const gruposListos = (() => {
+    const ids = new Set(pedidosListos.map(x => x.id));
+    const m = new Map();
+    listosLocal.forEach(pd => {
+      const k = claveCli(pd);
+      if (!m.has(k)) m.set(k, { clave: k, nombre: pd.cliente_nombre, telefono: pd.telefono, local_id: pd.local_id, listos: [], faltan: [], desde: pd.creado_en });
+      const g = m.get(k); g.listos.push(pd); if (new Date(pd.creado_en) < new Date(g.desde)) g.desde = pd.creado_en;
+    });
+    pedidos.forEach(pd => { const g = m.get(claveCli(pd)); if (g && !ids.has(pd.id) && pd.producto_nombre && !g.faltan.includes(pd.producto_nombre)) g.faltan.push(pd.producto_nombre); });
+    return [...m.values()];
+  })();
   const q = filtroLista.trim().toLowerCase();
   const esperaFiltrados = q ? esperaLocal.filter(p => [p.cliente_nombre, p.telefono, p.cuit_dni, p.producto_nombre].some(x => String(x || "").toLowerCase().includes(q))) : esperaLocal;
   const porProducto = Object.values(esperaFiltrados.reduce((acc, p) => {
@@ -12957,24 +13003,29 @@ function Pedidos({ localId, usuario, paletaActual }) {
         ) : (
           <>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-              <div style={{ fontSize: 12, color: pal.textMuted, flex: "1 1 260px" }}>Estos productos que los clientes esperaban ya tienen stock. Al tocar <b>WhatsApp</b> se abre el mensaje listo y el pedido pasa a <b>Avisados</b>.</div>
+              <div style={{ fontSize: 12, color: pal.textMuted, flex: "1 1 260px" }}>Estos productos que los clientes esperaban ya tienen stock. Si una clienta pidió varios, sale <b>una sola tarjeta</b> con lo que llegó y lo que todavía falta. Al tocar <b>WhatsApp</b> se abre el mensaje listo y lo que llegó pasa a <b>Avisados</b>; lo que falta sigue En espera.</div>
               {puedeEditarAviso && <button className="btn btn-g btn-sm" onClick={() => setEditorAviso(mensajeAviso || AVISO_BASE)}>✏️ Cambiar mensaje</button>}
             </div>
             <div className="oi-grid">
-              {listosLocal.map(pd => (
-                <div key={pd.id} className="card anim-in" style={{ borderLeft: "3px solid " + pal.wa, padding: 14 }}>
+              {gruposListos.map(g => (
+                <div key={g.clave} className="card anim-in" style={{ borderLeft: "3px solid " + pal.wa, padding: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800 }}>{pd.cliente_nombre}<LocalTag p={pd} /></div>
-                      <div style={{ fontSize: 12, marginTop: 2 }}>📦 {pd.producto_nombre}</div>
-                      <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 2 }}>📱 {pd.telefono || "sin teléfono"} · esperó {diasDesde(pd.creado_en)} días</div>
+                      <div style={{ fontSize: 14, fontWeight: 800 }}>{g.nombre}<LocalTag p={g.listos[0]} /></div>
+                      {g.listos.map(pd => (
+                        <div key={pd.id} style={{ fontSize: 12, marginTop: 3, lineHeight: 1.35 }}>📦 {pd.producto_nombre} <span style={{ fontSize: 10, color: pal.green, fontWeight: 700 }}>· {pd.stock_total} en stock</span></div>
+                      ))}
+                      {g.faltan.map(n => (
+                        <div key={n} style={{ fontSize: 12, marginTop: 3, lineHeight: 1.35, color: pal.textMuted }}>⏳ {n} <span style={{ fontSize: 10 }}>· todavía no llegó</span></div>
+                      ))}
+                      <div style={{ fontSize: 11, color: pal.textMuted, marginTop: 4 }}>📱 {g.telefono || "sin teléfono"} · esperó {diasDesde(g.desde)} días</div>
                     </div>
-                    <span className="tag tag-ok" style={{ alignSelf: "flex-start" }}>{pd.stock_total} en stock</span>
+                    <span className="tag tag-ok" style={{ alignSelf: "flex-start", whiteSpace: "nowrap" }}>{g.faltan.length ? g.listos.length + " de " + (g.listos.length + g.faltan.length) + " llegaron" : g.listos.length > 1 ? "Llegó todo" : g.listos[0].stock_total + " en stock"}</span>
                   </div>
-                  <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: pal.bg, fontSize: 11, color: pal.textSoft, whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{textoAviso(pd).replace(/\*/g, "")}</div>
+                  <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: pal.bg, fontSize: 11, color: pal.textSoft, whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{textoAvisoGrupo(g).replace(/\*/g, "")}</div>
                   <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                    <button className="btn btn-sm" style={{ flex: 2, background: pal.wa, color: "#fff", fontWeight: 800 }} disabled={!pd.telefono} onClick={() => avisarPedido(pd, false)}>💬 Enviar WhatsApp</button>
-                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => avisarPedido(pd, true)} title="Si ya le avisaste por otro medio">Ya le avisé</button>
+                    <button className="btn btn-sm" style={{ flex: 2, background: pal.wa, color: "#fff", fontWeight: 800 }} disabled={!g.telefono} onClick={() => avisarGrupo(g, false)}>💬 Enviar WhatsApp</button>
+                    <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => avisarGrupo(g, true)} title="Si ya le avisaste por otro medio">Ya le avisé</button>
                   </div>
                 </div>
               ))}
