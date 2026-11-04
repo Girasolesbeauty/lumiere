@@ -12,8 +12,8 @@ router.get('/stock/ajustes', controller.getHistorialAjustes);
 router.get('/stock/ajustes-pendientes', controller.getAjustesPendientes);
 router.get('/imagenes/todas', controller.getImagenes);
 router.post('/recalcular-stock-minimo', controller.recalcularStockMinimo);
-// "Tambien llevan" para el Punto de Venta: lo que otras clientas compraron junto con lo del carrito
-// (misma venta o la misma clienta en los 90 dias siguientes) y, si faltan, lo que completa la rutina facial.
+// "Tambien llevan" para el Punto de Venta: lo que otros clientes compraron junto con lo del carrito
+// (misma venta o el mismo cliente en los 90 dias siguientes) y, si faltan, lo que completa la rutina facial.
 // Solo productos activos con stock en el local.
 const pool = require('../config/database');
 const { VENTA_VALIDA } = require('../lib/niveles');
@@ -35,7 +35,7 @@ router.get('/tambien-llevan', async (req, res) => {
       JOIN productos p ON p.id = vi.producto_id
       WHERE NOT (vi.producto_id = ANY($1::int[])) AND p.activo = TRUE AND COALESCE(p.${col}, 0) > 0 AND COALESCE(p.tiene_variantes, FALSE) = FALSE AND ${VENTA_VALIDA}
       GROUP BY p.id HAVING COUNT(DISTINCT COALESCE('c' || v.cliente_id::text, 'v' || v.id::text)) >= 2
-      ORDER BY n DESC LIMIT 4`, [ids])).rows.map(x => ({ ...x, motivo: 'Lo llevan ' + x.n + ' clientas que compraron esto' }));
+      ORDER BY n DESC LIMIT 4`, [ids])).rows.map(x => ({ ...x, motivo: 'Lo llevan ' + x.n + ' clientes que compraron esto' }));
     let sug = co;
     if (sug.length < 4) {
       // Completar la rutina: si lleva skincare facial y le falta un paso clave, lo mas vendido de ese paso

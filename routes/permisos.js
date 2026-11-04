@@ -55,7 +55,7 @@ async function asegurarPermisosV2() {
     await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v4') ON CONFLICT DO NOTHING`);
   }
   // v5: la Tienda online tiene sus permisos: "ver y atender pedidos" (a quien veia Ventas Online, de donde colgaba)
-  // y "manejar toda la tienda" (a las vendedoras, que antes no podian)
+  // y "manejar toda la tienda" (a los vendedores, que antes no podian)
   const ya5 = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v5'`);
   if (!ya5.rows.length) {
     await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT DISTINCT usuario_id, 'tienda.ver' FROM permisos_usuario WHERE permiso = 'ventas_online.ver' ON CONFLICT DO NOTHING`);
@@ -70,7 +70,7 @@ async function asegurarPermisosV2() {
       (VALUES ('salud_stock.ver'), ('valorizacion.ver'), ('historial_ajustes.ver')) v(p) WHERE permiso = 'inventario.ver' ON CONFLICT DO NOTHING`);
     await pool.query(`INSERT INTO permisos_meta (clave) VALUES ('permisos_v6') ON CONFLICT DO NOTHING`);
   }
-  // v7: el sector Cyber Monday (ofertas de liquidacion): lo ven y lo editan todas, tambien las vendedoras
+  // v7: el sector Cyber Monday (ofertas de liquidacion): lo ven y lo editan todas, tambien los vendedores
   const ya7 = await pool.query(`SELECT 1 FROM permisos_meta WHERE clave = 'permisos_v7'`);
   if (!ya7.rows.length) {
     await pool.query(`INSERT INTO permisos_usuario (usuario_id, permiso) SELECT id, 'cyber.ver' FROM usuarios ON CONFLICT DO NOTHING`);

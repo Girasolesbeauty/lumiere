@@ -5,7 +5,7 @@ const controller = require('../controllers/fidelizacionController');
 router.get('/premios', controller.getPremios);
 router.post('/premios', controller.createPremio);
 // Foto de un premio: llega ya achicada desde Lumiere y se guarda en la base. Se ve con un link publico
-// (portal de clientas y "Mi cuenta" de la tienda) que lleva el negocio, asi cada negocio ve las suyas.
+// (portal de clientes y "Mi cuenta" de la tienda) que lleva el negocio, asi cada negocio ve las suyas.
 const TIPOS_FOTO = ['image/webp', 'image/jpeg', 'image/png'];
 router.post('/premios/imagen', express.raw({ type: TIPOS_FOTO, limit: '1mb' }), async (req, res) => {
   try {

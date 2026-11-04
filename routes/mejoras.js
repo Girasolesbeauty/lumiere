@@ -1,5 +1,5 @@
 // 💡 Ideas y mejoras (mejora continua del negocio): cualquiera del equipo anota un problema que se repite,
-// un comentario de una clienta o una idea. Cada cosa pasa por Nuevas → En marcha (con responsable y fecha) → Hechas
+// un comentario de un cliente o una idea. Cada cosa pasa por Nuevas → En marcha (con responsable y fecha) → Hechas
 // (con qué se hizo y si funcionó). Las demás chicas pueden sumar "a mí también me pasa" para saber qué pesa más.
 const express = require('express');
 const pool = require('../config/database');
@@ -124,7 +124,7 @@ router.post('/:id/voto', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     await asegurar();
-    if (!esJefe(req.usuario)) return res.status(403).json({ error: 'Solo el dueño o la dueña del negocio puede borrar. Podés descartarla.' });
+    if (!esJefe(req.usuario)) return res.status(403).json({ error: 'Solo el dueño o el dueño del negocio puede borrar. Podés descartarla.' });
     await pool.query('DELETE FROM mejoras WHERE id = $1', [parseInt(req.params.id)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }

@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 
-// Listar tareas. Si viene asignado_a, filtra solo las de ese usuario (asi cada vendedora
+// Listar tareas. Si viene asignado_a, filtra solo las de ese usuario (asi cada vendedor
 // ve unicamente lo suyo). Si no viene (jefe viendo "todas"), devuelve todo.
 const getTareas = async (req, res) => {
   try {
@@ -17,7 +17,7 @@ const getTareas = async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 };
 
-// Crear una tarea nueva (el jefe la asigna a una vendedora)
+// Crear una tarea nueva (el jefe la asigna a un vendedor)
 const crearTarea = async (req, res) => {
   try {
     const { titulo, descripcion, urgencia, asignado_a, asignado_nombre, creado_por, creado_por_nombre, local_id } = req.body;

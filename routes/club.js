@@ -1,6 +1,6 @@
-// Club de WhatsApp: mensajes listos para mandar a los grupos de clientas (novedades, lo más vendido,
+// Club de WhatsApp: mensajes listos para mandar a los grupos de clientes (novedades, lo más vendido,
 // últimas unidades, ofertas, beneficio exclusivo con cupón, tip y encuesta). Los arma con los datos reales
-// de la tienda; la dueña los revisa, los copia o los comparte (WhatsApp no deja mandar a grupos desde un sistema).
+// de la tienda; el dueño los revisa, los copia o los comparte (WhatsApp no deja mandar a grupos desde un sistema).
 const express = require('express');
 const pool = require('../config/database');
 const Anthropic = require('@anthropic-ai/sdk').default;
@@ -50,7 +50,7 @@ const vendidos = async (dias) => new Map((await q(`SELECT vi.producto_id AS id, 
   WHERE ${VENTA_VALIDA} AND v.creado_en > NOW() - ($1 || ' days')::interval GROUP BY 1`, [String(dias)])).map(r => [r.id, num(r.u)]));
 
 router.get('/contenido', async (req, res) => {
-  if (!esJefe(req)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
   try {
     const v = parseInt(req.query.v) || 0;
     const { c, lista, dominio } = await base(req);
@@ -157,7 +157,7 @@ router.get('/contenido', async (req, res) => {
       productos: conPromo.map(({ p, pr }) => ({ ...corto(p), precio_oferta: Math.round(p.precio * (1 - pr.pct / 100)), pct: pr.pct })),
       texto: `🏷️ *Ofertas para aprovechar* 🏷️\n\n${conPromo.map(({ p, pr }) => '• ' + p.nombre + ' — ~' + plata(p.precio) + '~ *' + plata(p.precio * (1 - pr.pct / 100)) + '*' + (pr.pago ? ' ' + (NOMBRE_PAGO[pr.pago] || '') : '') + ' (' + Math.round(pr.pct) + '% OFF)').join('\n')}\n\n¡Hasta agotar stock! 🏃‍♀️${linkTienda ? '\n\n🛍️ ' + linkTienda : ''}` });
 
-    // 5) Beneficio exclusivo del Club (el cupón lo crea la dueña desde la pantalla)
+    // 5) Beneficio exclusivo del Club (el cupón lo crea el dueño desde la pantalla)
     piezas.push({ tipo: 'beneficio', dia: 'Jueves', emoji: '💛', titulo: 'Beneficio exclusivo del Club', productos: [], texto: '' });
 
     // 6) Tip con un producto recomendado (de los que se venden, con descripción)
@@ -183,7 +183,7 @@ router.get('/contenido', async (req, res) => {
 
 // Cupón exclusivo del Club: un código para todo el grupo, con vencimiento
 router.post('/cupon', async (req, res) => {
-  if (!esJefe(req)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
   try {
     const pct = Math.round(num(req.body.pct));
     if (!(pct >= 1 && pct <= 50)) return res.status(400).json({ error: 'El descuento tiene que ser entre 1% y 50%' });
@@ -207,7 +207,7 @@ router.post('/cupon', async (req, res) => {
 // Reescribir un mensaje con IA (mismo contenido, otras palabras), si el servidor tiene la clave
 let clienteIA = null;
 router.post('/redactar', async (req, res) => {
-  if (!esJefe(req)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'La escritura con IA no está configurada en este servidor' });
   const texto = String(req.body.texto || '').slice(0, 3000);
   if (!texto.trim()) return res.status(400).json({ error: 'No hay mensaje para reescribir' });
@@ -215,7 +215,7 @@ router.post('/redactar', async (req, res) => {
     if (!clienteIA) clienteIA = new Anthropic();
     const r = await clienteIA.beta.messages.create({
       model: 'claude-opus-5', max_tokens: 1200, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', output_config: { effort: 'low' },
-      system: `Reescribís mensajes para un grupo de WhatsApp de clientas de una tienda de belleza y skincare de Argentina. Español rioplatense (vos), cálido, cercano y entusiasta, como una amiga que trabaja en la tienda. Usá el formato de WhatsApp (*negrita*, _cursiva_, ~tachado~) y algunos emojis, sin exagerar. Mantené exactamente los mismos productos, precios, porcentajes, códigos de cupón, fechas, cantidades y links: no inventes nada que no esté. Corto: que se lea en 15 segundos. Devolvé solo el mensaje.`,
+      system: `Reescribís mensajes para un grupo de WhatsApp de clientes de una tienda de belleza y skincare de Argentina. Español rioplatense (vos), cálido, cercano y entusiasta, como una amiga que trabaja en la tienda. Usá el formato de WhatsApp (*negrita*, _cursiva_, ~tachado~) y algunos emojis, sin exagerar. Mantené exactamente los mismos productos, precios, porcentajes, códigos de cupón, fechas, cantidades y links: no inventes nada que no esté. Corto: que se lea en 15 segundos. Devolvé solo el mensaje.`,
       messages: [{ role: 'user', content: 'Reescribí este mensaje con otras palabras' + (req.body.tono ? ' (tono: ' + String(req.body.tono).slice(0, 40) + ')' : '') + ':\n\n' + texto }],
     });
     if (r.stop_reason === 'refusal') return res.status(400).json({ error: 'No se pudo reescribir este mensaje' });

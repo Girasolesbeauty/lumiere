@@ -487,7 +487,7 @@ router.get('/reporte/inconsistencias', async (req, res) => {
   }
 });
 
-// Ventas donde se vendio sin stock suficiente (quedaria en negativo) y la vendedora justifico
+// Ventas donde se vendio sin stock suficiente (quedaria en negativo) y el vendedor justifico
 router.get('/reporte/inconsistencias-stock', async (req, res) => {
   try {
     const result = await pool.query(

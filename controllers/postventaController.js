@@ -353,7 +353,7 @@ const getResultados = async (req, res) => {
   }
 };
 
-// Para reponer: clientas a las que se les esta por terminar un producto que compraron (segun cuanto dura
+// Para reponer: clientes a los que se les esta por terminar un producto que compraron (segun cuanto dura
 // cada tipo de producto, aproximado). Ventana: desde 7 dias antes hasta 30 dias despues de que se termina.
 const DURACIONES = [
   [/brocha|pincel|esponja|beauty ?blender|vincha|bincha|neceser|cosmetiquero|pinza|rizador|espejo|accesorio|hebilla|scrunchie|toalla|gua ?sha|roller|rodillo|organizador|cepillo|peine|bolso|cartuchera/, 0, 'Accesorio'],
@@ -394,7 +394,7 @@ const DURACIONES = [
   [/limpia|cleanser|espuma|jabon|desmaquill|micelar|balsamo limpiador/, 75, 'Limpiador'],
   [/hidratante|crema|moistur|gel crema|emulsion/, 30, 'Crema'],
 ];
-// Cuánto dura de verdad cada producto, según lo que contestaron las clientas en "Restockearme" de la tienda
+// Cuánto dura de verdad cada producto, según lo que contestaron los clientes en "Restockearme" de la tienda
 // ("todavía tengo": mucho / la mitad / poco). Duración estimada = días desde la compra / (1 - lo que le queda).
 const QUEDA = { mucho: 0.65, mitad: 0.5, poco: 0.2 };
 const getDuracionReal = async (req, res) => {

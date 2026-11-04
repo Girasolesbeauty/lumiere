@@ -52,7 +52,7 @@ const getPortalResumen = async (req, res) => {
   }
 };
 
-// Vista previa: lo mismo que ve esta clienta cuando entra al portal (puntos, nivel, compras, premios)
+// Vista previa: lo mismo que ve este cliente cuando entra al portal (puntos, nivel, compras, premios)
 const getPortalVista = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -77,7 +77,7 @@ const getPortalVista = async (req, res) => {
   }
 };
 
-// Montos de cada nivel (lo que la clienta tiene que haber comprado en total)
+// Montos de cada nivel (lo que el cliente tiene que haber comprado en total)
 const getNiveles = async (req, res) => {
   try {
     const umbrales = await obtenerUmbrales();
@@ -214,12 +214,12 @@ const agregarPuntos = async (req, res) => {
   }
 };
 
-// Resetea la contrasena del portal: borra el hash para que la clienta se registre de nuevo con su DNI
+// Resetea la contrasena del portal: borra el hash para que el cliente se registre de nuevo con su DNI
 const resetearPortal = async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('UPDATE clientes SET password_hash = NULL WHERE id = $1', [id]);
-    res.json({ ok: true, mensaje: 'Contrasena del portal reseteada. La clienta puede volver a registrarse con su DNI.' });
+    res.json({ ok: true, mensaje: 'Contrasena del portal reseteada. El cliente puede volver a registrarse con su DNI.' });
   } catch (error) {
     res.status(500).json({ error: 'Error al resetear la contrasena del portal' });
   }
@@ -240,7 +240,7 @@ const migrarPuntos = async (req, res) => {
       return res.status(400).json({ error: 'El monto debe ser mayor a cero' });
     }
 
-    // Control de duplicado: misma clienta, mismo monto, misma fecha
+    // Control de duplicado: mismo cliente, mismo monto, misma fecha
     if (fecha_compra && !confirmar_duplicado) {
       const dup = await client.query(
         'SELECT id FROM migracion_puntos WHERE cliente_id = $1 AND monto = $2 AND fecha_compra = $3',
@@ -250,7 +250,7 @@ const migrarPuntos = async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(409).json({
           posible_duplicado: true,
-          error: 'Ya hay una carga con ese mismo monto y fecha para esta clienta. Puede ser un duplicado.'
+          error: 'Ya hay una carga con ese mismo monto y fecha para este cliente. Puede ser un duplicado.'
         });
       }
     }
@@ -288,7 +288,7 @@ const migrarPuntos = async (req, res) => {
   }
 };
 
-// Historial de migraciones de puntos de una clienta
+// Historial de migraciones de puntos de un cliente
 const getMigracionPuntos = async (req, res) => {
   try {
     const { id } = req.params;

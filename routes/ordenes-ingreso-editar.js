@@ -56,7 +56,7 @@ router.put('/:ordenId/items/:itemId/editar', async (req, res) => {
       const transitoUshFinal = (String(nuevoProd) === String(item.producto_id)) ? transitoUshSinEste + nuevaUsh : transitoUshSinEste;
       if (transitoRgFinal < (p.reservado_rg || 0) || transitoUshFinal < (p.reservado_ush || 0)) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'No se puede reducir la cantidad: hay preventas/reservas de clientas sobre este producto. Cancela esas preventas primero.' });
+        return res.status(400).json({ error: 'No se puede reducir la cantidad: hay preventas/reservas de clientes sobre este producto. Cancela esas preventas primero.' });
       }
     }
 
@@ -115,7 +115,7 @@ router.delete('/:ordenId/items/:itemId', async (req, res) => {
       const transitoUshFinal = (p.transito_ush || 0) - (item.cantidad_ush || 0);
       if (transitoRgFinal < (p.reservado_rg || 0) || transitoUshFinal < (p.reservado_ush || 0)) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'No se puede eliminar: hay preventas/reservas de clientas sobre este producto. Cancela esas preventas primero.' });
+        return res.status(400).json({ error: 'No se puede eliminar: hay preventas/reservas de clientes sobre este producto. Cancela esas preventas primero.' });
       }
     }
 
@@ -158,7 +158,7 @@ router.put('/:ordenId/items/:itemId/cambiar-producto', async (req, res) => {
       const viejo = (await client.query('SELECT COALESCE(stock_transito_rg, 0) AS transito_rg, COALESCE(stock_transito_ush, 0) AS transito_ush, COALESCE(reservado_rg, 0) AS reservado_rg, COALESCE(reservado_ush, 0) AS reservado_ush FROM productos WHERE id = $1 FOR UPDATE', [item.producto_id])).rows[0];
       if (viejo && ((viejo.transito_rg - camRg) < viejo.reservado_rg || (viejo.transito_ush - camUsh) < viejo.reservado_ush)) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'No se puede cambiar: hay preventas de clientas sobre lo que falta llegar de este producto. Cancelá esas preventas primero.' });
+        return res.status(400).json({ error: 'No se puede cambiar: hay preventas de clientes sobre lo que falta llegar de este producto. Cancelá esas preventas primero.' });
       }
       await ajustarTransito(client, item.producto_id, 'rg', -camRg);
       await ajustarTransito(client, item.producto_id, 'ush', -camUsh);

@@ -134,7 +134,7 @@ async function obtenerUltimoComprobante(tipo, token, sign, cfg, notaCredito = fa
   return (nroMatch ? parseInt(nroMatch[1]) : 0) + 1;
 }
 
-// Tipo y numero de documento de la clienta (CUIT, DNI o consumidor final)
+// Tipo y numero de documento del cliente (CUIT, DNI o consumidor final)
 function documentoCliente(tipo, cliente_cuit) {
   const docLimpio = cliente_cuit ? cliente_cuit.toString().replace(/[^0-9]/g, '') : '';
   if (tipo === 'A') return { docTipo: 80, docNro: docLimpio || 0 };
@@ -485,7 +485,7 @@ router.get('/notas-credito/:venta_id', async (req, res) => {
 
 // Emitir una nota de credito (total si no se manda importe)
 router.post('/nota-credito/:venta_id', async (req, res) => {
-  if (!puedeHacerNC(req)) return res.status(403).json({ error: 'Solo la dueña o administración puede emitir notas de crédito' });
+  if (!puedeHacerNC(req)) return res.status(403).json({ error: 'Solo el dueño o administración puede emitir notas de crédito' });
   const ventaId = parseInt(req.params.venta_id) || 0;
   const motivo = String((req.body && req.body.motivo) || '').trim().slice(0, 300);
   if (!motivo) return res.status(400).json({ error: 'Contá el motivo de la nota de crédito' });

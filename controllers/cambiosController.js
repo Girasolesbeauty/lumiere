@@ -47,7 +47,7 @@ async function ventaConItems(db, venta) {
   return { ...venta, comprobante: comprobanteImpreso(venta), cliente: cli || null, items };
 }
 
-// Buscar compras por lo que tenga la clienta: numero del ticket (0005-00006262), numero
+// Buscar compras por lo que tenga el cliente: numero del ticket (0005-00006262), numero
 // interno (F-1723 / ON-0105), solo el numero de comprobante, DNI o nombre.
 const buscarVentas = async (req, res) => {
   try {
@@ -165,7 +165,7 @@ const procesarCambio = async (req, res) => {
         d.nombre = it.producto_nombre;
       }
     } else {
-      if (!['jefe', 'admin'].includes(usuario_rol)) return fallar(403, 'Un cambio sin comprobante lo tiene que hacer una encargada');
+      if (!['jefe', 'admin'].includes(usuario_rol)) return fallar(403, 'Un cambio sin comprobante lo tiene que hacer un encargado');
       for (const d of devueltos) {
         const pr = await client.query('SELECT nombre, precio FROM productos WHERE id = $1', [d.producto_id]);
         if (!pr.rows.length) return fallar(404, 'Producto devuelto no encontrado');
@@ -253,7 +253,7 @@ const procesarCambio = async (req, res) => {
           ['Devolucion de diferencia en efectivo (venta ' + ref + ')', monto, ref, localNum]
         );
       } else {
-        return fallar(400, 'Queda plata a favor de la clienta: elegi credito (gift card) o devolver en efectivo');
+        return fallar(400, 'Queda plata a favor del cliente: elegi credito (gift card) o devolver en efectivo');
       }
     }
 

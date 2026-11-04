@@ -4,7 +4,7 @@ const cuponesLib = require('../lib/cupones');
 // Obtener todos los cupones
 const getAll = async (req, res) => {
   try {
-    // Los personales (los gano una clienta) traen el nombre de la duena; el DNI y el WhatsApp no viajan
+    // Los personales (los gano un cliente) traen el nombre de la duena; el DNI y el WhatsApp no viajan
     const ok = await cuponesLib.asegurar();
     const result = await pool.query(ok
       ? `SELECT cu.*, cl.nombre AS duena_nombre, (cu.cliente_id IS NOT NULL OR cu.dueno_dni IS NOT NULL OR cu.dueno_tel IS NOT NULL) AS personal,
@@ -52,7 +52,7 @@ const validar = async (req, res) => {
     await cuponesLib.asegurar();
     const fechas = cuponesLib.fechasCupon(cupon);
     if (fechas) return res.status(400).json({ valido: false, error: fechas });
-    // Personal o "uno por clienta": se revisa con la clienta elegida en la caja
+    // Personal o "uno por cliente": se revisa con el cliente elegido en la caja
     const deOtra = await cuponesLib.revisarClienta(pool, cupon, { cliente_id: parseInt(req.query.cliente_id) || null }, 'caja');
     if (deOtra) return res.status(400).json({ valido: false, error: deOtra });
     delete cupon.dueno_dni; delete cupon.dueno_tel;
@@ -74,7 +74,7 @@ const validar = async (req, res) => {
       }
     }
 
-    // Halloween: si la clienta tiene otros códigos de la calabaza sin usar, la caja ofrece juntarlos
+    // Halloween: si el cliente tiene otros códigos de la calabaza sin usar, la caja ofrece juntarlos
     let hw_otros = [];
     if (cupon.canal === 'Halloween tienda' && cupon.cliente_id) {
       hw_otros = (await pool.query(`SELECT codigo, valor FROM cupones WHERE canal = 'Halloween tienda' AND tipo = '%' AND activo AND cliente_id = $1 AND id <> $2
@@ -98,7 +98,7 @@ const validar = async (req, res) => {
 async function topeHw() {
   try { const t = require('../lib/tienda'); return t.halloweenDe(await t.leerConfig()).tope; } catch (e) { return 30; }
 }
-// Halloween: juntar varios códigos de la calabaza de la clienta en una venta de la caja
+// Halloween: juntar varios códigos de la calabaza del cliente en una venta de la caja
 const juntarHw = async (req, res) => {
   try {
     await cuponesLib.asegurar();

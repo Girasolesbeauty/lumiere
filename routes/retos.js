@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// Desafios de venta: en el POS la vendedora acepta el reto de superar el ticket promedio
-// de la clienta. Cada reto (logrado o no) queda registrado aca. Si en el mes junta la
+// Desafios de venta: en el POS el vendedor acepta el reto de superar el ticket promedio
+// del cliente. Cada reto (logrado o no) queda registrado aca. Si en el mes junta la
 // cantidad de retos superados que se configuro, gana un canje de producto de hasta $X.
 // La cantidad y el monto se configuran en Configuracion del Negocio.
 
@@ -25,7 +25,7 @@ const periodo = (anio, mes) => {
   return { anio: a, mes: m };
 };
 
-// Cuantos retos logro una vendedora en un mes
+// Cuantos retos logro un vendedor en un mes
 const logradosDelMes = async (db, usuarioId, anio, mes) => {
   const r = await db.query(
     `SELECT COUNT(*) FILTER (WHERE logrado)::int AS logrados, COUNT(*)::int AS intentados
@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
     const { usuario_id, usuario_nombre, cliente_id, cliente_nombre, venta_id, meta, vendido, local_id } = req.body;
     const metaNum = parseFloat(meta);
     const vendidoNum = parseFloat(vendido);
-    if (!usuario_id) return res.status(400).json({ error: 'Falta la vendedora' });
+    if (!usuario_id) return res.status(400).json({ error: 'Falta el vendedor' });
     if (!(metaNum > 0) || isNaN(vendidoNum)) return res.status(400).json({ error: 'Datos del reto invalidos' });
 
     const config = await leerConfig(pool);
@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
     const { anio, mes } = periodo();
     const { logrados, intentados } = await logradosDelMes(pool, usuario_id, anio, mes);
 
-    // Al llegar a la meta del mes se genera el premio (uno por vendedora por mes)
+    // Al llegar a la meta del mes se genera el premio (uno por vendedor por mes)
     let premioNuevo = null;
     if (config.activo && logrado && config.meta_mensual > 0 && logrados >= config.meta_mensual) {
       const ins = await pool.query(
@@ -74,7 +74,7 @@ router.post('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Progreso de una vendedora en el mes actual (para mostrarlo en el POS)
+// Progreso de un vendedor en el mes actual (para mostrarlo en el POS)
 router.get('/mio', async (req, res) => {
   try {
     const usuarioId = parseInt(req.query.usuario_id);
@@ -87,7 +87,7 @@ router.get('/mio', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Resumen del mes por vendedora (seccion Comisiones)
+// Resumen del mes por vendedor (seccion Comisiones)
 router.get('/resumen', async (req, res) => {
   try {
     const { anio, mes } = periodo(req.query.anio, req.query.mes);

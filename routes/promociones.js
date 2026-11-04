@@ -92,7 +92,7 @@ router.get('/adviento-tienda', async (req, res) => {
     await tienda.asegurar();
     const c = await tienda.leerConfig();
     const a = tienda.advientoDe(c);
-    // Álbum de sellos: cuántos tiene cada clienta (las que entran al sorteo, primero)
+    // Álbum de sellos: cuántos tiene cada cliente (las que entran al sorteo, primero)
     const sellos = (await pool.query(`SELECT s.cliente_id, COUNT(*)::int AS sellos, MAX(c.nombre) AS nombre, MAX(c.telefono) AS telefono
       FROM tienda_adv_sellos s LEFT JOIN clientes c ON c.id = s.cliente_id WHERE s.anio = $1 GROUP BY s.cliente_id ORDER BY COUNT(*) DESC, MAX(s.creado_en) LIMIT 300`, [a.anio]).catch(() => ({ rows: [] }))).rows;
     res.json({ adviento: a, hoy: tienda.advientoHoy(a), slug: c.slug || null, publicada: !!c.activo, dominio: await tienda.dominioDe((req.negocio && req.negocio.id) || 1).catch(() => null), titulo_tienda: c.titulo || null, sellos });
@@ -123,7 +123,7 @@ router.get('/halloween-tienda', async (req, res) => {
     const h = tienda.halloweenDe(c);
     const jugadas = (await pool.query(`SELECT texto, tipo, COUNT(*)::int AS n FROM tienda_halloween WHERE temporada = $1 GROUP BY texto, tipo ORDER BY n DESC`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [] }))).rows;
     const usados = (await pool.query(`SELECT COUNT(*)::int AS n FROM tienda_halloween th JOIN cupones cu ON cu.codigo = th.cupon WHERE th.temporada = $1 AND COALESCE(cu.usos, 0) > 0`, ['hw-' + h.desde.slice(0, 10)]).catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n;
-    // Quiénes abrieron calabazas: cada clienta con sus premios (y si ya usó cada código)
+    // Quiénes abrieron calabazas: cada cliente con sus premios (y si ya usó cada código)
     const quienes = (await pool.query(`SELECT th.cliente_id, cl.nombre, cl.telefono, MAX(th.creado_en) AS ultima,
         json_agg(json_build_object('texto', th.texto, 'tipo', th.tipo, 'cupon', th.cupon, 'regalo', th.regalo, 'usado', COALESCE(cu.usos, 0) > 0 OR th.pedido_id IS NOT NULL) ORDER BY th.id) AS premios
       FROM tienda_halloween th LEFT JOIN clientes cl ON cl.id = th.cliente_id LEFT JOIN cupones cu ON cu.codigo = th.cupon

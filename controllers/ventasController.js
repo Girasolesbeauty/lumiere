@@ -259,7 +259,7 @@ const create = async (req, res) => {
       );
       if (cupon.rows.length > 0) {
         const c = cupon.rows[0];
-        // Cupon personal (lo gano una clienta) o "uno por clienta": se revisa con la clienta elegida
+        // Cupon personal (lo gano un cliente) o "uno por cliente": se revisa con el cliente elegido
         const deOtra = await cuponesLib.revisarClienta(client, c, { cliente_id }, 'caja');
         if (deOtra) { await client.query('ROLLBACK'); return res.status(400).json({ error: deOtra }); }
         // Cupon "solo contado": no vale pagando en cuotas
@@ -580,7 +580,7 @@ const update = async (req, res) => {
   }
 };
 
-// Confirmar entrega de una preventa: la clienta vino a retirar.
+// Confirmar entrega de una preventa: el cliente vino a retirar.
 // Descuenta del STOCK REAL (ya llego al local) y libera la reserva correspondiente.
 // No crea una venta nueva: la preventa pasa a ser la venta confirmada.
 const confirmarEntrega = async (req, res) => {
@@ -623,7 +623,7 @@ const confirmarEntrega = async (req, res) => {
           error: 'Stock insuficiente para "' + (prodRes.rows[0]?.nombre || 'producto') + '". Disponible: ' + stockActual + ', se necesitan: ' + item.cantidad + '. Puede que la mercaderia aun no haya llegado.'
         });
       }
-      // Descuenta del stock real del local (la clienta se lo lleva) y sincroniza el total
+      // Descuenta del stock real del local (el cliente se lo lleva) y sincroniza el total
       await client.query(
         `UPDATE productos SET ${colStockPreventa} = COALESCE(${colStockPreventa}, 0) - $1,
            stock = COALESCE(stock_rg, 0) + COALESCE(stock_ush, 0) - $1
@@ -868,7 +868,7 @@ const crearOnline = async (req, res) => {
       );
     }
 
-    // Si la venta online tiene clienta, sumar puntos (1 cada $100) y recalcular nivel
+    // Si la venta online tiene cliente, sumar puntos (1 cada $100) y recalcular nivel
     if (cliente_id) {
       const pts = Math.floor(totalNum / 100);
       if (pts > 0) {

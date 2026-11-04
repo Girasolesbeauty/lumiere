@@ -409,7 +409,7 @@ Después elegí a qué aplica (todos, categorías o productos), si es solo con u
 Si no sabés qué porcentaje poner, en **Comisiones → Configuración** tocá **💡 Calcular comisión saludable**. Lumiere mira las ventas y el margen reales del local en los últimos 90 días y propone dos opciones: un **% de las ventas** (que se lleva una parte chica de la ganancia de la mercadería, y te dice cuánto costaría por mes) y un **% sobre lo que supere la meta** (la meta es lo que el local ya vende en promedio: solo se paga si venden más de lo normal). Tocá **Usar esta**, revisala en el simulador y tocá **Guardar**. Hacen falta al menos 3 semanas de ventas y los costos de los productos cargados.
 
 ### Cómo pagar comisiones
-**Comisiones** → pestaña **Comisiones** → tildá los días a pagar (o pagá un monto suelto) → **Pagar** → forma de pago (efectivo, transferencia o canje por productos con descuento de empleada) → confirmar. Queda registrado como egreso.
+**Comisiones** → pestaña **Comisiones** → tildá los días a pagar (o pagá un monto suelto) → **Pagar** → forma de pago (efectivo, transferencia o canje por productos con descuento de empleado) → confirmar. Queda registrado como egreso.
 
 ### Cómo entregar el premio de un desafío
 **Comisiones** → **Desafíos** → elegí el mes → en el/la vendedor/a que llegó a la meta, entregá el premio eligiendo el producto (hasta el monto configurado). Se descuenta del stock.

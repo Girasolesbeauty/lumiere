@@ -418,7 +418,7 @@ button.tab { font-family: inherit; }
 .ped-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px; }
 @media (max-width: 760px) { .ped-cols { grid-template-columns: 1fr; } .ped-fila { flex-wrap: wrap; gap: 8px; padding: 10px 12px; } .ped-fila > div:last-child { width: 100%; justify-content: space-between; } .ped-chip { font-size: 11px; padding: 2px 8px; } .ped-paso { margin-left: auto; } }
 @media (max-width: 760px) { .ped-grid { grid-template-columns: 1fr 1fr; } .ped-grid .ped-btn { min-height: 104px; } }
-/* Clientas web: las secciones en una sola fila, mas chicas */
+/* Clientes web: las secciones en una sola fila, mas chicas */
 .ped-grid.cw-grid { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
 .ped-grid.cw-grid .ped-btn { min-height: 92px; }
 @media (max-width: 760px) { .ped-grid.cw-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .ped-grid.cw-grid .ped-btn { min-height: 76px; padding: 10px 6px 12px; gap: 5px; } .ped-grid.cw-grid .pcel-txt { font-size: 12px; line-height: 1.2; } .ped-grid.cw-grid .pcel-ico { width: 40px; height: 40px; font-size: 22px; } }
@@ -1451,7 +1451,7 @@ function KpiCard({ p, titulo, valor, formato, sub, tag, chico, color, indice = 0
   );
 }
 
-// Resumen semanal para la dueña: la ultima semana completa (lunes a domingo) contra la anterior.
+// Resumen semanal para el dueño: la ultima semana completa (lunes a domingo) contra la anterior.
 // Se abre solo la primera vez que entra en la semana (ver ResumenSemanalAuto) y desde el Dashboard.
 const lunesDeHoy = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toLocaleDateString("en-CA"); };
 const fechaSemana = (s) => { const [y, m, d] = String(s || "").split("-").map(Number); return d ? d + " de " + ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m - 1] : ""; };
@@ -1470,7 +1470,7 @@ function ResumenSemanal({ p, onCerrar }) {
       "💰 Vendiste " + fmt(d.total) + (v !== null ? " (" + (v >= 0 ? "+" : "") + v + "% vs la semana anterior)" : "") + " en " + d.cant + " ventas · ticket promedio " + fmt(d.ticket),
       ...(d.locales.length > 1 ? d.locales.map(l => "📍 " + l.nombre + ": " + fmt(l.total)) : []),
       d.web.cant ? "🛍️ Tienda online: " + d.web.cant + " pedidos por " + fmt(d.web.total) : null,
-      d.clientas.nuevas ? "🙋‍♀️ Clientas nuevas: " + d.clientas.nuevas : null,
+      d.clientas.nuevas ? "🙋‍♀️ Clientes nuevas: " + d.clientas.nuevas : null,
       d.mejor_dia ? "⭐ Mejor día: " + d.mejor_dia.dia + " (" + fmt(d.mejor_dia.total) + ")" : null,
       ...(d.top.length ? ["", "🔥 Lo más vendido:", ...d.top.map((x, i) => (i + 1) + ". " + x.nombre + " (" + x.unidades + ")")] : []),
       ...((d.envases_bajos || []).length ? ["", "🧴 Envases de muestras: " + d.envases_bajos.map(e => e.nombre + " " + (e.quedan ? "quedan " + e.quedan : "sin envases")).join(" · ")] : []),
@@ -1507,7 +1507,7 @@ function ResumenSemanal({ p, onCerrar }) {
           </div>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginTop: 8 }}>
             <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🛍️ Tienda online</div><div style={{ fontSize: 17, fontWeight: 900 }}>{d.web.cant} pedidos<Flecha a={d.web.cant} b={d.web.cant_ant} /></div><div style={{ fontSize: 12, color: tp.textMuted }}>{fmt(d.web.total)}</div></div>
-            <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🙋‍♀️ Clientas nuevas</div><div style={{ fontSize: 17, fontWeight: 900 }}>{d.clientas.nuevas}<Flecha a={d.clientas.nuevas} b={d.clientas.nuevas_ant} /></div><div style={{ fontSize: 12, color: tp.textMuted }}>la anterior: {d.clientas.nuevas_ant}</div></div>
+            <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🙋‍♀️ Clientes nuevas</div><div style={{ fontSize: 17, fontWeight: 900 }}>{d.clientas.nuevas}<Flecha a={d.clientas.nuevas} b={d.clientas.nuevas_ant} /></div><div style={{ fontSize: 12, color: tp.textMuted }}>la anterior: {d.clientas.nuevas_ant}</div></div>
             {d.mejor_dia && <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>⭐ Mejor día</div><div style={{ fontSize: 17, fontWeight: 900, textTransform: "capitalize" }}>{d.mejor_dia.dia}</div><div style={{ fontSize: 12, color: tp.textMuted }}>{fmt(d.mejor_dia.total)}</div></div>}
             {d.vendedoras[0] && <div style={caja}><div style={{ fontSize: 12, color: tp.textMuted, fontWeight: 700 }}>🏆 Vendió más</div><div style={{ fontSize: 15, fontWeight: 900 }}>{d.vendedoras[0].nombre}</div><div style={{ fontSize: 12, color: tp.textMuted }}>{d.vendedoras[0].cant} {d.vendedoras[0].cant === 1 ? "venta" : "ventas"} · {fmt(d.vendedoras[0].total)}</div></div>}
           </div>
@@ -1533,7 +1533,7 @@ function ResumenSemanal({ p, onCerrar }) {
     </div>
   );
 }
-// Aviso para la dueña si el servidor (Railway) quedo con una version vieja del codigo: las pantallas (Vercel) y el
+// Aviso para el dueño si el servidor (Railway) quedo con una version vieja del codigo: las pantallas (Vercel) y el
 // servidor se actualizan por separado; si a los minutos siguen distintos, las funciones nuevas pueden fallar
 const COMMIT_PANTALLAS = typeof __COMMIT__ !== "undefined" ? __COMMIT__ : "";
 function AvisoServidor({ p }) {
@@ -1551,7 +1551,7 @@ function AvisoServidor({ p }) {
     <button className="icon-btn" aria-label="Cerrar aviso" onClick={() => setViejo(false)}>✕</button>
   </div>;
 }
-// Se abre solo una vez por semana (la primera vez que la dueña entra desde el lunes)
+// Se abre solo una vez por semana (la primera vez que el dueño entra desde el lunes)
 function ResumenSemanalAuto({ usuario, p, negocioId }) {
   const clave = "lumiere_resumen_" + (negocioId || 0) + "_" + (usuario?.id || 0);
   const [ver, setVer] = useState(false);
@@ -1674,7 +1674,7 @@ function Dashboard({ localId, paletaActual }) {
         .slice(0, 5)
         .map(([nombre, cantidad]) => ({ nombre: nombre.length > 22 ? nombre.slice(0, 22) + "..." : nombre, cantidad }));
 
-      // Ventas por vendedora (para el grafico de barras horizontal) -- solo aparecen las
+      // Ventas por vendedor (para el grafico de barras horizontal) -- solo aparecen las
       // que vendieron algo este mes (las cuentas que no se usan quedan afuera).
       const porVendedora = {};
       ventas.forEach(v => {
@@ -3425,7 +3425,7 @@ function POS({ localId, usuario, paletaActual }) {
   const fichaClienteIdRef = useRef(null);
   const [mostrarAtajos, setMostrarAtajos] = useState(false);
   const [nombreEspera, setNombreEspera] = useState(null); // null = cerrado; texto = pidiendo el nombre
-  // Desafio para la vendedora: superar el ticket promedio del cliente. { meta, cliente, clienteId }
+  // Desafio para el vendedor: superar el ticket promedio del cliente. { meta, cliente, clienteId }
   const [reto, setReto] = useState(null);
   // El desafio se mide UNA vez por venta: al identificar al cliente en el paso de cobro, con lo
   // que ya hay en el carrito. Asi no sirve cargar el carrito de a partes para "ver" el desafio.
@@ -3474,7 +3474,7 @@ function POS({ localId, usuario, paletaActual }) {
       setImagenesProd(m);
     }).catch(() => {});
   }, [modoVista]);
-  // Configuracion de los desafios y progreso del mes de la vendedora logueada
+  // Configuracion de los desafios y progreso del mes del vendedor logueada
   const [retosConfig, setRetosConfig] = useState({ activo: true, meta_mensual: 10, premio_monto: 50000 });
   const [retosMes, setRetosMes] = useState(null); // { logrados, intentados, premio }
   const cargarRetosMes = () => {
@@ -3636,7 +3636,7 @@ function POS({ localId, usuario, paletaActual }) {
   };
   // Se identifica por producto + variante (antes sacar un talle sacaba todos los talles).
   const remove = (item) => setCart(prev => prev.filter(i => claveItem(i) !== claveItem(item)));
-  // "Tambien llevan": que ofrecer segun lo que hay en el carrito (compras juntas de otras clientas o lo que completa la rutina)
+  // "Tambien llevan": que ofrecer segun lo que hay en el carrito (compras juntas de otros clientes o lo que completa la rutina)
   const [tambien, setTambien] = useState([]);
   const idsCarrito = [...new Set(cart.filter(i => !i.es_ajuste && Number(i.id) > 0).map(i => Number(i.id)))].sort((a, b) => a - b).join(",");
   useEffect(() => {
@@ -3705,7 +3705,7 @@ function POS({ localId, usuario, paletaActual }) {
     setReto(r => (r && r.clienteId !== clienteId ? null : r));
     try {
       const r = await API.get("/pos/cliente/" + clienteId + "/resumen");
-      if (fichaClienteIdRef.current !== clienteId) return; // ya se eligio otra cliente
+      if (fichaClienteIdRef.current !== clienteId) return; // ya se eligio otro cliente
       setFichaCliente(r.data);
       const tieneAlgo = r.data && (r.data.compras > 0 || (r.data.gift_cards || []).length > 0 || (r.data.pendientes || []).length > 0 || (r.data.dias_cumple !== null && r.data.dias_cumple <= 15));
       if (abrir && tieneAlgo) setMostrarFicha(true);
@@ -4137,7 +4137,7 @@ function POS({ localId, usuario, paletaActual }) {
     try {
       const r = await API.get("/clientes/buscar-tel?tel=" + encodeURIComponent(tel));
       if (ultimoTelRef.current === tel) setTelResultados(r.data || []);
-    } catch (e) { if (ultimoTelRef.current === tel) setMensaje("⚠️ No se pudo buscar la clienta (revisá la conexión). Probá de nuevo."); }
+    } catch (e) { if (ultimoTelRef.current === tel) setMensaje("⚠️ No se pudo buscar el cliente (revisá la conexión). Probá de nuevo."); }
     finally { if (ultimoTelRef.current === tel) setBuscandoCliente(false); }
   };
   // Señas y preventas: un solo buscador por celular o DNI (trae las coincidencias de los dos)
@@ -4160,15 +4160,15 @@ function POS({ localId, usuario, paletaActual }) {
     if (dni.length < 7) { setClienteSeleccionado(null); return; }
     setBuscandoCliente(true);
     try {
-      // Búsqueda en el servidor: encuentra el DNI aunque la clienta esté guardada con CUIT, puntos o ceros adelante
+      // Búsqueda en el servidor: encuentra el DNI aunque el cliente esté guardada con CUIT, puntos o ceros adelante
       const res = await API.get("/clientes/buscar-dni?dni=" + encodeURIComponent(dni));
       if (ultimoDniBuscadoRef.current !== dni) return;
       const encontrado = res.data;
       if (encontrado && encontrado.id) { setClienteSeleccionado(encontrado); setShowNuevoCliente(false); cargarFicha(encontrado.id, cartRef.current.length === 0); }
       else { setClienteSeleccionado(null); if (dni.replace(/[^0-9]/g, "").length >= 8) setShowNuevoCliente(true); }
     } catch (e) {
-      // Si falla la búsqueda, se avisa (antes no pasaba nada y parecía que la clienta no existía)
-      if (ultimoDniBuscadoRef.current === dni) setMensaje("⚠️ No se pudo buscar la clienta (revisá la conexión). Probá de nuevo.");
+      // Si falla la búsqueda, se avisa (antes no pasaba nada y parecía que el cliente no existía)
+      if (ultimoDniBuscadoRef.current === dni) setMensaje("⚠️ No se pudo buscar el cliente (revisá la conexión). Probá de nuevo.");
     } finally {
       if (ultimoDniBuscadoRef.current === dni) setBuscandoCliente(false);
     }
@@ -4204,7 +4204,7 @@ function POS({ localId, usuario, paletaActual }) {
   };
 
 
-  // Halloween: juntar varios códigos de la calabaza de la clienta (hasta el tope; solo efectivo o transferencia)
+  // Halloween: juntar varios códigos de la calabaza del cliente (hasta el tope; solo efectivo o transferencia)
   const juntarCuponesHw = async (codigos) => {
     try {
       const r = (await API.get("/cupones/juntar-hw?codigos=" + encodeURIComponent(codigos.join(",")) + (clienteSeleccionado?.id ? "&cliente_id=" + clienteSeleccionado.id : ""))).data;
@@ -4220,7 +4220,7 @@ function POS({ localId, usuario, paletaActual }) {
     const varios = String(codigo).split(/[\s,+]+/).filter(Boolean);
     if (varios.length > 1) return juntarCuponesHw(varios);
     try {
-      // Se valida en el servidor con la clienta elegida (cupones personales y "uno por clienta")
+      // Se valida en el servidor con el cliente elegido (cupones personales y "uno por cliente")
       let c = null, motivo = "", dataCupon = null;
       try { dataCupon = (await API.get("/cupones/" + encodeURIComponent(codigo.toUpperCase()) + "/validar?monto=0" + (clienteSeleccionado?.id ? "&cliente_id=" + clienteSeleccionado.id : ""))).data; c = dataCupon.cupon; }
       catch (er) { motivo = er.response?.data?.error || ""; }
@@ -4794,7 +4794,7 @@ function POS({ localId, usuario, paletaActual }) {
     return [...opciones].filter(v => v >= base).sort((a, b) => a - b).slice(0, 5);
   };
 
-  // Ideas para la vendedora a partir de la ficha del cliente
+  // Ideas para el vendedor a partir de la ficha del cliente
   const ideasVenta = (f) => {
     const ideas = [];
     if (!f) return ideas;
@@ -4860,7 +4860,7 @@ function POS({ localId, usuario, paletaActual }) {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  // Pago en efectivo: se puede redondear el precio de cada producto (cualquier vendedora, con tope:
+  // Pago en efectivo: se puede redondear el precio de cada producto (cualquier vendedor, con tope:
   // hasta $1.000 o el 3% del precio). Si se cambia a otro medio, vuelven los precios originales.
   const esEfectivoSel = !pagoMixto && !!medioPagoSel && (medioPagoSel.tipo === "efectivo" || /efectivo/i.test(medioPagoSel.nombre || ""));
   // Rutina en cuotas: el medio de las cuotas sin interés solo se puede usar si el ticket tiene la rutina
@@ -5244,7 +5244,7 @@ function POS({ localId, usuario, paletaActual }) {
                           {i.redondeado && <button className="mini-chip" onClick={() => setItem({ precio: base, price: base, redondeado: false })}>Original {fmt(base).replace(SIN_CEROS, "")}</button>}
                           {!puedeHacer("pos.descuento") && <>
                             <input type="number" min="0" placeholder="Otro" className="mini-inp" style={{ width: 80, textAlign: "right" }} aria-label="Precio redondeado"
-                              onKeyDown={e => { if (e.key !== "Enter") return; const v = parseFloat(e.target.value) || 0; if (!v) return; if (Math.abs(v - base) > topeRedondeo(base)) { setMensaje("Para redondear se puede cambiar hasta " + fmt(topeRedondeo(base)).replace(SIN_CEROS, "") + ". Para más, pedí un descuento a la encargada."); setTimeout(() => setMensaje(""), 4000); return; } setItem({ precio: v, price: v, precio_orig: base, redondeado: v !== base }); setEditandoItemCarrito(null); }} />
+                              onKeyDown={e => { if (e.key !== "Enter") return; const v = parseFloat(e.target.value) || 0; if (!v) return; if (Math.abs(v - base) > topeRedondeo(base)) { setMensaje("Para redondear se puede cambiar hasta " + fmt(topeRedondeo(base)).replace(SIN_CEROS, "") + ". Para más, pedí un descuento al encargado."); setTimeout(() => setMensaje(""), 4000); return; } setItem({ precio: v, price: v, precio_orig: base, redondeado: v !== base }); setEditandoItemCarrito(null); }} />
                             <span style={{ fontSize: 10.5, color: temaPal.textMuted }}>hasta ±{fmt(topeRedondeo(base)).replace(SIN_CEROS, "")} (Enter)</span>
                           </>}
                         </div>;
@@ -5362,12 +5362,12 @@ function POS({ localId, usuario, paletaActual }) {
                 {clienteSeleccionado && clienteSeleccionado.id ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, border: "1px solid " + temaPal.border, marginBottom: 8, fontSize: 13 }}>
                     <span>👤</span><span style={{ flex: 1 }}><b>{clienteSeleccionado.nombre}</b>{clienteSeleccionado.telefono ? <span style={{ color: temaPal.textMuted }}> · 📱 {clienteSeleccionado.telefono}</span> : null}</span>
-                    <button className="icon-btn" aria-label="Quitar clienta" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setFichaCliente(null); fichaClienteIdRef.current = null; }}>✕</button>
+                    <button className="icon-btn" aria-label="Quitar cliente" onClick={() => { setClienteSeleccionado(null); setDniInput(""); setFichaCliente(null); fichaClienteIdRef.current = null; }}>✕</button>
                   </div>
                 ) : (
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ position: "relative" }}>
-                      <input className="inp" inputMode="tel" placeholder="🔎 Celular o DNI de la clienta" value={telInput} onChange={e => buscarClientaReserva(e.target.value)} aria-label="Buscar clienta por celular o DNI" />
+                      <input className="inp" inputMode="tel" placeholder="🔎 Celular o DNI del cliente" value={telInput} onChange={e => buscarClientaReserva(e.target.value)} aria-label="Buscar cliente por celular o DNI" />
                       {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
                     </div>
                     {telResultados && telResultados.length === 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>No está registrada. Escribí su nombre abajo o <button className="mini-chip" onClick={abrirAltaCliente}>👤＋ registrala</button></div>}
@@ -5453,16 +5453,16 @@ function POS({ localId, usuario, paletaActual }) {
                     </div>
                   ) : (
                     <>
-                      <div className="seg" role="group" aria-label="Buscar clienta por" style={{ marginBottom: 6 }}>
+                      <div className="seg" role="group" aria-label="Buscar cliente por" style={{ marginBottom: 6 }}>
                         <button className={busqCliPor === "dni" ? "on" : ""} onClick={() => { setBusqCliPor("dni"); setTimeout(() => dniRef.current?.focus(), 30); }}>DNI</button>
                         <button className={busqCliPor === "tel" ? "on" : ""} onClick={() => { setBusqCliPor("tel"); setShowNuevoCliente(false); }}>📱 Celular</button>
                       </div>
                       {busqCliPor === "tel" && <div style={{ marginBottom: 6 }}>
                         <div style={{ position: "relative" }}>
-                          <input className="inp" inputMode="tel" autoFocus placeholder="Celular (con o sin código de área)" value={telInput} onChange={e => buscarClientePorTel(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px" }} aria-label="Celular de la clienta" />
+                          <input className="inp" inputMode="tel" autoFocus placeholder="Celular (con o sin código de área)" value={telInput} onChange={e => buscarClientePorTel(e.target.value)} style={{ fontSize: 15, fontWeight: 700, padding: "10px 12px" }} aria-label="Celular del cliente" />
                           {buscandoCliente && <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: temaPal.textMuted }}>buscando…</span>}
                         </div>
-                        {telResultados && telResultados.length === 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>No hay ninguna clienta con ese celular. <button className="mini-chip" onClick={abrirAltaCliente}>👤＋ Registrarla</button></div>}
+                        {telResultados && telResultados.length === 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>No hay ningún cliente con ese celular. <button className="mini-chip" onClick={abrirAltaCliente}>👤＋ Registrarla</button></div>}
                         {telResultados && telResultados.length > 0 && <div className="pop-in" style={{ marginTop: 6, display: "grid", gap: 4 }}>
                           {telResultados.map(c => <button key={c.id} className="btn btn-g btn-sm" style={{ display: "flex", justifyContent: "space-between", gap: 8, textAlign: "left", width: "100%" }} onClick={() => elegirClientaTel(c)}>
                             <span><b>{c.nombre}</b>{c.cuit_dni ? <span style={{ color: temaPal.textMuted, fontWeight: 500 }}> · DNI {c.cuit_dni}</span> : null}</span>
@@ -5653,7 +5653,7 @@ function POS({ localId, usuario, paletaActual }) {
                       {cuotasMezcla && (
                         <div className="pop-in" role="alert" style={{ fontSize: 12.5, marginTop: 6, padding: "10px 12px", borderRadius: 8, background: temaPal.red + "18", border: "1px solid " + temaPal.red, color: temaPal.text, lineHeight: 1.4 }}>
                           <b style={{ color: temaPal.red }}>⚠️ Hacé dos tickets.</b> {cuotasMezcla.sin.map(i => i.nombre || i.name).join(", ")} {cuotasMezcla.sin.length === 1 ? "no tiene" : "no tienen"} cuotas sin interés.
-                          <div style={{ marginTop: 4 }}>1) Cobrá en cuotas solo: <b>{cuotasMezcla.con.map(i => i.nombre || i.name).join(", ")}</b>. 2) El resto, en otro ticket con el medio que elija la clienta.</div>
+                          <div style={{ marginTop: 4 }}>1) Cobrá en cuotas solo: <b>{cuotasMezcla.con.map(i => i.nombre || i.name).join(", ")}</b>. 2) El resto, en otro ticket con el medio que elija el cliente.</div>
                         </div>
                       )}
                       {rutinaCuotas && cart.length > 0 && (rutinaPos > 0 || usaMedioRutina) && (
@@ -9991,7 +9991,7 @@ const SEGMENTOS_CLIENTES = [
 // Cumpleaños: quién cumple (hoy, los próximos días y los que ya pasaron), saludo por WhatsApp con el mensaje
 // del local (editable) y marca de "ya la saludamos" para que no le escriban dos veces
 const MESES_CUMPLE = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-// Lo que compró una clienta: los productos que más lleva y sus últimas compras
+// Lo que compró un cliente: los productos que más lleva y sus últimas compras
 function DetalleComprasCumple({ ventas, p, $ }) {
   if (!ventas || ventas === "cargando") return <div className="skel" style={{ height: 70, width: "100%", marginTop: 8 }} />;
   if (!ventas.length) return <div style={{ width: "100%", fontSize: 12.5, color: p.textMuted, marginTop: 6 }}>No encontramos compras en el sistema (puede tener compras viejas cargadas solo como monto).</div>;
@@ -10022,7 +10022,7 @@ function PanelCumples({ clientes, busqueda, p, onFicha }) {
   // Filtro: todas, o desde un nivel (el nivel sale de todo lo que compró), y orden por día o por lo que gastó
   const [desde, setDesde] = useState(() => { try { return localStorage.getItem("lumiere_cumple_desde") || "Bronze"; } catch (e) { return "Bronze"; } });
   const [ordenG, setOrdenG] = useState(false);
-  const [abierta, setAbierta] = useState(null); // clienta con el detalle de compras abierto
+  const [abierta, setAbierta] = useState(null); // cliente con el detalle de compras abierto
   const [compras, setCompras] = useState({}); // id -> ventas (o "cargando")
   const elegirDesde = (n) => { setDesde(n); try { localStorage.setItem("lumiere_cumple_desde", n); } catch (e) {} };
   const verCompras = (c) => {
@@ -10094,7 +10094,7 @@ function PanelCumples({ clientes, busqueda, p, onFicha }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
         {[[0, "Este mes (" + MESES_CUMPLE[ar.getMonth()] + ")"], [1, "El mes que viene"]].map(([k, t]) => <button key={k} className={"chip-btn" + (mes === k ? " on" : "")} onClick={() => setMes(k)}>{t}</button>)}
         <button className={"chip-btn" + (ordenG ? " on" : "")} onClick={() => setOrdenG(v => !v)}>💰 Ordenar por lo que gastó</button>
-        {pendientesHoy > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: "#a970ff" }}>{pendientesHoy === 1 ? "1 clienta para saludar" : pendientesHoy + " clientas para saludar"}</span>}
+        {pendientesHoy > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: "#a970ff" }}>{pendientesHoy === 1 ? "1 cliente para saludar" : pendientesHoy + " clientes para saludar"}</span>}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: p.textMuted }}>Mostrar:</span>
@@ -10112,7 +10112,7 @@ function PanelCumples({ clientes, busqueda, p, onFicha }) {
           <div style={{ fontSize: 13.5, marginTop: 6, color: p.textSoft || p.text, whiteSpace: "pre-wrap" }}>{cfg ? texto({ nombre: "Laura" }) : "…"}</div>
         ) : (<>
           <textarea className="inp" rows={4} maxLength={600} style={{ marginTop: 8 }} value={editando} onChange={e => setEditando(e.target.value)} aria-label="Mensaje de cumpleaños" />
-          <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>Tocá para sumar al mensaje: {[["{nombre}", "nombre de la clienta"], ["{negocio}", "nombre del local"]].map(([k, t]) => <button key={k} className="chip-btn" style={{ marginLeft: 4 }} onClick={() => setEditando(m => (m || "") + (/\s$/.test(m || "") || !m ? "" : " ") + k)}>{t}</button>)}</div>
+          <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>Tocá para sumar al mensaje: {[["{nombre}", "nombre del cliente"], ["{negocio}", "nombre del local"]].map(([k, t]) => <button key={k} className="chip-btn" style={{ marginLeft: 4 }} onClick={() => setEditando(m => (m || "") + (/\s$/.test(m || "") || !m ? "" : " ") + k)}>{t}</button>)}</div>
           <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>Así le llega a Laura:</div>
           <div className="cum-prev">{texto({ nombre: "Laura" }, editando)}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
@@ -10751,7 +10751,7 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   const conc = [];
   if (varFact !== null) conc.push(varFact >= 0 ? ["🎉", "Vendiste " + Math.round(varFact) + "% más que en " + antTxt + (d.en_curso ? " (mismos días)" : "") + "."] : ["📉", "Vendiste " + Math.abs(Math.round(varFact)) + "% menos que en " + antTxt + (d.en_curso ? " (mismos días)" : "") + "."]);
   if (d.ingresos > 0) conc.push(d.neto >= 0 ? ["💰", "De cada $100 que entraron, te quedaron $" + queda + " después de pagar todo."] : ["⚠️", "Este mes se gastó más de lo que entró: faltaron " + infPlata(-d.neto) + "."]);
-  if (varTicket !== null && Math.abs(varTicket) >= 3) conc.push(varTicket > 0 ? ["🛍️", "Cada clienta gastó en promedio " + Math.round(varTicket) + "% más que en " + antTxt + "."] : ["🛍️", "El ticket promedio bajó " + Math.abs(Math.round(varTicket)) + "%: sumá productos complementarios en caja."]);
+  if (varTicket !== null && Math.abs(varTicket) >= 3) conc.push(varTicket > 0 ? ["🛍️", "Cada cliente gastó en promedio " + Math.round(varTicket) + "% más que en " + antTxt + "."] : ["🛍️", "El ticket promedio bajó " + Math.abs(Math.round(varTicket)) + "%: sumá productos complementarios en caja."]);
   const subeGasto = partesEg.map(x => ({ ...x, var: infVar(x.v, x.ant) })).filter(x => x.var !== null && x.var > 20 && x.v > d.egresos_total * 0.1).sort((a, b) => b.var - a.var)[0];
   if (subeGasto) conc.push(["🔎", "Ojo: lo gastado en «" + subeGasto.n + "» creció " + Math.round(subeGasto.var) + "% respecto de " + antTxt + "."]);
   if (reina) conc.push(["👑", reina.nombre.split(" ")[0] + " fue la que más vendió: " + infCorto(reina.total) + "."]);
@@ -10910,9 +10910,9 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
         </div>}
 
         <div className="inf-sec">
-          <div className="inf-h"><span>👩</span>Clientas</div>
+          <div className="inf-h"><span>👩</span>Clientes</div>
           <div className="inf-g3">
-            <div className="inf-card inf-kpi"><div className="e">🆕</div><div className="n">{d.clientas.nuevas}</div><div className="t">clientas nuevas</div><InfFlecha v={infVar(d.clientas.nuevas, d.clientas.nuevas_ant)} chico /></div>
+            <div className="inf-card inf-kpi"><div className="e">🆕</div><div className="n">{d.clientas.nuevas}</div><div className="t">clientes nuevos</div><InfFlecha v={infVar(d.clientas.nuevas, d.clientas.nuevas_ant)} chico /></div>
             <div className="inf-card inf-kpi"><div className="e">🔁</div><div className="n">{fidel !== null ? fidel + "%" : "—"}</div><div className="t">volvieron a comprar</div></div>
             <div className="inf-card inf-kpi"><div className="e">🌐</div><div className="n">{d.web.cant}</div><div className="t">pedidos online</div><InfFlecha v={infVar(d.web.cant, d.web.cant_ant)} chico /></div>
           </div>
@@ -12037,12 +12037,12 @@ function Cupones({ localId, usuario, paletaActual }) {
     } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo crear el cupón")); }
   };
 
-  // "Uno por clienta": cada clienta lo puede usar una vez (en la caja hay que elegir a la clienta; online, con su cuenta o su WhatsApp)
+  // "Uno por cliente": cada cliente lo puede usar una vez (en la caja hay que elegir al cliente; online, con su cuenta o su WhatsApp)
   const toggleUnoPorClienta = async (c) => {
     try {
       await updateCupon(c.id, { ...c, uno_por_clienta: !c.uno_por_clienta });
       setCupons(p => p.map(x => x.id === c.id ? { ...x, uno_por_clienta: !x.uno_por_clienta } : x));
-      setMensaje(!c.uno_por_clienta ? "✓ " + c.codigo + ": ahora cada clienta lo puede usar una sola vez" : c.codigo + ": se puede usar sin límite por clienta"); setTimeout(() => setMensaje(""), 3500);
+      setMensaje(!c.uno_por_clienta ? "✓ " + c.codigo + ": ahora cada cliente lo puede usar una sola vez" : c.codigo + ": se puede usar sin límite por cliente"); setTimeout(() => setMensaje(""), 3500);
     } catch (e) { setMensaje("Error: " + (e.response?.data?.error || "no se pudo cambiar")); }
   };
 
@@ -12120,7 +12120,7 @@ function Cupones({ localId, usuario, paletaActual }) {
       {tab === "lista" && (
         <div className="card fade">
           <table>
-            <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th title="Cada clienta lo puede usar una sola vez">1 por clienta</th><th>Activo</th></tr></thead>
+            <thead><tr><th>Codigo</th><th>Descripcion</th><th>Descuento</th><th>Canal</th><th>Usos</th><th>Vence</th><th title="Cada cliente lo puede usar una sola vez">1 por cliente</th><th>Activo</th></tr></thead>
             <tbody>
               {cuponsAMostrar.length === 0 && (
                 <tr><td colSpan={8} style={{ textAlign: "center", color: temaPal.textMuted, padding: 20 }}>Todavía no hay cupones. Creá el primero en la pestaña Crear.</td></tr>
@@ -12128,7 +12128,7 @@ function Cupones({ localId, usuario, paletaActual }) {
               {cuponsAMostrar.map(c => (
                 <tr key={c.id}>
                   <td style={{ color: "var(--acento-texto)", letterSpacing: ".06em", fontWeight: 600 }}>{c.codigo || c.code}</td>
-                  <td>{c.descripcion || c.desc}{c.personal && <div><span className="badge" style={{ background: "#8e44ad22", color: "#8e44ad", fontWeight: 700 }} title="Lo ganó una clienta: solo lo puede usar ella">🔒 Personal{c.duena_nombre ? ": " + c.duena_nombre : ""}</span></div>}</td>
+                  <td>{c.descripcion || c.desc}{c.personal && <div><span className="badge" style={{ background: "#8e44ad22", color: "#8e44ad", fontWeight: 700 }} title="Lo ganó un cliente: solo lo puede usar esa persona">🔒 Personal{c.duena_nombre ? ": " + c.duena_nombre : ""}</span></div>}</td>
                   <td>{(c.tipo || c.type) === "%" ? (c.valor || c.value) + "%" : fmt((c.valor || c.value || 0))}</td>
                   <td><span className="badge bb">{c.canal || c.channel}</span></td>
                   <td>{c.usos || c.uses || 0}{(c.max_usos || c.max) ? "/" + (c.max_usos || c.max) : ""}</td>
@@ -12151,7 +12151,7 @@ function Cupones({ localId, usuario, paletaActual }) {
             <div className="fg"><div className="fl">Valor</div><input className="inp" type="number" placeholder={nc.type === "%" ? "15" : "5000"} value={nc.value} onChange={e => setNc(p => ({ ...p, value: e.target.value }))} /></div>
             <div className="fg"><div className="fl">Canal</div><select className="sel" value={nc.channel} onChange={e => setNc(p => ({ ...p, channel: e.target.value }))}><option>Instagram</option><option>TikTok</option><option>Email</option><option>Influencer</option><option>Automatico</option></select></div>
             <div className="fg"><div className="fl">Max. usos (vacio = ilimitado)</div><input className="inp" type="number" placeholder="100" value={nc.max} onChange={e => setNc(p => ({ ...p, max: e.target.value }))} /></div>
-            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13, margin: "4px 0 12px" }}><input type="checkbox" checked={!!nc.uno} onChange={e => setNc(p => ({ ...p, uno: e.target.checked }))} style={{ marginTop: 3 }} /><span><b>Una sola vez por clienta</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>En la caja hay que elegir a la clienta (por DNI). En la tienda online se controla con su cuenta o su WhatsApp.</div></span></label>
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13, margin: "4px 0 12px" }}><input type="checkbox" checked={!!nc.uno} onChange={e => setNc(p => ({ ...p, uno: e.target.checked }))} style={{ marginTop: 3 }} /><span><b>Una sola vez por cliente</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>En la caja hay que elegir al cliente (por DNI). En la tienda online se controla con su cuenta o su WhatsApp.</div></span></label>
             <button className="btn btn-p" style={{ width: "100%" }} onClick={guardarCupon}>Crear cupon</button>
           </div>
           <div className="card">
@@ -12709,7 +12709,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
   const [cliSel, setCliSel] = useState(null);
   const [prodSel, setProdSel] = useState(null);
   const [itemNuevo, setItemNuevo] = useState("");
-  // Varios productos por clienta: se anotan todos juntos (un pedido por producto, así cada uno tiene su aviso)
+  // Varios productos por cliente: se anotan todos juntos (un pedido por producto, así cada uno tiene su aviso)
   const [prodLista, setProdLista] = useState([]); // [{ id, nombre, stock }] o [{ texto }]
   const sumarProd = (pr) => setProdLista(l => l.some(x => x.id === pr.id) ? l : [...l, { id: pr.id, nombre: pr.nombre, stock: Number(localId) === 2 ? (pr.stock_ush || 0) : (pr.stock_rg || 0) }]);
   const sumarTexto = () => { const t = itemNuevo.trim(); if (!t) return; setProdLista(l => l.some(x => x.texto && x.texto.toLowerCase() === t.toLowerCase()) ? l : [...l, { texto: t }]); setItemNuevo(""); };
@@ -12831,7 +12831,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
       .join("\n").replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m)).trim();
   };
   const textoAviso = (pd) => armarAviso(mensajeAviso || AVISO_BASE, pd);
-  // Varios productos de la misma clienta: un solo mensaje con todo lo que llegó y lo que todavía falta
+  // Varios productos del mismo cliente: un solo mensaje con todo lo que llegó y lo que todavía falta
   const listaY = (arr) => arr.length <= 1 ? (arr[0] || "") : arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1];
   const textoAvisoGrupo = (g) => {
     if (g.listos.length === 1 && g.faltan.length === 0) return textoAviso(g.listos[0]);
@@ -12948,7 +12948,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
 
   const esperaLocal = pedidos.filter(delLocal);
   const listosLocal = pedidosListos.filter(delLocal);
-  // "Ya hay stock" agrupado por clienta (y local): si de 3 productos llegaron 2, sale una sola tarjeta con los 2 y lo que falta
+  // "Ya hay stock" agrupado por cliente (y local): si de 3 productos llegaron 2, sale una sola tarjeta con los 2 y lo que falta
   const claveCli = (p) => (p.cliente_id ? "c" + p.cliente_id : "m" + String(p.cliente_nombre || "").trim().toLowerCase() + "|" + String(p.telefono || "").replace(/[^0-9]/g, "")) + "@" + (p.local_id || 1);
   const gruposListos = (() => {
     const ids = new Set(pedidosListos.map(x => x.id));
@@ -13011,7 +13011,7 @@ function Pedidos({ localId, usuario, paletaActual }) {
         ) : (
           <>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-              <div style={{ fontSize: 12, color: pal.textMuted, flex: "1 1 260px" }}>Estos productos que los clientes esperaban ya tienen stock. Si una clienta pidió varios, sale <b>una sola tarjeta</b> con lo que llegó y lo que todavía falta. Al tocar <b>WhatsApp</b> se abre el mensaje listo y lo que llegó pasa a <b>Avisados</b>; lo que falta sigue En espera.</div>
+              <div style={{ fontSize: 12, color: pal.textMuted, flex: "1 1 260px" }}>Estos productos que los clientes esperaban ya tienen stock. Si un cliente pidió varios, sale <b>una sola tarjeta</b> con lo que llegó y lo que todavía falta. Al tocar <b>WhatsApp</b> se abre el mensaje listo y lo que llegó pasa a <b>Avisados</b>; lo que falta sigue En espera.</div>
               {puedeEditarAviso && <button className="btn btn-g btn-sm" onClick={() => setEditorAviso(mensajeAviso || AVISO_BASE)}>✏️ Cambiar mensaje</button>}
             </div>
             <div className="oi-grid">
@@ -13705,9 +13705,9 @@ function RecuperarClientes({ temaPal, grupoInicial }) {
   );
 }
 
-// Para reponer: clientas a las que se les esta por terminar un producto (segun cuanto dura cada tipo)
+// Para reponer: clientes a los que se les esta por terminar un producto (segun cuanto dura cada tipo)
 const PLANTILLA_REPONER = "¡Hola {nombre}! 🌻 ¿Cómo te está yendo con {producto}? Calculamos que ya se te debe estar terminando 😉 Si querés reponerlo, te lo separamos en el local o lo pedís en nuestra tienda online. ¡Te esperamos en {negocio}!";
-// Cuánto dura de verdad cada producto: lo que contestaron las clientas en "Restockearme" de la tienda (privado)
+// Cuánto dura de verdad cada producto: lo que contestaron los clientes en "Restockearme" de la tienda (privado)
 function DuracionReal({ temaPal }) {
   const p = temaPal;
   const [d, setD] = useState(null);
@@ -13719,7 +13719,7 @@ function DuracionReal({ temaPal }) {
   return (
     <div className="card" style={{ marginBottom: 14, textAlign: "left" }}>
       <div className="ct">📊 Cuánto les dura de verdad</div>
-      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "2px 0 10px", lineHeight: 1.5 }}>Lo que contestaron las clientas en <b>Restockearme</b> de la tienda cuando tocan "Todavía tengo" (mucho / la mitad / poco). Es solo para vos: sirve para ajustar los avisos y para contarles a otras clientas cuánto rinde cada producto.</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "2px 0 10px", lineHeight: 1.5 }}>Lo que contestaron los clientes en <b>Restockearme</b> de la tienda cuando tocan "Todavía tengo" (mucho / la mitad / poco). Es solo para vos: sirve para ajustar los avisos y para contarles a otros clientes cuánto rinde cada producto.</div>
       <div style={{ overflowX: "auto" }}>
         <table>
           <thead><tr><th>Producto</th><th style={{ textAlign: "center" }}>Respuestas</th><th>Dura en promedio</th><th>Estimábamos</th><th style={{ textAlign: "center" }}>Mucho / Mitad / Poco</th></tr></thead>
@@ -13765,7 +13765,7 @@ function ReponerClientes({ temaPal }) {
   const estado = (c) => { const r = c.duracion - c.dias; return r > 0 ? ["Se le termina en ~" + r + " día" + (r === 1 ? "" : "s"), "#b7950b"] : r === 0 ? ["Se le termina hoy", "#d35400"] : ["Ya se le terminó (hace ~" + (-r) + " día" + (r === -1 ? "" : "s") + ")", "#c0392b"]; };
   return (
     <div className="fade" style={{ textAlign: "left" }}>
-      <div className="cli-tip" style={{ margin: "0 0 12px" }}>🧴 Clientas a las que <b>se les está por terminar</b> un producto que compraron, según cuánto dura cada tipo (aprox.): {((datos && datos.duraciones) || []).map(d => d.tipo.toLowerCase() + " " + d.dias + " días").join(" · ")}. Un mensaje a tiempo trae la recompra.</div>
+      <div className="cli-tip" style={{ margin: "0 0 12px" }}>🧴 Clientes a las que <b>se les está por terminar</b> un producto que compraron, según cuánto dura cada tipo (aprox.): {((datos && datos.duraciones) || []).map(d => d.tipo.toLowerCase() + " " + d.dias + " días").join(" · ")}. Un mensaje a tiempo trae la recompra.</div>
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="ct">Mensaje (podés editarlo)</div>
         <textarea className="inp" rows={3} style={{ resize: "vertical" }} value={plantilla} onChange={e => setPlantilla(e.target.value)} aria-label="Mensaje" />
@@ -13778,7 +13778,7 @@ function ReponerClientes({ temaPal }) {
           <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
         </div>
         {!datos ? <div className="skel" style={{ height: 160 }} /> : datos.error ? <div className="empty">No se pudo cargar la lista.</div>
-          : lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{todos.length ? "Ya les avisaste a todas. 👏" : "Por ahora no hay clientas a las que se les esté terminando un producto."}</div> : (
+          : lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{todos.length ? "Ya les avisaste a todos. 👏" : "Por ahora no hay clientes a los que se les esté terminando un producto."}</div> : (
           <div>
             {lista.slice(0, limite).map(c => { const tel = numeroWhatsApp(c.telefono); const [txt, col] = estado(c); return (
               <div key={c.id + "-" + c.producto_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid " + temaPal.border, opacity: c.recien ? 0.55 : 1 }}>
@@ -16759,7 +16759,7 @@ function PremiosPortal({ p, avisar }) {
             <div className="fg">
               <div className="fl">¿Es un descuento? % de descuento (dejalo vacío si el premio es un producto)</div>
               <input className="inp" type="number" min="0" max="100" placeholder="Ej: 10 para 10% off" value={form.descuento_pct || ""} onChange={set("descuento_pct")} />
-              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>Al canjearlo, la clienta recibe un código de un solo uso (vale 90 días) para usar en la tienda online o en el Punto de Venta.</div>
+              <div style={{ fontSize: 11, color: p.textMuted, marginTop: 3 }}>Al canjearlo, el cliente recibe un código de un solo uso (vale 90 días) para usar en la tienda online o en el Punto de Venta.</div>
             </div>
             <div className="prem-form-2">
               <div className="fg">
@@ -17184,7 +17184,7 @@ function PortalCliente({ usuario, paletaActual }) {
 }
 
 
-// Desafios de venta del mes: cuantos retos supero cada vendedora y si ya gano (o se le
+// Desafios de venta del mes: cuantos retos supero cada vendedor y si ya gano (o se le
 // entrego) el premio. Se muestra dentro de Comisiones.
 function DesafiosMes({ localId, usuario, mes, anio, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
@@ -17726,7 +17726,7 @@ function Comisiones({ localId, usuario, paletaActual }) {
   const totalSeleccionado = modoPago === "manual"
     ? (parseFloat(montoManual) || 0)
     : (hist?.registros || []).filter(r => sel.includes(r.id)).reduce((s, r) => s + parseFloat(r.comision_ganada || 0), 0);
-  // Las empleadas tienen 20% de descuento automatico sobre el precio de lista
+  // Los empleados tienen 20% de descuento automatico sobre el precio de lista
   const DESCUENTO_EMPLEADA = 0.20;
   const precioConDescuento = prodCanje ? parseFloat(prodCanje.precio || 0) * (1 - DESCUENTO_EMPLEADA) : 0;
   const costoCanje = precioConDescuento * cantidadCanje;
@@ -17947,7 +17947,7 @@ function Comisiones({ localId, usuario, paletaActual }) {
 
             {formaPago === "canje" && (
               <>
-                <div className="fg"><div className="fl">Producto del canje (20% de descuento de empleada ya aplicado)</div>
+                <div className="fg"><div className="fl">Producto del canje (20% de descuento de empleado ya aplicado)</div>
                   {prodCanje ? (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: p.bg, borderRadius: 6 }}>
                       <span style={{ fontSize: 12 }}>{prodCanje.nombre} <span style={{ color: p.textMuted }}>({fmt(precioConDescuento)} c/u)</span></span>
@@ -19506,7 +19506,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
   const [verTicket, setVerTicket] = useState(null);
   const [telTicket, setTelTicket] = useState("");
   const abrirTicket = (v) => { setVerTicket(v); setTelTicket(v.cliente_telefono || ""); };
-  // Ticket por WhatsApp: el mismo detalle del ticket en texto, al numero de la clienta
+  // Ticket por WhatsApp: el mismo detalle del ticket en texto, al numero del cliente
   const textoTicketWA = (v) => [
     "*" + nombreLocal(v.local_id) + "*",
     (v.cae ? "Factura " + (v.tipo_factura || "B") : "Comprobante") + " " + fmtNro(v),
@@ -19522,7 +19522,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
   ].filter(x => x !== null).join("\n");
   const mandarTicketWA = (v) => {
     let tel = String(telTicket || "").replace(/[^0-9]/g, "");
-    if (tel.length < 8) return avisar("Error: escribí el WhatsApp de la clienta (con código de área)");
+    if (tel.length < 8) return avisar("Error: escribí el WhatsApp del cliente (con código de área)");
     if (tel.startsWith("0")) tel = tel.slice(1);
     if (!tel.startsWith("54")) tel = "549" + tel;
     window.open("https://wa.me/" + tel + "?text=" + encodeURIComponent(textoTicketWA(v)), "_blank");
@@ -19741,7 +19741,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
               {["Devolución", "Error en la factura", "Venta anulada", "Descuento posterior"].map(t => <button key={t} className="mini-chip" onClick={() => setNc(x => ({ ...x, motivo: t }))}>{t}</button>)}
             </div>
             <div style={{ fontSize: 11, color: p.textMuted, background: p.bg, borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
-              ℹ️ La nota de crédito es el comprobante para ARCA: no devuelve stock ni saca plata de la caja. Si la clienta devolvió productos o se le reintegró plata, hacelo como siempre desde Cambios o anulando la venta.
+              ℹ️ La nota de crédito es el comprobante para ARCA: no devuelve stock ni saca plata de la caja. Si el cliente devolvió productos o se le reintegró plata, hacelo como siempre desde Cambios o anulando la venta.
             </div>
             {nc.v.total_nc > 0 && <div style={{ fontSize: 11, color: p.textMuted, marginBottom: 10 }}>Esta factura ya tiene notas de crédito por {fmt(nc.v.total_nc)}.</div>}
             <div style={{ display: "flex", gap: 8 }}>
@@ -19761,7 +19761,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
             </div>
             <iframe title="Vista del ticket" srcDoc={htmlTicket(verTicket, false)} sandbox="" style={{ width: "100%", height: "60vh", border: "1px solid " + p.border, borderRadius: 8, background: "#fff" }} />
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <input className="inp" style={{ flex: 1 }} inputMode="tel" placeholder="WhatsApp de la clienta (ej: 2964 123456)" value={telTicket} onChange={e => setTelTicket(e.target.value)} aria-label="WhatsApp de la clienta" />
+              <input className="inp" style={{ flex: 1 }} inputMode="tel" placeholder="WhatsApp del cliente (ej: 2964 123456)" value={telTicket} onChange={e => setTelTicket(e.target.value)} aria-label="WhatsApp del cliente" />
               <button className="btn btn-g" style={{ background: "#25d366", color: "#fff", borderColor: "#25d366" }} onClick={() => mandarTicketWA(verTicket)}>📲 Enviar por WhatsApp</button>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -19806,7 +19806,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
 
       {r && r.anulados_con_cae > 0 && (
         <div className="dash-alert">
-          <span>⚠️ <b>{r.anulados_con_cae} factura{r.anulados_con_cae !== 1 ? "s" : ""} con CAE anulada{r.anulados_con_cae !== 1 ? "s" : ""}</b> en el sistema. Ante ARCA siguen vigentes hasta que les hagas la nota de crédito{puedeNC ? ": entrá a cada una y tocá “↩ Nota de crédito”." : " (pedíselo a la dueña o a administración)."}</span>
+          <span>⚠️ <b>{r.anulados_con_cae} factura{r.anulados_con_cae !== 1 ? "s" : ""} con CAE anulada{r.anulados_con_cae !== 1 ? "s" : ""}</b> en el sistema. Ante ARCA siguen vigentes hasta que les hagas la nota de crédito{puedeNC ? ": entrá a cada una y tocá “↩ Nota de crédito”." : " (pedíselo al dueño o a administración)."}</span>
           <button className="chip-btn" onClick={() => setEstado("anulados")}>Ver cuáles</button>
         </div>
       )}
@@ -19925,7 +19925,7 @@ function Comprobantes({ localId, usuario, paletaActual }) {
 
 // 🧪 Testers: qué tester hay abierto en cada local, desde cuándo, cuánto dura cada uno y cuánto se gasta por marca
 // 💡 Ideas y mejoras: mejora continua del negocio, anotada por todo el equipo (routes/mejoras.js)
-const MJ_TIPOS = [["problema", "⚠️", "Un problema"], ["clienta", "💬", "Lo dijo una clienta"], ["idea", "💡", "Una idea"]];
+const MJ_TIPOS = [["problema", "⚠️", "Un problema"], ["clienta", "💬", "Lo dijo un cliente"], ["idea", "💡", "Una idea"]];
 const MJ_AREAS = [["atencion", "Atención"], ["local", "Local y vidriera"], ["tienda", "Tienda online"], ["stock", "Stock y pedidos"], ["caja", "Caja y pagos"], ["redes", "Redes y difusión"], ["equipo", "Equipo"], ["otro", "Otro"]];
 const MJ_PRIO = [["urgente", "🔥 Urgente"], ["importante", "Importante"], ["cuando", "Cuando se pueda"]];
 const MJ_COLS = [["nueva", "📥 Nuevas", "Lo que se anotó y todavía nadie tomó"], ["en_marcha", "🛠️ En marcha", "Con responsable y fecha"], ["hecha", "✅ Hechas", "Qué se hizo y si funcionó"]];
@@ -20059,7 +20059,7 @@ function IdeasMejoras({ localId, usuario, paletaActual }) {
         <div className="card" style={{ textAlign: "center", padding: 28 }}>
           <div style={{ fontSize: 38 }}>💡</div>
           <b>Todavía no hay nada anotado</b>
-          <div style={{ color: tp.textMuted, fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>Cuando algo se repite (una clienta que pregunta siempre lo mismo, un producto que se agota, algo que tarda), anotalo acá.<br />Así no se pierde y se puede resolver de a una cosa por vez.</div>
+          <div style={{ color: tp.textMuted, fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>Cuando algo se repite (un cliente que pregunta siempre lo mismo, un producto que se agota, algo que tarda), anotalo acá.<br />Así no se pierde y se puede resolver de a una cosa por vez.</div>
         </div>
       ) : (
         <div className="mj-cols">
@@ -20173,7 +20173,7 @@ function Testers({ localId, usuario, paletaActual }) {
     </div>
   );
 }
-// 🏆 Clienta del mes: competencia entre clientas (puntos del mes = 1 cada $100 comprados). Ellas ven su puesto en su
+// 🏆 Cliente del mes: competencia entre clientes (puntos del mes = 1 cada $100 comprados). Ellas ven su puesto en su
 // cuenta de la tienda; al terminar el mes se cierra y cada puesto con premio se lo lleva. Los premios se cambian mes a mes.
 const MESES_DM = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const puestoTxt = (p) => p.desde === p.hasta ? p.desde + "°" : p.desde + "° a " + p.hasta + "°";
@@ -20194,18 +20194,18 @@ function DelMes({ usuario, paletaActual }) {
   const setP = (i, cambio) => setCfg(c => ({ ...c, premios: c.premios.map((p, j) => j === i ? { ...p, ...cambio } : p) }));
   const guardarCfg = async () => { try { const r = await API.put("/del-mes/config", cfg); setCfg({ activo: r.data.activo, premios: r.data.premios }); avisar("✓ Guardado"); cargar(); } catch (e) { avisar("No se pudo guardar"); } };
   const cerrar = async () => {
-    if (!window.confirm("¿Cerrar " + MESES_DM[d.mes - 1] + " y repartir los premios?\n\nCada clienta con premio lo va a ver en su cuenta y se le suman los puntos extra. No se puede deshacer.")) return;
+    if (!window.confirm("¿Cerrar " + MESES_DM[d.mes - 1] + " y repartir los premios?\n\nCada cliente con premio lo va a ver en su cuenta y se le suman los puntos extra. No se puede deshacer.")) return;
     try { const r = await API.post("/del-mes/cerrar", { anio: d.anio, mes: d.mes }); avisar("✓ Mes cerrado: " + r.data.ganadoras + " ganadoras"); cargar(); } catch (e) { avisar(e.response?.data?.error || "No se pudo cerrar"); }
   };
   const entregar = async (g, si) => { try { await API.post("/del-mes/entregado", { anio: d.anio, mes: d.mes, cliente_id: g.cliente_id, entregado: si }); cargar(); } catch (e) {} };
   const waGanadora = (g) => linkWhatsapp(g.telefono, "¡Hola " + String(g.nombre || "").split(" ")[0] + "! 🌻 ¡Felicitaciones! Quedaste en el puesto " + g.puesto + " de la competencia de " + MESES_DM[d.mes - 1] + " 🏆" + (g.premio ? " Te ganaste: " + g.premio + "." : "") + (g.puntos_extra ? " Ya te sumamos " + g.puntos_extra + " puntos." : "") + (g.premio ? " Pasá por el local a buscarlo 🎁" : ""));
-  if (error) return <div className="card" style={{ textAlign: "left" }}><div className="ct">🏆 Clienta del mes</div><div style={{ fontSize: 13.5 }}>⚠️ {error}</div><button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={cargar}>Probar de nuevo</button></div>;
+  if (error) return <div className="card" style={{ textAlign: "left" }}><div className="ct">🏆 Cliente del mes</div><div style={{ fontSize: 13.5 }}>⚠️ {error}</div><button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={cargar}>Probar de nuevo</button></div>;
   if (!d || !cfg) return <div className="skel" style={{ height: 320 }} />;
   const medalla = ["🥇", "🥈", "🥉"];
   return (
     <div className="fade" style={{ textAlign: "left" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <div style={{ flex: 1 }}><div className="pt">🏆 Clienta del mes</div><div className="ps">Competencia entre clientas: cada una ve su puesto en su cuenta de la tienda</div></div>
+        <div style={{ flex: 1 }}><div className="pt">🏆 Cliente del mes</div><div className="ps">Competencia entre clientes: cada uno ve su puesto en su cuenta de la tienda</div></div>
         <button className="chip-btn" onClick={() => mover(-1)} aria-label="Mes anterior">‹</button>
         <b style={{ textTransform: "capitalize", minWidth: 130, textAlign: "center" }}>{MESES_DM[d.mes - 1]} {d.anio}</b>
         <button className="chip-btn" disabled={d.actual} onClick={() => mover(1)} aria-label="Mes siguiente">›</button>
@@ -20231,10 +20231,10 @@ function DelMes({ usuario, paletaActual }) {
         </div>
       )}
       <div className="card">
-        <div className="ct">{d.actual ? "📊 Cómo va este mes" : "📊 Ranking del mes"} <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: tp.textMuted }}>· {d.participantes} {d.participantes === 1 ? "clienta" : "clientas"}</span></div>
-        {d.ranking.length === 0 ? <div className="empty">Todavía no hay compras con clienta cargada este mes.</div> : (
+        <div className="ct">{d.actual ? "📊 Cómo va este mes" : "📊 Ranking del mes"} <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: tp.textMuted }}>· {d.participantes} {d.participantes === 1 ? "cliente" : "clientes"}</span></div>
+        {d.ranking.length === 0 ? <div className="empty">Todavía no hay compras con cliente cargado este mes.</div> : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr style={{ color: tp.textMuted, fontSize: 11, textAlign: "left" }}><th style={{ padding: 6 }}>Puesto</th><th style={{ padding: 6 }}>Clienta</th><th style={{ padding: 6, textAlign: "right" }}>Puntos del mes</th><th style={{ padding: 6, textAlign: "right" }}>Compras</th><th style={{ padding: 6 }}>Premio</th></tr></thead>
+            <thead><tr style={{ color: tp.textMuted, fontSize: 11, textAlign: "left" }}><th style={{ padding: 6 }}>Puesto</th><th style={{ padding: 6 }}>Cliente</th><th style={{ padding: 6, textAlign: "right" }}>Puntos del mes</th><th style={{ padding: 6, textAlign: "right" }}>Compras</th><th style={{ padding: 6 }}>Premio</th></tr></thead>
             <tbody>{d.ranking.map(x => (
               <tr key={x.id} style={{ borderTop: "1px solid " + tp.border, background: x.puesto === 1 ? "#fff8dc" : "transparent" }}>
                 <td style={{ padding: 6, fontSize: x.puesto <= 3 ? 18 : 13, fontWeight: 800 }}>{medalla[x.puesto - 1] || x.puesto + "°"}</td>
@@ -20245,13 +20245,13 @@ function DelMes({ usuario, paletaActual }) {
               </tr>))}</tbody>
           </table>
         )}
-        {d.sin_clienta && d.sin_clienta.cant > 0 && <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 10 }}>ℹ️ Cuentan todas las compras de {MESES_DM[d.mes - 1]} desde el día 1 (local y tienda online). Hay <b>{d.sin_clienta.cant} {d.sin_clienta.cant === 1 ? "venta" : "ventas"} sin clienta cargada</b> ({fmt(d.sin_clienta.total)}) que no suman a nadie: en la caja, elegí la clienta (por DNI o nombre) antes de cobrar.</div>}
-        <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Las clientas ven su puesto, sus puntos del mes y el podio con nombre e inicial. Nunca ven montos ni datos de otras.</div>
+        {d.sin_clienta && d.sin_clienta.cant > 0 && <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 10 }}>ℹ️ Cuentan todas las compras de {MESES_DM[d.mes - 1]} desde el día 1 (local y tienda online). Hay <b>{d.sin_clienta.cant} {d.sin_clienta.cant === 1 ? "venta" : "ventas"} sin cliente cargado</b> ({fmt(d.sin_clienta.total)}) que no suman a nadie: en la caja, elegí el cliente (por DNI o nombre) antes de cobrar.</div>}
+        <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Los clientes ven su puesto, sus puntos del mes y el podio con nombre e inicial. Nunca ven montos ni datos de otras.</div>
       </div>
       <div className="card">
         <div className="ct">🎁 Premios por puesto</div>
         <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
-          <input type="checkbox" checked={cfg.activo} onChange={e => setCfg(c => ({ ...c, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> Mostrar la competencia a las clientas en su cuenta de la tienda
+          <input type="checkbox" checked={cfg.activo} onChange={e => setCfg(c => ({ ...c, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> Mostrar la competencia a los clientes en su cuenta de la tienda
         </label>
         {cfg.premios.map((p, i) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
@@ -20602,7 +20602,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
               </div>
               <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>La seña suma el día que se cobra y el saldo el día que se entrega. <b>Ya están sumadas</b> al total del día y a cada medio de pago; lo que fue en efectivo ya está en la caja.</div>
               {datos.preventas.map((x, i) => (
-                <div key={x.id + "-" + i} className="cc-linea"><span>{x.hora} · {x.cliente_nombre || "Clienta"} <span className="tag" style={{ marginLeft: 4 }}>{x.tipo}</span> <span style={{ color: p.textMuted }}>{x.medios.map(m => m.nombre).join(" + ")}</span>{x.tipo === "Saldo al entregar" && <span className={"tag " + (x.facturada ? "tag-ok" : "tag-warn")} style={{ marginLeft: 4 }}>{x.facturada ? "facturada" : "sin facturar"}</span>}</span><b>{fmt(x.importe)}</b></div>
+                <div key={x.id + "-" + i} className="cc-linea"><span>{x.hora} · {x.cliente_nombre || "Cliente"} <span className="tag" style={{ marginLeft: 4 }}>{x.tipo}</span> <span style={{ color: p.textMuted }}>{x.medios.map(m => m.nombre).join(" + ")}</span>{x.tipo === "Saldo al entregar" && <span className={"tag " + (x.facturada ? "tag-ok" : "tag-warn")} style={{ marginLeft: 4 }}>{x.facturada ? "facturada" : "sin facturar"}</span>}</span><b>{fmt(x.importe)}</b></div>
               ))}
             </div>
           )}
@@ -23758,7 +23758,7 @@ function Etiquetas({ paletaActual, localId }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
               {(estilo === "clasica" || estilo === "prenda") && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.mostrarCodigo} onChange={e => setOp(o => ({ ...o, mostrarCodigo: e.target.checked }))} /> Código de barras</label>}
               {(estilo === "precio" || estilo === "prenda" || estilo === "elegante") && <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={op.mostrarNegocio} onChange={e => setOp(o => ({ ...o, mostrarNegocio: e.target.checked }))} /> Nombre del negocio</label>}
-              <label style={{ display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!op.qr} onChange={e => setOp(o => ({ ...o, qr: e.target.checked }))} style={{ marginTop: 2 }} /> <span>📱 <b>QR de la tienda online</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>Al escanearlo, la clienta ve el producto en la tienda y su video.</div>
+              <label style={{ display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={!!op.qr} onChange={e => setOp(o => ({ ...o, qr: e.target.checked }))} style={{ marginTop: 2 }} /> <span>📱 <b>QR de la tienda online</b><div style={{ fontSize: 11, color: temaPal.textMuted }}>Al escanearlo, el cliente ve el producto en la tienda y su video.</div>
                 {op.qr && tiendaQR && (tiendaQR.sinTienda ? <div style={{ fontSize: 11, color: temaPal.warn }}>La tienda online no está publicada: los QR no se pueden armar.</div>
                   : items.length > 0 && <div style={{ fontSize: 11, color: items.some(x => !tiendaQR.publicados.has(x.producto_id)) ? temaPal.warn : temaPal.green }}>{items.filter(x => tiendaQR.publicados.has(x.producto_id)).length} de {items.length} están en la tienda{items.some(x => !tiendaQR.publicados.has(x.producto_id)) ? ": los otros salen sin QR (publicalos en Tienda online)" : " ✓"}</div>)}
                 {op.qr && Math.min(t.w, t.h) < 22 && <div style={{ fontSize: 11, color: temaPal.warn }}>En etiquetas tan chicas el QR puede costar leerlo: mejor una más grande.</div>}
@@ -25617,7 +25617,7 @@ function ConfigTicket({ paletaActual }) {
 }
 
 
-// Plan de liquidación (Cyber Monday, Black Friday...): la dueña arma sus ofertas (cada una con una o más formas de pagar,
+// Plan de liquidación (Cyber Monday, Black Friday...): el dueño arma sus ofertas (cada una con una o más formas de pagar,
 // ej. "30% OFF con transferencia o 10% OFF + 3 cuotas sin interés") y elige la de cada producto lento o parado. Con el costo
 // y la comisión de cada medio avisa cuándo una forma de pago hace perder. Después crea las promos (y el sector de la tienda).
 const proximoCyber = () => {
@@ -25661,7 +25661,7 @@ function RutinaCuotasConfig({ temaPal, medios, desde, hasta }) {
   return (
     <div className="card">
       <div className="ct">🧴 Rutina en cuotas sin interés</div>
-      <div className="liq-ayuda" style={{ marginTop: 0 }}>Llevando una rutina facial completa, la clienta puede pagar en cuotas sin interés. En el local, el Punto de Venta no deja cobrar con ese medio si el ticket no tiene la rutina; en la tienda aparece un aviso en el carrito.</div>
+      <div className="liq-ayuda" style={{ marginTop: 0 }}>Llevando una rutina facial completa, el cliente puede pagar en cuotas sin interés. En el local, el Punto de Venta no deja cobrar con ese medio si el ticket no tiene la rutina; en la tienda aparece un aviso en el carrito.</div>
       <div className="liq-preg">¿La activamos?</div>
       <div className="liq-si-no"><button className={r.activo ? "on" : ""} onClick={() => set("activo", true)}>Sí</button><button className={!r.activo ? "on no" : ""} onClick={() => set("activo", false)}>No</button></div>
       {r.activo && <>
@@ -25685,7 +25685,7 @@ function RutinaCuotasConfig({ temaPal, medios, desde, hasta }) {
         <div className="liq-preg">¿También en la tienda online?</div>
         <div className="liq-si-no"><button className={r.online ? "on" : ""} onClick={() => set("online", true)}>Sí, ya lo activé en Mercado Pago</button><button className={!r.online ? "on" : ""} onClick={() => set("online", false)}>No, solo en el local</button></div>
         <div className="liq-ayuda">Online las cuotas sin interés las da Mercado Pago desde tu cuenta. Si elegís "solo en el local", en la tienda el aviso dice "pagando en el local".</div>
-        <div className="liq-ok">Así lo ve la clienta: <b>"Llevando {textoReglaRutina(regla)}, pagás en {r.cuotas} cuotas sin interés{!r.online ? " en el local" : ""}."</b></div>
+        <div className="liq-ok">Así lo ve el cliente: <b>"Llevando {textoReglaRutina(regla)}, pagás en {r.cuotas} cuotas sin interés{!r.online ? " en el local" : ""}."</b></div>
       </>}
       {aviso && <div style={{ marginTop: 10, fontWeight: 700, color: aviso.ok ? p.green : p.red }}>{aviso.t}</div>}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
@@ -25850,7 +25850,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
   const [aviso, setAviso] = useState("");
   // Lo que se arma queda guardado en este navegador (se puede seguir otro día)
   useEffect(() => { try { localStorage.setItem(CLAVE, JSON.stringify({ cfg, ofertas, asig, costoCuotas, com, dias, local, combos })); } catch (e) {} }, [cfg, ofertas, asig, costoCuotas, com, dias, local, combos]);
-  // El plan se guarda en el sistema y es el mismo para todas (dueña y vendedoras). Al abrir se trae el último;
+  // El plan se guarda en el sistema y es el mismo para todas (dueño y vendedores). Al abrir se trae el último;
   // cada cambio se guarda solo, un segundo después. El local que se está mirando queda en cada navegador.
   const [sync, setSync] = useState({ cargado: false, por: null, en: null, guardando: false, error: false });
   const ultimoPlan = useRef("");
@@ -26138,7 +26138,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
       </>}
 
       {sec === "combos" && <>
-        <div className="liq-ayuda" style={{ padding: "0 4px", marginTop: 0 }}>Juntá 2 o más productos y dales una oferta: % OFF, cuotas sin interés o las dos. Se aplica sola cuando la clienta lleva todos los productos del combo (en el local y, si querés, en la tienda online).</div>
+        <div className="liq-ayuda" style={{ padding: "0 4px", marginTop: 0 }}>Juntá 2 o más productos y dales una oferta: % OFF, cuotas sin interés o las dos. Se aplica sola cuando el cliente lleva todos los productos del combo (en el local y, si querés, en la tienda online).</div>
         {combos.map((cb, ci) => { const ed = editCombo === cb.id, lista = listaCombo(cb), costo = costoCombo(cb), cs = cuentasCombo(cb), col = COLORES[(ci + 3) % COLORES.length];
           const q = buscaCombo.trim().toLowerCase();
           const sugeridos = q.length >= 2 ? (rot.productos || []).filter(x => !(cb.items || []).some(it => it.id === x.id) && (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)).slice(0, 8) : [];
@@ -26227,7 +26227,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
             <button className="btn btn-s" onClick={() => setCfg(c => ({ ...c, desde: isoLocal(new Date()), hasta: c.hasta < isoLocal(new Date()) ? isoLocal(new Date()) : c.hasta }))}>Empezar hoy</button>
           </div>}
           <ul style={{ fontSize: 12.5, color: p.textMuted, margin: "8px 0 12px", paddingLeft: 18, lineHeight: 1.6 }}>
-            <li>Se crean como promociones del {fecha(cfg.desde)} al {fecha(cfg.hasta)}; el Punto de Venta aplica sola la que corresponde según cómo paga la clienta.</li>
+            <li>Se crean como promociones del {fecha(cfg.desde)} al {fecha(cfg.hasta)}; el Punto de Venta aplica sola la que corresponde según cómo paga el cliente.</li>
             <li>Las cuotas sin interés: en el local necesitás un medio "Crédito N cuotas" sin recargo; en la tienda online se activan en tu cuenta de Mercado Pago.</li>
             <li>En la tienda online valen las de transferencia, pago al retirar (efectivo) y "cualquier otro medio" (Mercado Pago).</li>
             <li>Si ya creaste las de este evento, se reemplazan.</li>
@@ -26239,7 +26239,7 @@ function PlanLiquidacion({ temaPal, medios, onCreado }) {
     </div>
   );
 }
-// Cyber Monday como sector propio (lo ven y lo editan las vendedoras): el mismo plan que Promociones › Cyber Monday
+// Cyber Monday como sector propio (lo ven y lo editan los vendedores): el mismo plan que Promociones › Cyber Monday
 // Diseño Cyber de la tienda online: se programa con fechas y antes se puede ver con un link privado
 function CyberTienda({ temaPal }) {
   const [d, setD] = useState(null);
@@ -26270,7 +26270,7 @@ function CyberTienda({ temaPal }) {
     catch (e) { if (w) w.close(); setAviso("Error: " + (e.response?.data?.error || e.message)); }
   };
   const fmt = (fh) => { const [a, h] = String(fh).split("T"); const [y, m, dd] = a.split("-"); return dd + "/" + m + " " + h; };
-  const estado = d.en_curso ? ["🟢 En curso: las clientas lo están viendo", temaPal.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmt(k.desde) + " y se apaga el " + fmt(k.hasta), temaPal.accentText] : ["⚪ Apagado: la tienda se ve normal", temaPal.textMuted];
+  const estado = d.en_curso ? ["🟢 En curso: los clientes lo están viendo", temaPal.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmt(k.desde) + " y se apaga el " + fmt(k.hasta), temaPal.accentText] : ["⚪ Apagado: la tienda se ve normal", temaPal.textMuted];
   const lbl = { fontSize: 11, textAlign: "left", color: temaPal.textMuted, display: "block", marginBottom: 4 };
   return (
     <div className="card" style={{ marginBottom: 16, textAlign: "left" }}>
@@ -26278,7 +26278,7 @@ function CyberTienda({ temaPal }) {
         <div className="ct" style={{ margin: 0 }}>🛍️ Diseño Cyber en la tienda online</div>
         {slug && <button className="btn btn-p" onClick={verComoQueda} title="Abre la tienda con el diseño Cyber, solo para vos">👀 Ver cómo va a quedar la tienda</button>}
       </div>
-      <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Portada violeta con cuenta regresiva, botón CYBER en el menú y los productos con descuento marcados con su %. Las clientas solo lo ven entre las fechas que pongas.</div>
+      <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Portada violeta con cuenta regresiva, botón CYBER en el menú y los productos con descuento marcados con su %. Los clientes solo lo ven entre las fechas que pongas.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
       <div className="g2">
@@ -26557,7 +26557,7 @@ function CyberVideos({ temaPal }) {
     </div>
   );
 }
-// ===== Club de WhatsApp: mensajes para los grupos de clientas =====
+// ===== Club de WhatsApp: mensajes para los grupos de clientes =====
 // Lumiere propone un mensaje por día (novedades, tip, lo más vendido, beneficio con cupón, ofertas/últimas unidades y encuesta)
 // con los datos reales, más una placa (imagen 1080x1350) para mandar junto al texto. WhatsApp no deja mandar a grupos
 // desde un sistema: se comparte desde el celular (eligiendo el grupo) o se copia y pega.
@@ -26661,7 +26661,7 @@ function ClubPieza({ pz, d, imgs, p, avisar, onOtra, onTexto, onCupon }) {
       <div className="club-cab"><span className={"club-dia" + (pz.destacado ? " hoy" : "")}>{pz.destacado ? "⭐ Hoy" : pz.dia}</span><b>{pz.emoji} {pz.titulo}</b></div>
       {sinCupon ? (
         <div className="club-cupon">
-          <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 8 }}>Un código de descuento solo para el grupo. Se crea en Cupones (canal "Club WhatsApp"), vale una vez por clienta, en los locales y en la tienda online.</div>
+          <div style={{ fontSize: 12.5, color: p.textMuted, marginBottom: 8 }}>Un código de descuento solo para el grupo. Se crea en Cupones (canal "Club WhatsApp"), vale una vez por cliente, en los locales y en la tienda online.</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div className="fg" style={{ margin: 0 }}><div className="fl">Descuento %</div><input className="inp" inputMode="numeric" value={cup.pct} onChange={e => setCup(c => ({ ...c, pct: e.target.value.replace(/\D/g, "") }))} /></div>
             <div className="fg" style={{ margin: 0 }}><div className="fl">Días que dura</div><input className="inp" inputMode="numeric" value={cup.dias} onChange={e => setCup(c => ({ ...c, dias: e.target.value.replace(/\D/g, "") }))} /></div>
@@ -26712,7 +26712,7 @@ function PaginaClubWa({ paletaActual }) {
   const textoCupon = (c) => `💛 *Beneficio exclusivo del ${d.club}* 💛\n\nPor ser parte de este grupo, tenés *${c.valor}% OFF* en tu próxima compra con el código:\n\n👉 *${c.codigo}*\n\nVale hasta el ${c.vence.split("-").reverse().slice(0, 2).join("/")}, en los locales${d.link_tienda ? " y en la tienda online" : ""} (una vez por persona).${d.link_tienda ? "\n🛍️ " + d.link_tienda : ""}\n\n_No se suma a productos que ya tienen otra oferta._`;
   return (
     <div className="fade">
-      <div className="ph"><div><div className="pt">📣 Club de WhatsApp</div><div className="ps">mensajes listos para los grupos de clientas, con los datos de esta semana</div></div></div>
+      <div className="ph"><div><div className="pt">📣 Club de WhatsApp</div><div className="ps">mensajes listos para los grupos de clientes, con los datos de esta semana</div></div></div>
       <div className="card" style={{ marginBottom: 14, textAlign: "left" }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div className="fg" style={{ margin: 0, flex: "1 1 220px" }}><div className="fl">Nombre del club</div><input className="inp" placeholder={d ? d.club : "Ej: Club Girasoles"} value={club} onChange={e => guardarClub(e.target.value)} onBlur={() => cargar()} /></div>
@@ -27074,20 +27074,20 @@ const NAV_SECTIONS = [
     { id: "giftcards", icon: "🎀", label: "Gift Cards", k: "tarjeta regalo" },
     { id: "comprobantes", icon: "🧾", label: "Comprobantes", k: "facturas tickets arca afip" }] },
   { section: "CLIENTES", color: "var(--acento-texto)", items: [
-    { id: "clients", icon: "👥", label: "Clientes", k: "clientas niveles" },
+    { id: "clients", icon: "👥", label: "Clientes", k: "clientes niveles" },
     { id: "cuenta-corriente", icon: "📒", label: "Cuenta corriente", k: "fiado deuda deben cobrar saldo credito libreta" },
     { id: "pedidos", icon: "📬", label: "Pedidos", k: "encargos espera avisar" },
     { id: "fidelizacion", icon: "⭐", label: "Fidelización", k: "puntos canjes" },
     { id: "portal", icon: "📱", label: "Portal Cliente", k: "premios diseño portal" },
     { id: "postventa", icon: "💬", label: "Postventa WA", k: "whatsapp mensajes" },
-    { id: "club-wa", icon: "📣", label: "Club de WhatsApp", k: "grupos whatsapp club mensajes contenido difusion novedades clientas" },
+    { id: "club-wa", icon: "📣", label: "Club de WhatsApp", k: "grupos whatsapp club mensajes contenido difusion novedades clientes" },
     { id: "cupones", icon: "🏷️", label: "Cupones", k: "descuento codigo" },
     { id: "promociones", icon: "🎉", label: "Promociones", k: "ofertas 2x1" },
-    { id: "del-mes", icon: "🏆", label: "Clienta del mes", k: "competencia ranking puesto premio clienta del mes mejor clienta" }] },
+    { id: "del-mes", icon: "🏆", label: "Cliente del mes", k: "competencia ranking puesto premio cliente del mes mejor cliente" }] },
   { section: "EQUIPO", color: "#2471a3", items: [
     { id: "tareas", icon: "📝", label: "Tareas", k: "pendientes" },
-    { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedoras vendedores equipo desafios premios" },
-    { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedoras vendedores equipo" }] },
+    { id: "comisiones", icon: "💎", label: "Comisiones", k: "vendedores vendedores equipo desafios premios" },
+    { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedores vendedores equipo" }] },
   { section: "FINANZAS", color: "#1f6f8b", items: [
     { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
     { id: "calculadoras", icon: "🧮", label: "Calculadoras", k: "margen precio cuotas" }] },
@@ -27134,7 +27134,7 @@ const BARRA_CELU = [
 // Diseño de tienda de belleza: tira de anuncios, banner con los destacados, carruseles por
 // categoria, fichas con video y carrito que se desliza desde el costado.
 const fmtTienda = (n) => "$" + Math.round(parseFloat(n) || 0).toLocaleString("es-AR");
-// Numero de pedido que ven las clientas (corrido, ej 18001); los pedidos viejos sin numero muestran su codigo
+// Numero de pedido que ven los clientes (corrido, ej 18001); los pedidos viejos sin numero muestran su codigo
 const nroPedido = (p) => (p && p.numero ? String(p.numero) : (p && p.codigo) || "");
 const ESTADOS_PEDIDO_WEB = {
   pendiente_pago: ["Esperando el pago", "#b7950b"], confirmado: ["Recibido: lo estamos preparando", "#2471a3"], preparado: ["¡Listo!", "#2d7a4f"],
@@ -29012,7 +29012,7 @@ function twDulce() {
   [2093, 2637, 3136, 2349, 2794].forEach((f, i) => twTono(c, { f1: f, dur: .25, vol: .025, cuando: .95 + i * .11 }));
 }
 // Música de Halloween de fondo: "En la gruta del rey de la montaña" (Grieg, dominio público) en pizzicato misterioso,
-// con bajo y un zumbido grave. Se genera en el navegador (sin archivos) y suena despacito; arranca con un toque de la clienta
+// con bajo y un zumbido grave. Se genera en el navegador (sin archivos) y suena despacito; arranca con un toque del cliente
 const HW_TEMA = [[59, 1], [61, 1], [62, 1], [64, 1], [66, 1], [62, 1], [66, 2], [65, 1], [61, 1], [65, 2], [64, 1], [60, 1], [64, 2],
   [59, 1], [61, 1], [62, 1], [64, 1], [66, 1], [62, 1], [66, 1], [71, 1], [69, 1], [66, 1], [62, 1], [66, 1], [69, 4]];
 const twHwMusica = {
@@ -29075,7 +29075,7 @@ function TwHwMusica() {
 }
 // Música navideña del calendario de Adviento: villancicos de dominio público (Jingle Bells, We Wish You a Merry Christmas,
 // Deck the Halls y Noche de Paz), uno distinto según el día, en cajita de música con campanitas. Se genera en el navegador
-// (sin archivos ni canciones con derechos) y suena despacito; arranca con el primer toque de la clienta
+// (sin archivos ni canciones con derechos) y suena despacito; arranca con el primer toque del cliente
 const ADV_TEMAS = {
   jingle: { nombre: "Jingle Bells (J. L. Pierpont, 1857)", ritmo: .3, cascabel: true, notas: [[64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, .5], [64, 4],
     [65, 1], [65, 1], [65, 1.5], [65, .5], [65, 1], [64, 1], [64, 1], [64, .5], [64, .5], [64, 1], [62, 1], [62, 1], [64, 1], [62, 2], [67, 2],
@@ -29536,7 +29536,7 @@ function TwTransferir({ pd, datos, linkWa, conTitulo = true, conPlazo = false })
     <div className="tw-transferir">
       {conTitulo && <div className="tw-tr-tit">💸 Falta tu transferencia de <b>{fmtTienda(pd.total)}</b> <span>· pedido N° {nro}</span></div>}
       <div className="tw-tr-datos">{datos}</div>
-      {/* El plazo para pagar se muestra solo en la cuenta (en la página del pedido confundía a las clientas) */}
+      {/* El plazo para pagar se muestra solo en la cuenta (en la página del pedido confundía a los clientes) */}
       {conPlazo && pd.vence_en && pd.estado === "pendiente_pago" && !pd.pagado && <div className="tw-tr-plazo">⏰ Tenés tiempo de transferir hasta el <b>{new Date(pd.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</b>. Apenas nos llega el pago, tu pedido queda confirmado.</div>}
       <div className="tw-tr-btns">
         <button className="tw-btn2" onClick={copiar}>{copiado ? "✓ Copiado" : "📋 Copiar datos"}</button>
@@ -30465,7 +30465,7 @@ function twDist(a, b, max) {
 }
 // "serun" -> serum, "ialuronico" -> hialuronico: 1 letra de diferencia en palabras de 4 a 6 letras, 2 en las mas largas
 const twParecida = (w, texto) => { if (w.length < 4) return false; const max = w.length >= 7 ? 2 : 1; return texto.split(/[^a-z0-9ñ]+/).some(x => x.length >= 3 && twDist(w, x, max) <= max); };
-// Como lo dicen las clientas -> como esta en los productos
+// Como lo dicen los clientes -> como esta en los productos
 const TW_SINONIMOS = { granos: ["acne"], granitos: ["acne"], espinillas: ["acne", "puntos negros"], bloqueador: ["solar"], protector: ["solar"], spf: ["solar"], fps: ["solar"], arrugas: ["antiedad", "arrugas"],
   ojeras: ["ojos", "contorno"], rimel: ["mascara", "pestañas"], labial: ["labios"], gloss: ["labios"], crema: ["hidratante", "crema"], humectante: ["hidratante"], exfoliante: ["exfoliante", "peeling"], jabon: ["limpiador"] };
 function twCoincide(p, q) {
@@ -30568,7 +30568,7 @@ function TwDecoRegalo({ t, n = 16 }) {
 }
 
 // Franja grande de la portada
-// "¿No te salió el pago?": cuando el pago online no sale (o la clienta duda), otras formas de comprar igual:
+// "¿No te salió el pago?": cuando el pago online no sale (o el cliente duda), otras formas de comprar igual:
 // pagar en el local (con sus cuotas con tarjeta de crédito) o pagar por teléfono y recibirlo. Abierto si hubo un rechazo.
 function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, otrosPagos = [], onOtroPago }) {
   const [abierta, setAbierta] = useState(!!falla);
@@ -30620,7 +30620,7 @@ function TwAyudaPago({ pedido, ayuda, falla, linkWa, nombreLocal, otrosPagos = [
   );
 }
 
-// Cumpleaños sin año: dia y mes con dos listas grandes (el calendario con el año confundía a muchas clientas).
+// Cumpleaños sin año: dia y mes con dos listas grandes (el calendario con el año confundía a muchos clientes).
 // Se guarda con el año 1904, que en el sistema significa "año desconocido".
 const TW_MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 function TwCumple({ value, onChange }) {
@@ -30991,7 +30991,7 @@ function advInfo(d, hoy, vista) {
   const pasado = !vista && d.dia < hoy, nota = (l) => l.filter(Boolean).join(" · ");
   if (d.tipo === "codigo" && d.codigo && d.pct) {
     if (pasado && d.vale !== "navidad") return { et: "Código del día " + d.dia, dest: "Esta sorpresa ya pasó", paso: true };
-    return { et: "🎟️ Tu código de regalo", dest: d.pct + "% OFF", nota: nota([d.vale === "navidad" && d.dia < 25 ? "Vale hasta Navidad" : "Vale solo hoy", d.minimo ? "En compras desde " + advPlata(d.minimo) : "", d.uno ? "Una vez por clienta" : "", "Online y en los locales"]) };
+    return { et: "🎟️ Tu código de regalo", dest: d.pct + "% OFF", nota: nota([d.vale === "navidad" && d.dia < 25 ? "Vale hasta Navidad" : "Vale solo hoy", d.minimo ? "En compras desde " + advPlata(d.minimo) : "", d.uno ? "Una vez por cliente" : "", "Online y en los locales"]) };
   }
   if (d.tipo === "descuento" && d.pct) return pasado ? { et: "Descuento del día " + d.dia, dest: "Esta sorpresa ya pasó", paso: true } : { et: "🏷️ Solo hoy", dest: d.pct + "% OFF", nota: "Ya aplicado en estos productos, online y en los locales" };
   if (d.tipo === "regalo" && d.regalo) return pasado ? { et: "Regalo del día " + d.dia, dest: "Esta sorpresa ya pasó", paso: true } : { et: "🎁 Hoy, con tu compra te regalamos", dest: d.regalo, nota: d.minimo ? "En compras desde " + advPlata(d.minimo) : "Online y en los locales" };
@@ -31086,7 +31086,7 @@ function TwAdvAlbum({ adv, mio, logueada, onIngresar, demo }) {
         : prox ? <>Te {prox.dias - n === 1 ? "falta 1 sello" : "faltan " + (prox.dias - n) + " sellos"} para {prox.largo}. ¡Volvé mañana! 🌟</>
         : metas.some(m => m.dias > n) ? <>Seguí abriendo la ventana de cada día: cada una trae su sorpresa 🌟</>
         : <>¡Lo lograste! {k.sorteo_dias && n >= k.sorteo_dias ? "Ya estás participando del sorteo de " + (k.sorteo_premio || "Navidad") + " 🎉" : "🎉"}</>}</p>
-      {demo && <p className="demo">Vista previa: los sellos se suman de verdad desde el 1 de diciembre, con la cuenta de la clienta.</p>}
+      {demo && <p className="demo">Vista previa: los sellos se suman de verdad desde el 1 de diciembre, con la cuenta del cliente.</p>}
     </div>
   );
 }
@@ -31385,7 +31385,7 @@ function TwHwHero({ hw, onJugar, onVer, hayLook }) {
     </section>
   );
 }
-// "¿Dulce o truco?": elegir una calabaza → premio (una vez por clienta, con su cuenta)
+// "¿Dulce o truco?": elegir una calabaza → premio (una vez por cliente, con su cuenta)
 // Cómo conseguir otra calabaza: comprando online o invitando amigas con su link (cuando crean su cuenta)
 function TwHwOtra({ info, link, tope }) {
   const [copiado, setCopiado] = useState(false);
@@ -31442,7 +31442,7 @@ function TwDulceTruco({ hw, logueada, mio, info, link, onCerrar, onIngresar, onJ
           <p>Elegí una calabaza: adentro hay un premio… o un truco 👻</p>
           <div className="tw-hw-calabazas">{[0, 1, 2].map(i => <button key={i} onClick={jugar} aria-label={"Calabaza " + (i + 1)}>🎃</button>)}</div>
           {error && <p style={{ color: "#ffb4a8" }}>{error}</p>}
-          <p className="tw-hw-chica">{info && info.quedan > 1 ? "Tenés " + info.quedan + " calabazas para abrir" : "Una calabaza por clienta, y otra por cada compra"}{hasta ? " · hasta el " + hasta : ""}</p>
+          <p className="tw-hw-chica">{info && info.quedan > 1 ? "Tenés " + info.quedan + " calabazas para abrir" : "Una calabaza por cliente, y otra por cada compra"}{hasta ? " · hasta el " + hasta : ""}</p>
         </> : estado === "susto" ? <TwHwSusto /> : estado === "dulce" ? <TwHwDulce premio={premio} /> : estado === "jugando" ? <>
           <div className="tw-hw-tiembla">🎃</div>
           <p style={{ marginTop: 14 }}>Abriendo tu calabaza…</p>
@@ -31493,13 +31493,13 @@ function HwQuienes({ lista, p }) {
   const total = lista.reduce((t, c) => t + (c.premios || []).length, 0);
   return (
     <div style={{ marginTop: 14, border: "1px solid " + p.border, borderRadius: 12, padding: 10 }}>
-      <button className="chip-btn" style={{ fontWeight: 800, whiteSpace: "normal", textAlign: "left", maxWidth: "100%" }} onClick={() => setAbierto(!abierto)}>{abierto ? "▾" : "▸"} 👀 Quiénes abrieron calabazas ({lista.length} {lista.length === 1 ? "clienta" : "clientas"} · {total} {total === 1 ? "calabaza" : "calabazas"})</button>
+      <button className="chip-btn" style={{ fontWeight: 800, whiteSpace: "normal", textAlign: "left", maxWidth: "100%" }} onClick={() => setAbierto(!abierto)}>{abierto ? "▾" : "▸"} 👀 Quiénes abrieron calabazas ({lista.length} {lista.length === 1 ? "cliente" : "clientes"} · {total} {total === 1 ? "calabaza" : "calabazas"})</button>
       {abierto && <>
         <input className="inp" style={{ width: "100%", margin: "10px 0 6px" }} placeholder="Buscar por nombre o código…" value={q} onChange={e => setQ(e.target.value)} />
         <div style={{ maxHeight: 420, overflowY: "auto" }}>
           {ver.map(c => (
             <div key={c.cliente_id} style={{ padding: "8px 2px", borderBottom: "1px solid " + p.border, fontSize: 12.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{c.nombre || "Clienta " + c.cliente_id}</b><span style={{ color: p.textMuted, whiteSpace: "nowrap" }}>{new Date(c.ultima).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{c.nombre || "Cliente " + c.cliente_id}</b><span style={{ color: p.textMuted, whiteSpace: "nowrap" }}>{new Date(c.ultima).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span></div>
               {c.telefono && <div style={{ color: p.textMuted, fontSize: 11.5 }}>{c.telefono}</div>}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>{(c.premios || []).map((x, i) => (
                 <span key={i} style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 99, border: "1px solid " + p.border, opacity: x.usado ? .6 : 1 }}>
@@ -32121,7 +32121,7 @@ function TwDiagnostico({ d, pedir, datos, setDatos, perfil, lid, logueada, whats
         <h1>¡Te esperamos!</h1>
         <div className="tw-diag-ok-cuando">{fechaTurno(listo.fecha, true)} · {listo.hora} hs</div>
         <div className="tw-diag-ok-donde">📍 {listo.local}{listo.direccion ? " · " + listo.direccion : ""}</div>
-        <p>Son unos {listo.minutos} minutos y es gratis. Te vamos a escribir por WhatsApp para confirmarte. Si no podés venir, avisanos así le damos el lugar a otra clienta.</p>
+        <p>Son unos {listo.minutos} minutos y es gratis. Te vamos a escribir por WhatsApp para confirmarte. Si no podés venir, avisanos así le damos el lugar a otro cliente.</p>
         {logueada ? <button className="tw-btn2" onClick={onCuenta}>Ver mis turnos</button> : <div className="tw-pre-txt">Creá tu cuenta con este WhatsApp y vas a ver tu turno y lo que te recomendemos.</div>}
       </div>
     </div>
@@ -32610,12 +32610,12 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
 
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
-  // "Ver como clienta" desde Lumiere: la llave llega en la direccion (#vista=...), queda solo en esta pestaña y no toca la cuenta propia
+  // "Ver como cliente" desde Lumiere: la llave llega en la direccion (#vista=...), queda solo en esta pestaña y no toca la cuenta propia
   const [vistaTk, setVistaTk] = useState(() => {
     try {
       const m = /[#&]vista=([^&]+)/.exec(window.location.hash || "");
       if (m) { sessionStorage.setItem("tienda_vista_" + slug, decodeURIComponent(m[1])); window.history.replaceState(null, "", window.location.pathname + window.location.search); }
-      // Solo una llave de verdad (antes acá también se guardaba por error dónde estaba mirando la clienta, y eso la deslogueaba al recargar)
+      // Solo una llave de verdad (antes acá también se guardaba por error dónde estaba mirando el cliente, y eso la deslogueaba al recargar)
       const v = sessionStorage.getItem("tienda_vista_" + slug) || "";
       if (v && !v.startsWith("eyJ")) { sessionStorage.removeItem("tienda_vista_" + slug); return ""; }
       return v;
@@ -32700,7 +32700,7 @@ function TiendaPublica({ slug }) {
     document.addEventListener("click", clic, true);
     return () => { document.removeEventListener("touchstart", ini); document.removeEventListener("touchmove", mov); document.removeEventListener("touchend", sol); document.removeEventListener("click", clic, true); };
   }, []);
-  // Mi cuenta (misma del portal de clientas: DNI + contraseña, con sus puntos)
+  // Mi cuenta (misma del portal de clientes: DNI + contraseña, con sus puntos)
   const [logueada, setLogueada] = useState(() => { if (vistaTk) return true; try { return !!localStorage.getItem("tienda_cuenta_" + slug); } catch (e) { return false; } });
   // Favoritos: en el navegador y, con cuenta, tambien en Lumiere (se unen al entrar)
   const [favs, setFavs] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_favs_" + slug) || "[]"); } catch (e) { return []; } });
@@ -32713,13 +32713,13 @@ function TiendaPublica({ slug }) {
   const [aviso1, setAviso1] = useState(null); // { id, nombre, telefono, enviando, error }
   const [avisados, setAvisados] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_avisados_" + slug) || "[]"); } catch (e) { return []; } });
   const [miCuenta, setMiCuenta] = useState(null);
-  // Halloween: cartel del juego "¿Dulce o truco?" y lo que ya ganó esta clienta
+  // Halloween: cartel del juego "¿Dulce o truco?" y lo que ya ganó este cliente
   const [hwJuego, setHwJuego] = useState(false);
   const [hwMio, setHwMio] = useState(null);
   const [hwInfo, setHwInfo] = useState(null); // calabazas que le quedan, sus premios y su link para invitar amigas
   const cargarHw = () => pedir("/halloween/mio").then(r => { setHwMio(r.premio || null); setHwInfo(r); }).catch(() => {});
   const [formCuenta, setFormCuenta] = useState({ modo: "ingresar" });
-  // Al crear la cuenta: se fija si el DNI ya esta en Lumiere (clienta del local), si ya tiene cuenta o si es nueva
+  // Al crear la cuenta: se fija si el DNI ya esta en Lumiere (cliente del local), si ya tiene cuenta o si es nueva
   const [infoDni, setInfoDni] = useState(null);
   useEffect(() => {
     const d = String(formCuenta.dni || "").replace(/\D/g, "");
@@ -32738,7 +32738,7 @@ function TiendaPublica({ slug }) {
   const [gcIn, setGcIn] = useState("");
   const [gcOk, setGcOk] = useState(null); // { codigo, saldo }
   const [avisoGc, setAvisoGc] = useState("");
-  // Recomendaciones segun lo que compran juntas las clientas
+  // Recomendaciones segun lo que compran juntas los clientes
   const [recs, setRecs] = useState({});
   const [carrito, setCarrito] = useState(() => { try { return JSON.parse(localStorage.getItem("tienda_carrito_" + slug) || "[]"); } catch (e) { return []; } });
   const [ver, setVer] = useState(null); // producto abierto
@@ -32762,7 +32762,7 @@ function TiendaPublica({ slug }) {
 
   useEffect(() => { if (paso !== "cuenta") { setVolverA(null); setMotivoCuenta(""); } }, [paso]);
   useEffect(() => { if (!logueada || !tienda || !tienda.halloween || tienda.halloween.vista_previa) return; cargarHw(); }, [logueada, !!(tienda && tienda.halloween)]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Reseñas: las del producto abierto, lo que la clienta puede reseñar y el formulario
+  // Reseñas: las del producto abierto, lo que el cliente puede reseñar y el formulario
   const [resVer, setResVer] = useState(null); // { id, d }
   const [misRes, setMisRes] = useState(null); // { para_resenar, mias }
   const [formRes, setFormRes] = useState(null);
@@ -33077,7 +33077,7 @@ function TiendaPublica({ slug }) {
   if (!tienda) return <div className="tw" style={{ padding: 20 }}><style>{CSS_TIENDA}</style><div className="tw-skel" style={{ height: 60, marginBottom: 20 }} /><div className="tw-skel" style={{ height: 380 }} /></div>;
   const color = tienda.color || "#c9a84c";
   const lista0 = productos || [];
-  // Con lo que compro la clienta (en el local o aca): lo que se le esta por terminar y su rutina
+  // Con lo que compro el cliente (en el local o aca): lo que se le esta por terminar y su rutina
   const compradosCuenta = (() => {
     if (!logueada || !miCuenta) return [];
     const vistos = new Set(), out = [];
@@ -33322,10 +33322,10 @@ function TiendaPublica({ slug }) {
   const cabecera = (
     <>
       {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
-      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Las clientas todavía no lo ven. Acá podés encender todas las ventanas para probar; en diciembre se enciende una por día.</div>}
+      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. Acá podés encender todas las ventanas para probar; en diciembre se enciende una por día.</div>}
       {tienda.adviento && <TwAdvIntro adv={tienda.adviento} slug={slug} />}
-      {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Las clientas todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
-      {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Las clientas todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
+      {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Los clientes todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
+      {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Los clientes todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
         <div className="tw-cab1">
           <button className="tw-marca" onClick={() => { if (codigoUrl) window.location.href = "?tienda=" + encodeURIComponent(slug); else irInicio(); }} aria-label="Inicio">
@@ -33517,9 +33517,9 @@ function TiendaPublica({ slug }) {
   const hwDe = (ids) => (ids || []).map(id => visibles.find(p => p.id === id)).filter(Boolean);
   const hwDisfraz = tienda.halloween ? hwDe(tienda.halloween.disfraz) : [], hwDespues = tienda.halloween ? hwDe(tienda.halloween.despues) : [];
   const hwLook = [...hwDisfraz, ...hwDespues.filter(p => !hwDisfraz.includes(p))];
-  // Lo mas vendido del mes (calculado en el servidor) y lo que la clienta miro hace poco
+  // Lo mas vendido del mes (calculado en el servidor) y lo que el cliente miro hace poco
   const masVendidos = visibles.filter(p => p.top && !esPreventa(p)).sort((a, b) => a.top - b.top);
-  // Los que más se reponen: los que nuestras clientas vuelven a comprar (solo con stock y con foto)
+  // Los que más se reponen: los que nuestros clientes vuelven a comprar (solo con stock y con foto)
   const masRepuestos = visibles.filter(p => p.rp && p.foto && !agotado(p) && !esPreventa(p)).sort((a, b) => a.rp - b.rp).slice(0, 12);
   const vistosLista = vistos.map(id => visibles.find(p => p.id === id)).filter(Boolean).slice(0, 12);
   const q = busca.trim().toLowerCase();
@@ -33688,7 +33688,7 @@ function TiendaPublica({ slug }) {
         <button className={fc.modo !== "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "ingresar" })); setAvisoCuenta(null); }}>Ingresar</button>
         <button className={fc.modo === "crear" ? "on" : ""} onClick={() => { setFormCuenta(x => ({ ...x, modo: "crear" })); setAvisoCuenta(null); }}>Crear mi cuenta</button>
       </div>
-      <p style={{ fontSize: 13.5, color: "#555", lineHeight: 1.5 }}>{fc.modo === "crear" ? "Con tu cuenta ves tus puntos, canjeás premios y comprás más rápido. Empezá por tu DNI: si ya compraste en el local, te reconocemos." : "Entrá con tu DNI. Es la misma cuenta del portal de clientas."}</p>
+      <p style={{ fontSize: 13.5, color: "#555", lineHeight: 1.5 }}>{fc.modo === "crear" ? "Con tu cuenta ves tus puntos, canjeás premios y comprás más rápido. Empezá por tu DNI: si ya compraste en el local, te reconocemos." : "Entrá con tu DNI. Es la misma cuenta del portal de clientes."}</p>
       {motivoCuenta && <div className="tw-dni-aviso clienta" style={{ marginBottom: 10 }}>{motivoCuenta}</div>}
       <form onSubmit={enviarCuenta} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <input className="tw-inp" placeholder="DNI (solo números)" inputMode="numeric" autoComplete="username" value={fc.dni || ""} onChange={e => setF("dni", e.target.value)} />
@@ -33898,7 +33898,7 @@ function TiendaPublica({ slug }) {
               {k.ganados.filter(g => !g.entregado || g.puntos).slice(0, 2).map(g => (
                 <div key={g.anio + "-" + g.mes} className="tw-comp-ganaste">🎉 <b>¡Quedaste {g.puesto}° en {MES[g.mes - 1]}!</b> {g.premio ? "Ganaste: " + g.premio + "." : ""}{g.puntos ? " Te sumamos " + g.puntos + " puntos." : ""}{g.premio && !g.entregado ? " Pasá por el local a retirarlo 🎁" : ""}</div>
               ))}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ flex: 1 }}>🏆 Competencia de {MES[k.mes - 1]}</b><small style={{ color: "#8a7a55" }}>{k.participantes} {k.participantes === 1 ? "clienta" : "clientas"}</small></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><b style={{ flex: 1 }}>🏆 Competencia de {MES[k.mes - 1]}</b><small style={{ color: "#8a7a55" }}>{k.participantes} {k.participantes === 1 ? "cliente" : "clientes"}</small></div>
               {k.puesto ? (
                 <div className="tw-comp-yo">
                   <span className="tw-comp-puesto">{med[k.puesto - 1] || k.puesto + "°"}</span>
@@ -34010,7 +34010,7 @@ function TiendaPublica({ slug }) {
                     <div className="tw-rs-opciones">
                       {[["mucho", "Mucho"], ["mitad", "La mitad"], ["poco", "Poco"]].map(([k, t]) => <button key={k} onClick={() => todaviaTengo(i, k)}>{t}</button>)}
                     </div>
-                    <small>Es opcional 😊 Nos ayuda a saber cuánto dura en promedio este producto, para contarles a otras clientas.</small>
+                    <small>Es opcional 😊 Nos ayuda a saber cuánto dura en promedio este producto, para contarles a otros clientes.</small>
                     <button className="tw-link" onClick={() => todaviaTengo(i, null)}>Prefiero no responder</button>
                   </div>
                 )}
@@ -34065,7 +34065,7 @@ function TiendaPublica({ slug }) {
         {misRes && !misRes.para_resenar.length && !misRes.mias.length ? null : (!misRes ? <div className="tw-skel" style={{ height: 100 }} /> : (
           <div>
             {misRes.para_resenar.length > 0 ? <>
-              <p style={{ fontSize: 13.5, color: "#555", margin: "4px 0 10px" }}>¿Qué te parecieron? Tu opinión ayuda a otras clientas a elegir 💛</p>
+              <p style={{ fontSize: 13.5, color: "#555", margin: "4px 0 10px" }}>¿Qué te parecieron? Tu opinión ayuda a otros clientes a elegir 💛</p>
               {ptsRes && <div className="tw-res-pts" style={{ marginBottom: 10 }}>🎁 <b>{textoPtsRes}</b> por cada reseña que publiquemos</div>}
               {misRes.para_resenar.map(pr => (
                 <div key={pr.id} className="tw-fila-cuenta" style={{ alignItems: "center" }}>
@@ -34174,7 +34174,7 @@ function TiendaPublica({ slug }) {
 
   return (
     <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
-      {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "la clienta") : "la clienta"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
+      {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "el cliente") : "el cliente"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
       {!amigaInfo && twMultHoy(tienda.puntos_dia) && (() => {
         const m = twMultHoy(tienda.puntos_dia);
@@ -34319,7 +34319,7 @@ function TiendaPublica({ slug }) {
               <div><span>🔒</span><span style={{ fontSize: 13.5 }}><b>Compra segura</b><br />{tienda.pagos.mp ? "Con Mercado Pago" : "Te confirmamos por WhatsApp"}</span></div>
             </div>
             {masVendidos.length >= 3 && <TwFila titulo="🔥 Lo más vendido del mes" items={masVendidos} render={tarjeta} />}
-            {masRepuestos.length >= 3 && <TwFila titulo="🔁 Los que más se reponen" sub={<div className="tw-rp-sub">Los que nuestras clientas vuelven a comprar una y otra vez 💛</div>} items={masRepuestos} render={tarjeta} />}
+            {masRepuestos.length >= 3 && <TwFila titulo="🔁 Los que más se reponen" sub={<div className="tw-rp-sub">Los que nuestros clientes vuelven a comprar una y otra vez 💛</div>} items={masRepuestos} render={tarjeta} />}
             {filasPortada.map(f => <TwFila key={f.id} titulo={f.titulo} items={f.items} render={tarjeta} />)}
             {reels.length > 0 && (
               <section className="tw-sec tw-rv">
@@ -34659,7 +34659,7 @@ function TiendaPublica({ slug }) {
                   {rutina.length > 0 && (
                     <div className="tw-rutina">
                       <div className="tw-lbl">Completá tu rutina</div>
-                      <div style={{ fontSize: 12.5, color: "#666", margin: "-4px 0 10px" }}>{rutina.some(p => p._paso) ? "Los pasos que te faltan para una rutina completa, y lo que suelen sumar las clientas" : "Lo que suelen llevar las clientas que compran lo mismo que vos"}</div>
+                      <div style={{ fontSize: 12.5, color: "#666", margin: "-4px 0 10px" }}>{rutina.some(p => p._paso) ? "Los pasos que te faltan para una rutina completa, y lo que suelen sumar los clientes" : "Lo que suelen llevar los clientes que compran lo mismo que vos"}</div>
                       <div className="tw-rutina-fila">
                         {rutina.map(p => (
                           <div key={p.id} className="tw-rutina-item">
@@ -35323,7 +35323,7 @@ function RetiroExpress({ cfg, locs, temaPal, avisar, onGuardado, it }) {
         </div>
       ))}
       {k.franjas.length < 8 && <button className="chip-btn" onClick={() => setK(x => ({ ...x, franjas: [...x.franjas, { desde: "17:00", hasta: "21:00", dias: [1, 2, 3, 4, 5], local: 0 }] }))}>+ Agregar otro horario</button>}
-      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>Dentro de esos horarios, al elegir retiro la clienta ve "⚡ Lo tenés listo en ~{k.minutos || 30} min" (solo si llega a prepararse antes de que cierre esa franja: con 30 min y cierre a las 13:00, hasta las 12:30). En <b>Pedidos</b> esos pedidos tienen una cuenta regresiva hasta que tocás "Ya está listo". Si paga online, el tiempo corre desde que entra el pago.</div>
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>Dentro de esos horarios, al elegir retiro el cliente ve "⚡ Lo tenés listo en ~{k.minutos || 30} min" (solo si llega a prepararse antes de que cierre esa franja: con 30 min y cierre a las 13:00, hasta las 12:30). En <b>Pedidos</b> esos pedidos tienen una cuenta regresiva hasta que tocás "Ya está listo". Si paga online, el tiempo corre desde que entra el pago.</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
     </CajaSeccion>
   );
@@ -35353,10 +35353,10 @@ function ConfigDiagnostico({ cfg, locs, temaPal, avisar, onGuardado, it, urlTien
       </label>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         <div><div className="fl">Cada turno dura (min)</div><input className="inp" inputMode="numeric" value={k.minutos} onChange={e => setK(x => ({ ...x, minutos: num(e.target.value) }))} /></div>
-        <div><div className="fl">Clientas a la vez</div><input className="inp" inputMode="numeric" value={k.cupo} onChange={e => setK(x => ({ ...x, cupo: num(e.target.value) }))} /></div>
+        <div><div className="fl">Clientes a la vez</div><input className="inp" inputMode="numeric" value={k.cupo} onChange={e => setK(x => ({ ...x, cupo: num(e.target.value) }))} /></div>
         <div><div className="fl">Reservar hasta (días)</div><input className="inp" inputMode="numeric" value={k.dias} onChange={e => setK(x => ({ ...x, dias: num(e.target.value) }))} /></div>
       </div>
-      <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 4 }}>"Clientas a la vez": cuántas vendedoras pueden atender en el mismo horario. Con 1, cada horario se ocupa con una sola clienta.</div>
+      <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 4 }}>"Clientes a la vez": cuántos vendedores pueden atender en el mismo horario. Con 1, cada horario se ocupa con una solo cliente.</div>
       <div style={{ fontWeight: 900, fontSize: 14, margin: "16px 0 4px" }}>🕐 Horarios de turnos</div>
       <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>Elegí los horarios más tranquilos del local. Podés cargar uno de mañana y otro de tarde, o uno distinto para cada local.</div>
       {k.franjas.map((f, i) => (
@@ -35382,12 +35382,12 @@ function ConfigDiagnostico({ cfg, locs, temaPal, avisar, onGuardado, it, urlTien
         <div style={{ display: "flex", gap: 6 }}><input className="inp" readOnly value={link} onFocus={e => e.target.select()} aria-label="Link de turnos" />
           <button className="btn btn-g btn-sm" onClick={() => { try { navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>
       </>}
-      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>En la tienda aparece en el inicio, en el menú y en el test de rutina. La clienta elige local, día y hora, y cuenta qué le gustaría mejorar. Los turnos los ven las vendedoras en <b>Clientas web › Turnos de piel</b>: le confirman por WhatsApp y, cuando viene, anotan qué le recomendaron (queda en su perfil y ella lo ve en su cuenta).</div>
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>En la tienda aparece en el inicio, en el menú y en el test de rutina. El cliente elige local, día y hora, y cuenta qué le gustaría mejorar. Los turnos los ven los vendedores en <b>Clientes web › Turnos de piel</b>: le confirman por WhatsApp y, cuando viene, anotan qué le recomendaron (queda en su perfil y ella lo ve en su cuenta).</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
     </CajaSeccion>
   );
 }
-// Regalo de cumpleaños: cada clienta con cuenta ve su cupon personal en la tienda durante su semana de cumple
+// Regalo de cumpleaños: cada cliente con cuenta ve su cupon personal en la tienda durante su semana de cumple
 // Lumiere > Tienda online > Configuracion > Legales y politicas: Data Fiscal (ARCA), textos de las politicas
 // (con borradores para revisar), boton de arrepentimiento y sus pedidos, y la firma "hecha con Lumiere"
 const LEGALES_PAGINAS = [["cambios", "Cambios y devoluciones"], ["envios", "Envíos y retiros"], ["faq", "Preguntas frecuentes"], ["privacidad", "Privacidad"]];
@@ -35419,10 +35419,10 @@ function LegalesTienda({ cfg, locs, temaPal, avisar, onGuardado, it }) {
   return (
     <CajaSeccion it={it} temaPal={tp}>
       <div className="fl">⚖️ Botón de arrepentimiento</div>
-      <div style={{ fontSize: 12.5, color: tp.textMuted, lineHeight: 1.5 }}>Es obligatorio para vender online (Res. 424/2020). Ya está en el pie de la tienda: la clienta completa sus datos y recibe al instante un código de su pedido. Tenés que responderle y cancelar la compra (tiene 10 días corridos desde que recibió el producto).</div>
+      <div style={{ fontSize: 12.5, color: tp.textMuted, lineHeight: 1.5 }}>Es obligatorio para vender online (Res. 424/2020). Ya está en el pie de la tienda: el cliente completa sus datos y recibe al instante un código de su pedido. Tenés que responderle y cancelar la compra (tiene 10 días corridos desde que recibió el producto).</div>
       {arr === null ? <div className="skel" style={{ height: 40, marginTop: 8 }} /> : arr.length === 0 ? <div style={{ fontSize: 12.5, marginTop: 8, color: tp.textMuted }}>No hay pedidos de arrepentimiento.</div> : (
         <div style={{ marginTop: 8 }}>
-          {pend.length > 0 && <div className="cc-aviso bad" style={{ marginBottom: 8 }}>{pend.length === 1 ? "Hay 1 pedido de arrepentimiento sin resolver." : "Hay " + pend.length + " pedidos de arrepentimiento sin resolver."} Escribile a la clienta y cancelá la compra.</div>}
+          {pend.length > 0 && <div className="cc-aviso bad" style={{ marginBottom: 8 }}>{pend.length === 1 ? "Hay 1 pedido de arrepentimiento sin resolver." : "Hay " + pend.length + " pedidos de arrepentimiento sin resolver."} Escribile al cliente y cancelá la compra.</div>}
           {arr.map(a => (
             <div key={a.id} style={{ border: "1px solid " + tp.border, borderRadius: 10, padding: "8px 10px", marginBottom: 6, opacity: a.estado === "resuelto" ? .6 : 1 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -35481,12 +35481,12 @@ function RegaloCumple({ cfg, temaPal, avisar, onGuardado, it }) {
         <div><div className="fl">Cuántos días dura (desde el cumple)</div><input className="inp" inputMode="numeric" value={k.dias} onChange={e => setK(x => ({ ...x, dias: num(e.target.value) }))} /></div>
         <div><div className="fl">Compra mínima (opcional)</div><input className="inp" inputMode="numeric" placeholder="Sin mínimo" value={k.minimo} onChange={e => setK(x => ({ ...x, minimo: num(e.target.value) }))} /></div>
       </div>
-      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>Cada clienta con cuenta y cumple cargado ve en la tienda su código personal (con confeti 🎉). Es de un solo uso, solo lo puede usar ella, en la tienda o en el local (con su DNI en la caja).</div>
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>Cada cliente con cuenta y cumple cargado ve en la tienda su código personal (con confeti 🎉). Es de un solo uso, solo lo puede usar ella, en la tienda o en el local (con su DNI en la caja).</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
     </CajaSeccion>
   );
 }
-// Muestras gratis: desde un monto de productos, en el carrito la clienta elige una de esta lista.
+// Muestras gratis: desde un monto de productos, en el carrito el cliente elige una de esta lista.
 // Cada local tiene sus envases (se descuenta uno por pedido y vuelve si se cancela) y cada muestra dice en qué locales hay tester.
 // Catalogo para Google Shopping e Instagram/Facebook: el link que se pega en Google Merchant Center y en Meta Commerce Manager
 function CatalogoGoogle({ cfg, temaPal, avisar, it }) {
@@ -35580,7 +35580,7 @@ function MuestrasGratis({ cfg, locs, productos, temaPal, avisar, onGuardado, it 
         </div>
       ))}
       {m.opciones.length < 12 && <button className="chip-btn" onClick={() => setM(x => ({ ...x, opciones: [...x.opciones, { nombre: "", producto_id: null, locales: ids }] }))}>+ Agregar otra</button>}
-      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>La clienta ve solo las muestras de su ciudad (con tester y envases). En <b>Pedidos</b> vas a ver "🎁 Muestra gratis: …" para sumarla al armar el paquete.</div>
+      <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 12 }}>El cliente ve solo las muestras de su ciudad (con tester y envases). En <b>Pedidos</b> vas a ver "🎁 Muestra gratis: …" para sumarla al armar el paquete.</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>
     </CajaSeccion>
   );
@@ -35951,14 +35951,14 @@ const ESTADOS_TIENDA = {
   pendiente_pago: { t: "Esperando pago", c: "#b7950b" }, confirmado: { t: "Nuevo · para preparar", c: "#2471a3" }, preparado: { t: "Listo para entregar", c: "#8e44ad" },
   en_caja: { t: "En la caja", c: "#d35400" }, entregado: { t: "Entregado", c: "#2d7a4f" }, cancelado: { t: "Cancelado", c: "#95a5a6" },
 };
-// Por que se vencio un pedido (lo anota la vendedora despues de hablar con la clienta)
+// Por que se vencio un pedido (lo anota el vendedor despues de hablar con el cliente)
 const MOTIVOS_VENC_PED = [["mirando", "🛒 Solo estaba mirando / armó el carrito para probar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["pago", "💳 Tuvo problemas para pagar"], ["otro_medio", "🔁 Quería pagar con otro medio"], ["local", "🏪 Lo compró en el local"], ["caro", "💸 Le pareció caro"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["otro", "✏️ Otro motivo"]];
 // Por que se cancelo un pedido (los de la lista de vencidos que tambien aplican, mas los propios de una cancelacion)
-const MOTIVOS_CANC_PED = [["clienta", "🙋 La clienta pidió cancelar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["sin_stock", "📦 No teníamos el producto"], ["duplicado", "📑 Pedido repetido o con error"], ["cambio", "🔁 Lo cambió por otro pedido"], ["local", "🏪 Lo compró en el local"], ["otro_medio", "💳 Quería pagar con otro medio"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["prueba", "🧪 Era una prueba"], ["otro", "✏️ Otro motivo"]];
+const MOTIVOS_CANC_PED = [["clienta", "🙋 El cliente pidió cancelar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["sin_stock", "📦 No teníamos el producto"], ["duplicado", "📑 Pedido repetido o con error"], ["cambio", "🔁 Lo cambió por otro pedido"], ["local", "🏪 Lo compró en el local"], ["otro_medio", "💳 Quería pagar con otro medio"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["prueba", "🧪 Era una prueba"], ["otro", "✏️ Otro motivo"]];
 const motivoVencTxt = (k) => ([...MOTIVOS_VENC_PED, ...MOTIVOS_CANC_PED].find(m => m[0] === k) || [k, k])[1];
 const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar", giftcard: "Gift card" };
 
-// ---- Lumiere: clientas de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
+// ---- Lumiere: clientes de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
 const MSJ_CARRITO = "Hola {nombre}! 🛍️ Te quedaron estos productos en el carrito de {tienda}: {productos} ({total}). ¿Te ayudo a terminar la compra? {link}";
 const MSJ_AVISO = "Hola {nombre}! 🌻 Ya volvió {producto} a {tienda}. Lo podés comprar acá: {link}";
 const llenarMsj = (t, v) => String(t || "").replace(/\{(\w+)\}/g, (m, k) => v[k] !== undefined && v[k] !== null ? v[k] : m).replace(/\s+/g, " ").trim();
@@ -35974,7 +35974,7 @@ async function iconoCuadrado(archivo) {
     return c.toDataURL("image/png");
   } finally { URL.revokeObjectURL(obj); }
 }
-// Carritos abandonados (en Pedidos, junto a vencidos y cancelados): clientas con cuenta que armaron un carrito y no compraron
+// Carritos abandonados (en Pedidos, junto a vencidos y cancelados): clientes con cuenta que armaron un carrito y no compraron
 function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, urlTienda, alCambiar, puedeEditar, avisar }) {
   const tCarrito = (mensajes && mensajes.carrito) || MSJ_CARRITO;
   const [editMsj, setEditMsj] = useState(null); // texto del mensaje en edicion
@@ -35999,11 +35999,11 @@ function CarritosAbandonados({ temaPal, carritos, mensajes, slug, nombreTienda, 
             <div className="ct" style={{ marginBottom: 0 }}>🛒 Carritos abandonados</div>
             {puedeEditar && !editMsj && <button className="btn btn-g btn-sm" onClick={() => setEditMsj(tCarrito)}>✏️ Editar mensaje</button>}
           </div>
-          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientas con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje.</div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 8px" }}>Clientes con cuenta que armaron un carrito hace más de una hora y no compraron (últimos 30 días). "Recordarle" abre WhatsApp con tu mensaje.</div>
           {editMsj !== null && (
             <div style={{ border: "1px solid " + temaPal.border, borderRadius: 10, padding: 12, marginBottom: 10, background: temaPal.bg }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}><b style={{ fontSize: 13 }}>✏️ Mensaje del carrito abandonado</b><button className="chip-btn" style={{ fontSize: 11 }} onClick={() => setEditMsj(MSJ_CARRITO)}>↺ Volver al de siempre</button></div>
-              <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "4px 0 6px" }}>Podés usar <b>{"{nombre}"}</b> (primer nombre), <b>{"{productos}"}</b>, <b>{"{total}"}</b>, <b>{"{tienda}"}</b> y <b>{"{link}"}</b>: se reemplazan solos con los datos de cada clienta.</div>
+              <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "4px 0 6px" }}>Podés usar <b>{"{nombre}"}</b> (primer nombre), <b>{"{productos}"}</b>, <b>{"{total}"}</b>, <b>{"{tienda}"}</b> y <b>{"{link}"}</b>: se reemplazan solos con los datos de cada cliente.</div>
               <textarea className="inp" rows={4} maxLength={700} value={editMsj} onChange={e => setEditMsj(e.target.value)} style={{ width: "100%" }} aria-label="Mensaje del carrito abandonado" />
               <div style={{ fontSize: 12, background: "#e7fbe9", color: "#1d4d2b", borderRadius: 8, padding: "8px 10px", marginTop: 6, whiteSpace: "pre-wrap" }}><b>Así le llega:</b> {llenarMsj(editMsj, { nombre: "Laura", tienda: nombreTienda || "la tienda", total: fmt(25900), link: urlTienda || "", productos: (carritos && carritos[0] && (carritos[0].items || []).length ? carritos[0].items.map(i => i.nombre + (i.cantidad > 1 ? " x" + i.cantidad : "")).join(", ") : "Serum de vitamina C, Protector solar x2") })}</div>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}><button className="btn btn-g btn-sm" onClick={() => setEditMsj(null)}>Cancelar</button><button className="btn btn-p btn-sm" disabled={!editMsj.trim()} onClick={guardarMsjCarrito}>Guardar</button></div>
@@ -36076,13 +36076,13 @@ function useSeccion(clave, porDefecto) {
   const elegir = (k) => { setSec(k); try { localStorage.setItem("lumiere_sec_" + clave, k); } catch (e) {} };
   return [sec, elegir];
 }
-// Abre la tienda online como la ve una clienta (su cuenta, medallas, rutina, avisos), solo para mirar (30 minutos)
+// Abre la tienda online como la ve un cliente (su cuenta, medallas, rutina, avisos), solo para mirar (30 minutos)
 async function verCuentaEnTienda(c) {
   const w = window.open("", "_blank");
   try { const r = await API.post("/tienda/ver-como/" + c.id); if (w) w.location.href = window.location.origin + "/?tienda=" + encodeURIComponent(r.data.slug) + "#vista=" + encodeURIComponent(r.data.token); }
   catch (e) { if (w) w.close(); alert(e.response?.data?.error || "No se pudo abrir"); }
 }
-// Buscar una clienta y ver su cuenta en la tienda (para la dueña o encargada)
+// Buscar un cliente y ver su cuenta en la tienda (para el dueño o encargado)
 function VerComoClienta({ temaPal }) {
   const [busca, setBusca] = useState("");
   const [todas, setTodas] = useState(null);
@@ -36092,11 +36092,11 @@ function VerComoClienta({ temaPal }) {
     .sort((a, b) => (b.portal_activo ? 1 : 0) - (a.portal_activo ? 1 : 0) || (b.gastado || 0) - (a.gastado || 0)).slice(0, 8) : [];
   return (
     <div className="card">
-      <div className="ct" style={{ marginBottom: 4 }}>👁️ Ver la tienda como una clienta</div>
+      <div className="ct" style={{ marginBottom: 4 }}>👁️ Ver la tienda como un cliente</div>
       <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 8 }}>Buscala y abrí su cuenta tal cual la ve ella: medallas, puntos, su rutina, lo que le toca reponer, cupones. Es solo para mirar: no se puede comprar ni cambiar nada, y se cierra sola a los 30 minutos.</div>
-      <input className="inp" placeholder="Nombre, DNI o teléfono de la clienta" value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%" }} />
+      <input className="inp" placeholder="Nombre, DNI o teléfono del cliente" value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%" }} />
       {q.length >= 2 && !todas && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 8 }}>Buscando…</div>}
-      {q.length >= 2 && todas && !res.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 8 }}>No encontramos ninguna clienta con eso.</div>}
+      {q.length >= 2 && todas && !res.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 8 }}>No encontramos ningún cliente con eso.</div>}
       {res.map(c => (
         <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 2px", borderTop: "1px solid " + temaPal.border, marginTop: 6 }}>
           <span style={{ flex: 1, minWidth: 0 }}>
@@ -36254,7 +36254,7 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
   const paraAvisar = grupos.filter(([, g]) => g.rg + g.ush > 0).reduce((t, [, g]) => t + g.lista.length, 0);
   const SECS = [["aviso", "🔔", "Piden aviso", "#d35400", d.avisos.length, paraAvisar > 0], ["favoritos", "❤️", "Favoritos", "#c0392b", rf.guardados || favs.reduce((t, f) => t + f.n, 0), false],
     ...(turnos.length ? [["turnos", "🗓️", "Turnos de piel", "#2471a3", pendientesTurnos(turnos), pendientesTurnos(turnos) > 0]] : []),
-    ...(esDuena ? [["vercomo", "👁️", "Ver como clienta", "#8e44ad", 0, false]] : [])];
+    ...(esDuena ? [["vercomo", "👁️", "Ver como cliente", "#8e44ad", 0, false]] : [])];
   const secAct = sec || (paraAvisar ? "aviso" : pendientesTurnos(turnos) ? "turnos" : !favs.length ? "aviso" : "favoritos");
   const favsVis = todosFav ? favs : favs.slice(0, 15);
   const ejemplo = { nombre: "Laura", tienda: nombreTienda || "Girasoles", total: fmt(25800), link: urlTienda || "girasolesbeauty.com.ar", productos: "Sérum Vitamina C, Protector solar x2", producto: "Sérum Vitamina C" };
@@ -36268,17 +36268,17 @@ function ClientasWeb({ temaPal, avisar, urlTienda, nombreTienda, esJefe, esDuena
             {n > 0 && <span className={"ped-globo" + (rojo ? " rojo" : "")} aria-label={n + ""}>{n > 99 ? "99+" : n}</span>}
           </button>); })}
       </div>
-      {secAct === "aviso" && paraAvisar > 0 && <div className="cli-tip" style={{ borderColor: temaPal.green }}>✅ <b>{paraAvisar === 1 ? "1 clienta espera" : paraAvisar + " clientas esperan"} un producto que ya volvió.</b> Tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>}
+      {secAct === "aviso" && paraAvisar > 0 && <div className="cli-tip" style={{ borderColor: temaPal.green }}>✅ <b>{paraAvisar === 1 ? "1 cliente espera" : paraAvisar + " clientes esperan"} un producto que ya volvió.</b> Tocá "Avisar" y se abre el WhatsApp con tu mensaje.</div>}
       {secAct === "vercomo" && esDuena && <VerComoClienta temaPal={temaPal} />}
       {secAct === "turnos" && <AgendaTurnos turnos={turnos} temaPal={temaPal} avisar={avisar} onCambio={cargarTurnos} nombreTienda={nombreTienda} />}
       {secAct === "favoritos" && <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <div className="ct" style={{ marginBottom: 0 }}>❤️ Análisis de favoritos</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[["Guardados", rf.guardados || 0], ["Clientas", rf.clientas || 0], ["Esta semana", rf.semana || 0]].map(([t, v]) => <div key={t} style={{ background: temaPal.bg || temaPal.border, borderRadius: 8, padding: "6px 12px", textAlign: "center", minWidth: 86 }}><div style={{ fontSize: 18, fontWeight: 900 }}>{v}</div><div style={{ fontSize: 11, color: temaPal.textMuted }}>{t}</div></div>)}
+            {[["Guardados", rf.guardados || 0], ["Clientes", rf.clientas || 0], ["Esta semana", rf.semana || 0]].map(([t, v]) => <div key={t} style={{ background: temaPal.bg || temaPal.border, borderRadius: 8, padding: "6px 12px", textAlign: "center", minWidth: 86 }}><div style={{ fontSize: 18, fontWeight: 900 }}>{v}</div><div style={{ fontSize: 11, color: temaPal.textMuted }}>{t}</div></div>)}
           </div>
         </div>
-        <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 10px" }}>Lo que las clientas con cuenta guardan con el ♡. "Compraron" = cuántas de las que lo guardaron lo compraron después (en el local o en la web).</div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "6px 0 10px" }}>Lo que los clientes con cuenta guardan con el ♡. "Compraron" = cuántas de las que lo guardaron lo compraron después (en el local o en la web).</div>
         {!favs.length ? <div className="empty">Todavía nadie guardó favoritos. Cuando empiecen, acá vas a ver qué quieren, qué reponer y qué destacar.</div> : <>
           {cats.length > 1 && <div style={{ marginBottom: 12 }}>
             <div className="fl">Por categoría</div>
@@ -36382,7 +36382,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
     try {
       if (estado === "borrar") { if (!confirm("¿Borrar esta reseña para siempre?")) return; await API.delete("/tienda/resenas/" + r.id); }
       else if (estado === "sin-foto") { if (!confirm("¿Sacarle la foto a esta reseña?")) return; await API.post("/tienda/resenas/" + r.id + "/sin-foto"); }
-      else { const res = await API.post("/tienda/resenas/" + r.id + "/estado", { estado }); if (estado === "aprobada") { avisar(true, "✓ Reseña publicada" + (res.data.puntos ? " · se le sumaron " + res.data.puntos + " puntos a " + String(r.clienta || "la clienta").split(" ")[0] : "")); cargar(); return; } }
+      else { const res = await API.post("/tienda/resenas/" + r.id + "/estado", { estado }); if (estado === "aprobada") { avisar(true, "✓ Reseña publicada" + (res.data.puntos ? " · se le sumaron " + res.data.puntos + " puntos a " + String(r.clienta || "el cliente").split(" ")[0] : "")); cargar(); return; } }
       avisar(true, estado === "rechazada" ? "Reseña sin publicar" : "✓ Listo"); cargar();
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
   };
@@ -36412,7 +36412,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
         ["pedir", "💬", "Pedir reseñas", "#2471a3", 0, false]]} />
       {secRs === "resenas" && <div className="card" style={{ minWidth: 0 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-          <div className="ct" style={{ margin: 0, flex: 1 }}>⭐ Reseñas de las clientas {prom && <span style={{ fontWeight: 600, fontSize: 13, color: tp.textMuted }}>· promedio {prom} ★ ({cuenta("aprobada")} publicadas)</span>}</div>
+          <div className="ct" style={{ margin: 0, flex: 1 }}>⭐ Reseñas de los clientes {prom && <span style={{ fontWeight: 600, fontSize: 13, color: tp.textMuted }}>· promedio {prom} ★ ({cuenta("aprobada")} publicadas)</span>}</div>
         </div>
         <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 10 }}>Solo pueden opinar quienes compraron el producto (en el local o en la web, con su cuenta). Ninguna se ve en la tienda hasta que la publicás.</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
@@ -36425,7 +36425,7 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
                 {r.foto && <FotoResenaAdmin id={r.id} onAbrir={setGrande} />}
                 <div style={{ flex: "1 1 260px", minWidth: 0 }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>{est(r.estrellas)}<b style={{ fontSize: 13.5 }}>{r.producto || "Producto"}</b>{r.puntos_dados > 0 && <span className="tag" style={{ background: "#c9a84c22", color: "#9a7b1c", fontWeight: 800 }}>🎁 +{r.puntos_dados} pts</span>}</div>
-                  <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 2 }}>{r.clienta || "Clienta"}{r.telefono ? " · " + r.telefono : ""} · {new Date(r.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                  <div style={{ fontSize: 12, color: tp.textMuted, marginTop: 2 }}>{r.clienta || "Cliente"}{r.telefono ? " · " + r.telefono : ""} · {new Date(r.creado_en).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
                   <div style={{ fontSize: 13.5, marginTop: 6, whiteSpace: "pre-line" }}>{r.texto}</div>
                   {esJefe && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
                     {r.estado !== "aprobada" && <button className="btn btn-p btn-sm" onClick={() => accion(r, "aprobada")}>✓ Publicar{ptsDe(r) ? " (+" + ptsDe(r) + " pts)" : ""}</button>}
@@ -36467,8 +36467,8 @@ function ResenasTienda({ temaPal, avisar, urlTienda, nombreTienda, esJefe, alCam
               {[[30, "Último mes"], [60, "Últimos 2 meses"], [90, "Últimos 3 meses"], [180, "Últimos 6 meses"], [365, "Último año"]].map(([v, t]) => <option key={v} value={v}>{t}</option>)}
             </select>
           </div>
-          {!loc ? <div className="skel" style={{ height: 80 }} /> : loc.clientas.length === 0 ? <div className="empty">No hay clientas con WhatsApp que hayan comprado esto y falten reseñar.</div> : <>
-            <div style={{ fontSize: 11.5, color: tp.textMuted, marginBottom: 4 }}>{loc.clientas.length} clienta{loc.clientas.length !== 1 ? "s" : ""} · {loc.clientas.filter(c => c.pedido_en).length} ya pedidas</div>
+          {!loc ? <div className="skel" style={{ height: 80 }} /> : loc.clientas.length === 0 ? <div className="empty">No hay clientes con WhatsApp que hayan comprado esto y falten reseñar.</div> : <>
+            <div style={{ fontSize: 11.5, color: tp.textMuted, marginBottom: 4 }}>{loc.clientas.length} cliente{loc.clientas.length !== 1 ? "s" : ""} · {loc.clientas.filter(c => c.pedido_en).length} ya pedido</div>
             <div style={{ maxHeight: 420, overflowY: "auto" }}>
               {loc.clientas.map(cl => (
                 <div key={cl.cliente_id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 0", borderTop: "1px solid " + tp.border }}>
@@ -36567,7 +36567,7 @@ function GoCuotasConfig({ temaPal, avisar, activo, onActivo, esJefe }) {
           {error && <div role="alert" style={{ fontSize: 12, lineHeight: 1.5, background: tp.redDim, border: "1px solid " + tp.red, borderRadius: 8, padding: "8px 10px" }}>⚠️ {error}</div>}
         </div>
       )}
-      {activo && est.conectado && <div style={{ fontSize: 11, color: tp.textMuted, margin: "4px 0 0 26px" }}>La clienta paga en la página de GoCuotas y vuelve a la tienda. El pedido se confirma solo cuando GoCuotas aprueba el pago. GoCuotas te deposita según tu acuerdo con ellos.</div>}
+      {activo && est.conectado && <div style={{ fontSize: 11, color: tp.textMuted, margin: "4px 0 0 26px" }}>El cliente paga en la página de GoCuotas y vuelve a la tienda. El pedido se confirma solo cuando GoCuotas aprueba el pago. GoCuotas te deposita según tu acuerdo con ellos.</div>}
     </div>
   );
 }
@@ -36773,7 +36773,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           <div className="fg" style={{ flex: "1 1 160px" }}><div className="fl">Precio de oferta</div><input className="inp" type="number" min="0" value={dia.precio || ""} disabled={!esJefe} onChange={e => setDia(x => ({ ...x, precio: e.target.value }))} /></div>
           {pDia && esJefe && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{[10, 15, 20, 25, 30, 40].map(pc => <button key={pc} className="mini-chip" onClick={() => setDia(x => ({ ...x, precio: Math.round(pDia.precio * (1 - pc / 100) / 100) * 100 }))}>-{pc}%</button>)}</div>}
         </div>
-        {pDia && parseInt(dia.precio) > 0 && parseInt(dia.precio) < pDia.precio && <div style={{ fontSize: 12.5, color: temaPal.green, marginTop: 4 }}>{Math.round((1 - parseInt(dia.precio) / pDia.precio) * 100)}% OFF · la clienta ahorra {fmt(pDia.precio - parseInt(dia.precio))}</div>}
+        {pDia && parseInt(dia.precio) > 0 && parseInt(dia.precio) < pDia.precio && <div style={{ fontSize: 12.5, color: temaPal.green, marginTop: 4 }}>{Math.round((1 - parseInt(dia.precio) / pDia.precio) * 100)}% OFF · el cliente ahorra {fmt(pDia.precio - parseInt(dia.precio))}</div>}
         <div className="fl" style={{ marginTop: 12 }}>¿Hasta cuándo?</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {esJefe && <><button className="mini-chip" onClick={() => ponerHasta(finDeHoy())}>Hasta hoy 23:59</button><button className="mini-chip" onClick={() => ponerHasta(new Date(Date.now() + 24 * 3600e3))}>24 horas</button><button className="mini-chip" onClick={() => ponerHasta(new Date(Date.now() + 48 * 3600e3))}>48 horas</button><button className="mini-chip" onClick={() => ponerHasta(domingo())}>Hasta el domingo</button></>}
@@ -36789,7 +36789,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
 
       {secO === "combos" && <div className="card">
         <div className="ct">🎁 Combos</div>
-        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Varios productos juntos a un precio especial. Aparecen en la portada con un botón para agregarlos de una, y si la clienta tiene todos en el carrito el descuento se aplica solo.</div>
+        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Varios productos juntos a un precio especial. Aparecen en la portada con un botón para agregarlos de una, y si el cliente tiene todos en el carrito el descuento se aplica solo.</div>
         {combos.length === 0 && <div className="empty" style={{ padding: 12 }}>Todavía no hay combos.</div>}
         {combos.map((c, i) => {
           const its = c.productos.map(pDe).filter(Boolean), suma = its.reduce((s, p) => s + parseFloat(p.precio || 0) * cantC(c, p.id), 0), pr = parseInt(c.precio) || 0;
@@ -36845,13 +36845,13 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       {secO === "packs" && <PacksTienda cfg={cfg} productos={productos} temaPal={temaPal} avisar={avisar} esJefe={esJefe} onGuardado={onGuardado} />}
       {secO === "misiones" && <div className="card">
         <div className="ct">🎯 Misiones con puntos extra</div>
-        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Desafíos con fecha de inicio y fin: la clienta ve su avance en "Mi cuenta" y, cuando la cumple, se le suman los puntos (una sola vez). Cuentan las compras en el local y online con su ficha.</div>
+        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Desafíos con fecha de inicio y fin: el cliente ve su avance en "Mi cuenta" y, cuando la cumple, se le suman los puntos (una sola vez). Cuentan las compras en el local y online con su ficha.</div>
         {esJefe && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}><span style={{ fontSize: 12, color: temaPal.textMuted, alignSelf: "center" }}>Ideas:</span>{plantillasMis.map(pl => <button key={pl.titulo} className="mini-chip" onClick={() => setMis(l => [...l, { ...pl, id: "m" + Date.now().toString(36) + l.length, activo: true }])}>+ {pl.titulo}</button>)}</div>}
         {mis.length === 0 && <div className="empty" style={{ padding: 12 }}>Todavía no hay misiones.</div>}
         {mis.map((m, i) => { const vig = m.desde <= hoyISO() && m.hasta >= hoyISO(); return (
           <div key={m.id || i} style={{ border: "1px solid " + temaPal.border, borderRadius: 12, padding: 12, marginBottom: 8, opacity: m.activo === false ? .6 : 1 }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <input className="inp" style={{ flex: "2 1 220px", fontWeight: 700 }} placeholder="Título (lo ve la clienta)" value={m.titulo || ""} disabled={!esJefe} onChange={e => setMi(i, { titulo: e.target.value })} />
+              <input className="inp" style={{ flex: "2 1 220px", fontWeight: 700 }} placeholder="Título (lo ve el cliente)" value={m.titulo || ""} disabled={!esJefe} onChange={e => setMi(i, { titulo: e.target.value })} />
               <span className={"tag " + (m.activo === false ? "tag-neutral" : vig ? "tag-ok" : m.hasta < hoyISO() ? "tag-neutral" : "tag-warn")}>{m.activo === false ? "Apagada" : vig ? "En curso" : m.hasta < hoyISO() ? "Terminada" : "Programada"}</span>
               <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}><input type="checkbox" checked={m.activo !== false} disabled={!esJefe} onChange={e => setMi(i, { activo: e.target.checked })} />Activa</label>
               {esJefe && <button className="btn btn-g btn-sm" onClick={() => setMis(l => l.filter((_, k) => k !== i))}>🗑</button>}
@@ -36872,13 +36872,13 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       </div>}
       {secO === "puntosdia" && <div className="card">
         <div className="ct">🌻 Puntos extra por día</div>
-        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Las compras de la tienda online hechas esos días suman el doble (o el triple) de puntos. No es un descuento: la clienta los usa en una próxima compra, así que la hace volver. En la tienda se ve un aviso ese día y en el carrito, cuántos puntos suma. Los puntos extra se cargan cuando se entrega el pedido (igual que los comunes) y, si se anula la venta, se sacan.</div>
+        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Las compras de la tienda online hechas esos días suman el doble (o el triple) de puntos. No es un descuento: el cliente los usa en una próxima compra, así que la hace volver. En la tienda se ve un aviso ese día y en el carrito, cuántos puntos suma. Los puntos extra se cargan cuando se entrega el pedido (igual que los comunes) y, si se anula la venta, se sacan.</div>
         <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!pdia.activo} disabled={!esJefe} onChange={e => setPdia(x => ({ ...x, activo: e.target.checked }))} /><b>Activar puntos extra</b></label>
         <div className="fl" style={{ marginTop: 12 }}>Cuántos puntos</div>
         <div className="cli-chips">{[[2, "El doble (×2)"], [3, "El triple (×3)"]].map(([m, t]) => <button key={m} className={"chip-btn" + (Number(pdia.mult) === m ? " on" : "")} disabled={!esJefe} onClick={() => setPdia(x => ({ ...x, mult: m }))}>{t}</button>)}</div>
         <div className="fl" style={{ marginTop: 12 }}>Qué días</div>
         <div className="cli-chips">{["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].map((t, d) => { const on = (pdia.dias || []).includes(d); return <button key={d} className={"chip-btn" + (on ? " on" : "")} disabled={!esJefe} onClick={() => setPdia(x => ({ ...x, dias: on ? (x.dias || []).filter(y => y !== d) : [...(x.dias || []), d].sort() }))}>{t}</button>; })}</div>
-        <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 8 }}>Cuenta el día en que la clienta hace el pedido (de 0 a 24 h), aunque lo retire otro día. Necesita tener cuenta en la tienda para sumar puntos. Ej.: una compra de $40.000 un domingo suma 400 puntos comunes + {(400 * ((Number(pdia.mult) || 2) - 1)).toLocaleString("es-AR")} extra.</div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 8 }}>Cuenta el día en que el cliente hace el pedido (de 0 a 24 h), aunque lo retire otro día. Necesita tener cuenta en la tienda para sumar puntos. Ej.: una compra de $40.000 un domingo suma 400 puntos comunes + {(400 * ((Number(pdia.mult) || 2) - 1)).toLocaleString("es-AR")} extra.</div>
         {esJefe && <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={guardarPdia}>Guardar</button>}
         {pdia.activo && (pdia.dias || []).length > 0 && (() => {
           const nombres = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -36888,8 +36888,8 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           const msj = "🌻 ¡Novedad! Los " + dias + " tus compras en nuestra tienda online suman " + mult + " de puntos ✨\nComprá desde tu casa, sumá más rápido y canjeá premios 🎁" + (urlTienda ? "\n👉 " + urlTienda : "") + "\n(Entrá con tu cuenta para que se carguen a tu nombre)";
           return (
             <div style={{ marginTop: 16, borderTop: "1px solid " + temaPal.border, paddingTop: 12 }}>
-              <div className="fl">📣 Avisales a tus clientas</div>
-              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>La tienda ya lo avisa sola ese día: con un cartel arriba de todo, en el carrito y en "Mi cuenta". Para que llegue a más clientas, compartí este mensaje en tu historia de Instagram o en tu estado de WhatsApp el mismo domingo (a la mañana y a la tarde).</div>
+              <div className="fl">📣 Avisales a tus clientes</div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>La tienda ya lo avisa sola ese día: con un cartel arriba de todo, en el carrito y en "Mi cuenta". Para que llegue a más clientes, compartí este mensaje en tu historia de Instagram o en tu estado de WhatsApp el mismo domingo (a la mañana y a la tarde).</div>
               <div style={{ whiteSpace: "pre-wrap", background: temaPal.bg, borderRadius: 10, padding: 10, fontSize: 13 }}>{msj}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                 <button className="btn btn-g btn-sm" onClick={() => { try { navigator.clipboard.writeText(msj); avisar(true, "✓ Mensaje copiado"); } catch (e) { avisar(false, "No se pudo copiar"); } }}>📋 Copiar mensaje</button>
@@ -36901,7 +36901,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       </div>}
       {secO === "amiga" && <div className="card">
         <div className="ct">💌 Invitá a una amiga</div>
-        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Cada clienta con cuenta tiene su link para invitar (lo ve en "Mi cuenta"). La amiga tiene un descuento en su <b>primera</b> compra y, cuando retira su pedido, la que la invitó suma puntos.</div>
+        <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 10 }}>Cada cliente con cuenta tiene su link para invitar (lo ve en "Mi cuenta"). La amiga tiene un descuento en su <b>primera</b> compra y, cuando retira su pedido, la que la invitó suma puntos.</div>
         <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!ref.activo} disabled={!esJefe} onChange={e => setRef(x => ({ ...x, activo: e.target.checked }))} /><b>Activar "Invitá a una amiga"</b></label>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
           <div className="fg" style={{ flex: "0 1 200px" }}><div className="fl">Descuento de la amiga (%)</div><input className="inp" type="number" min="1" max="50" value={ref.pct || ""} disabled={!esJefe} onChange={e => setRef(x => ({ ...x, pct: e.target.value }))} /></div>
@@ -37029,7 +37029,7 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
       </div>}
       {secR === "giftcards" && <div className="card">
         <div className="ct">💳 Gift cards online</div>
-        {sw("giftcards", "Vender gift cards en la tienda", "Se pagan online y, cuando se acredita el pago, se crean solas en Ventas → Gift Cards de Lumiere (con su código y saldo). Se canjean en el Punto de Venta como cualquier otra y entran al cierre de caja del local que elige la clienta.")}
+        {sw("giftcards", "Vender gift cards en la tienda", "Se pagan online y, cuando se acredita el pago, se crean solas en Ventas → Gift Cards de Lumiere (con su código y saldo). Se canjean en el Punto de Venta como cualquier otra y entran al cierre de caja del local que elige el cliente.")}
         {r.giftcards && !pagos.length && <div className="cli-tip" style={{ marginTop: 8 }}>Para venderlas hace falta un pago online prendido en Configuración (Mercado Pago, GoCuotas o transferencia).</div>}
         {r.giftcards && pagos.length > 0 && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 6 }}>Se pueden pagar con: {pagos.join(", ")}. Con transferencia, la gift card se emite cuando tocás "✓ Pago recibido" en el pedido.</div>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginTop: 10 }}>
@@ -37041,7 +37041,7 @@ function RegalosTienda({ cfg, pedidos, temaPal, avisar, urlTienda, esJefe, onGua
       </div>}
       {secR === "armador" && <div className="card">
         <div className="ct">✨ Armamos el regalo</div>
-        {sw("armador", "Mostrar el armador de regalos", "La clienta dice para quién es, cuánto quiere gastar y qué le gusta; la tienda elige productos con stock entre lo más vendido y mejor puntuado, y los suma al carrito marcado como regalo.")}
+        {sw("armador", "Mostrar el armador de regalos", "El cliente dice para quién es, cuánto quiere gastar y qué le gusta; la tienda elige productos con stock entre lo más vendido y mejor puntuado, y los suma al carrito marcado como regalo.")}
         <div style={{ marginTop: 10, maxWidth: 420 }}><div className="fl">Presupuestos para elegir (separados por coma)</div><input className="inp" value={r.presTxt || ""} disabled={!esJefe} onChange={e => set("presTxt", e.target.value)} placeholder="20000, 35000, 50000, 80000" /></div>
       </div>}
       {esJefe && <div style={{ display: "flex", justifyContent: "flex-end" }}><button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar"}</button></div>}
@@ -37403,7 +37403,7 @@ function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
 const ADV_TIPOS_LUM = [
   ["codigo", "🎟️ Código de descuento", "El cupón se crea solo en Cupones y vale ese día (o hasta Navidad), en la tienda online y en los locales."],
   ["descuento", "🏷️ Descuento en productos", "Ese día los productos elegidos tienen el % de descuento solos (precio tachado en la tienda), también en la caja de los locales."],
-  ["regalo", "🎁 Regalo con la compra", "Los pedidos de ese día (desde el mínimo) llevan un aviso para que la vendedora agregue el regalo."],
+  ["regalo", "🎁 Regalo con la compra", "Los pedidos de ese día (desde el mínimo) llevan un aviso para que el vendedor agregue el regalo."],
   ["mensaje", "💌 Solo mensaje", "Un saludo, un tip o un anuncio (por ejemplo un sorteo): no cambia precios."],
 ];
 // Metas del álbum de sellos de fábrica (igual que en el servidor): las 25 ventanas suman 2.000 puntos
@@ -37413,14 +37413,14 @@ function AdvSorteo({ sellos, dias, premio, temaPal: p }) {
   const [ganadora, setGanadora] = useState(null);
   const [ver, setVer] = useState(false);
   const entran = sellos.filter(x => dias > 0 && x.sellos >= dias);
-  if (!sellos.length) return <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>Todavía ninguna clienta juntó sellos.</div>;
+  if (!sellos.length) return <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>Todavía ningún cliente juntó sellos.</div>;
   return (
     <div style={{ marginTop: 10, fontSize: 13 }}>
-      <div><b>{sellos.length}</b> {sellos.length === 1 ? "clienta junta" : "clientas juntan"} sellos{dias > 0 ? " · " + entran.length + " ya " + (entran.length === 1 ? "entra" : "entran") + " al sorteo" : ""} <button className="chip-btn" style={{ marginLeft: 6 }} onClick={() => setVer(v => !v)}>{ver ? "Ocultar" : "Ver quiénes"}</button></div>
-      {ver && <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 8, marginTop: 6 }}>{sellos.map(x => <div key={x.cliente_id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 10px", borderBottom: "1px solid " + p.border, background: dias > 0 && x.sellos >= dias ? p.accent + "14" : "transparent" }}><span>{x.nombre || "Clienta #" + x.cliente_id}{x.telefono ? " · " + x.telefono : ""}</span><b>{x.sellos} 🎖️</b></div>)}</div>}
+      <div><b>{sellos.length}</b> {sellos.length === 1 ? "cliente junta" : "clientes juntan"} sellos{dias > 0 ? " · " + entran.length + " ya " + (entran.length === 1 ? "entra" : "entran") + " al sorteo" : ""} <button className="chip-btn" style={{ marginLeft: 6 }} onClick={() => setVer(v => !v)}>{ver ? "Ocultar" : "Ver quiénes"}</button></div>
+      {ver && <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 8, marginTop: 6 }}>{sellos.map(x => <div key={x.cliente_id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 10px", borderBottom: "1px solid " + p.border, background: dias > 0 && x.sellos >= dias ? p.accent + "14" : "transparent" }}><span>{x.nombre || "Cliente #" + x.cliente_id}{x.telefono ? " · " + x.telefono : ""}</span><b>{x.sellos} 🎖️</b></div>)}</div>}
       {dias > 0 && entran.length > 0 && <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <button className="btn btn-p" onClick={() => setGanadora(entran[Math.floor(Math.random() * entran.length)])}>🎲 Sortear {premio ? "\"" + premio + "\"" : ""}</button>
-        {ganadora && <span style={{ fontWeight: 700 }}>🎉 Ganó <b>{ganadora.nombre || "Clienta #" + ganadora.cliente_id}</b>{ganadora.telefono ? <> · <a href={"https://wa.me/" + String(ganadora.telefono).replace(/\D/g, "")} target="_blank" rel="noreferrer">escribirle por WhatsApp</a></> : ""}</span>}
+        {ganadora && <span style={{ fontWeight: 700 }}>🎉 Ganó <b>{ganadora.nombre || "Cliente #" + ganadora.cliente_id}</b>{ganadora.telefono ? <> · <a href={"https://wa.me/" + String(ganadora.telefono).replace(/\D/g, "")} target="_blank" rel="noreferrer">escribirle por WhatsApp</a></> : ""}</span>}
       </div>}
     </div>
   );
@@ -37462,12 +37462,12 @@ function AdvientoTienda({ temaPal, productos }) {
         <div className="ct" style={{ margin: 0 }}>🎄 Calendario de Adviento</div>
         {slug && <button className="btn btn-p" onClick={verComoQueda}>👀 Ver cómo va a quedar la tienda</button>}
       </div>
-      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Del 1 al 25 de diciembre: cada día se enciende una ventana del edificio en la tienda (Navidad en Nueva York): las clientas la tocan y descubren la sorpresa (descuento, regalo con la compra, código…). Los días que todavía no llegaron no se pueden espiar.</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Del 1 al 25 de diciembre: cada día se enciende una ventana del edificio en la tienda (Navidad en Nueva York): los clientes la tocan y descubren la sorpresa (descuento, regalo con la compra, código…). Los días que todavía no llegaron no se pueden espiar.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={f.musica !== false} toggle={() => set("musica", f.musica === false)} /><b style={{ fontSize: 13 }}>🎵 Música navideña de fondo</b><span style={{ fontSize: 11.5, color: temaPal.textMuted }}>villancicos sin derechos (Jingle Bells, Noche de Paz…); la clienta la puede apagar</span></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={f.musica !== false} toggle={() => set("musica", f.musica === false)} /><b style={{ fontSize: 13 }}>🎵 Música navideña de fondo</b><span style={{ fontSize: 11.5, color: temaPal.textMuted }}>villancicos sin derechos (Jingle Bells, Noche de Paz…); el cliente la puede apagar</span></div>
       <div style={{ border: "1px solid " + p.border, borderRadius: 10, padding: 12, margin: "8px 0 10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Sw on={!f.constancia || f.constancia.activo !== false} toggle={() => set("constancia", { ...(f.constancia || {}), activo: f.constancia && f.constancia.activo === false })} /><b style={{ fontSize: 13 }}>🎖️ Álbum de sellos (premio por constancia)</b></div>
-        <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 8px", lineHeight: 1.45 }}>Cada clienta con cuenta suma un sello cuando abre la ventana <b>el mismo día</b> (no se pueden abrir días pasados para sumar). Al llegar a la cantidad de sellos gana los puntos solos; con los sellos del sorteo entra al sorteo de Navidad.</div>
+        <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 8px", lineHeight: 1.45 }}>Cada cliente con cuenta suma un sello cuando abre la ventana <b>el mismo día</b> (no se pueden abrir días pasados para sumar). Al llegar a la cantidad de sellos gana los puntos solos; con los sellos del sorteo entra al sorteo de Navidad.</div>
         {(!f.constancia || f.constancia.activo !== false) && <div style={{ display: "grid", gap: 6 }}>
           {[0, 1, 2].map(i => { const h = ((f.constancia && f.constancia.hitos) || ADV_HITOS_DEF)[i] || { dias: "", puntos: "" }; const setH = (k, v) => set("constancia", { ...(f.constancia || {}), hitos: [0, 1, 2].map(j => j === i ? { ...h, [k]: v } : (((f.constancia && f.constancia.hitos) || ADV_HITOS_DEF)[j] || { dias: "", puntos: "" })) });
             return <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>Con <input className="inp" style={{ width: 64 }} inputMode="numeric" value={h.dias} onChange={e => setH("dias", e.target.value.replace(/\D/g, ""))} /> sellos gana <input className="inp" style={{ width: 90 }} inputMode="numeric" value={h.puntos} onChange={e => setH("puntos", e.target.value.replace(/\D/g, ""))} /> puntos</div>; })}
@@ -37516,7 +37516,7 @@ function AdvientoTienda({ temaPal, productos }) {
                 <div><label style={lbl}>% de descuento</label><input className="inp" inputMode="numeric" value={x.pct || ""} placeholder="Ej: 15" onChange={e => setDia(x.dia, "pct", Math.min(90, parseInt(e.target.value.replace(/\D/g, "")) || 0))} /></div>
                 <div><label style={lbl}>Compra mínima (opcional)</label><input className="inp" inputMode="numeric" value={x.minimo || ""} placeholder="Sin mínimo" onChange={e => setDia(x.dia, "minimo", parseInt(e.target.value.replace(/\D/g, "")) || 0)} /></div>
                 <div><label style={lbl}>Vale</label><select className="sel" value={x.vale} onChange={e => setDia(x.dia, "vale", e.target.value)}><option value="dia">Solo el {x.dia}/12</option>{x.dia < 25 && <option value="navidad">Del {x.dia}/12 hasta Navidad</option>}</select></div>
-                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, gridColumn: "1 / -1" }}><input type="checkbox" checked={x.uno} onChange={e => setDia(x.dia, "uno", e.target.checked)} /> Una vez por clienta</label>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, gridColumn: "1 / -1" }}><input type="checkbox" checked={x.uno} onChange={e => setDia(x.dia, "uno", e.target.checked)} /> Una vez por cliente</label>
               </div>}
               {x.tipo === "descuento" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
                 <div><label style={lbl}>% de descuento en los productos de abajo</label><input className="inp" inputMode="numeric" value={x.pct || ""} placeholder="Ej: 20" onChange={e => setDia(x.dia, "pct", Math.min(90, parseInt(e.target.value.replace(/\D/g, "")) || 0))} /></div>
@@ -37541,7 +37541,7 @@ function AdvientoTienda({ temaPal, productos }) {
     </div>
   );
 }
-// soloVer: las vendedoras lo ven (fechas, premios del juego, productos del sector) pero no lo cambian
+// soloVer: los vendedores lo ven (fechas, premios del juego, productos del sector) pero no lo cambian
 function HalloweenTienda({ temaPal, productos, soloVer }) {
   const p = temaPal;
   const [d, setD] = useState(null);
@@ -37570,7 +37570,7 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
     catch (e) { if (w) w.close(); setAviso("Error: " + (e.response?.data?.error || e.message)); }
   };
   const fmtF = (fh) => { const [a, h] = String(fh).split("T"); const [, m, dd] = a.split("-"); return dd + "/" + m + " " + h; };
-  const estado = d.en_curso ? ["🟢 En curso: las clientas lo están viendo", p.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmtF(k.desde) + " y se apaga el " + fmtF(k.hasta), p.accentText] : ["⚪ Apagado: la tienda se ve normal", p.textMuted];
+  const estado = d.en_curso ? ["🟢 En curso: los clientes lo están viendo", p.green] : k.activo ? ["🗓️ Programado: se prende solo el " + fmtF(k.desde) + " y se apaga el " + fmtF(k.hasta), p.accentText] : ["⚪ Apagado: la tienda se ve normal", p.textMuted];
   const lbl = { fontSize: 11, color: p.textMuted, display: "block", marginBottom: 4 };
   const totalChance = f.premios.reduce((t, x) => t + (parseInt(x.chance) || 0), 0) || 1;
   const setPremio = (i, campo, v) => set("premios", f.premios.map((x, j) => j === i ? { ...x, [campo]: v } : x));
@@ -37602,9 +37602,9 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
         <div className="ct" style={{ margin: 0 }}>🎃 Halloween en la tienda online</div>
         {slug && (!soloVer || d.en_curso || k.token) && <button className="btn btn-p" onClick={verComoQueda}>{d.en_curso ? "👀 Ver la tienda" : "👀 Ver cómo va a quedar la tienda"}</button>}
       </div>
-      {soloVer && <div className="cli-tip" style={{ margin: "8px 0 4px" }}>👀 Esto es para que sepas qué ven las clientas: fechas, premios de la calabaza y productos del sector. Solo la dueña o la encargada lo pueden cambiar.</div>}
+      {soloVer && <div className="cli-tip" style={{ margin: "8px 0 4px" }}>👀 Esto es para que sepas qué ven los clientes: fechas, premios de la calabaza y productos del sector. Solo el dueño o el encargado lo pueden cambiar.</div>}
       <fieldset disabled={!!soloVer} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, pointerEvents: soloVer ? "none" : undefined }}>
-      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Portada negra y naranja con murciélagos, la calabaza "¿Dulce o truco?" para que las clientas ganen un premio (una vez cada una, con su cuenta) y el sector "Tu look de Halloween". Solo se ve entre las fechas que pongas.</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "6px 0 12px" }}>Portada negra y naranja con murciélagos, la calabaza "¿Dulce o truco?" para que los clientes ganen un premio (una vez cada una, con su cuenta) y el sector "Tu look de Halloween". Solo se ve entre las fechas que pongas.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
       <div className="g2">
@@ -37616,10 +37616,10 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}><Sw on={f.musica !== false} toggle={() => set("musica", f.musica === false)} /><b style={{ fontSize: 13.5 }}>🎵 Música de fondo en la tienda</b></div>
-      <div style={{ fontSize: 11.5, color: p.textMuted, margin: "4px 0 0" }}>"En la gruta del rey de la montaña" (Grieg, sin derechos de autor), despacito. Arranca cuando la clienta toca algo en la página y ella la puede apagar con el botón 🎵.</div>
+      <div style={{ fontSize: 11.5, color: p.textMuted, margin: "4px 0 0" }}>"En la gruta del rey de la montaña" (Grieg, sin derechos de autor), despacito. Arranca cuando el cliente toca algo en la página y se puede apagar con el botón 🎵.</div>
       <div style={{ marginTop: 18, border: "1px solid " + p.border, borderRadius: 12, padding: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Sw on={!!f.juego} toggle={() => set("juego", !f.juego)} /><b style={{ fontSize: 13.5 }}>🎃 Juego "¿Dulce o truco?"</b></div>
-        <div style={{ fontSize: 11.5, color: p.textMuted, margin: "6px 0 10px" }}>Cada clienta abre una calabaza (tiene que entrar con su cuenta), y otra más por cada compra online y por cada amiga que crea su cuenta con su link (hasta 2). Nunca acumula más del tope en códigos de descuento: cuando llega, las calabazas siguientes dan puntos, regalos o truco. Los cupones son solo para ella y valen hasta que termina Halloween. Los puntos se suman a su cuenta al instante.</div>
+        <div style={{ fontSize: 11.5, color: p.textMuted, margin: "6px 0 10px" }}>Cada cliente abre una calabaza (tiene que entrar con su cuenta), y otra más por cada compra online y por cada amiga que crea su cuenta con su link (hasta 2). Nunca acumula más del tope en códigos de descuento: cuando llega, las calabazas siguientes dan puntos, regalos o truco. Los cupones son solo para ella y valen hasta que termina Halloween. Los puntos se suman a su cuenta al instante.</div>
         {f.juego && <>
           {/* En el celular cada premio va en dos renglones (así se ve la ✕ para quitarlo) */}
           <style>{`.hw-prem{display:grid;grid-template-columns:minmax(110px,1.4fr) minmax(110px,1fr) 80px 90px 60px 30px;gap:6px;align-items:center}
@@ -37636,11 +37636,11 @@ function HalloweenTienda({ temaPal, productos, soloVer }) {
               <span className="c-pc" style={{ fontSize: 12, color: p.textMuted }}>{Math.round((parseInt(x.chance) || 0) / totalChance * 100)}%</span>
               {soloVer ? <span className="c-x" /> : <button className="chip-btn c-x" style={{ color: p.red }} disabled={f.premios.length <= 2} onClick={() => set("premios", f.premios.filter((_, j) => j !== i))} aria-label="Quitar premio">✕</button>}
             </div>
-            {x.tipo === "regalo" && <input className="inp" style={{ width: "100%", marginTop: 4 }} value={x.regalo || ""} maxLength={80} placeholder="¿Qué regalo? Ej: neceser con muestras (se le avisa a la vendedora en el pedido)" onChange={e => setPremio(i, "regalo", e.target.value)} />}
+            {x.tipo === "regalo" && <input className="inp" style={{ width: "100%", marginTop: 4 }} value={x.regalo || ""} maxLength={80} placeholder="¿Qué regalo? Ej: neceser con muestras (se le avisa al vendedor en el pedido)" onChange={e => setPremio(i, "regalo", e.target.value)} />}
           </Fragment>))}
           {f.premios.length < 8 && !soloVer && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => set("premios", [...f.premios, { id: "h" + Date.now().toString(36).slice(-6), texto: "15% OFF", tipo: "cupon", valor: 15, chance: 3 }])}>+ Agregar premio</button>}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 12, fontSize: 12.5 }}><b>Tope al juntar códigos en una compra:</b><input className="inp" inputMode="numeric" style={{ width: 70 }} value={f.tope === undefined ? 30 : f.tope} onChange={e => set("tope", e.target.value.replace(/\D/g, "").slice(0, 2))} /> %</div>
-          <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>La clienta puede juntar sus códigos de descuento de la calabaza en una compra: se suman hasta este tope (contando el descuento por forma de pago) y solo paga con transferencia o en efectivo al retirar.</div>
+          <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>El cliente puede juntar sus códigos de descuento de la calabaza en una compra: se suman hasta este tope (contando el descuento por forma de pago) y solo paga con transferencia o en efectivo al retirar.</div>
           {d.quienes && d.quienes.length > 0 && <HwQuienes lista={d.quienes} p={p} />}
           {d.jugadas && d.jugadas.length > 0 && <div style={{ marginTop: 12, fontSize: 12.5 }}><b>{(n => n === 1 ? "Ya se abrió 1 calabaza" : "Ya se abrieron " + n + " calabazas")(d.jugadas.reduce((t, x) => t + x.n, 0))}:</b> {d.jugadas.map(x => x.texto + " (" + x.n + ")").join(" · ")}{d.cupones_usados ? " · " + d.cupones_usados + " cupones ya usados en compras" : ""}</div>}
         </>}
@@ -37835,7 +37835,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   useEffect(() => { const el = document.querySelector(".to-tabs .tab.on"), c = el && el.parentElement; if (c && c.scrollWidth > c.clientWidth) c.scrollLeft = el.offsetLeft - (c.clientWidth - el.clientWidth) / 2; }, [tab]); // pestaña Productos: lista / completá / etiquetas QR
   const [qrProd, setQrProd] = useState(null); // { p, qr } QR de un producto (para la etiqueta del local)
   const [cambio, setCambio] = useState(null); // { p, it, q, prod, vars, variante, cant }: cambiar un producto de un pedido
-  // Notas del local en un pedido (la clienta no las ve): { id del pedido, texto }
+  // Notas del local en un pedido (el cliente no las ve): { id del pedido, texto }
   const [notaPed, setNotaPed] = useState(null);
   const [vencPed, setVencPed] = useState(null); // { id, nombre, tipo: "vencido" | "cancelado", motivo, nota }: ventana "¿Por qué se venció / canceló?"
   const [pedAbiertos, setPedAbiertos] = useState([]); // pedidos con el detalle abierto
@@ -37853,7 +37853,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     setVistosPed(v => { const n = { ...v, [filtro]: Date.now() }; try { localStorage.setItem(claveVistos, JSON.stringify(n)); } catch (e) {} return n; });
   }, [filtro]);
   const [menuFiltro, setMenuFiltro] = useState(false);
-  // Ciudad elegida en Pedidos (0 = todas). Queda guardada en el navegador de cada vendedora
+  // Ciudad elegida en Pedidos (0 = todas). Queda guardada en el navegador de cada vendedor
   const claveLocalPed = "lumiere_ped_local_" + (usuario?.id || 0);
   const [localPed, setLocalPedS] = useState(() => { try { return parseInt(localStorage.getItem(claveLocalPed)) || 0; } catch (e) { return 0; } });
   const setLocalPed = (v) => { setLocalPedS(v); try { localStorage.setItem(claveLocalPed, String(v)); } catch (e) {} };
@@ -37910,7 +37910,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       const d = r.data.diferencia;
       setCambio(null); cargarPedidos();
       if (r.data.pendiente) setTimeout(() => abrirDif({ ...c.p, ...r.data }, r.data.pendiente), 300);
-      avisar(true, "✓ Cambiado por " + c.prod.nombre + (r.data.preventa ? " (queda en preventa: todavía no llegó)" : "") + ". " + (d === 0 ? "Mismo precio." : !c.p.pagado ? "El total quedó en " + fmt(parseFloat(r.data.total)) + "." : d > 0 ? "La clienta tiene que pagar " + fmt(d) + " más." : "Hay que devolverle " + fmt(-d) + "."));
+      avisar(true, "✓ Cambiado por " + c.prod.nombre + (r.data.preventa ? " (queda en preventa: todavía no llegó)" : "") + ". " + (d === 0 ? "Mismo precio." : !c.p.pagado ? "El total quedó en " + fmt(parseFloat(r.data.total)) + "." : d > 0 ? "El cliente tiene que pagar " + fmt(d) + " más." : "Hay que devolverle " + fmt(-d) + "."));
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo cambiar"); }
   };
   useEffect(() => { setLimiteProd(150); }, [busca, soloPub, filtros]);
@@ -37927,7 +37927,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
     if (caidos.length) avisar(false, (caidos.length === 1 ? "Se canceló el pedido N° " + nroPedido(caidos[0]) + " de " + caidos[0].nombre + (UN_SOLO_LOCAL ? "" : " (" + nombreLocal(caidos[0].local_id) + ")") : "Se cancelaron " + caidos.length + " pedidos") + ". Quedó arriba de todo, en Para revisar.");
   }, [pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
   const esJefeT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || puedeHacer("tienda.admin");
-  // Dueña o encargada (las vendedoras, aunque tengan permiso de la tienda, ven solo Pedidos, Productos, Clientas web y Reseñas)
+  // Dueño o encargado (los vendedores, aunque tengan permiso de la tienda, ven solo Pedidos, Productos, Clientes web y Reseñas)
   const esDuenaT = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || Number(usuario?.rol_id) === 1;
 
   const [locs, setLocs] = useState([]);
@@ -38206,7 +38206,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
         ))}
       </div>}
       <div className="tabs to-tabs" style={{ marginBottom: 12 }}>
-        {[["pedidos", "📦 Pedidos" + (abiertos.length + nRevisar ? " (" + (abiertos.length + nRevisar) + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientas web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [["halloween", "🎃 Halloween"]])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
+        {[["pedidos", "📦 Pedidos" + (abiertos.length + nRevisar ? " (" + (abiertos.length + nRevisar) + ")" : "")], ["productos", "🛍 Productos"], ...(esDuenaT ? [["portada", "🏠 Portada y sectores"]] : []), ["clientas", "👥 Clientes web"], ["resenas", "⭐ Reseñas" + (resPend ? " (" + resPend + ")" : "")], ...(esDuenaT ? [["ofertas", "⚡ Ofertas y combos"], ["halloween", "🎃 Halloween"], ["adviento", "🎄 Adviento"], ["rutinas", "💁 Rutinas del local"], ["regalos", "🎁 Regalos"], ["config", "⚙️ Configuración"]] : [["halloween", "🎃 Halloween"]])].map(([k, t]) => <button key={k} className={"tab" + (tab === k ? " on" : "")} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === "productos" && productos && (() => { const pubs = productos.filter(p => p.publicado), falt = pubs.filter(p => !p.foto).length + pubs.filter(p => !(p.descripcion || "").trim()).length; return (
@@ -38408,7 +38408,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                               <div key={i.id} style={{ display: "flex", gap: 8, alignItems: "baseline", fontSize: 13, padding: "3px 0" }}>
                                 <b style={{ minWidth: 22 }}>{i.cantidad}×</b>
                                 <span style={{ flex: 1, minWidth: 0 }}>{i.nombre}{i.variante_valor ? " (" + i.variante_valor + ")" : ""}{i.preventa && <span className="tag" style={{ marginLeft: 6, background: "#ffd23f33", color: temaPal.warn, fontWeight: 800 }}>⏳ preventa</span>}
-                                  {esJefeT && p.tipo !== "giftcard" && !["entregado", "cancelado", "en_caja"].includes(p.estado) && <button className="chip-btn" style={{ marginLeft: 6, fontSize: 10.5, padding: "1px 7px" }} onClick={() => setCambio({ p, it: i, q: "", prod: null, vars: null, variante: "", cant: i.cantidad })} title="La clienta lo cambió por otro producto">🔁 Cambiar</button>}</span>
+                                  {esJefeT && p.tipo !== "giftcard" && !["entregado", "cancelado", "en_caja"].includes(p.estado) && <button className="chip-btn" style={{ marginLeft: 6, fontSize: 10.5, padding: "1px 7px" }} onClick={() => setCambio({ p, it: i, q: "", prod: null, vars: null, variante: "", cant: i.cantidad })} title="El cliente lo cambió por otro producto">🔁 Cambiar</button>}</span>
                                 <span style={{ color: temaPal.textMuted, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{fmt(i.precio * i.cantidad)}</span>
                               </div>
                             ))}
@@ -38434,25 +38434,25 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             <div style={seccion}>
-                              {tit("👤 Clienta y entrega")}
+                              {tit("👤 Cliente y entrega")}
                               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                                 <div><b>{p.nombre}</b>{p.telefono ? " · " + p.telefono : ""}{p.email ? <span style={{ color: temaPal.textMuted }}> · {p.email}</span> : null}</div>
                                 <div>{p.tipo === "giftcard" ? <>🎁 Se usa en <b style={{ color: colorLocalPed(p.local_id) }}>{nombreLocal(p.local_id)}</b></> : p.entrega === "retiro" ? <>📍 Retira en <b style={{ color: colorLocalPed(p.local_id) }}>{nombreLocal(p.local_id)}</b></> : <>🛵 {p.direccion + (p.zona ? " (" + p.zona + ")" : "")}{!UN_SOLO_LOCAL && <> · sale de <b style={{ color: colorLocalPed(p.local_id) }}>{nombreLocal(p.local_id)}</b></>}</>}</div>
                                 <div style={{ color: temaPal.textMuted }}>💳 {PAGO_TIENDA[p.pago]}{p.pagado ? " · pagado" + (p.pagado_en ? " el " + fh(p.pagado_en) : "") : ""} · hecho el {fh(p.creado_en)}</div>
-                                {p.nota && <div style={{ marginTop: 4, padding: "5px 8px", borderRadius: 8, background: temaPal.card, border: "1px solid " + temaPal.border }}>📝 <i>“{p.nota}”</i> <span style={{ fontSize: 11, color: temaPal.textMuted }}>· escribió la clienta</span></div>}
+                                {p.nota && <div style={{ marginTop: 4, padding: "5px 8px", borderRadius: 8, background: temaPal.card, border: "1px solid " + temaPal.border }}>📝 <i>“{p.nota}”</i> <span style={{ fontSize: 11, color: temaPal.textMuted }}>· escribió el cliente</span></div>}
                                 {p.estado === "cancelado" && p.motivo && <div style={{ fontSize: 12, color: temaPal.textMuted }}>Motivo: {p.motivo}</div>}
                                 {(esVencido(p) || esCancelado(p)) && <div style={{ marginTop: 6, padding: "7px 9px", borderRadius: 8, background: p.venc_motivo ? temaPal.card : "#c0392b14", border: "1px solid " + (p.venc_motivo ? temaPal.border : "#c0392b55") }}>
                                   {p.venc_motivo ? <>
                                     <div><b>¿Por qué se {esCancelado(p) ? "canceló" : "venció"}?</b> {motivoVencTxt(p.venc_motivo)}</div>
                                     {p.venc_nota && <div>💬 <i>“{p.venc_nota}”</i></div>}
                                     <div style={{ fontSize: 11, color: temaPal.textMuted }}>Anotó {p.venc_por || "el local"}{p.venc_en ? " · " + fh(p.venc_en) : ""} · <button className="chip-btn" style={{ fontSize: 10.5, padding: "1px 7px" }} onClick={() => abrirVenc(p)}>Cambiar</button></div>
-                                  </> : <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ color: "#c0392b", fontWeight: 700 }}>❓ Falta anotar por qué se {esCancelado(p) ? "canceló" : "venció"} y qué dijo la clienta</span><button className="btn btn-p btn-sm" onClick={() => abrirVenc(p)}>📝 Anotar</button></div>}
+                                  </> : <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ color: "#c0392b", fontWeight: 700 }}>❓ Falta anotar por qué se {esCancelado(p) ? "canceló" : "venció"} y qué dijo el cliente</span><button className="btn btn-p btn-sm" onClick={() => abrirVenc(p)}>📝 Anotar</button></div>}
                                 </div>}
                               </div>
                             </div>
                             <div style={seccion}>
                               {tit("🗒️ Notas del local")}
-                              {(p.notas_local || []).length === 0 && !(notaPed && notaPed.id === p.id) && <div style={{ fontSize: 12, color: temaPal.textMuted }}>La clienta no las ve.</div>}
+                              {(p.notas_local || []).length === 0 && !(notaPed && notaPed.id === p.id) && <div style={{ fontSize: 12, color: temaPal.textMuted }}>El cliente no las ve.</div>}
                               {(p.notas_local || []).map(n => (
                                 <div key={n.id} style={{ fontSize: 12.5, marginBottom: 4, padding: "5px 8px", borderRadius: 8, background: "#fff4d6", color: "#5a4300", display: "flex", gap: 6, alignItems: "flex-start" }}>
                                   <span style={{ flex: 1 }}>{n.texto} <span style={{ fontSize: 11, opacity: .7 }}>· {n.por || "Local"}, {fh(n.en)}</span></span>
@@ -38542,11 +38542,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       {vencPed && <Ventana className="pos-overlay" onClick={() => setVencPed(null)}>
         <div className="card pop-in" role="dialog" aria-label="Por qué se venció" style={{ width: 520, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", background: temaPal.card }} onClick={ev => ev.stopPropagation()}>
           <div className="ct">📝 ¿Por qué se {vencPed.tipo === "cancelado" ? "canceló" : "venció"} el pedido de {vencPed.nombre}?</div>
-          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 10 }}>Escribile a la clienta y anotá qué pasó. Así sabemos por qué se caen las ventas online.</div>
+          <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 10 }}>Escribile al cliente y anotá qué pasó. Así sabemos por qué se caen las ventas online.</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
             {(vencPed.tipo === "cancelado" ? MOTIVOS_CANC_PED : MOTIVOS_VENC_PED).map(([k, t]) => <button key={k} type="button" className={"chip-btn" + (vencPed.motivo === k ? " on" : "")} onClick={() => setVencPed(v => ({ ...v, motivo: k }))}>{vencPed.motivo === k ? "✓ " : ""}{t}</button>)}
           </div>
-          <div className="fl">¿Qué te dijo la clienta?{vencPed.motivo === "otro" ? "" : " (opcional)"}</div>
+          <div className="fl">¿Qué te dijo el cliente?{vencPed.motivo === "otro" ? "" : " (opcional)"}</div>
           <textarea className="inp" rows={3} maxLength={400} style={{ width: "100%", resize: "vertical" }} placeholder="Ej: dijo que solo estaba armando el carrito para ver cuánto le salía" value={vencPed.nota} onChange={ev => setVencPed(v => ({ ...v, nota: ev.target.value }))} />
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-g" onClick={() => setVencPed(null)}>Ahora no</button><button className="btn btn-p" onClick={guardarVenc}>Guardar</button></div>
         </div>
@@ -38717,7 +38717,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           <div className="pos-overlay" onClick={() => setDifPed(null)}>
             <div className="card pop-in" role="dialog" aria-label="Diferencia del cambio" style={{ width: 460, maxWidth: "95vw", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <div style={{ fontSize: 15, fontWeight: 800 }}>{cobrar ? "💰 Cobrar la diferencia" : "↩️ Saldo a favor de la clienta"}</div>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>{cobrar ? "💰 Cobrar la diferencia" : "↩️ Saldo a favor del cliente"}</div>
                 <button className="icon-btn" onClick={() => setDifPed(null)} aria-label="Cerrar">✕</button>
               </div>
               <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 12 }}>Pedido N° {nroPedido(d.p)} de <b style={{ color: temaPal.text }}>{d.p.nombre}</b>: {cobrar ? "falta cobrarle " : "le quedaron "}<b style={{ color: temaPal.text, fontSize: 15 }}>{fmt(Math.abs(d.pend))}</b>{cobrar ? "" : " a favor"} por el cambio.</div>
@@ -38790,7 +38790,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 {!c.prod.tiene_variantes && !alcanza && <div style={{ fontSize: 12.5, color: temaPal.red, marginTop: 8 }}>No hay {c.cant} en {nombreLocal(c.p.local_id)} ni en camino.</div>}
                 {!c.prod.tiene_variantes && alcanza && dp.ya + (c.prod.id === c.it.producto_id && !c.it.preventa ? c.it.cantidad : 0) < c.cant && <div style={{ fontSize: 12.5, color: temaPal.warn, marginTop: 8 }}>⏳ Todavía no llegó: queda en preventa hasta que ingrese.</div>}
                 <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: dif > 0 ? "#ffd23f22" : dif < 0 ? temaPal.greenDim : temaPal.bg, fontSize: 13.5, fontWeight: 700 }}>
-                  {dif === 0 ? "= Mismo precio, no hay diferencia" : !c.p.pagado ? "El total pasa de " + fmt(parseFloat(c.p.total)) + " a " + fmt(Math.max(0, parseFloat(c.p.total) + dif)) + " (lo paga al retirar)" : dif > 0 ? "💰 La clienta tiene que pagar " + fmt(dif) + " más" : "↩️ Hay que devolverle " + fmt(-dif)}
+                  {dif === 0 ? "= Mismo precio, no hay diferencia" : !c.p.pagado ? "El total pasa de " + fmt(parseFloat(c.p.total)) + " a " + fmt(Math.max(0, parseFloat(c.p.total) + dif)) + " (lo paga al retirar)" : dif > 0 ? "💰 El cliente tiene que pagar " + fmt(dif) + " más" : "↩️ Hay que devolverle " + fmt(-dif)}
                   {dif !== 0 && c.p.pagado && <div style={{ fontSize: 11.5, fontWeight: 500, color: temaPal.textMuted, marginTop: 2 }}>El pedido ya estaba pagado: arreglá la diferencia con ella (el total del pedido se actualiza solo).</div>}
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
@@ -38816,10 +38816,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
           { k: "entrega", icono: "🚚", titulo: "Entrega y pagos", color: "#2471a3", sub: [cfg.retiro_activo && "Retiro", cfg.envio_activo && "Envío"].filter(Boolean).join(" + ") || "Falta elegir", alerta: !cfg.retiro_activo && !cfg.envio_activo, ayuda: "Cómo reciben el pedido y cómo pueden pagar." },
           { k: "links", icono: "🔗", titulo: "Link para Instagram", color: "#d6246e", sub: Object.values((cfg.links && cfg.links.locales) || {}).some(x => x.whatsapp) ? "Listo" : "WhatsApp, horarios y ubicación", ayuda: "Una página para poner en la bio de Instagram: tienda online, gift cards y, por cada local, su WhatsApp, horarios y cómo llegar." },
           { k: "express", icono: "⚡", titulo: "Retiro express", color: "#d68910", sub: cfg.express && cfg.express.activo ? "Listo en " + cfg.express.minutos + " min" : "Apagado", ayuda: "Pedidos para retirar listos en pocos minutos." },
-          { k: "diagnostico", icono: "🗓️", titulo: "Diagnóstico de piel", color: "#2471a3", sub: cfg.diagnostico && cfg.diagnostico.activo ? "Turnos de " + cfg.diagnostico.minutos + " min" : "Apagado", ayuda: "Turnos gratis en el local: la vendedora le mira la piel, le arma la rutina y le vende ahí mismo." },
-          { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada clienta en su cumple." },
+          { k: "diagnostico", icono: "🗓️", titulo: "Diagnóstico de piel", color: "#2471a3", sub: cfg.diagnostico && cfg.diagnostico.activo ? "Turnos de " + cfg.diagnostico.minutos + " min" : "Apagado", ayuda: "Turnos gratis en el local: el vendedor le mira la piel, le arma la rutina y le vende ahí mismo." },
+          { k: "cumple", icono: "🎂", titulo: "Regalo de cumpleaños", color: "#e84393", sub: cfg.cumple && cfg.cumple.activo ? (cfg.cumple.tipo === "%" ? cfg.cumple.valor + "% OFF" : fmt(cfg.cumple.valor)) : "Apagado", ayuda: "Un cupón personal para cada cliente en su cumple." },
           { k: "google", icono: "📣", titulo: "Google e Instagram", color: "#4285f4", sub: "Catálogo de productos", ayuda: "Tus productos en Google Shopping (gratis) y en la tienda de Instagram y Facebook." },
-          { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes la clienta elige una muestra de regalo." },
+          { k: "muestras", icono: "🎁", titulo: "Muestras gratis", color: "#e67e22", sub: cfg.muestras && cfg.muestras.activo ? "Desde " + fmt(cfg.muestras.desde) + " · " + Object.values(cfg.muestras.envases || {}).reduce((t, v) => t + (parseInt(v) || 0), 0) + " envases" : "Apagadas", alerta: !!(cfg.muestras && cfg.muestras.activo && Object.values(cfg.muestras.envases || {}).some(v => parseInt(v) <= 5)), ayuda: "En compras grandes el cliente elige una muestra de regalo." },
           { k: "legales", icono: "⚖️", titulo: "Legales y políticas", color: "#5d6d7e", sub: !cfg.legales || !cfg.legales.data_fiscal ? "Falta Data Fiscal" : Object.keys((cfg.legales && cfg.legales.paginas) || {}).length + " políticas", alerta: !cfg.legales || !cfg.legales.data_fiscal || !Object.keys(cfg.legales.paginas || {}).length, ayuda: "Botón de arrepentimiento, Data Fiscal de ARCA y políticas de cambios, envíos y privacidad." },
           ...(cfg.preventa ? [{ k: "preventa", icono: "⏳", titulo: "Preventa", color: "#d35400", sub: cfg.preventa.activo ? "Activada" : "Apagada" }] : []),
           ...(cfg.ruleta ? [{ k: "ruleta", icono: "🎡", titulo: "Ruleta de premios", color: "#c0392b", sub: cfg.ruleta.activo ? "Activada" : "Apagada" }] : []),
@@ -38856,7 +38856,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </div>
             )}
             <div className="fl" style={{ marginTop: 12 }}>Dominio propio (opcional)</div>
-            <input className="inp" placeholder="Ej: girasolesbeauty.com.ar" value={cfg.dominio || ""} disabled={!esDuenaT} title={esDuenaT ? undefined : "Solo la dueña puede cambiar el dominio"} onChange={e => set("dominio", e.target.value.trim().toLowerCase())} aria-label="Dominio propio" />
+            <input className="inp" placeholder="Ej: girasolesbeauty.com.ar" value={cfg.dominio || ""} disabled={!esDuenaT} title={esDuenaT ? undefined : "Solo el dueño puede cambiar el dominio"} onChange={e => set("dominio", e.target.value.trim().toLowerCase())} aria-label="Dominio propio" />
             {cfg.dominio ? (
               <div className="cli-tip" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6 }}>
                 Para que <b>{cfg.dominio}</b> muestre tu tienda:
@@ -38925,7 +38925,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   return <div key={l.id}><div style={{ fontSize: 11.5, color: temaPal.textMuted, marginBottom: 3 }}>{l.nombre}</div><input className="inp" type="tel" placeholder="2964 123456" value={v} onChange={e => set("whatsapp_locales", { ...(cfg.whatsapp_locales || {}), [l.id]: e.target.value })} aria-label={"WhatsApp de " + l.nombre} /></div>;
                 })}
               </div>
-              <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>El botón de WhatsApp de la tienda va al número de la ciudad que eligió la clienta. Si una ciudad queda vacía, usa el de consultas.</div>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>El botón de WhatsApp de la tienda va al número de la ciudad que eligió el cliente. Si una ciudad queda vacía, usa el de consultas.</div>
             </>}
             <div className="fl" style={{ marginTop: 10 }}>Redes sociales (tu usuario o el link)</div>
             {[["instagram", "Instagram", "@girasoles"], ["tiktok", "TikTok", "@girasoles"], ["facebook", "Facebook", "facebook.com/girasoles"]].map(([k, t, ej]) => (
@@ -38989,9 +38989,9 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 8 }}><input type="checkbox" checked={!!cfg.pago_retiro} onChange={e => set("pago_retiro", e.target.checked)} /> <b>Paga al retirar</b> <span style={{ fontSize: 12, color: temaPal.textMuted }}>(solo con retiro)</span></label>
             {(cfg.pago_mp || cfg.pago_gocuotas) && (() => { const ap = { activo: true, local: true, telefono: true, cuotas_local: "", ...(cfg.ayuda_pago || {}) }; const setAp = (k, v) => set("ayuda_pago", { ...ap, [k]: v }); return (
               <div style={{ marginTop: 12, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "10px 12px" }}>
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={ap.activo} onChange={e => setAp("activo", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>🆘 "¿No te salió el pago?"</b><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Si a una clienta le rechazan Mercado Pago o GoCuotas, la tienda le ofrece otras formas de comprar igual.</div></span></label>
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}><input type="checkbox" checked={ap.activo} onChange={e => setAp("activo", e.target.checked)} style={{ marginTop: 3 }} /> <span><b>🆘 "¿No te salió el pago?"</b><div style={{ fontSize: 11.5, color: temaPal.textMuted }}>Si a un cliente le rechazan Mercado Pago o GoCuotas, la tienda le ofrece otras formas de comprar igual.</div></span></label>
                 {ap.activo && <div style={{ margin: "8px 0 0 26px", display: "grid", gap: 8 }}>
-                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13 }}><input type="checkbox" checked={ap.local} onChange={e => setAp("local", e.target.checked)} style={{ marginTop: 2 }} /> <span>Pagar en el local <span style={{ color: temaPal.textMuted, fontSize: 11.5 }}>(le sugiere acercarse al local y avisar por WhatsApp; si es una clienta conocida, desde el pedido la pasás a "paga al retirar")</span></span></label>
+                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13 }}><input type="checkbox" checked={ap.local} onChange={e => setAp("local", e.target.checked)} style={{ marginTop: 2 }} /> <span>Pagar en el local <span style={{ color: temaPal.textMuted, fontSize: 11.5 }}>(le sugiere acercarse al local y avisar por WhatsApp; si es un cliente conocido, desde el pedido la pasás a "paga al retirar")</span></span></label>
                   {ap.local && <div><div className="fl">Cuotas o promos del local (se muestra en la tienda)</div><input className="inp" maxLength={140} placeholder="Ej: 3 cuotas sin interés con todas las tarjetas de crédito" value={ap.cuotas_local} onChange={e => setAp("cuotas_local", e.target.value)} /></div>}
                   <label style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", fontSize: 13 }}><input type="checkbox" checked={ap.telefono} onChange={e => setAp("telefono", e.target.checked)} style={{ marginTop: 2 }} /> <span>Pagar por teléfono <span style={{ color: temaPal.textMuted, fontSize: 11.5 }}>(botón de WhatsApp con el pedido y el monto; vos le cobrás y se lo mandás o lo deja listo)</span></span></label>
                   {ap.telefono && !cfg.whatsapp && <div style={{ fontSize: 11.5, color: temaPal.warn }}>Cargá el WhatsApp de la tienda para que aparezca este botón.</div>}
@@ -39008,7 +39008,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                     </label>
                   ))}
                 </div>
-                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, marginTop: 10, cursor: "pointer" }}><input type="checkbox" checked={cfg.descuento_pago_con_cupon === false} onChange={e => set("descuento_pago_con_cupon", !e.target.checked)} style={{ marginTop: 2 }} /> <span><b>No sumarlo a un cupón</b> (ni al regalo de amiga): si la clienta usa un código, no tiene además el descuento por forma de pago. Los productos del Cyber y las promos ya no lo suman nunca.</span></label>
+                <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, marginTop: 10, cursor: "pointer" }}><input type="checkbox" checked={cfg.descuento_pago_con_cupon === false} onChange={e => set("descuento_pago_con_cupon", !e.target.checked)} style={{ marginTop: 2 }} /> <span><b>No sumarlo a un cupón</b> (ni al regalo de amiga): si el cliente usa un código, no tiene además el descuento por forma de pago. Los productos del Cyber y las promos ya no lo suman nunca.</span></label>
                 <div style={{ fontWeight: 800, fontSize: 12.5, marginTop: 12 }}>🎁 Kits y combos</div>
                 <div style={{ fontSize: 11.5, color: temaPal.textMuted, margin: "2px 0 8px" }}>Si ponés un % acá, los kits y combos del carrito llevan ese descuento con esa forma de pago (en lugar del de arriba); el resto de los productos sigue con el de arriba. Ej: transferencia 5% y kits 25%.</div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -39026,7 +39026,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             <CajaSeccion it={{ ...it, titulo: "Preventa (productos que vienen en camino)" }} temaPal={temaPal}>
               <OrdenesPreventa temaPal={temaPal} avisar={avisar} esJefe={esJefeT} />
               <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!cfg.preventa.activo} onChange={e => set("preventa", { ...cfg.preventa, activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Vender en preventa lo que cargo en las órdenes de ingreso</label>
-              <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px", lineHeight: 1.5 }}>Cuando cargás una orden de ingreso, lo que viene en camino aparece en la tienda en un sector propio, con un aviso bien claro de que <b>todavía no llegó</b>. La clienta lo reserva (usa lo mismo que la preventa de la caja, así no se vende dos veces). Cuando recibís la orden, en el pedido tocás <b>"📦 Llegó la preventa"</b> y le avisás por WhatsApp. Los pedidos con preventa no vencen hasta que llega.</div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px", lineHeight: 1.5 }}>Cuando cargás una orden de ingreso, lo que viene en camino aparece en la tienda en un sector propio, con un aviso bien claro de que <b>todavía no llegó</b>. El cliente lo reserva (usa lo mismo que la preventa de la caja, así no se vende dos veces). Cuando recibís la orden, en el pedido tocás <b>"📦 Llegó la preventa"</b> y le avisás por WhatsApp. Los pedidos con preventa no vencen hasta que llega.</div>
               <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
                 <div><div className="fl">Nombre del sector</div><input className="inp" style={{ width: 260 }} maxLength={40} value={cfg.preventa.titulo || ""} onChange={e => set("preventa", { ...cfg.preventa, titulo: e.target.value })} placeholder="Próximos a ingresar" /></div>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 14 }}><input type="checkbox" checked={cfg.preventa.incluir_no_publicados !== false} onChange={e => set("preventa", { ...cfg.preventa, incluir_no_publicados: e.target.checked })} /> Mostrar también los que todavía no publiqué en la tienda</label>
@@ -39038,7 +39038,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div style={{ flex: "1 1 380px", minWidth: 0 }}>
                   <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontWeight: 800 }}><input type="checkbox" checked={!!r.activo} onChange={e => setR({ activo: e.target.checked })} style={{ width: 18, height: 18 }} /> Activar la ruleta</label>
-                  <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px" }}>Cuando una compra online llega al monto, al terminar la compra la clienta gira una vez. Los cupones que gana se activan cuando retira y paga ese pedido (si lo cancela, no valen) y desde ahí duran 30 días, online o en el local. El REGALO se lo das con el pedido: te avisa en el pedido y en la caja.</div>
+                  <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "4px 0 10px" }}>Cuando una compra online llega al monto, al terminar la compra el cliente gira una vez. Los cupones que gana se activan cuando retira y paga ese pedido (si lo cancela, no valen) y desde ahí duran 30 días, online o en el local. El REGALO se lo das con el pedido: te avisa en el pedido y en la caja.</div>
                   <div className="fl">Compra mínima para girar</div>
                   <input className="inp" type="number" min="1" style={{ maxWidth: 180 }} value={r.minimo} onChange={e => setR({ minimo: e.target.value })} />
                   <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 8 }}><input type="checkbox" checked={!!r.aviso_carrito} onChange={e => setR({ aviso_carrito: e.target.checked })} /> Avisar en el carrito cuánto le falta para girar <span style={{ color: temaPal.textMuted }}>(si no, la ruleta es sorpresa al terminar la compra)</span></label>
@@ -40872,7 +40872,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
             setNuevasRes(n => [...n, ...rs.filter(x => !n.some(y => y.id === x.id))]);
             window.dispatchEvent(new Event("lumiere-avisos"));
             if (!(r.data.pedidos || []).length) sonarVenta();
-            try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("⭐ Nueva reseña para revisar", { body: rs.map(x => (x.clienta || "Clienta") + ": " + "★".repeat(x.estrellas) + " " + (x.producto || "")).join("\n") }); } catch (e) {}
+            try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("⭐ Nueva reseña para revisar", { body: rs.map(x => (x.clienta || "Cliente") + ": " + "★".repeat(x.estrellas) + " " + (x.producto || "")).join("\n") }); } catch (e) {}
           }
         }
         const lista = (r.data.pedidos || []).filter(x => esJefeU || Number(x.local_id) === Number(local.id));
@@ -40907,7 +40907,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
         {nuevasRes.map(x => (
           <div key={x.id} style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <b>{x.clienta || "Clienta"}</b><span style={{ color: "#f5a623", letterSpacing: 1 }}>{"★".repeat(x.estrellas)}<span style={{ color: p.border }}>{"★".repeat(5 - x.estrellas)}</span></span>
+              <b>{x.clienta || "Cliente"}</b><span style={{ color: "#f5a623", letterSpacing: 1 }}>{"★".repeat(x.estrellas)}<span style={{ color: p.border }}>{"★".repeat(5 - x.estrellas)}</span></span>
             </div>
             <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 4 }}>{x.producto}{x.foto ? " · 📷 con foto" : ""}</div>
             <div style={{ fontSize: 13.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>{x.texto}</div>
@@ -41098,7 +41098,7 @@ function AppWrapper() {
     try { const g = sessionStorage.getItem("lumiere_pagina"); if (g) return g; } catch (e) {}
     return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard";
   });
-  // Cuantas veces abre cada grupo del menu este usuario (para ordenar el menu de las vendedoras).
+  // Cuantas veces abre cada grupo del menu este usuario (para ordenar el menu de los vendedores).
   // Se lee una vez al entrar, asi el menu no se mueve mientras lo usa; las visitas se van sumando para la proxima vez.
   const claveUso = "lumiere_uso_menu_" + (usuario?.id || usuario?.email || "");
   const [usoMenu, setUsoMenu] = useState({});
@@ -41457,8 +41457,8 @@ function AppWrapper() {
   };
 
   const esJefeMenu = usuario.rol === "jefe" || usuario.rol_id === 1;
-  // Para las vendedoras el menu va en el orden en que trabajan: Ventas (con el Punto de Venta primero), Caja y Clientes;
-  // despues el resto, primero lo que mas abre cada una. La jefa y el administrativo lo ven en el orden de siempre.
+  // Para los vendedores el menu va en el orden en que trabajan: Ventas (con el Punto de Venta primero), Caja y Clientes;
+  // despues el resto, primero lo que mas abre cada una. El jefe y el administrativo lo ven en el orden de siempre.
   const menuDeVenta = !(esJefeMenu || ["jefe", "admin", "administrativo"].includes(usuario.rol));
   const ordenarMenu = (lista) => {
     if (!menuDeVenta) return lista;

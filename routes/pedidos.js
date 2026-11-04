@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// Crear un pedido (clienta espera un producto). Puede ser de una clienta ya registrada
+// Crear un pedido (cliente espera un producto). Puede ser de un cliente ya registrada
 // (cliente_id) o de alguien sin registrar en el sistema -- en ese caso, nombre y celular
-// son obligatorios (no se puede anotar un pedido sin poder contactar a la clienta despues).
+// son obligatorios (no se puede anotar un pedido sin poder contactar al cliente despues).
 router.post('/', async (req, res) => {
   try {
     const { cliente_id, producto_id, producto_texto, nombre_manual, telefono_manual, local_id } = req.body;
@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
     if (!producto_id && !(producto_texto && producto_texto.trim())) {
       return res.status(400).json({ error: 'Elegi un producto o escribi una sugerencia' });
     }
-    // Evitar duplicados: si esa clienta ya esta esperando ese mismo producto, no se anota de nuevo
+    // Evitar duplicados: si ese cliente ya esta esperando ese mismo producto, no se anota de nuevo
     // (pasaba al apretar varias veces el boton: quedaban 14 pedidos iguales).
     const dup = await pool.query(
       `SELECT id FROM pedidos_clientas
@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Listar pedidos (por defecto los que estan esperando), con datos de clienta y producto + stock actual
+// Listar pedidos (por defecto los que estan esperando), con datos de cliente y producto + stock actual
 router.get('/', async (req, res) => {
   try {
     const { estado } = req.query;
@@ -104,7 +104,7 @@ router.post('/:id/avisar', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Compra detectada automaticamente: una venta (no anulada) a esa misma clienta registrada
+// Compra detectada automaticamente: una venta (no anulada) a esa mismo cliente registrado
 // que incluya ese producto, desde 1 hora antes del aviso hasta 30 dias despues.
 const SQL_COMPRA = `(SELECT MIN(v.creado_en) FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id
     WHERE p.cliente_id IS NOT NULL AND v.cliente_id = p.cliente_id AND vi.producto_id = p.producto_id
@@ -244,7 +244,7 @@ router.put('/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// La clienta vino y compro el producto avisado
+// El cliente vino y compro el producto avisado
 router.post('/:id/concretar', async (req, res) => {
   try {
     await pool.query(`UPDATE pedidos_clientas SET estado = 'concretado', concretado_en = NOW() WHERE id = $1`, [req.params.id]);

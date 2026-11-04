@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/database');
 
 // Datos de apoyo para el Punto de Venta: sugerencias de venta cruzada y la
-// ficha de la clienta. Todo se calcula con las ventas ya registradas
+// ficha del cliente. Todo se calcula con las ventas ya registradas
 // (sin anuladas ni preventas), no hace falta cargar nada a mano.
 
 // "Suelen llevar tambien": productos que aparecen en las mismas ventas que los del carrito
@@ -34,8 +34,8 @@ router.get('/sugerencias', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Ficha rapida de la clienta para la ventana emergente del POS: lo justo para ayudar
-// a la vendedora a vender mas (que suele comprar, que ya se le puede estar terminando,
+// Ficha rapida del cliente para la ventana emergente del POS: lo justo para ayudar
+// al vendedor a vender mas (que suele comprar, que ya se le puede estar terminando,
 // saldo a favor, cumpleanos cerca, pedidos pendientes).
 router.get('/cliente/:id/resumen', async (req, res) => {
   try {

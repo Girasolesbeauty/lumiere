@@ -14,7 +14,7 @@ const { porNegocio } = require('../lib/contexto');
 const API_BRAVE = (process.env.BRAVE_API_BASE || 'https://api.search.brave.com') + '/res/v1/images/search';
 const MAX_BYTES = 8 * 1024 * 1024;
 // Buscan fotos la dueña/admin/administrativo y quien tenga permiso de manejar la tienda online o de crear/editar
-// productos (ej: las vendedoras). La clave del buscador la cambia solo la dueña.
+// productos (ej: los vendedores). La clave del buscador la cambia solo el dueño.
 const esDuena = (req) => req.usuario && ['jefe', 'admin', 'administrativo'].includes(req.usuario.rol);
 async function puede(req) {
   if (esDuena(req)) return true;
@@ -57,7 +57,7 @@ async function buscarBrave(key, q) {
 }
 
 router.use(async (req, res, next) => {
-  if (!(await puede(req))) return res.status(403).json({ error: 'No tenés permiso para buscar fotos. Pedile a la dueña el permiso "Manejar toda la tienda online" o "Editar productos".' });
+  if (!(await puede(req))) return res.status(403).json({ error: 'No tenés permiso para buscar fotos. Pedile al dueño el permiso "Manejar toda la tienda online" o "Editar productos".' });
   try { await asegurar(); next(); } catch (e) { res.status(500).json({ error: 'No se pudo abrir el buscador de fotos' }); }
 });
 
@@ -72,7 +72,7 @@ router.get('/config', async (req, res) => {
 // Guarda la clave (se prueba con una busqueda antes de guardarla). Vacia = borrarla.
 router.put('/config', async (req, res) => {
   try {
-    if (!esDuena(req)) return res.status(403).json({ error: 'La clave del buscador la carga la dueña' });
+    if (!esDuena(req)) return res.status(403).json({ error: 'La clave del buscador la carga el dueño' });
     const k = String((req.body && req.body.clave) || '').trim();
     if (k) {
       if (k.length < 10 || k.length > 200 || /\s/.test(k)) return res.status(400).json({ error: 'Esa clave no parece válida. Copiala de nuevo desde Brave.' });

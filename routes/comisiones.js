@@ -75,7 +75,7 @@ function inicioPeriodo(fecha, periodo) {
 }
 
 // Las ventas que salen de un pedido de la tienda web se cobran en la caja (cuentan como venta del dia
-// y se facturan), pero no las hizo una vendedora: no suman para la comision. La tabla de la tienda
+// y se facturan), pero no las hizo un vendedor: no suman para la comision. La tabla de la tienda
 // existe solo si el negocio la uso alguna vez.
 const sinTiendaWeb = async (alias) => ` AND NOT ${await esVentaWeb(alias)}`;
 
@@ -173,7 +173,7 @@ async function procesarPagoComision(client, { local_id, monto, forma_pago, produ
     const cant = parseInt(cantidad_canje) || 1;
     const costoCanje = parseFloat(prodRes.rows[0].precio || 0) * (1 - DESCUENTO_EMPLEADA) * cant;
     if (costoCanje > monto) {
-      return { error: 'Lo seleccionado ($' + monto.toFixed(0) + ') no alcanza para este canje ($' + costoCanje.toFixed(0) + ' con el 20% de descuento de empleada)' };
+      return { error: 'Lo seleccionado ($' + monto.toFixed(0) + ') no alcanza para este canje ($' + costoCanje.toFixed(0) + ' con el 20% de descuento de empleado)' };
     }
   }
 
@@ -446,7 +446,7 @@ router.put('/:local_id/pagar', async (req, res) => {
 });
 
 // Registrar un pago TOTAL manual (un monto suelto, sin atarlo a dias puntuales) -- para
-// cuando ya se le pago a la vendedora una suma redonda y no se fue tildando dia por dia
+// cuando ya se le pago al vendedor una suma redonda y no se fue tildando dia por dia
 // a tiempo. Se descuenta directo del monto adeudado.
 router.post('/:local_id/pago-manual', async (req, res) => {
   const client = await pool.connect();

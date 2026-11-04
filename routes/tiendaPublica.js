@@ -30,9 +30,9 @@ const demasiados = (ip) => {
   return lista.length > 10;
 };
 
-// Con la llave de "ver como clienta" no se puede comprar, canjear ni cambiar nada
+// Con la llave de "ver como cliente" no se puede comprar, canjear ni cambiar nada
 router.use((req, res, next) => {
-  if (req.method !== 'GET' && esVista(req)) return res.status(403).json({ error: 'Estás viendo la cuenta de una clienta desde Lumiere: acá no se pueden hacer compras ni cambios.' });
+  if (req.method !== 'GET' && esVista(req)) return res.status(403).json({ error: 'Estás viendo la cuenta de un cliente desde Lumiere: acá no se pueden hacer compras ni cambios.' });
   next();
 });
 router.use('/:slug', async (req, res, next) => {
@@ -235,12 +235,12 @@ router.get('/:slug/productos', async (req, res) => {
       WHERE vi.producto_id = ANY($1::int[]) AND v.creado_en > NOW() - INTERVAL '90 days' AND ${VENTA_VALIDA} GROUP BY vi.producto_id ORDER BY SUM(vi.cantidad) DESC LIMIT 200`,
       [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
     const ranking = new Map(ventas90.map((x, i) => [x.producto_id, i + 1]));
-    // Los que más se reponen: cuántas clientas lo volvieron a comprar (en 2 compras distintas, último año, local y web)
+    // Los que más se reponen: cuántos clientes lo volvieron a comprar (en 2 compras distintas, último año, local y web)
     const repuestos = (await pool.query(`SELECT producto_id, COUNT(*)::int AS clientas FROM (
         SELECT vi.producto_id, v.cliente_id FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
         WHERE vi.producto_id = ANY($1::int[]) AND v.cliente_id IS NOT NULL AND v.creado_en > NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA}
         GROUP BY vi.producto_id, v.cliente_id HAVING COUNT(DISTINCT v.id) >= 2) x
-      GROUP BY producto_id ORDER BY clientas DESC LIMIT 24`, [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
+      GROUP BY producto_id ORDER BY clientes DESC LIMIT 24`, [r.rows.filter(p => p.publicado).map(p => p.id)]).catch(() => ({ rows: [] }))).rows;
     const repuesto = new Map(repuestos.map((x, i) => [x.producto_id, i + 1]));
     // Preventa: fecha estimada de ingreso (la mas proxima de las ordenes que todavia no llegaron a cada local)
     const llegas = pv.activo ? new Map((await pool.query(`SELECT oi.producto_id,
@@ -416,7 +416,7 @@ async function clienteDe(db, nombre, telefono, email) {
 }
 
 // Nuevo pedido: valida stock y precios, aparta el stock y (si paga con Mercado Pago) arma el link de pago
-// Boton de arrepentimiento (Res. 424/2020): la clienta pide cancelar una compra sin registrarse ni explicar el motivo.
+// Boton de arrepentimiento (Res. 424/2020): el cliente pide cancelar una compra sin registrarse ni explicar el motivo.
 // Se le da al instante un codigo de su pedido de arrepentimiento; en Lumiere queda la lista para resolverlos.
 router.post('/:slug/arrepentimiento', async (req, res) => {
   const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
@@ -600,7 +600,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     const mu = tienda.muestrasDe(c);
     const opMu = mu.activo && b.muestra && subtotal >= mu.desde ? mu.opciones.find(o => o.nombre === String(b.muestra)) : null;
     if (opMu && tienda.localesMuestra(mu, opMu).includes(Number(localId)) && await tienda.moverEnvase(client, localId, -1)) await client.query('UPDATE tienda_pedidos SET muestra = $1 WHERE id = $2', [opMu.nombre, pedido.id]);
-    // Calendario de Adviento: si la sorpresa de hoy es un regalo con la compra (y llega al mínimo), queda anotado para la vendedora
+    // Calendario de Adviento: si la sorpresa de hoy es un regalo con la compra (y llega al mínimo), queda anotado para el vendedor
     const advR = tienda.advientoDe(c), advD = tienda.advientoHoy(advR), regHoy = advR.activo && advD >= 1 && advD <= 25 ? advR.dias[advD - 1] : null;
     if (regHoy && regHoy.tipo === 'regalo' && regHoy.regalo && subtotal >= regHoy.minimo) await client.query('UPDATE tienda_pedidos SET adviento_regalo = $1 WHERE id = $2', ['Día ' + advD + ': ' + regHoy.regalo, pedido.id]);
     // Halloween: si ganó "regalo con tu compra" en la calabaza (y todavía no lo usó), va en este pedido (hasta que termina Halloween)
@@ -755,7 +755,7 @@ router.post('/:slug/gocuotas/aviso/:codigo/:firma', express.urlencoded({ extende
     if (!p || p.pago !== 'gocuotas') return res.json({ ok: true });
     const estado = String(b.status || '').toLowerCase();
     const monto = Number(b.amount_in_cents);
-    // Rechazado por GoCuotas: queda anotado (la clienta puede pagar de otra forma si le escriben)
+    // Rechazado por GoCuotas: queda anotado (el cliente puede pagar de otra forma si le escriben)
     if (!p.pagado && ['denied', 'rejected', 'declined', 'cancelled', 'canceled', 'failed', 'expired'].includes(estado)) {
       await pool.query(`UPDATE tienda_pedidos SET pago_rechazo = $1, pago_rechazo_en = NOW() WHERE id = $2 AND NOT pagado`, ['gc:' + estado, p.id]);
       return res.json({ ok: true });
@@ -802,7 +802,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
 });
 
-// "Pagalo con otro medio": si el pago online no salió, la clienta elige otro medio de la tienda. El pedido sin pagar se
+// "Pagalo con otro medio": si el pago online no salió, el cliente elige otro medio de la tienda. El pedido sin pagar se
 // cancela (vuelve el stock y el uso del cupón) y la tienda le arma el carrito de nuevo con los mismos productos, así
 // el total y las reglas de cada medio (descuentos, mínimo de GoCuotas, ofertas) se calculan como en cualquier compra.
 router.post('/:slug/pedidos/:codigo/otro-pago', async (req, res) => {
@@ -814,7 +814,7 @@ router.post('/:slug/pedidos/:codigo/otro-pago', async (req, res) => {
     if (p.pagado) return res.status(400).json({ error: 'Este pedido ya está pagado 🎉' });
     if (p.estado !== 'pendiente_pago' || !['mp', 'gocuotas', 'transferencia'].includes(p.pago)) return res.status(400).json({ error: 'Este pedido ya no se puede cambiar' });
     const items = (await pool.query('SELECT producto_id, variante_id, nombre, cantidad, preventa FROM tienda_pedido_items WHERE pedido_id = $1 ORDER BY id', [p.id])).rows;
-    await tienda.cancelar(p.id, 'La clienta eligió pagar con otro medio (rehizo la compra)');
+    await tienda.cancelar(p.id, 'El cliente eligió pagar con otro medio (rehizo la compra)');
     res.json({ ok: true, items: items.map(i => ({ producto_id: i.producto_id, variante_id: i.variante_id, nombre: i.nombre, cantidad: i.cantidad, preventa: !!i.preventa })), cupon: p.cupon || null });
   } catch (e) { console.error('[tienda] otro pago:', e.message); res.status(500).json({ error: 'No se pudo cambiar la forma de pago' }); }
 });
@@ -880,11 +880,11 @@ router.post('/:slug/pedidos/:codigo/ruleta', async (req, res) => {
 });
 
 // ===================== Mi cuenta (clientas) =====================
-// Misma cuenta que el portal de clientas: DNI + contraseña sobre la ficha de Lumiere, asi ven
+// Misma cuenta que el portal de clientes: DNI + contraseña sobre la ficha de Lumiere, asi ven
 // sus puntos y premios. La llave (token) dice de que negocio es.
-// La cuenta de la tienda queda abierta un año y se renueva sola cada vez que la clienta entra (ver GET /cuenta)
+// La cuenta de la tienda queda abierta un año y se renueva sola cada vez que el cliente entra (ver GET /cuenta)
 const firmar = (req, id) => jwt.sign({ id, tipo: 'cliente', neg: req.negTienda.id }, process.env.JWT_SECRET, { expiresIn: '365d' });
-// "Ver como clienta" (desde Lumiere): llave de 30 minutos marcada vista, que solo deja mirar
+// "Ver como cliente" (desde Lumiere): llave de 30 minutos marcada vista, que solo deja mirar
 function esVista(req) {
   const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
   if (!t) return false;
@@ -918,7 +918,7 @@ const digitos = (x) => cuentas.soloNumeros(x).slice(-8);
 const mismoTelefono = (a, b) => cuentas.soloNumeros(a).length >= 8 && cuentas.soloNumeros(b).length >= 8 && cuentas.soloNumeros(a).slice(-6) === cuentas.soloNumeros(b).slice(-6);
 
 // ── Halloween: "¿Dulce o truco?" ──────────────────────────────────────────────────────────────
-// Una calabaza por clienta (con su cuenta) por temporada, más una extra por cada compra online hecha durante Halloween
+// Una calabaza por cliente (con su cuenta) por temporada, más una extra por cada compra online hecha durante Halloween
 // y por cada amiga que crea su cuenta con su link (hasta HW_AMIGAS_MAX). Premios: cupón personal (vale hasta el fin
 // de Halloween), puntos, regalo con la compra o "truco".
 // En la vista previa (link privado, antes de las fechas) se juega "de mentira": no se guarda ni se da nada.
@@ -1048,7 +1048,7 @@ router.post('/:slug/cuenta/ingresar', async (req, res) => {
 
 // Crear la cuenta. Si el DNI ya esta en Lumiere (compro en el local), para proteger sus puntos
 // tiene que coincidir el WhatsApp o el mail que figuran en su ficha. Si es nueva, se crea la ficha.
-// Mientras escribe el DNI para crear la cuenta: si ya es clienta de Lumiere, si ya tiene cuenta, o si es nueva.
+// Mientras escribe el DNI para crear la cuenta: si ya es cliente de Lumiere, si ya tiene cuenta, o si es nueva.
 // Se muestra solo el primer nombre y el final del WhatsApp (para que sepa cual usar). Con limite por IP.
 const consultasDni = new Map();
 router.post('/:slug/cuenta/dni', async (req, res) => {
@@ -1073,7 +1073,7 @@ function fechaNacimiento(x) {
   if (!m) return null;
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   if (d.getUTCMonth() !== +m[2] - 1) return null;
-  // Año 1904 = "solo el cumpleaños" (la clienta no cargo el año; el dia y el mes alcanzan para saludarla)
+  // Año 1904 = "solo el cumpleaños" (el cliente no cargo el año; el dia y el mes alcanzan para saludarla)
   if (+m[1] === 1904) return m[0];
   const edad = (Date.now() - d.getTime()) / (365.25 * 864e5);
   return edad >= 10 && edad <= 110 ? m[0] : null;
@@ -1101,14 +1101,14 @@ router.post('/:slug/cuenta/crear', async (req, res) => {
     await candado.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['cuenta-dni:' + dni]);
     let c = (await cuentas.buscarPorDni(dni)).rows[0];
     if (c) {
-      if (c.password_hash) return res.status(400).json({ error: 'Ese DNI ya tiene una cuenta (puede ser del portal de clientas). Ingresá con tu contraseña.' });
+      if (c.password_hash) return res.status(400).json({ error: 'Ese DNI ya tiene una cuenta (puede ser del portal de clientes). Ingresá con tu contraseña.' });
       const telOk = mismoTelefono(c.telefono, telefono);
       const mailOk = !!email && [c.email, c.portal_email].some(m => m && String(m).trim().toLowerCase() === email);
       if (!telOk && !mailOk) {
         cuentas.sumarIntento(k);
         return res.status(400).json({ error: (c.telefono || c.email) ? 'Ese DNI ya está en nuestra base con otro WhatsApp o mail. Escribí el que nos diste en el local (o pedí que lo actualicen).' : 'Ese DNI ya está en nuestra base pero sin WhatsApp ni mail. Para proteger tus puntos, pedí en el local que los carguen en tu ficha y volvé a intentar.', verificar: true });
       }
-      // Ya era clienta: se completan los datos que le falten (no se pisa lo que cargaron en el local)
+      // Ya era cliente: se completan los datos que le falten (no se pisa lo que cargaron en el local)
       await pool.query(`UPDATE clientes SET password_hash = $1, portal_registrado_en = NOW(), portal_email = COALESCE(portal_email, $2::text),
         email = COALESCE(NULLIF(email, ''), $2::text), telefono = COALESCE(NULLIF(telefono, ''), $3::text), fecha_nacimiento = COALESCE(fecha_nacimiento, $5::date) WHERE id = $4`,
         [await bcrypt.hash(password, 10), email, telefono, c.id, nacimiento]);
@@ -1178,7 +1178,7 @@ router.post('/:slug/avisame', async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar. Probá de nuevo.' }); }
 });
-// Carrito de la clienta con cuenta (para que la tienda le pueda recordar si lo deja sin terminar)
+// Carrito del cliente con cuenta (para que la tienda le pueda recordar si lo deja sin terminar)
 router.put('/:slug/cuenta/carrito', conCuenta, async (req, res) => {
   try {
     const items = (Array.isArray(req.body && req.body.items) ? req.body.items : []).slice(0, 50).map(i => ({
@@ -1252,7 +1252,7 @@ router.get('/:slug/cuenta', conCuenta, async (req, res) => {
   } catch (e) { console.error('[tienda] cuenta:', e.message); res.status(500).json({ error: 'No pudimos cargar tu cuenta' }); }
 });
 
-// Turnos de diagnostico de la clienta (los que vienen y lo que le recomendaron en los que ya fue)
+// Turnos de diagnostico del cliente (los que vienen y lo que le recomendaron en los que ya fue)
 async function turnosDeClienta(clienteId) {
   return (await pool.query(`SELECT t.id, to_char(t.fecha, 'YYYY-MM-DD') AS fecha, t.hora, t.estado, t.resultado, t.atendido_por, l.nombre AS local, l.direccion
     FROM tienda_turnos t LEFT JOIN locales l ON l.id = t.local_id WHERE t.cliente_id = $1 AND t.estado <> 'cancelado' ORDER BY t.fecha DESC, t.hora DESC LIMIT 10`, [clienteId]).catch(() => ({ rows: [] }))).rows;
@@ -1299,7 +1299,7 @@ router.post('/:slug/diagnostico', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Un turno por vez en cada local: asi dos clientas no se quedan con el ultimo lugar del mismo horario
+    // Un turno por vez en cada local: asi dos clientes no se quedan con el ultimo lugar del mismo horario
     await client.query('SELECT pg_advisory_xact_lock(7311, $1)', [localId]);
     const dias = await tienda.horariosDiagnostico(client, k, localId);
     if (!dias.some(d => d.fecha === fecha && d.horas.includes(hora))) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Ese horario se acaba de ocupar. Elegí otro, porfa.', ocupado: true }); }
@@ -1321,7 +1321,7 @@ router.post('/:slug/diagnostico', async (req, res) => {
     res.status(500).json({ error: 'No se pudo reservar. Probá de nuevo.' });
   } finally { client.release(); }
 });
-// La clienta cancela su turno desde Mi cuenta
+// El cliente cancela su turno desde Mi cuenta
 router.post('/:slug/cuenta/turnos/:id/cancelar', conCuenta, async (req, res) => {
   try {
     const r = await pool.query(`UPDATE tienda_turnos SET estado = 'cancelado', actualizado_en = NOW() WHERE id = $1 AND cliente_id = $2 AND estado IN ('reservado', 'confirmado') RETURNING id`, [parseInt(req.params.id), req.clienteId]);
@@ -1371,9 +1371,9 @@ router.post('/:slug/amiga/validar', async (req, res) => {
 });
 
 // ===================== Reseñas =====================
-// Solo opina quien compro el producto (en el local o en la web, con su ficha de clienta).
+// Solo opina quien compro el producto (en el local o en la web, con su ficha de cliente).
 // Quedan pendientes hasta que la tienda las aprueba en Lumiere.
-const nombreCorto = (n) => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length ? p[0] + (p[1] ? ' ' + p[1][0].toUpperCase() + '.' : '') : 'Clienta'; };
+const nombreCorto = (n) => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length ? p[0] + (p[1] ? ' ' + p[1][0].toUpperCase() + '.' : '') : 'Cliente'; };
 async function compradosPor(clienteId) {
   return (await pool.query(`SELECT producto_id, MAX(f) AS fecha FROM (
       SELECT vi.producto_id, v.creado_en AS f FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id WHERE v.cliente_id = $1 AND ${VENTA_VALIDA}
@@ -1439,8 +1439,8 @@ router.post('/:slug/cuenta/resenas', conCuenta, async (req, res) => {
 });
 
 // ===================== Recomendaciones (lo que compran juntas) =====================
-// Para uno o varios productos: lo que las clientas llevaron en la misma compra, o la misma
-// clienta en los 3 meses siguientes. Se cuenta cada clienta una vez. Queda en memoria 6 horas.
+// Para uno o varios productos: lo que los clientes llevaron en la misma compra, o la misma
+// cliente en los 3 meses siguientes. Se cuenta cada cliente una vez. Queda en memoria 6 horas.
 const cacheRec = new Map();
 router.get('/:slug/recomendados', async (req, res) => {
   try {

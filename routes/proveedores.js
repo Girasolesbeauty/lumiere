@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
 // con un id de proveedor.
 // Reporte de VENTAS por proveedor: cuanto se vendio de los productos de cada proveedor
 // en un rango de fechas (distinto del reporte de compras -- ese mira lo que le compraste
-// vos al proveedor, este mira lo que le vendiste a tus clientas de su mercaderia).
+// vos al proveedor, este mira lo que le vendiste a tus clientes de su mercaderia).
 router.get('/reporte-ventas', async (req, res) => {
   try {
     const { desde, hasta, local_id, proveedor_id } = req.query;

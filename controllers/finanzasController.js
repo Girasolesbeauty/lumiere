@@ -1281,7 +1281,7 @@ const getComparativaMeses = async (req, res) => {
 
 // ===================== Informe del mes (para descargar) =====================
 // Todo lo del mes en un solo pedido, comparado con el mes anterior: facturación, ingresos y egresos (con su %),
-// sueldos y comisiones, vendedoras, ticket promedio, locales, canales, medios de pago, productos, marcas y clientas.
+// sueldos y comisiones, vendedoras, ticket promedio, locales, canales, medios de pago, productos, marcas y clientes.
 // Si el mes está en curso, la facturación también se compara con los mismos días del mes anterior.
 // Sueldos del mes por persona: los mismos egresos que suman "Sueldos y comisiones" (así la lista da el mismo total),
 // juntando los pagos de cada una aunque se hayan cargado distinto ("Sueldo Vero", "Adelanto sueldo vero", "Aguinaldo Vero")
@@ -1293,7 +1293,7 @@ function sueldosPorPersona(egresos) {
     // Si la categoría es de una persona ("Sueldo Sabrina", "Sueldo Enrique"), todo lo cargado ahí es de esa persona
     // (aunque el concepto diga "Telepase" o "Kiosco"); si la categoría es la general ("Sueldos"), se usa el concepto
     const cat = String(r.categoria_nombre || '').trim(), catPersona = cat && !/^(sueldos?|sueldos? y cargas.*|sueldos? empleados?|personal|sin categor[ií]a)$/i.test(cat);
-    let quien = comision ? 'Comisiones de vendedoras' : String(catPersona ? cat : r.concepto || '').replace(/[\/.:,()-]/g, ' ').replace(/\s+/g, ' ');
+    let quien = comision ? 'Comisiones de vendedores' : String(catPersona ? cat : r.concepto || '').replace(/[\/.:,()-]/g, ' ').replace(/\s+/g, ' ');
     if (!comision) { let antes; do { antes = quien; quien = quien.replace(PALABRAS_SUELDO, ' ').replace(/\s+/g, ' '); } while (quien !== antes); quien = quien.trim(); }
     if (!quien) quien = 'Sueldos sin nombre';
     const k = quien.toLowerCase();
@@ -1305,7 +1305,7 @@ function sueldosPorPersona(egresos) {
 
 const getInformeMes = async (req, res) => {
   try {
-    if (!['jefe', 'admin', 'administrativo'].includes(req.usuario && req.usuario.rol)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+    if (!['jefe', 'admin', 'administrativo'].includes(req.usuario && req.usuario.rol)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const { mes, anio } = mesAnio(req.query);
     const localNum = normalizarLocalId(req.query.local_id);
     const mesAnt = mes === 1 ? 12 : mes - 1, anioAnt = mes === 1 ? anio - 1 : anio;
@@ -1486,7 +1486,7 @@ const getExportarMes = async (req, res) => {
       ['Medios de pago', [['Medio de pago', 'Cantidad', 'Monto', 'Comisión %', 'Comisión $', 'Efectivo'], ...medios.detalle.map(m => [m.medio, m.ventas, redondo(m.monto), m.comision_pct, redondo(m.comision), m.efectivo ? 'Sí' : 'No']),
         ['Total', '', redondo(medios.total_ventas), '', redondo(medios.total_comisiones), '']]],
       ['Ventas por día', [['Día', 'Ventas', 'Total'], ...ventasDia.rows.map(r => [dia(r.dia), parseInt(r.cantidad), redondo(r.total)])]],
-      ['Ventas', [['N°', 'Fecha', 'Local', 'Canal', 'Medio de pago', 'Clienta', 'Descuento', 'Total'], ...ventas.rows.map(v => [v.id, fecha(v.creado_en), nl(v.local_id), v.canal || '', v.medio_pago || '', v.cliente || '', redondo(v.descuento), redondo(v.total)])]],
+      ['Ventas', [['N°', 'Fecha', 'Local', 'Canal', 'Medio de pago', 'Cliente', 'Descuento', 'Total'], ...ventas.rows.map(v => [v.id, fecha(v.creado_en), nl(v.local_id), v.canal || '', v.medio_pago || '', v.cliente || '', redondo(v.descuento), redondo(v.total)])]],
       ['Gastos', [['Fecha', 'Concepto', 'Categoría', 'Tipo', 'Local', 'Importe'], ...egresos.sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en)).map(e => [fecha(e.creado_en), e.concepto || '', e.categoria_nombre || '', e.categoria_tipo || '', nl(e.local_id), redondo(e.importe)])]],
       ['Compras de mercadería', [['Fecha de carga', 'Proveedor', 'N° factura', 'Fecha factura', 'Vence', 'Total', 'Estado', 'Forma de pago', 'Fecha de pago', 'Notas'], ...compras.rows.map(o => [fecha(o.creado_en), o.proveedor_nombre || '', o.numero_factura || '', dia(o.fecha_factura), dia(o.fecha_vencimiento), redondo(o.total), o.estado || '', o.forma_pago || '', dia(o.fecha_pago), o.notas || ''])]],
       ['Pagos a proveedores', [['Fecha de pago', 'Proveedor', 'N° factura', 'Total', 'Forma de pago', 'Cuenta', 'Cargada el'], ...pagosProv.rows.map(o => [dia(o.fecha_pago), o.proveedor_nombre || '', o.numero_factura || '', redondo(o.total), o.forma_pago || '', o.cuenta || '', fecha(o.creado_en)])]],

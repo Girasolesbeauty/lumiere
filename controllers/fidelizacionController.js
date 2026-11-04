@@ -153,7 +153,7 @@ async function ejecutarCanje(client, { cliente_id, premio_id, entregaInmediata, 
     const mesActual = new Date().getMonth() + 1;
     const esMesCumple = cliente.fecha_nacimiento && (new Date(cliente.fecha_nacimiento).getMonth() + 1) === mesActual;
     if (!esMesCumple) {
-      const err = new Error('Este premio es exclusivo del mes de cumpleanos de la clienta');
+      const err = new Error('Este premio es exclusivo del mes de cumpleanos del cliente');
       err.status = 400;
       throw err;
     }
@@ -228,7 +228,7 @@ const canjear = async (req, res) => {
   }
 };
 
-// Buscar clienta por DNI (para canjear en el local sin necesitar usuario del portal)
+// Buscar cliente por DNI (para canjear en el local sin necesitar usuario del portal)
 const buscarClientePorDni = async (req, res) => {
   try {
     const { dni } = req.query;
@@ -242,7 +242,7 @@ const buscarClientePorDni = async (req, res) => {
       [dniLimpio]
     );
     if (clienteRes.rows.length === 0) {
-      return res.status(404).json({ error: 'No se encontro ninguna clienta con ese DNI' });
+      return res.status(404).json({ error: 'No se encontro ningún cliente con ese DNI' });
     }
     const cliente = clienteRes.rows[0];
 
@@ -260,11 +260,11 @@ const buscarClientePorDni = async (req, res) => {
     res.json({ cliente, premios });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al buscar la clienta: ' + error.message });
+    res.status(500).json({ error: 'Error al buscar el cliente: ' + error.message });
   }
 };
 
-// Canjear un premio ya mismo en el local (sin portal, sin codigo, la vendedora lo entrega en el momento)
+// Canjear un premio ya mismo en el local (sin portal, sin codigo, el vendedor lo entrega en el momento)
 const canjearEnLocal = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -282,7 +282,7 @@ const canjearEnLocal = async (req, res) => {
   }
 };
 
-// Listar canjes pendientes/usados, para que la vendedora los valide en el local
+// Listar canjes pendientes/usados, para que el vendedor los valide en el local
 const getCanjes = async (req, res) => {
   try {
     const { estado } = req.query;
@@ -303,7 +303,7 @@ const getCanjes = async (req, res) => {
   }
 };
 
-// Validar un codigo de canje (la vendedora lo confirma en el local)
+// Validar un codigo de canje (el vendedor lo confirma en el local)
 const validarCanje = async (req, res) => {
   try {
     const { codigo, usuario_nombre } = req.body;

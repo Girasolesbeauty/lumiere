@@ -3,11 +3,11 @@ const router = express.Router();
 const controller = require('../controllers/clientesController');
 
 router.get('/', controller.getAll);
-// Buscar una clienta por DNI desde el Punto de Venta (rápido: no baja toda la lista). Encuentra el mismo número
-// escrito con puntos o espacios, con ceros adelante, y también si la clienta está guardada con su CUIT
+// Buscar un cliente por DNI desde el Punto de Venta (rápido: no baja toda la lista). Encuentra el mismo número
+// escrito con puntos o espacios, con ceros adelante, y también si el cliente está guardada con su CUIT
 // (27-32456789-4 → DNI 32456789) o si escriben el CUIT y está guardada con el DNI.
 const pool = require('../config/database');
-// Buscar clientas por celular (Punto de Venta, señas y preventas): se comparan los últimos 6 números, así encuentra
+// Buscar clientes por celular (Punto de Venta, señas y preventas): se comparan los últimos 6 números, así encuentra
 // el mismo celular escrito con o sin 0, 15, código de área o +54 9. Devuelve hasta 6, las más parecidas primero.
 router.get('/buscar-tel', async (req, res) => {
   try {
@@ -23,7 +23,7 @@ router.get('/buscar-tel', async (req, res) => {
       ORDER BY (right(c.dig, 8) = right($1, 8)) DESC, (c.dig = $1) DESC, compras DESC, c.id
       LIMIT 6`, [q]);
     res.json(r.rows);
-  } catch (e) { console.error('[clientes] buscar-tel:', e.message); res.status(500).json({ error: 'No se pudo buscar la clienta' }); }
+  } catch (e) { console.error('[clientes] buscar-tel:', e.message); res.status(500).json({ error: 'No se pudo buscar el cliente' }); }
 });
 router.get('/buscar-dni', async (req, res) => {
   try {
@@ -45,7 +45,7 @@ router.get('/buscar-dni', async (req, res) => {
       ORDER BY (c.dig = $1) DESC, c.id
       LIMIT 1`, [d, dniDeCuit]);
     res.json(r.rows[0] || null);
-  } catch (e) { console.error('[clientes] buscar-dni:', e.message); res.status(500).json({ error: 'No se pudo buscar la clienta' }); }
+  } catch (e) { console.error('[clientes] buscar-dni:', e.message); res.status(500).json({ error: 'No se pudo buscar el cliente' }); }
 });
 router.get('/config/niveles', controller.getNiveles);
 router.get('/config/cumple', controller.getCumple);

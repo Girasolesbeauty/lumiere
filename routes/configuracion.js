@@ -38,7 +38,7 @@ router.put('/', async (req, res) => {
     const retosMeta = parseInt(retos_meta_mensual) > 0 ? parseInt(retos_meta_mensual) : null;
     const retosMonto = parseFloat(retos_premio_monto) >= 0 ? parseFloat(retos_premio_monto) : null;
     // modo_ticket: que pasa al terminar una venta en el POS -- "imprimir" (ticket en la
-    // impresora, lo de siempre), "enviar" (link por WhatsApp) o "preguntar" (la vendedora elige).
+    // impresora, lo de siempre), "enviar" (link por WhatsApp) o "preguntar" (el vendedor elige).
     const modoValido = ['imprimir', 'enviar', 'preguntar'].includes(modo_ticket) ? modo_ticket : null;
     // El logo solo se toca si vino en el pedido (antes, guardar otra cosa -- por ejemplo
     // los datos fiscales -- mandaba logo_url vacio y borraba el logo sin querer).

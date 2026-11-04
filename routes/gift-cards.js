@@ -140,7 +140,7 @@ router.post('/', async (req, res) => {
     );
 
     // Si es migracion (ya vendida con el software viejo) O es un credito por una devolucion
-    // (la clienta ya habia pagado eso en OTRA venta), NO es plata nueva entrando hoy --
+    // (el cliente ya habia pagado eso en OTRA venta), NO es plata nueva entrando hoy --
     // no se registra como ingreso de caja, para no duplicar esa plata.
     if (migracion !== true && es_devolucion !== true) {
       await client.query(

@@ -16,8 +16,8 @@ const { VENTA_VALIDA } = require('../lib/niveles');
 // La parte publica esta en routes/tiendaPublica.js. Ver lib/tienda.js.
 
 const { num } = tienda;
-// Quien maneja la tienda: dueña, admin y administrativo, o quien tenga el permiso "Manejar toda la tienda online"
-// (se lee en cada pedido, ver router.use). Las claves de GoCuotas y el dominio quedan solo para la dueña o admin.
+// Quien maneja la tienda: dueño, admin y administrativo, o quien tenga el permiso "Manejar toda la tienda online"
+// (se lee en cada pedido, ver router.use). Las claves de GoCuotas y el dominio quedan solo para el dueño o admin.
 const esDuena = (req) => req.usuario && ['jefe', 'admin', 'administrativo'].includes(req.usuario.rol);
 const esJefe = (req) => esDuena(req) || !!req.manejaTienda;
 const SLUG_OK = /^[a-z0-9][a-z0-9-]{2,40}$/;
@@ -109,7 +109,7 @@ router.put('/config', async (req, res) => {
       for (const k of ['instagram', 'tiktok', 'facebook']) { const v = String(b.redes[k] || '').trim().slice(0, 200); if (v) redes[k] = v; }
       await pool.query('UPDATE tienda_config SET redes = $1 WHERE id = 1', [JSON.stringify(redes)]);
     }
-    // WhatsApp de cada ciudad: el boton de WhatsApp de la tienda va al del local que eligio la clienta.
+    // WhatsApp de cada ciudad: el boton de WhatsApp de la tienda va al del local que eligio el cliente.
     // Se guarda en los datos de cada local de la pagina de links (es el mismo numero)
     if (b.whatsapp_locales && typeof b.whatsapp_locales === 'object') {
       const actual = tienda.linksDe((await pool.query('SELECT links FROM tienda_config WHERE id = 1')).rows[0] || {});
@@ -571,8 +571,8 @@ router.get('/pedidos/:id', async (req, res) => {
 });
 
 // Cambiar estado: pago recibido (transferencia), preparado, o cancelar
-// Notas del local en un pedido (cualquiera que maneje pedidos). Borrar: quien la escribio o la dueña
-// "Ya le escribimos a la clienta" (o se deshace)
+// Notas del local en un pedido (cualquiera que maneje pedidos). Borrar: quien la escribio o el dueño
+// "Ya le escribimos al cliente" (o se deshace)
 router.post('/pedidos/:id/contactado', async (req, res) => {
   try {
     const u = req.usuario || {};
@@ -594,7 +594,7 @@ router.post('/pedidos/:id/revisado', async (req, res) => {
     res.json(r.rows[0]);
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
-// Por que se vencio o se cancelo un pedido: motivo de la lista + lo que dijo la clienta. motivo vacio = se borra
+// Por que se vencio o se cancelo un pedido: motivo de la lista + lo que dijo el cliente. motivo vacio = se borra
 const MOTIVOS_VENC = ['mirando', 'arrepintio', 'pago', 'otro_medio', 'local', 'caro', 'envio', 'sin_respuesta', 'otro', 'clienta', 'sin_stock', 'duplicado', 'cambio', 'prueba'];
 router.post('/pedidos/:id/vencimiento', async (req, res) => {
   try {
@@ -630,7 +630,7 @@ router.delete('/pedidos/:id/notas/:nota', async (req, res) => {
     const lista = Array.isArray(p.notas_local) ? p.notas_local : [];
     const n = lista.find(x => x.id === req.params.nota);
     if (!n) return res.status(404).json({ error: 'Esa nota ya no está' });
-    if (!esDuena(req) && Number(n.usuario_id) !== Number(req.usuario && req.usuario.id)) return res.status(403).json({ error: 'Solo quien la escribió (o la dueña) la puede borrar' });
+    if (!esDuena(req) && Number(n.usuario_id) !== Number(req.usuario && req.usuario.id)) return res.status(403).json({ error: 'Solo quien la escribió (o el dueño) la puede borrar' });
     const nuevas = lista.filter(x => x.id !== n.id);
     await pool.query('UPDATE tienda_pedidos SET notas_local = $1 WHERE id = $2', [nuevas.length ? JSON.stringify(nuevas) : null, parseInt(req.params.id)]);
     res.json({ notas_local: nuevas });
@@ -773,7 +773,7 @@ router.post('/pedidos/:id/llego-preventa', async (req, res) => {
   } finally { client.release(); }
 });
 
-// Cambiar un producto de un pedido por otro (la clienta se arrepintio o pidio otro): devuelve el stock (o la
+// Cambiar un producto de un pedido por otro (el cliente se arrepintio o pidio otro): devuelve el stock (o la
 // reserva de preventa) del que se saca, aparta el nuevo (o lo reserva en preventa si todavia no llego) y ajusta
 // el total. Queda anotado en el pedido, con la diferencia a cobrar o devolver.
 router.post('/pedidos/:id/items/:item/cambiar', async (req, res) => {
@@ -862,7 +862,7 @@ router.post('/pedidos/:id/diferencia', async (req, res) => {
       if (!nombreMedio(b.medio_pago_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí cómo se lo devolvés' }); }
       nuevos = [{ fecha, tipo: 'devolucion', medio_pago_id: parseInt(b.medio_pago_id), nombre: nombreMedio(b.medio_pago_id), importe: pend, usuario }];
     } else if (b.accion === 'credito') {
-      if (pend >= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay saldo a favor de la clienta' }); }
+      if (pend >= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No hay saldo a favor del cliente' }); }
       const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let codigo = null;
       for (let i = 0; i < 12 && !codigo; i++) {
@@ -900,14 +900,14 @@ router.post('/pedidos/:id/extender', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo' }); }
 });
 
-// ---- Clientas de la web: quien pidio aviso de un producto, carritos sin terminar y favoritos ----
+// ---- Clientes de la web: quien pidio aviso de un producto, carritos sin terminar y favoritos ----
 router.get('/clientas-web', async (req, res) => {
   try {
     const avisos = (await pool.query(`SELECT a.*, p.nombre AS producto, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush
       FROM tienda_avisos a JOIN productos p ON p.id = a.producto_id WHERE a.avisado_en IS NULL ORDER BY a.creado_en`)).rows;
     const carritos = (await pool.query(`SELECT k.*, c.nombre, c.telefono FROM tienda_carritos k JOIN clientes c ON c.id = k.cliente_id
       WHERE k.actualizado_en < NOW() - INTERVAL '1 hour' AND k.actualizado_en > NOW() - INTERVAL '30 days' ORDER BY k.actualizado_en DESC LIMIT 100`)).rows;
-    // A cada producto del carrito: si hoy tiene stock en el local de la clienta y si tiene foto
+    // A cada producto del carrito: si hoy tiene stock en el local del cliente y si tiene foto
     const idsCarr = [...new Set(carritos.flatMap(k => (k.items || []).map(i => parseInt(i.producto_id)).filter(Boolean)))];
     const infoProd = new Map((idsCarr.length ? (await pool.query(`SELECT p.id, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush, p.precio,
         EXISTS (SELECT 1 FROM producto_imagenes i WHERE i.producto_id = p.id) AS foto FROM productos p WHERE p.id = ANY($1::int[])`, [idsCarr])).rows : []).map(p => [p.id, p]));
@@ -923,7 +923,7 @@ router.get('/clientas-web', async (req, res) => {
         COUNT(*) FILTER (WHERE creado_en > NOW() - INTERVAL '7 days')::int AS semana FROM tienda_favoritos`)).rows[0];
     const c = await tienda.leerConfig();
     res.json({ avisos, carritos: carritos.map(k => ({ ...k, subtotal: num(k.subtotal) })), favoritos: favoritos.map(f => ({ ...f, precio: num(f.precio) })), resumen_fav: resumenFav, mensajes: c.mensajes || {} });
-  } catch (e) { console.error('[tienda] clientas web:', e.message); res.status(500).json({ error: 'No se pudo cargar' }); }
+  } catch (e) { console.error('[tienda] clientes web:', e.message); res.status(500).json({ error: 'No se pudo cargar' }); }
 });
 // Mensajes de WhatsApp editables: { carrito, aviso } (vacio = el de siempre)
 router.put('/mensajes', async (req, res) => {
@@ -1081,12 +1081,12 @@ router.put('/regalos', async (req, res) => {
     res.json({ regalos: r, regalos_hoy: tienda.temaRegaloHoy(r) });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
-// Ver la tienda como la ve una clienta (su cuenta, su rutina, sus avisos), solo para mirar: llave de 30 minutos
+// Ver la tienda como la ve un cliente (su cuenta, su rutina, sus avisos), solo para mirar: llave de 30 minutos
 router.post('/ver-como/:clienteId', async (req, res) => {
   try {
-    if (!esDuena(req)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+    if (!esDuena(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
     const c = (await pool.query('SELECT id, nombre FROM clientes WHERE id = $1', [parseInt(req.params.clienteId)])).rows[0];
-    if (!c) return res.status(404).json({ error: 'No encontramos esa clienta' });
+    if (!c) return res.status(404).json({ error: 'No encontramos ese cliente' });
     const cfg = (await pool.query('SELECT slug, activo FROM tienda_config WHERE id = 1')).rows[0];
     if (!cfg || !cfg.activo || !cfg.slug) return res.status(400).json({ error: 'Primero publicá la tienda online' });
     const neg = negocioActual();
@@ -1115,7 +1115,7 @@ router.put('/express', async (req, res) => {
     res.json({ express: k });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
-// Diagnostico de piel: horarios, duracion y cupo (la dueña o encargada); la agenda la ven tambien las vendedoras
+// Diagnostico de piel: horarios, duracion y cupo (el dueño o encargado); la agenda la ven tambien los vendedores
 router.put('/diagnostico', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
@@ -1223,7 +1223,7 @@ router.put('/resenas/puntos', async (req, res) => {
     res.json(r);
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 });
-// Compras del local (ventas con ficha de clienta y WhatsApp) para pedirles reseña, filtradas por proveedor y periodo.
+// Compras del local (ventas con ficha de cliente y WhatsApp) para pedirles reseña, filtradas por proveedor y periodo.
 // Solo los productos que todavia no reseño. Si no tiene cuenta, la crea con su DNI desde el link (se la reconoce).
 router.get('/resenas/pedir-local', async (req, res) => {
   try {

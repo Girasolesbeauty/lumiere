@@ -1,5 +1,5 @@
-// Resumen semanal para la dueña: la semana pasada (lunes a domingo) contra la anterior.
-// Ventas por local, lo mas vendido, lo que se esta por agotar, pedidos de la tienda online y clientas nuevas.
+// Resumen semanal para el dueño: la semana pasada (lunes a domingo) contra la anterior.
+// Ventas por local, lo mas vendido, lo que se esta por agotar, pedidos de la tienda online y clientes nuevos.
 // ?atras=N mira N semanas mas para atras (0 = la ultima semana completa).
 const express = require('express');
 const pool = require('../config/database');
@@ -12,7 +12,7 @@ const esJefe = (req) => req.usuario && ['jefe', 'admin', 'administrativo'].inclu
 const q = async (sql, params) => { try { return (await pool.query(sql, params)).rows; } catch (e) { return []; } };
 
 router.get('/', async (req, res) => {
-  if (!esJefe(req)) return res.status(403).json({ error: 'Solo la dueña o encargada' });
+  if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado' });
   try {
     const atras = Math.min(52, Math.max(0, parseInt(req.query.atras) || 0));
     const VV = VENTA_VALIDA;

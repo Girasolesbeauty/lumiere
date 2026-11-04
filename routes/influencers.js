@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
 });
 
 // Crear influencer. Puede vincular un cupon existente (cupon_id) o crear uno nuevo (crear_cupon: {codigo, tipo, valor, canal}).
-// cliente_id (opcional): vincula con una clienta ya existente para que tenga acceso al portal.
+// cliente_id (opcional): vincula con un cliente ya existente para que tenga acceso al portal.
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -84,7 +84,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Editar influencer (nombre, contacto, nivel, comision, activo, cupon o clienta vinculada)
+// Editar influencer (nombre, contacto, nivel, comision, activo, cupon o cliente vinculado)
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// Historial de canjes (pago en especie a empleadas), opcional por local y/o empleada
+// Historial de canjes (pago en especie a empleados), opcional por local y/o empleado
 router.get('/', async (req, res) => {
   try {
     const { local_id, empleado_id } = req.query;
@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Registrar un canje: se le entrega mercaderia a una empleada (pago en especie, total
+// Registrar un canje: se le entrega mercaderia a un empleado (pago en especie, total
 // o parcial). Descuenta el stock real del local, sin generar venta ni factura.
 router.post('/', async (req, res) => {
   const client = await pool.connect();
@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
         `INSERT INTO ajustes_stock (producto_id, stock_anterior, stock_nuevo, diferencia, motivo, usuario_id, usuario_nombre, local_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [producto_id, stockAnterior, stockAnterior - cant, -cant,
-         'Canje con empleada' + (empleadoNombreFinal ? ' ' + empleadoNombreFinal : ''), usuario_id || null, usuario_nombre || null, localNum]
+         'Canje con empleado' + (empleadoNombreFinal ? ' ' + empleadoNombreFinal : ''), usuario_id || null, usuario_nombre || null, localNum]
       );
     } catch (e2) { /* si no existe ajustes_stock en este entorno, no frena el canje */ }
 

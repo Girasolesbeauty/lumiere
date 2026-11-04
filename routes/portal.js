@@ -66,7 +66,7 @@ router.get('/fondo', async (req, res) => {
   } catch (e) { res.status(404).end(); }
 });
 
-// Middleware: valida el token del portal de clientas (separado del de empleadas)
+// Middleware: valida el token del portal de clientes (separado del de empleados)
 const verificarTokenCliente = (req, res, next) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'No autorizado' });
@@ -81,7 +81,7 @@ const verificarTokenCliente = (req, res, next) => {
   }
 };
 
-// Registro: la clienta ya debe existir en la base (por DNI), solo crea su acceso al portal
+// Registro: el cliente ya debe existir en la base (por DNI), solo crea su acceso al portal
 router.post('/registro', async (req, res) => {
   try {
     const { dni, email, password } = req.body;
@@ -113,7 +113,7 @@ router.post('/registro', async (req, res) => {
   }
 });
 
-// Login de clientas
+// Login de clientes
 router.post('/login', async (req, res) => {
   try {
     const { dni, password } = req.body;
@@ -280,7 +280,7 @@ async function canjearPremio(clienteId, premio_id) {
     if (pct) {
       await client.query(`INSERT INTO cupones (codigo, descripcion, tipo, valor, canal, max_usos, fecha_vencimiento, activo)
         VALUES ($1, $2, '%', $3, 'Premio de puntos', 1, CURRENT_DATE + 90, TRUE)`, [codigo, 'Premio canjeado: ' + premio.nombre, pct]);
-      // Es solo de esta clienta (su ficha, su DNI y su WhatsApp)
+      // Es solo de este cliente (su ficha, su DNI y su WhatsApp)
       if (tablasCupon) {
         const d = await cuponesLib.duenoPara(client, { cliente_id: clienteId });
         await client.query('UPDATE cupones SET cliente_id = $1, dueno_dni = $2, dueno_tel = $3 WHERE codigo = $4', [d.cliente_id, d.dueno_dni, d.dueno_tel, codigo]);
@@ -327,7 +327,7 @@ router.get('/mis-canjes', verificarTokenCliente, async (req, res) => {
   }
 });
 
-// Datos del sector influencer (solo si esta clienta esta vinculada a una influencer). 404 si no aplica.
+// Datos del sector influencer (solo si este cliente esta vinculada a una influencer). 404 si no aplica.
 router.get('/mi-influencer', verificarTokenCliente, async (req, res) => {
   try {
     const result = await pool.query(`

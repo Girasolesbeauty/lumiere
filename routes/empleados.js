@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 
-// Listar empleadas (opcional: filtrar por local_id). Activas primero.
+// Listar empleados (opcional: filtrar por local_id). Activas primero.
 router.get('/', async (req, res) => {
   try {
     const { local_id } = req.query;
@@ -17,11 +17,11 @@ router.get('/', async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al obtener empleadas: ' + error.message });
+    res.status(500).json({ error: 'Error al obtener empleados: ' + error.message });
   }
 });
 
-// Crear empleada nueva (ej: Mara), asociada a un local, con su % de comision.
+// Crear empleado nuevo (ej: Mara), asociada a un local, con su % de comision.
 router.post('/', async (req, res) => {
   try {
     const { nombre, local_id, comision_pct } = req.body;
@@ -40,18 +40,18 @@ router.post('/', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al crear empleada: ' + error.message });
+    res.status(500).json({ error: 'Error al crear empleado: ' + error.message });
   }
 });
 
-// Editar empleada: nombre, comision y/o activo (ej: desactivar a Cintia cuando deja de trabajar).
+// Editar empleado: nombre, comision y/o activo (ej: desactivar a Cintia cuando deja de trabajar).
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, comision_pct, activo } = req.body;
 
     const actual = await pool.query('SELECT * FROM empleados WHERE id = $1', [id]);
-    if (actual.rows.length === 0) return res.status(404).json({ error: 'Empleada no encontrada' });
+    if (actual.rows.length === 0) return res.status(404).json({ error: 'Empleado no encontrada' });
     const a = actual.rows[0];
 
     const result = await pool.query(
@@ -66,7 +66,7 @@ router.put('/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al editar empleada: ' + error.message });
+    res.status(500).json({ error: 'Error al editar empleado: ' + error.message });
   }
 });
 

@@ -1,4 +1,4 @@
-// 🏆 Clienta del mes: la competencia entre clientas (ver lib/competencia.js). Aca la dueña ve el ranking con
+// 🏆 Cliente del mes: la competencia entre clientes (ver lib/competencia.js). Aca el dueño ve el ranking con
 // nombres y montos, configura los premios por puesto, cierra el mes (reparte premios y puntos) y marca lo entregado.
 const express = require('express');
 const pool = require('../config/database');
@@ -6,7 +6,7 @@ const comp = require('../lib/competencia');
 
 const router = express.Router();
 const esJefe = (req) => req.usuario && (['jefe', 'admin', 'administrativo'].includes(req.usuario.rol) || Number(req.usuario.rol_id) === 1);
-router.use((req, res, next) => esJefe(req) ? next() : res.status(403).json({ error: 'Solo la dueña o encargada' }));
+router.use((req, res, next) => esJefe(req) ? next() : res.status(403).json({ error: 'Solo el dueño o encargado' }));
 
 router.get('/', async (req, res) => {
   try {
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       ganadoras: cerradas.rows.map(g => ({ cliente_id: g.cliente_id, nombre: g.nombre, telefono: g.telefono, puesto: g.puesto, puntos_mes: g.puntos_mes, premio: g.premio, puntos_extra: g.puntos_extra, entregado: !!g.entregado_en })),
       historial: hist.rows, sin_clienta: sinCli,
     });
-  } catch (e) { console.error('[clienta del mes]', e.message); res.status(500).json({ error: 'No se pudo armar el ranking' }); }
+  } catch (e) { console.error('[cliente del mes]', e.message); res.status(500).json({ error: 'No se pudo armar el ranking' }); }
 });
 
 router.put('/config', async (req, res) => {
@@ -60,7 +60,7 @@ router.post('/cerrar', async (req, res) => {
     }
     await client.query('COMMIT');
     res.json({ ok: true, ganadoras: n });
-  } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[clienta del mes] cerrar:', e.message); res.status(500).json({ error: 'No se pudo cerrar el mes' }); }
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[cliente del mes] cerrar:', e.message); res.status(500).json({ error: 'No se pudo cerrar el mes' }); }
   finally { client.release(); }
 });
 
