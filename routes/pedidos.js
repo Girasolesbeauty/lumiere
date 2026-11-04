@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { IMPORTE_VI, SUBTOTAL_VI } = require('../lib/importeReal');
 
 // Crear un pedido (cliente espera un producto). Puede ser de un cliente ya registrada
 // (cliente_id) o de alguien sin registrar en el sistema -- en ese caso, nombre y celular
@@ -110,7 +111,7 @@ const SQL_COMPRA = `(SELECT MIN(v.creado_en) FROM ventas v JOIN venta_items vi O
     WHERE p.cliente_id IS NOT NULL AND v.cliente_id = p.cliente_id AND vi.producto_id = p.producto_id
       AND COALESCE(v.anulada, false) = false
       AND v.creado_en BETWEEN p.avisado_en - interval '1 hour' AND p.avisado_en + interval '30 days')`;
-const SQL_MONTO = `(SELECT SUM(vi.subtotal) FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id
+const SQL_MONTO = `(SELECT SUM(${SUBTOTAL_VI}) FROM ventas v JOIN venta_items vi ON vi.venta_id = v.id
     WHERE p.cliente_id IS NOT NULL AND v.cliente_id = p.cliente_id AND vi.producto_id = p.producto_id
       AND COALESCE(v.anulada, false) = false
       AND v.creado_en BETWEEN p.avisado_en - interval '1 hour' AND p.avisado_en + interval '30 days')`;

@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { IMPORTE_VI, SUBTOTAL_VI } = require('../lib/importeReal');
 const { esVentaWeb } = require('../lib/tiendaWeb');
 const cuponesLib = require('../lib/cupones');
 const cc = require('../lib/cuentaCorriente');
@@ -1082,7 +1083,7 @@ const getProductosVendidosDia = async (req, res) => {
     const r = await pool.query(
       `SELECT p.id AS producto_id, p.nombre, p.marca, p.${colStock} AS stock_actual,
               SUM(vi.cantidad) AS cantidad_vendida,
-              SUM(vi.cantidad * vi.precio_unitario) AS total_facturado
+              SUM(${IMPORTE_VI}) AS total_facturado
        FROM venta_items vi
        JOIN ventas v ON vi.venta_id = v.id
        JOIN productos p ON vi.producto_id = p.id

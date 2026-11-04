@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { IMPORTE_VI, SUBTOTAL_VI } = require('../lib/importeReal');
 const { porNegocio } = require('../lib/contexto');
 
 // Agrega campos calculados de disponibilidad real (stock - reservado de preventas) sin tocar el resto.
@@ -519,7 +520,7 @@ const getRotacion = async (req, res) => {
       FROM productos p
       LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       LEFT JOIN (
-        SELECT vi.producto_id, SUM(vi.cantidad) AS unidades, SUM(vi.cantidad * vi.precio_unitario) AS monto
+        SELECT vi.producto_id, SUM(vi.cantidad) AS unidades, SUM(${IMPORTE_VI}) AS monto
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
         WHERE ${VALIDA} AND v.creado_en >= NOW() - INTERVAL '${dias} days' ${filtroLocal}
         GROUP BY vi.producto_id
