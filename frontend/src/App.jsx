@@ -8208,15 +8208,20 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
   const [aviso, setAviso] = useState(null); // { ok, texto }
   const [historial, setHistorial] = useState([]);
   const [verTodos, setVerTodos] = useState(false);
+  const [ingresos, setIngresos] = useState([]); // ingresos de mercadería recientes (para "lo que llegó")
+  const [elegidos, setElegidos] = useState([]); // ids elegidos a mano
+  const [buscaProd, setBuscaProd] = useState("");
+  useEffect(() => { API.get("/precios-masivos/ingresos").then(r => setIngresos(r.data || [])).catch(() => {}); }, []);
+  const esMonto = modo === "sumar" || modo === "restar";
 
   const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))].sort();
   const marcas = [...new Set(productos.map(p => p.marca).filter(Boolean))].sort();
   const cargarHistorial = () => API.get("/precios-masivos/historial").then(r => setHistorial(r.data || [])).catch(() => {});
   useEffect(() => { cargarHistorial(); }, []);
   // Cualquier cambio en los datos invalida la vista previa
-  useEffect(() => { setVista(null); }, [alcance, filtro, modo, valor, redondeo]);
+  useEffect(() => { setVista(null); }, [alcance, filtro, modo, valor, redondeo, elegidos]);
 
-  const pedido = () => ({ alcance, filtro, modo, valor, redondeo });
+  const pedido = () => ({ alcance, filtro, modo, valor, redondeo, ids: alcance === "productos" ? elegidos : undefined });
   const verComoQueda = async () => {
     setTrabajando(true); setAviso(null);
     try { const r = await API.post("/precios-masivos/vista", pedido()); setVista(r.data); setVerTodos(false); }
@@ -8262,11 +8267,33 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
         <div className="fg">
           <div className="fl">¿A qué productos?</div>
           <div className="seg" role="group" aria-label="A qué productos" style={{ display: "flex", flexWrap: "wrap" }}>
-            {[["todos", "Todos"], ["categoria", "Una categoría"], ["marca", "Una marca"], ["proveedor", "Un proveedor"]].map(([k, l]) => (
+            {[["todos", "Todos"], ["categoria", "Una categoría"], ["marca", "Una marca"], ["proveedor", "Un proveedor"], ["ingreso", "📦 Lo que llegó"], ["productos", "Elegir productos"]].map(([k, l]) => (
               <button key={k} style={{ flex: 1 }} className={alcance === k ? "on" : ""} aria-pressed={alcance === k} onClick={() => { setAlcance(k); setFiltro(""); }}>{l}</button>
             ))}
           </div>
-          {alcance !== "todos" && (
+          {alcance === "ingreso" && (
+            <select className="sel" style={{ marginTop: 8 }} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label="Elegir el ingreso">
+              <option value="">{ingresos.length ? "Elegí el ingreso de mercadería..." : "No hay ingresos de los últimos 4 meses"}</option>
+              {ingresos.map(o => <option key={o.id} value={o.id}>{new Date(o.creado_en).toLocaleDateString("es-AR")} · {o.proveedor || "Sin proveedor"}{o.numero_factura ? " · Fact. " + o.numero_factura : ""}{o.notas && /Ushuaia|Rio Grande|Río Grande/i.test(o.notas) ? " · " + (o.notas.match(/Ushuaia|R[ií]o Grande/i) || [""])[0] : ""} · {o.productos} productos{o.estado === "pendiente" ? " (en camino)" : ""}</option>)}
+            </select>
+          )}
+          {alcance === "productos" && (() => {
+            const q = normTxt(buscaProd);
+            const res = q ? productos.filter(p => p.activo !== false && q.split(" ").every(w => normTxt([p.nombre, p.marca, p.codigo_barras].join(" ")).includes(w))).slice(0, 12) : [];
+            const sel = elegidos.map(id => productos.find(p => p.id === id)).filter(Boolean);
+            return (<div style={{ marginTop: 8 }}>
+              <input className="inp" placeholder="Buscá por nombre, marca o código y tocá para sumarlo" value={buscaProd} onChange={e => setBuscaProd(e.target.value)} />
+              {res.length > 0 && <div style={{ border: "1px solid " + temaPal.border, borderRadius: 8, marginTop: 4, maxHeight: 220, overflowY: "auto" }}>
+                {res.map(p => { const on = elegidos.includes(p.id); return <button key={p.id} type="button" onClick={() => setElegidos(x => on ? x.filter(i => i !== p.id) : [...x, p.id])} style={{ display: "flex", width: "100%", justifyContent: "space-between", gap: 8, padding: "7px 10px", border: "none", borderBottom: "1px solid " + temaPal.border, background: on ? temaPal.accentDim : "transparent", color: temaPal.text, cursor: "pointer", textAlign: "left", fontSize: 12.5 }}><span>{on ? "✓ " : "+ "}<b>{p.nombre}</b> <span style={{ color: temaPal.textMuted }}>{p.marca || ""}</span></span><span>{fmt(p.precio)}</span></button>; })}
+              </div>}
+              {sel.length > 0 && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                {sel.map(p => <span key={p.id} className="tag tag-neutral" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{p.nombre}<button type="button" aria-label={"Sacar " + p.nombre} onClick={() => setElegidos(x => x.filter(i => i !== p.id))} style={{ border: "none", background: "transparent", cursor: "pointer", color: temaPal.textMuted }}>✕</button></span>)}
+                <button type="button" className="mini-chip" onClick={() => setElegidos([])}>Sacar todos</button>
+              </div>}
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>{sel.length ? sel.length + (sel.length === 1 ? " producto elegido" : " productos elegidos") : "Todavía no elegiste ninguno."}</div>
+            </div>);
+          })()}
+          {["categoria", "marca", "proveedor"].includes(alcance) && (
             <select className="sel" style={{ marginTop: 8 }} value={filtro} onChange={e => setFiltro(e.target.value)} aria-label="Elegir">
               <option value="">{alcance === "categoria" ? "Elegí la categoría..." : alcance === "marca" ? "Elegí la marca..." : "Elegí el proveedor..."}</option>
               {alcance === "categoria" && categorias.map(c => <option key={c} value={c}>{c}</option>)}
@@ -8279,19 +8306,19 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
         <div className="fg">
           <div className="fl">¿Cómo?</div>
           <div className="seg" role="group" aria-label="Cómo cambiar" style={{ display: "flex", flexWrap: "wrap" }}>
-            {[["subir", "Subir %"], ["bajar", "Bajar %"], ["margen", "Desde el costo"]].map(([k, l]) => (
+            {[["subir", "Subir %"], ["bajar", "Bajar %"], ["sumar", "Sumar $"], ["restar", "Restar $"], ["margen", "Desde el costo"]].map(([k, l]) => (
               <button key={k} style={{ flex: 1 }} className={modo === k ? "on" : ""} aria-pressed={modo === k} onClick={() => setModo(k)}>{l}</button>
             ))}
           </div>
           <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>
-            {modo === "subir" ? "Ej: 10% → un producto de $1.000 pasa a $1.100." : modo === "bajar" ? "Ej: 10% → un producto de $1.000 pasa a $900." : "El precio se calcula desde el costo cargado. Ej: recargo 80% → costo $1.000 pasa a precio $1.800. Los productos sin costo no se tocan."}
+            {modo === "subir" ? "Ej: 10% → un producto de $1.000 pasa a $1.100." : modo === "bajar" ? "Ej: 10% → un producto de $1.000 pasa a $900." : modo === "sumar" ? "Ej: $1.100 → un producto de $25.000 pasa a $26.100 (a todos se les suma lo mismo)." : modo === "restar" ? "Ej: $1.100 → un producto de $25.000 pasa a $23.900." : "El precio se calcula desde el costo cargado. Ej: recargo 80% → costo $1.000 pasa a precio $1.800. Los productos sin costo no se tocan."}
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div className="fg">
-            <div className="fl">{modo === "margen" ? "Recargo sobre el costo (%)" : "Porcentaje (%)"}</div>
-            <input className="inp" type="number" min="0" step="0.5" inputMode="decimal" placeholder={modo === "margen" ? "80" : "10"} value={valor} onChange={e => setValor(e.target.value)} />
+            <div className="fl">{modo === "margen" ? "Recargo sobre el costo (%)" : esMonto ? "Monto ($)" : "Porcentaje (%)"}</div>
+            <input className="inp" type="number" min="0" step={esMonto ? "1" : "0.5"} inputMode="decimal" placeholder={modo === "margen" ? "80" : esMonto ? "1100" : "10"} value={valor} onChange={e => setValor(e.target.value)} />
           </div>
           <div className="fg">
             <div className="fl">Redondear</div>

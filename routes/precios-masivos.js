@@ -34,25 +34,37 @@ async function puedeEditar(req) {
 
 const REDONDEOS = [0, 1, 10, 50, 100, 500, 1000];
 
-// Lee y valida lo que pidio la pantalla
+// Lee y valida lo que pidio la pantalla.
+// Alcance: todos, una categoría, marca o proveedor, los productos de un ingreso de mercadería, o los elegidos a mano.
+// Modo: subir/bajar un %, desde el costo con un recargo, o sumar/restar un monto fijo en pesos.
+const MONTO = ['sumar', 'restar'];
 function leerPedido(b) {
-  const alcance = ['todos', 'categoria', 'marca', 'proveedor'].includes(b.alcance) ? b.alcance : null;
-  const modo = ['subir', 'bajar', 'margen'].includes(b.modo) ? b.modo : null;
+  const alcance = ['todos', 'categoria', 'marca', 'proveedor', 'ingreso', 'productos'].includes(b.alcance) ? b.alcance : null;
+  const modo = ['subir', 'bajar', 'margen', 'sumar', 'restar'].includes(b.modo) ? b.modo : null;
   const valor = parseFloat(b.valor);
   const redondeo = REDONDEOS.includes(Number(b.redondeo)) ? Number(b.redondeo) : 0;
+  const ids = alcance === 'productos' ? [...new Set((Array.isArray(b.ids) ? b.ids : []).map(x => parseInt(x)).filter(x => x > 0))].slice(0, 2000) : [];
   if (!alcance) return { error: 'Elegí a qué productos aplicar el cambio' };
-  if (alcance !== 'todos' && !String(b.filtro || '').trim()) return { error: alcance === 'categoria' ? 'Elegí la categoría' : alcance === 'marca' ? 'Elegí la marca' : 'Elegí el proveedor' };
+  if (alcance === 'productos' && !ids.length) return { error: 'Elegí al menos un producto' };
+  if (!['todos', 'productos'].includes(alcance) && !String(b.filtro || '').trim()) return { error: alcance === 'categoria' ? 'Elegí la categoría' : alcance === 'marca' ? 'Elegí la marca' : alcance === 'ingreso' ? 'Elegí el ingreso de mercadería' : 'Elegí el proveedor' };
   if (!modo) return { error: 'Elegí cómo cambiar los precios' };
-  if (!(valor > 0)) return { error: 'Poné un porcentaje mayor a 0' };
-  if (modo === 'bajar' && valor >= 100) return { error: 'No se puede bajar 100% o más' };
-  if (valor > 1000) return { error: 'El porcentaje es demasiado alto' };
-  return { alcance, filtro: String(b.filtro || '').trim(), modo, valor, redondeo };
+  if (MONTO.includes(modo)) {
+    if (!(valor > 0)) return { error: 'Poné un monto mayor a $0' };
+    if (valor > 100000000) return { error: 'El monto es demasiado alto' };
+  } else {
+    if (!(valor > 0)) return { error: 'Poné un porcentaje mayor a 0' };
+    if (modo === 'bajar' && valor >= 100) return { error: 'No se puede bajar 100% o más' };
+    if (valor > 1000) return { error: 'El porcentaje es demasiado alto' };
+  }
+  return { alcance, filtro: String(b.filtro || '').trim(), modo, valor, redondeo, ids };
 }
+const pesos = (n) => '$' + Math.round(n).toLocaleString('es-AR');
 
 function describir(p, nombreProveedor) {
   const a = p.alcance === 'todos' ? 'todos los productos' : p.alcance === 'categoria' ? 'categoría ' + p.filtro
-    : p.alcance === 'marca' ? 'marca ' + p.filtro : 'proveedor ' + (nombreProveedor || p.filtro);
-  const m = p.modo === 'subir' ? 'Subir ' + p.valor + '%' : p.modo === 'bajar' ? 'Bajar ' + p.valor + '%' : 'Costo + ' + p.valor + '% de recargo';
+    : p.alcance === 'marca' ? 'marca ' + p.filtro : p.alcance === 'ingreso' ? 'productos del ingreso ' + (nombreProveedor || '#' + p.filtro)
+    : p.alcance === 'productos' ? p.ids.length + (p.ids.length === 1 ? ' producto elegido' : ' productos elegidos') : 'proveedor ' + (nombreProveedor || p.filtro);
+  const m = p.modo === 'subir' ? 'Subir ' + p.valor + '%' : p.modo === 'bajar' ? 'Bajar ' + p.valor + '%' : p.modo === 'sumar' ? 'Sumar ' + pesos(p.valor) : p.modo === 'restar' ? 'Restar ' + pesos(p.valor) : 'Costo + ' + p.valor + '% de recargo';
   return m + ' · ' + a + (p.redondeo > 1 ? ' · redondeado a $' + p.redondeo : '');
 }
 
@@ -62,6 +74,8 @@ function precioNuevo(prod, p) {
   const costo = parseFloat(prod.costo) || 0;
   let n;
   if (p.modo === 'margen') { if (costo <= 0) return null; n = costo * (1 + p.valor / 100); }
+  else if (p.modo === 'sumar') { if (precio <= 0) return null; n = precio + p.valor; }
+  else if (p.modo === 'restar') { if (precio <= 0 || precio - p.valor <= 0) return null; n = precio - p.valor; }
   else { if (precio <= 0) return null; n = precio * (p.modo === 'subir' ? 1 + p.valor / 100 : 1 - p.valor / 100); }
   // Primero a centavos: 12000 * 1.1 da 13200.000000000002 y sin esto se redondearia mal
   n = Math.round(n * 100) / 100;
@@ -70,9 +84,10 @@ function precioNuevo(prod, p) {
   const paso = p.redondeo || 0;
   if (paso) {
     let r = Math.round(n / paso) * paso;
-    if (p.modo === 'subir' && r <= precio) r = Math.ceil(n / paso) * paso;
-    if (p.modo === 'bajar' && r >= precio) r = Math.floor(n / paso) * paso;
-    if (r > 0 && !(p.modo === 'bajar' && r >= precio)) n = r;
+    const sube = p.modo === 'subir' || p.modo === 'sumar', baja = p.modo === 'bajar' || p.modo === 'restar';
+    if (sube && r <= precio) r = Math.ceil(n / paso) * paso;
+    if (baja && r >= precio) r = Math.floor(n / paso) * paso;
+    if (r > 0 && !(baja && r >= precio)) n = r;
   }
   return n > 0 ? n : null;
 }
@@ -83,12 +98,14 @@ async function calcular(p) {
   if (p.alcance === 'categoria') { vals.push(p.filtro); where += ' AND categoria = $1'; }
   if (p.alcance === 'marca') { vals.push(p.filtro); where += ' AND marca = $1'; }
   if (p.alcance === 'proveedor') { vals.push(parseInt(p.filtro) || 0); where += ' AND proveedor_id = $1'; }
+  if (p.alcance === 'ingreso') { vals.push(parseInt(p.filtro) || 0); where += ' AND id IN (SELECT producto_id FROM ordenes_ingreso_items WHERE orden_id = $1)'; }
+  if (p.alcance === 'productos') { vals.push(p.ids); where += ' AND id = ANY($1::int[])'; }
   const r = await pool.query(`SELECT id, nombre, marca, categoria, precio, costo FROM productos WHERE ${where} ORDER BY nombre`, vals);
   const cambian = [], sinCalcular = [];
   for (const prod of r.rows) {
     const n = precioNuevo(prod, p);
     const antes = parseFloat(prod.precio) || 0;
-    if (n === null) { sinCalcular.push({ id: prod.id, nombre: prod.nombre, marca: prod.marca, motivo: p.modo === 'margen' ? 'sin costo cargado' : 'sin precio' }); continue; }
+    if (n === null) { sinCalcular.push({ id: prod.id, nombre: prod.nombre, marca: prod.marca, motivo: p.modo === 'margen' ? 'sin costo cargado' : p.modo === 'restar' && (parseFloat(prod.precio) || 0) > 0 ? 'quedaría en $0 o menos' : 'sin precio' }); continue; }
     if (n === antes) continue;
     cambian.push({ id: prod.id, nombre: prod.nombre, marca: prod.marca, costo: parseFloat(prod.costo) || 0, antes, despues: n });
   }
@@ -96,9 +113,23 @@ async function calcular(p) {
 }
 
 async function nombreProveedor(p) {
+  if (p.alcance === 'ingreso') {
+    try { const r = await pool.query(`SELECT COALESCE(o.proveedor_nombre, pr.nombre) AS prov, o.numero_factura, o.creado_en FROM ordenes_ingreso o LEFT JOIN proveedores pr ON pr.id = o.proveedor_id WHERE o.id = $1`, [parseInt(p.filtro) || 0]); const o = r.rows[0]; return o ? [o.prov, o.numero_factura ? 'factura ' + o.numero_factura : null, new Date(o.creado_en).toLocaleDateString('es-AR')].filter(Boolean).join(' · ') : null; } catch (e) { return null; }
+  }
   if (p.alcance !== 'proveedor') return null;
   try { const r = await pool.query('SELECT nombre FROM proveedores WHERE id = $1', [parseInt(p.filtro) || 0]); return r.rows[0] ? r.rows[0].nombre : null; } catch (e) { return null; }
 }
+
+// Ingresos de mercadería recientes (para cambiar el precio de lo que llegó)
+router.get('/ingresos', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT o.id, o.creado_en, o.numero_factura, o.estado, COALESCE(o.proveedor_nombre, pr.nombre) AS proveedor, o.notas,
+        (SELECT COUNT(DISTINCT producto_id) FROM ordenes_ingreso_items i WHERE i.orden_id = o.id AND i.producto_id IS NOT NULL)::int AS productos
+      FROM ordenes_ingreso o LEFT JOIN proveedores pr ON pr.id = o.proveedor_id
+      WHERE o.creado_en > NOW() - INTERVAL '120 days' ORDER BY o.creado_en DESC LIMIT 40`);
+    res.json(r.rows.filter(o => o.productos > 0));
+  } catch (e) { console.error('[precios] ingresos:', e.message); res.json([]); }
+});
 
 // Ver como quedarian los precios (no cambia nada)
 router.post('/vista', async (req, res) => {
