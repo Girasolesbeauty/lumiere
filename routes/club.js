@@ -63,7 +63,7 @@ router.get('/contenido', async (req, res) => {
       vendidos(7), vendidos(30),
       q(`SELECT oii.producto_id AS id, MAX(oi.creado_en) AS f FROM ordenes_ingreso_items oii JOIN ordenes_ingreso oi ON oi.id = oii.orden_id
          WHERE oi.creado_en > NOW() - INTERVAL '21 days' GROUP BY 1`),
-      tienda.promosTienda(pool),
+      tienda.promosTienda(pool).then(l => l.filter(x => !x.solo_marca)),
     ]);
     const conStock = lista.filter(p => p.stock > 0);
     const corto = (p) => ({ id: p.id, nombre: p.nombre, marca: p.marca, precio: p.precio, stock: p.stock, foto: !!p.foto, link: link(p) });
