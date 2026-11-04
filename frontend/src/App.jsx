@@ -8338,7 +8338,16 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
           {aviso.cambioId && <button className="chip-btn" style={{ marginLeft: 8 }} onClick={() => { try { sessionStorage.setItem("lumiere_etiquetas_cambio", String(aviso.cambioId)); } catch (e) {} onCerrar(); irASeccion("etiquetas"); }}>🏷️ Imprimir sus etiquetas nuevas</button>}</div>}
 
         {!vista ? (
-          <button className="btn btn-p" style={{ width: "100%" }} disabled={trabajando || !(parseFloat(valor) > 0) || (alcance !== "todos" && !filtro)} onClick={verComoQueda}>{trabajando ? "Calculando..." : "Ver cómo quedan"}</button>
+          (() => {
+            // Qué falta para poder ver cómo quedan (antes, con "Elegir productos" el botón quedaba bloqueado sin explicación)
+            const falta = alcance === "productos" ? (!elegidos.length ? "Elegí al menos un producto" : "") : alcance !== "todos" && !filtro ? (alcance === "ingreso" ? "Elegí el ingreso de mercadería" : alcance === "categoria" ? "Elegí la categoría" : alcance === "marca" ? "Elegí la marca" : "Elegí el proveedor") : "";
+            const faltaValor = !(parseFloat(valor) > 0) ? (esMonto ? "Escribí el monto" : "Escribí el porcentaje") : "";
+            const motivo = falta || faltaValor;
+            return (<>
+              <button className="btn btn-p" style={{ width: "100%" }} disabled={trabajando || !!motivo} onClick={verComoQueda}>{trabajando ? "Calculando..." : "Ver cómo quedan"}</button>
+              {motivo && !trabajando && <div style={{ fontSize: 11.5, color: temaPal.warn, textAlign: "center", marginTop: 6 }}>Para ver cómo quedan: {motivo.charAt(0).toLowerCase() + motivo.slice(1)}.</div>}
+            </>);
+          })()
         ) : (
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{vista.descripcion}</div>
