@@ -22570,6 +22570,52 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
   const pendientesMiLocal = ordenes.filter(o => o.estado !== "recibida" && o.estado !== "pagada" && (localActual === "rg" ? o.rg_tiene_items : o.ush_tiene_items));
   const [buscaTodas, setBuscaTodas] = useState("");
   const [corregirFac, setCorregirFac] = useState(false);
+  // Buscador al recibir: por nombre o código. Con lector de códigos (o la cámara) cada lectura suma 1 al producto.
+  const [buscaRec, setBuscaRec] = useState("");
+  const [avisoRec, setAvisoRec] = useState(null); // { ok, txt }
+  const [marcadoRec, setMarcadoRec] = useState(null);
+  const [camRec, setCamRec] = useState(false);
+  const camRecRef = useRef(null), ultimoRec = useRef({ c: "", t: 0 }), leerRecRef = useRef(null);
+  const escaneadosRec = useRef(new Set()); // productos que ya se empezaron a contar escaneando (el 1er escaneo arranca en 1)
+  const codigosDe = (it) => { const pr = productos.find(x => String(x.id) === String(it.producto_id)); return String((pr && pr.codigo_barras) || "").split(/[,;\s]+/).map(c => c.replace(/[^0-9a-z]/gi, "").replace(/^0+/, "").toLowerCase()).filter(Boolean); };
+  const itemsPorCodigo = (cod, lista) => { const c = String(cod || "").replace(/[^0-9a-z]/gi, "").replace(/^0+/, "").toLowerCase(); return c.length >= 4 ? lista.filter(it => codigosDe(it).includes(c)) : []; };
+  const resaltarRec = (it) => { setMarcadoRec(it.id); setTimeout(() => { const el = document.getElementById("oi-fila-" + it.id); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); }, 30); setTimeout(() => setMarcadoRec(m => m === it.id ? null : m), 2500); };
+  // Lectura de un código (lector o cámara): suma 1 al contado de ese producto
+  const leerCodigoRec = (cod, lista) => {
+    const ok = itemsPorCodigo(cod, lista);
+    if (!ok.length) { setAvisoRec({ ok: false, txt: "El código " + cod + " no está en esta orden. Si vino de regalo, sumalo abajo como item extra." }); try { navigator.vibrate && navigator.vibrate([80, 60, 80]); } catch (e) {} return false; }
+    const it = ok.find(x => !revisadoLocal(x)) || ok[0];
+    // La cantidad viene precargada con lo esperado: el primer escaneo de cada producto arranca la cuenta en 1
+    const primero = !escaneadosRec.current.has(it.id);
+    escaneadosRec.current.add(it.id);
+    let nuevo = 0;
+    setConteo(cc => { nuevo = primero ? 1 : (parseInt(cc[it.id]) || 0) + 1; return { ...cc, [it.id]: String(nuevo) }; });
+    setTimeout(() => setAvisoRec({ ok: true, txt: "+1 " + it.producto_nombre + " · van " + nuevo + " de " + esperadoLocal(it) }), 0);
+    try { navigator.vibrate && navigator.vibrate(50); } catch (e) {}
+    resaltarRec(it);
+    return true;
+  };
+  useEffect(() => {
+    if (!camRec) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const mod = await import("https://cdn.jsdelivr.net/npm/html5-qrcode/+esm");
+        if (cancelado) return;
+        const sc = new mod.Html5Qrcode("lector-camara-oi", { experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
+        camRecRef.current = sc;
+        await sc.start({ facingMode: "environment" }, { fps: 12, qrbox: (w, h) => ({ width: Math.floor(Math.min(w * 0.85, 320)), height: Math.floor(Math.min(h * 0.45, 150)) }) }, (txt) => {
+          const c = String(txt).trim(), ahora = Date.now();
+          // el mismo código frente a la cámara no se cuenta dos veces seguidas (hay que sacarlo y volver a mostrarlo)
+          if (c === ultimoRec.current.c && ahora - ultimoRec.current.t < 1500) { ultimoRec.current.t = ahora; return; }
+          ultimoRec.current = { c, t: ahora };
+          leerRecRef.current && leerRecRef.current(c);
+        }, () => {});
+      } catch (e) { camRecRef.current = null; setAvisoRec({ ok: false, txt: "No se pudo abrir la cámara. Revisá los permisos del navegador." }); setCamRec(false); }
+    })();
+    return () => { cancelado = true; const sc = camRecRef.current; camRecRef.current = null; if (sc) { sc.stop().then(() => sc.clear()).catch(() => {}); } };
+  }, [camRec]);
+  useEffect(() => { if (tab !== "recibir") setCamRec(false); setBuscaRec(""); setAvisoRec(null); escaneadosRec.current = new Set(); }, [tab, ordenDetalle && ordenDetalle.id]);
   const porRecibir = pendientesMiLocal.filter(o => !(localActual === "rg" ? o.rg_completo : o.ush_completo));
   const recibidasMiLocal = pendientesMiLocal.filter(o => (localActual === "rg" ? o.rg_completo : o.ush_completo));
   const totalPorRecibir = porRecibir.reduce((s2, o) => s2 + parseFloat(o.total || 0), 0);
@@ -22979,6 +23025,20 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
         const tieneUsh = itemsDetalle.some(it => (it.cantidad_ush || 0) > 0);
         const extrasFiltrados = buscarExtra.trim().length > 1 ? productos.filter(pr => ((pr.nombre || "") + " " + (pr.codigo_barras || "")).toLowerCase().includes(buscarExtra.toLowerCase())).slice(0, 8) : [];
         const prodExtra = productos.find(pr => String(pr.id) === String(extra.producto_id));
+        leerRecRef.current = (c) => leerCodigoRec(c, delLocal);
+        const qRec = normTxt(buscaRec.trim());
+        const porCodRec = itemsPorCodigo(buscaRec.trim(), delLocal);
+        const filtrados = !qRec ? delLocal : porCodRec.length ? porCodRec : delLocal.filter(it => qRec.split(" ").filter(Boolean).every(w => normTxt(it.producto_nombre + " " + codigosDe(it).join(" ")).includes(w)));
+        const enterRec = (e) => {
+          if (e.key === "Escape") { setBuscaRec(""); return; }
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          const t = buscaRec.trim(); if (!t) return;
+          // Lector de códigos: escribe el código y manda Enter -> suma 1
+          if (/^[0-9]{4,}$/.test(t.replace(/\s/g, ""))) { if (leerCodigoRec(t, delLocal)) setBuscaRec(""); else e.currentTarget.select(); return; }
+          // Por nombre: si queda uno solo, va a su cantidad
+          if (filtrados.length === 1) { const k = delLocal.indexOf(filtrados[0]); resaltarRec(filtrados[0]); setBuscaRec(""); setTimeout(() => { const el = document.getElementById("oi-cont-" + k); if (el) { el.focus(); el.select(); } }, 80); }
+        };
         return (
           <div>
             <div className="card" style={{ marginBottom: 12 }}>
@@ -23006,16 +23066,31 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
               </div>
             </div>
 
+            {delLocal.length > 0 && <div className="card oi-busca" style={{ marginBottom: 12, padding: 12, position: "sticky", top: 8, zIndex: 15 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input className="inp" autoFocus value={buscaRec} onChange={e => { setBuscaRec(e.target.value); setAvisoRec(null); }} onKeyDown={enterRec}
+                    placeholder="🔎 Buscá por nombre o código, o escaneá el producto" aria-label="Buscar producto de la orden" style={{ fontSize: 14, paddingRight: 34 }} />
+                  {buscaRec && <button type="button" className="icon-btn" onClick={() => setBuscaRec("")} aria-label="Borrar búsqueda" style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)" }}>✕</button>}
+                </div>
+                <button type="button" className={"btn btn-sm " + (camRec ? "btn-p" : "btn-g")} onClick={() => { setAvisoRec(null); setCamRec(v => !v); }} title="Escanear con la cámara del celular">{camRec ? "✕ Cerrar cámara" : "📷 Cámara"}</button>
+              </div>
+              {camRec && <div id="lector-camara-oi" style={{ marginTop: 8, borderRadius: 10, overflow: "hidden", maxWidth: 420 }} />}
+              <div style={{ fontSize: 11.5, marginTop: 6, color: avisoRec ? (avisoRec.ok ? temaPal.green : temaPal.red) : temaPal.textMuted, fontWeight: avisoRec ? 700 : 400 }} role="status">
+                {avisoRec ? avisoRec.txt : qRec ? (filtrados.length ? filtrados.length + " de " + delLocal.length + " productos" + (filtrados.length === 1 ? " · Enter para cargar la cantidad" : "") : "Ningún producto de esta orden coincide con “" + buscaRec + "”") : "Con el lector o la cámara, cada código leído suma 1 a ese producto. Después revisá y tocá Confirmar."}
+              </div>
+            </div>}
+
             <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
               {delLocal.length === 0 && <div className="empty">Esta orden no tiene productos para {localNombre}.</div>}
-              {delLocal.map((it, i) => {
+              {delLocal.map((it, i) => !filtrados.includes(it) ? null : (() => {
                 const esp = esperadoLocal(it);
                 const cont = conteo[it.id];
                 const contNum = cont === undefined || cont === "" ? null : parseInt(cont);
                 const dif = contNum === null ? 0 : contNum - esp;
                 const listo = revisadoLocal(it);
                 return (
-                  <div key={it.id} className="oi-item" style={{ background: listo ? temaPal.greenDim : "transparent" }}>
+                  <div key={it.id} id={"oi-fila-" + it.id} className="oi-item" style={{ background: marcadoRec === it.id ? temaPal.accentDim : listo ? temaPal.greenDim : "transparent", boxShadow: marcadoRec === it.id ? "inset 4px 0 0 " + temaPal.accent : "none", transition: "background .3s" }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>
                         {it.producto_nombre}
@@ -23045,7 +23120,7 @@ function OrdenesIngreso({ localId, usuario, permisosActivos, paletaActual }) {
                     </div>
                   </div>
                 );
-              })}
+              })())}
             </div>
 
             {(() => { const otros = itemsDetalle.filter(it => !delLocal.includes(it)); return otros.length > 0 && (
