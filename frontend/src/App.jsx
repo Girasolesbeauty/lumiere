@@ -30654,6 +30654,11 @@ function twPromoDe(promos, p, pago) {
   });
   return mejor;
 }
+// El producto tiene alguna oferta, con cualquier forma de pago (aunque sea solo del local, ej. "20% + cuotas" del Cyber).
+// Esos productos no llevan el descuento general por forma de pago (mismo criterio que lib/tienda.js enOferta)
+function twEnOferta(promos, p) {
+  return (promos || []).some(x => x.aplica_a === "todo" || (x.aplica_a === "productos" && x.productos.includes(p.id)) || (x.aplica_a === "categorias" && x.categorias.includes(p.categoria)));
+}
 // Productos con oferta (ej. los del Cyber): no se pagan con GoCuotas, salvo que la oferta sea justo para GoCuotas
 // (mismo criterio que lib/tienda.js sinGoCuotas)
 function twSinGoCuotas(promos, p) {
@@ -30676,14 +30681,14 @@ function twBaseCupon(promos, carrito, usados, combos, catDe) {
     const u = l.cantidad - enCombo;
     if (u <= 0) return;
     const p = { id: l.producto_id, categoria: l.categoria || (catDe ? catDe(l.producto_id) : null) };
-    if (!l.preventa && (twPromoDe(promos, p, "transferencia") || twPromoDe(promos, p, "retiro"))) return;
+    if (!l.preventa && twEnOferta(promos, p)) return;
     base += u * l.precio;
   });
   return Math.round(base * 100) / 100;
 }
 function twDescPromos(promos, carrito, usados, combos, pago, catDe, packs, marcaDe) {
   if ((!promos || !promos.length) && (!packs || !packs.length)) return { descuento: 0, monto: 0, nombres: [] };
-  const enCombos = {};
+  const enCombos = {}; // (en oferta sin descuento para este pago: suma al monto, asi no lleva el general)
   (usados || []).forEach(u => { const cb = (combos || []).find(x => x.id === u.id); if (cb) cb.productos.forEach(id => { enCombos[id] = (enCombos[id] || 0) + u.veces * twCantCombo(cb, id); }); });
   let descuento = 0, monto = 0; const nombres = new Set(), resto = [];
   (carrito || []).filter(l => !l.preventa).forEach(l => {
@@ -30691,8 +30696,9 @@ function twDescPromos(promos, carrito, usados, combos, pago, catDe, packs, marca
     enCombos[l.producto_id] = (enCombos[l.producto_id] || 0) - enCombo;
     const u = l.cantidad - enCombo;
     if (u <= 0) return;
-    const pr = twPromoDe(promos, { id: l.producto_id, categoria: l.categoria || (catDe ? catDe(l.producto_id) : null) }, pago);
-    if (!pr) { resto.push({ l, u }); return; }
+    const prod = { id: l.producto_id, categoria: l.categoria || (catDe ? catDe(l.producto_id) : null) };
+    const pr = twPromoDe(promos, prod, pago);
+    if (!pr) { if (twEnOferta(promos, prod)) monto += u * l.precio; else resto.push({ l, u }); return; }
     monto += u * l.precio; descuento += u * l.precio * pr.pct / 100; nombres.add(pr.nombre);
   });
   const tomadas = new Set();
@@ -33227,12 +33233,15 @@ function TiendaPublica({ slug }) {
   // Los kits/combos del carrito llevan su propio % (si se configuro); el resto, el general. Mismo calculo que el servidor.
   const montoKits = comboCalc.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
   const montoSinPago = comboCalc.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0); // combos del Cyber: ya tienen su precio por pago
+  // Si todo el carrito está en oferta (Cyber, combos), el % general de cada forma de pago no se muestra: no se aplica
+  const algoSinOferta = carrito.some(l => !l.preventa && !twEnOferta(promosLid, { id: l.producto_id, categoria: l.categoria || ((productos || []).find(x => x.id === l.producto_id) || {}).categoria })) && subtotal - descCombo - montoKits - montoSinPago > 0;
   const pctKitsPago = pagoElegido && !gcCubre && !sinDescPago && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
   const promoCalc = twDescPromos(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
   const descPromo = promoCalc.descuento;
   const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto - montoSinPago);
-  const enKitsPago = pctKitsPago ? Math.max(0, Math.min(basePago, montoKits)) : 0;
+  // Los combos no llevan el descuento general: solo su % de kits (si se configuró). Mismo cálculo que el servidor.
+  const enKitsPago = Math.max(0, Math.min(basePago, montoKits));
   const descuentoPago0 = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
   // Juntando códigos de Halloween, el descuento por forma de pago también entra en el tope (igual que el servidor)
   const descuentoPago = hwJunta ? Math.min(descuentoPago0, Math.max(0, Math.round(baseCupon * cuponOk.tope / 100 - descuentoCupon))) : descuentoPago0;
@@ -34526,11 +34535,11 @@ function TiendaPublica({ slug }) {
                     // Promo de Lumiere para este producto (sin medio de pago) o el mejor precio por forma de pago (promo o descuento general)
                     const promoTodos = twPromoDe(promosLid, ver, "__todos__");
                     if (promoTodos) return <div className="tw-precio-pago">🏷️ {fmtTienda(Math.round(ver.precio * (1 - promoTodos.pct / 100)))} con la promo {promoTodos.nombre} ({String(promoTodos.pct).replace(".", ",")}% OFF)</div>;
-                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k] && (!preVer || k === "mp")).map(k => { const pr = twPromoDe(promosLid, ver, k); return [k, pr ? pr.pct : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
+                    const mejor = Object.keys(tienda.pagos || {}).filter(k => tienda.pagos[k] && (!preVer || k === "mp")).map(k => { const pr = twPromoDe(promosLid, ver, k); return [k, pr ? pr.pct : twEnOferta(promosLid, ver) ? 0 : ((tienda.descuentos_pago || {})[k] || 0)]; }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1])[0];
                     return mejor ? <div className="tw-precio-pago">💸 {fmtTienda(Math.round(ver.precio * (1 - mejor[1] / 100)))} pagando con {({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "efectivo al retirar" })[mejor[0]]} ({String(mejor[1]).replace(".", ",")}% OFF)</div> : null; })()}
                   {/* Cuotas sin interés con GoCuotas (hasta 4 con débito), con su descuento si tiene. No aplica a preventas (solo Mercado Pago) */}
                   {tienda.pagos && tienda.pagos.gocuotas && !preVer && !twSinGoCuotas(promosLid, ver) && (() => {
-                    const pr = twPromoDe(promosLid, ver, "gocuotas"), pct = pr ? pr.pct : ((tienda.descuentos_pago || {}).gocuotas || 0);
+                    const pr = twPromoDe(promosLid, ver, "gocuotas"), pct = pr ? pr.pct : twEnOferta(promosLid, ver) ? 0 : ((tienda.descuentos_pago || {}).gocuotas || 0);
                     const base = Math.round(ver.precio * (1 - pct / 100));
                     const gmin = tienda.pagos.gocuotas_minimo || 0;
                     if (gmin && ver.precio < gmin) return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> en compras desde <b>{fmtTienda(gmin)}</b> <span>· GoCuotas</span></div>;
@@ -34717,7 +34726,7 @@ function TiendaPublica({ slug }) {
                   {avisoGc && <div style={{ color: "#c0392b", fontSize: 13, marginTop: 6 }}>{avisoGc}</div>}
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
                   {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago</b><span>{tienda.pagos.mp ? "Para reservar productos que todavía no llegaron, el pago es solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "Ahora no podemos cobrar con Mercado Pago: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
-                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => pagoNo(k) ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{hwJunta ? "Juntando tus códigos de Halloween pagás con transferencia o en efectivo" : cuponContado ? "Tu cupón " + cuponOk.codigo + " vale sin cuotas" : k === "gocuotas" && gocOferta.length ? "No disponible para productos en oferta" + (tienda.cyber ? " del Cyber" : "") + " (" + gocOferta.slice(0, 2).join(", ") + (gocOferta.length > 2 ? " y " + (gocOferta.length - 2) + " más" : "") + ")" : <>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</>}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && !hwJunta && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{cuponContado && k === "mp" ? "En 1 pago (débito, crédito o dinero en cuenta), por tu cupón" : hwJunta && k === "retiro" ? "En efectivo en el local, por juntar tus códigos" : cuponContado && k === "retiro" ? "Efectivo, débito o crédito en 1 cuota, por tu cupón" : d}</div></button>)}
+                  {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => pagoNo(k) ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{hwJunta ? "Juntando tus códigos de Halloween pagás con transferencia o en efectivo" : cuponContado ? "Tu cupón " + cuponOk.codigo + " vale sin cuotas" : k === "gocuotas" && gocOferta.length ? "No disponible para productos en oferta" + (tienda.cyber ? " del Cyber" : "") + " (" + gocOferta.slice(0, 2).join(", ") + (gocOferta.length > 2 ? " y " + (gocOferta.length - 2) + " más" : "") + ")" : <>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</>}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && !hwJunta && algoSinOferta && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{cuponContado && k === "mp" ? "En 1 pago (débito, crédito o dinero en cuenta), por tu cupón" : hwJunta && k === "retiro" ? "En efectivo en el local, por juntar tus códigos" : cuponContado && k === "retiro" ? "Efectivo, débito o crédito en 1 cuota, por tu cupón" : d}</div></button>)}
                   {!gcCubre && tienda.ayuda_pago && tienda.ayuda_pago.local && tienda.ayuda_pago.cuotas_local && <div className="tw-ap-hint">💳 ¿Preferís pagar con tarjeta de crédito? En nuestros locales: <b>{tienda.ayuda_pago.cuotas_local}</b>.</div>}
                   <div className="tw-lbl">¿Tenés un código de descuento?</div>
                   {cuponOk ? (
