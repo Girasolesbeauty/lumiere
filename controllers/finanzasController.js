@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { IMPORTE_VI } = require('../lib/importeReal');
 const { esVentaWeb } = require('../lib/tiendaWeb');
 const { porNegocio } = require('../lib/contexto');
 
@@ -444,7 +445,7 @@ const getPuntoEquilibrio = async (req, res) => {
     const params = [mes, anio];
     if (localNum !== null) params.push(localNum);
     let margen = await pool.query(`
-      SELECT COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+      SELECT COALESCE(SUM(${IMPORTE_VI}), 0) AS ingresos,
              COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos
       FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id JOIN productos p ON vi.producto_id = p.id
       WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)} ${localNum !== null ? 'AND v.local_id = $3' : ''}`, params);
@@ -452,7 +453,7 @@ const getPuntoEquilibrio = async (req, res) => {
     if (num(margen.rows[0].ingresos) <= 0) {
       // Sin ventas ese mes: se usa el margen de los ultimos 60 dias
       margen = await pool.query(`
-        SELECT COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+        SELECT COALESCE(SUM(${IMPORTE_VI}), 0) AS ingresos,
                COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos
         FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id JOIN productos p ON vi.producto_id = p.id
         WHERE ${VENTA_VALIDA('v')} AND v.creado_en >= NOW() - INTERVAL '60 days' ${localNum !== null ? 'AND v.local_id = $1' : ''}`,
@@ -549,7 +550,7 @@ const getCMV = async (req, res) => {
     if (localNum !== null) params.push(localNum);
     const r = await pool.query(`
       SELECT COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS cmv,
-             COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ventas,
+             COALESCE(SUM(${IMPORTE_VI}), 0) AS ventas,
              COUNT(*) FILTER (WHERE COALESCE(p.costo, 0) <= 0) AS sin_costo
       FROM venta_items vi
       JOIN ventas v ON v.id = vi.venta_id
@@ -955,7 +956,7 @@ const getMedallas = async (req, res) => {
     const [margenes, diarias] = await Promise.all([
       pool.query(`
         SELECT EXTRACT(YEAR FROM ${AR('v.creado_en')})::int AS anio, EXTRACT(MONTH FROM ${AR('v.creado_en')})::int AS mes,
-               COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
+               COALESCE(SUM(${IMPORTE_VI}), 0) AS ingresos,
                COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS costos
         FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id JOIN productos p ON vi.producto_id = p.id
         WHERE ${VENTA_VALIDA('v')} AND (${AR('v.creado_en')})::date >= $1::date ${filtroLocal(2)}
@@ -1099,8 +1100,8 @@ const getBaseDecisiones = async (req, res) => {
     const pLocal = localNum !== null ? [localNum] : [];
     const [mg, historia] = await Promise.all([
       pool.query(`
-        SELECT COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ingresos,
-               COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN vi.cantidad * vi.precio_unitario ELSE 0 END), 0) AS ingresos_con_costo,
+        SELECT COALESCE(SUM(${IMPORTE_VI}), 0) AS ingresos,
+               COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN ${IMPORTE_VI} ELSE 0 END), 0) AS ingresos_con_costo,
                COALESCE(SUM(CASE WHEN COALESCE(p.costo, 0) > 0 THEN vi.cantidad * p.costo ELSE 0 END), 0) AS costos
         FROM venta_items vi JOIN ventas v ON vi.venta_id = v.id JOIN productos p ON vi.producto_id = p.id
         WHERE ${VENTA_VALIDA('v')} AND (${AR('v.creado_en')})::date >= $1::date AND (${AR('v.creado_en')})::date < $2::date
@@ -1168,15 +1169,15 @@ const getBaseDecisiones = async (req, res) => {
     let bajoMargen = [];
     try {
       const bm = await pool.query(`
-        SELECT p.nombre, pr.nombre AS proveedor, SUM(vi.cantidad * vi.precio_unitario) AS ventas, SUM(vi.cantidad * p.costo) AS costos
+        SELECT p.nombre, pr.nombre AS proveedor, SUM(${IMPORTE_VI}) AS ventas, SUM(vi.cantidad * p.costo) AS costos
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
         LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
         WHERE ${VENTA_VALIDA('v')} AND COALESCE(p.costo, 0) > 0 AND v.creado_en >= NOW() - INTERVAL '90 days'
           ${localNum !== null ? 'AND v.local_id = $1' : ''}
         GROUP BY p.nombre, pr.nombre
-        HAVING SUM(vi.cantidad * vi.precio_unitario) > 0
-           AND (SUM(vi.cantidad * vi.precio_unitario) - SUM(vi.cantidad * p.costo)) / SUM(vi.cantidad * vi.precio_unitario) < 0.35
-        ORDER BY SUM(vi.cantidad * vi.precio_unitario) DESC LIMIT 5`, pLocal);
+        HAVING SUM(${IMPORTE_VI}) > 0
+           AND (SUM(${IMPORTE_VI}) - SUM(vi.cantidad * p.costo)) / SUM(${IMPORTE_VI}) < 0.35
+        ORDER BY SUM(${IMPORTE_VI}) DESC LIMIT 5`, pLocal);
       bajoMargen = bm.rows.map(r => ({ nombre: r.nombre, proveedor: r.proveedor, ventas_mes: num(r.ventas) / 3, margen_pct: (num(r.ventas) - num(r.costos)) / num(r.ventas) * 100, costo_mes: num(r.costos) / 3 }));
     } catch (e) { console.error('bajo margen:', e.message); }
 
@@ -1334,10 +1335,10 @@ const getInformeMes = async (req, res) => {
          WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY u.id, u.nombre ORDER BY 4 DESC LIMIT 8`, P([mes, anio])),
       q(`SELECT u.id, SUM(v.total) AS total, COUNT(*) AS cant FROM ventas v JOIN usuarios u ON u.id = v.usuario_id
          WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY u.id`, P([mesAnt, anioAnt])),
-      q(`SELECT p.id, p.nombre, p.marca, SUM(vi.cantidad)::int AS unidades, COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS total
+      q(`SELECT p.id, p.nombre, p.marca, SUM(vi.cantidad)::int AS unidades, COALESCE(SUM(${IMPORTE_VI}), 0) AS total
          FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
          WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY p.id ORDER BY 4 DESC, 5 DESC LIMIT 5`, P([mes, anio])),
-      q(`SELECT COALESCE(NULLIF(TRIM(p.marca), ''), 'Sin marca') AS marca, COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS total, SUM(vi.cantidad)::int AS unidades
+      q(`SELECT COALESCE(NULLIF(TRIM(p.marca), ''), 'Sin marca') AS marca, COALESCE(SUM(${IMPORTE_VI}), 0) AS total, SUM(vi.cantidad)::int AS unidades
          FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
          WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)} GROUP BY 1 ORDER BY 2 DESC LIMIT 5`, P([mes, anio])),
       calcularComisionesMedios(mes, anio, localNum).catch(() => ({ detalle: [] })),
@@ -1356,7 +1357,7 @@ const getInformeMes = async (req, res) => {
       q(`SELECT COUNT(*) FILTER (WHERE ${EN_MES('t.creado_en', 1, 2)}) AS cant, COALESCE(SUM(t.total) FILTER (WHERE ${EN_MES('t.creado_en', 1, 2)}), 0) AS total,
            COUNT(*) FILTER (WHERE ${EN_MES('t.creado_en', 3, 4)}) AS cant_ant
          FROM tienda_pedidos t WHERE t.estado NOT IN ('cancelado', 'pendiente_pago')${L('t', 5)}`, P([mes, anio, mesAnt, anioAnt])),
-      q(`SELECT COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS cmv, COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS ventas
+      q(`SELECT COALESCE(SUM(vi.cantidad * COALESCE(p.costo, 0)), 0) AS cmv, COALESCE(SUM(${IMPORTE_VI}), 0) AS ventas
          FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
          WHERE ${VV} AND ${EN_MES('v.creado_en', 1, 2)}${L('v', 3)}`, P([mes, anio])),
       // Mes en curso: lo vendido el mes anterior hasta el mismo día
