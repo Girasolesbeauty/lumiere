@@ -3,6 +3,7 @@
 // ?atras=N mira N semanas mas para atras (0 = la ultima semana completa).
 const express = require('express');
 const pool = require('../config/database');
+const { IMPORTE_VI, SUBTOTAL_VI } = require('../lib/importeReal');
 const { VENTA_VALIDA } = require('../lib/niveles');
 const { muestrasDe } = require('../lib/tienda');
 
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
            COALESCE(SUM(v.total) FILTER (WHERE v.creado_en < $1), 0) AS total_ant, COUNT(v.id) FILTER (WHERE v.creado_en < $1) AS cant_ant
          FROM locales l LEFT JOIN ventas v ON v.local_id = l.id AND ${VV} AND v.creado_en >= $3 AND v.creado_en < $2
          WHERE COALESCE(l.activo, TRUE) GROUP BY l.id, l.nombre ORDER BY l.id`, P),
-      q(`SELECT p.id, p.nombre, p.marca, SUM(vi.cantidad)::int AS unidades, COALESCE(SUM(vi.subtotal), 0) AS total
+      q(`SELECT p.id, p.nombre, p.marca, SUM(vi.cantidad)::int AS unidades, COALESCE(SUM(${SUBTOTAL_VI}), 0) AS total
          FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
          WHERE ${VV} AND v.creado_en >= $1 AND v.creado_en < $2 GROUP BY p.id ORDER BY 4 DESC, 5 DESC LIMIT 5`, P.slice(0, 2)),
       q(`SELECT EXTRACT(ISODOW FROM v.creado_en)::int AS dow, SUM(v.total) AS total FROM ventas v

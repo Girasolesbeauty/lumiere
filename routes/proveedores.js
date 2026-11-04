@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const { IMPORTE_VI, SUBTOTAL_VI } = require('../lib/importeReal');
 
 router.get('/', async (req, res) => {
   try {
@@ -24,7 +25,7 @@ router.get('/reporte-ventas', async (req, res) => {
       SELECT p.id AS proveedor_id, p.nombre AS proveedor_nombre,
              COUNT(DISTINCT vi.venta_id) AS cantidad_ventas,
              COALESCE(SUM(vi.cantidad), 0) AS unidades_vendidas,
-             COALESCE(SUM(vi.cantidad * vi.precio_unitario), 0) AS total_vendido
+             COALESCE(SUM(${IMPORTE_VI}), 0) AS total_vendido
       FROM proveedores p
       JOIN productos pr ON pr.proveedor_id = p.id
       JOIN venta_items vi ON vi.producto_id = pr.id
@@ -52,7 +53,7 @@ router.get('/:id/productos-vendidos', async (req, res) => {
     let q = `
       SELECT pr.id AS producto_id, pr.nombre AS producto_nombre,
              SUM(vi.cantidad) AS unidades_vendidas,
-             SUM(vi.cantidad * vi.precio_unitario) AS total_vendido
+             SUM(${IMPORTE_VI}) AS total_vendido
       FROM venta_items vi
       JOIN ventas v ON v.id = vi.venta_id
       JOIN productos pr ON pr.id = vi.producto_id
@@ -103,7 +104,7 @@ router.get('/cobertura-pagos', async (req, res) => {
     const desdeMin = desdeElegido || (deudaRes.rows.length ? deudaRes.rows.reduce((m, o) => (o.fecha < m ? o.fecha : m), hoyAR) : hoyAR);
     const desdeConsulta = [desdeMin, new Date(Date.now() - 30 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })].sort()[0];
     const vRes = await pool.query(`
-      SELECT p.proveedor_id, ${AR('v.creado_en')}::date::text AS dia, SUM(vi.cantidad * vi.precio_unitario) AS monto, SUM(vi.cantidad) AS unidades
+      SELECT p.proveedor_id, ${AR('v.creado_en')}::date::text AS dia, SUM(${IMPORTE_VI}) AS monto, SUM(vi.cantidad) AS unidades
       FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
       WHERE ${VALIDA} AND p.proveedor_id IS NOT NULL ${provId ? 'AND p.proveedor_id = $3' : ''}
         AND ${AR('v.creado_en')}::date BETWEEN $1::date AND $2::date
