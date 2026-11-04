@@ -8156,6 +8156,30 @@ function MarcasProductos({ temaPal, onCerrar, onCambio }) {
   const [guardando, setGuardando] = useState(false);
   const cargar = () => API.get("/productos/marcas/lista").then(r => setD(r.data)).catch(e => setError(e.response?.data?.error || "No se pudieron cargar las marcas"));
   useEffect(() => { cargar(); }, []);
+  // Asignar un proveedor a todos los productos de una marca
+  const [proveedores, setProveedores] = useState([]);
+  const [asignando, setAsignando] = useState(null); // { k, de: [nombres], proveedor_id, pisar }
+  const [paraDeshacer, setParaDeshacer] = useState(null); // { anteriores, texto }
+  useEffect(() => { API.get("/proveedores").then(r => setProveedores(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
+  const asignarProveedor = async () => {
+    if (!asignando || !asignando.proveedor_id) return;
+    setGuardando(true);
+    try {
+      const r = await API.put("/productos/marcas/proveedor", { marcas: asignando.de, proveedor_id: Number(asignando.proveedor_id), pisar: !!asignando.pisar });
+      const x = r.data;
+      setMsg("✓ Listo: " + x.productos_actualizados + (x.productos_actualizados === 1 ? " producto ahora tiene" : " productos ahora tienen") + " a " + x.proveedor + " como proveedor." + (x.omitidos ? " " + x.omitidos + " ya tenían otro proveedor y no se tocaron." : ""));
+      setParaDeshacer(x.productos_actualizados ? { anteriores: x.anteriores } : null);
+      setAsignando(null); cargar(); onCambio && onCambio();
+    } catch (e) { setMsg(e.response?.data?.error || "No se pudo asignar el proveedor"); }
+    setGuardando(false);
+  };
+  const deshacerProveedor = async () => {
+    if (!paraDeshacer) return;
+    setGuardando(true);
+    try { const r = await API.put("/productos/marcas/proveedor/deshacer", { anteriores: paraDeshacer.anteriores }); setMsg("↩️ Deshecho: " + r.data.productos_actualizados + " productos volvieron a como estaban."); setParaDeshacer(null); cargar(); onCambio && onCambio(); }
+    catch (e) { setMsg(e.response?.data?.error || "No se pudo deshacer"); }
+    setGuardando(false);
+  };
   const guardar = async () => {
     if (!editando || !editando.a.trim()) return;
     setGuardando(true);
@@ -8174,7 +8198,10 @@ function MarcasProductos({ temaPal, onCerrar, onCambio }) {
           <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
         </div>
         <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 10 }}>Corregí cómo está escrita una marca y se cambia en todos sus productos de una vez.</div>
-        {msg && <div role="status" style={{ fontSize: 13, padding: "8px 10px", borderRadius: 8, background: temaPal.green + "14", marginBottom: 10 }}>{msg}</div>}
+        {msg && <div role="status" style={{ fontSize: 13, padding: "8px 10px", borderRadius: 8, background: temaPal.green + "14", marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ flex: 1 }}>{msg}</span>
+          {paraDeshacer && <button className="btn btn-g btn-sm" disabled={guardando} onClick={deshacerProveedor}>↩️ Deshacer</button>}
+        </div>}
         {error ? <div className="empty">{error}</div> : !d ? <div className="skel" style={{ height: 200 }} /> : (<>
           {repetidas > 0 && <div style={{ fontSize: 12.5, padding: "8px 10px", borderRadius: 8, background: temaPal.warn + "18", color: temaPal.text, marginBottom: 10 }}>⚠️ Hay <b>{repetidas}</b> {repetidas === 1 ? "marca escrita" : "marcas escritas"} de varias formas. Están arriba: tocá <b>Unificar</b>.</div>}
           <input className="inp" placeholder="Buscar marca" value={buscar} onChange={e => setBuscar(e.target.value)} style={{ marginBottom: 8 }} />
@@ -8187,8 +8214,33 @@ function MarcasProductos({ temaPal, onCerrar, onCambio }) {
                     {g.formas.length > 1 ? <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{g.formas.map(f => <span key={f.marca} className="tag tag-neutral" style={{ fontSize: 11.5 }}>"{f.marca}" · {f.productos}</span>)}</div>
                       : <><b style={{ fontSize: 13.5 }}>{g.formas[0].marca}</b> <span style={{ fontSize: 11.5, color: temaPal.textMuted }}>· {g.productos} {g.productos === 1 ? "producto" : "productos"}</span></>}
                   </div>
-                  {d.puede_editar && !abierta && <button className={"btn btn-sm " + (g.formas.length > 1 ? "btn-p" : "btn-g")} onClick={() => setEditando({ k, de: g.formas.map(f => f.marca), a: g.formas[0].marca })}>{g.formas.length > 1 ? "Unificar" : "Renombrar"}</button>}
+                  {d.puede_editar && !abierta && !(asignando && asignando.k === k) && <button className="btn btn-g btn-sm" onClick={() => { setEditando(null); setAsignando({ k, de: g.formas.map(f => f.marca), proveedor_id: "", pisar: false }); }}>Asignar proveedor</button>}
+                  {d.puede_editar && !abierta && <button className={"btn btn-sm " + (g.formas.length > 1 ? "btn-p" : "btn-g")} onClick={() => { setAsignando(null); setEditando({ k, de: g.formas.map(f => f.marca), a: g.formas[0].marca }); }}>{g.formas.length > 1 ? "Unificar" : "Renombrar"}</button>}
                 </div>
+                {(() => {
+                  const res = {}; g.formas.forEach(f => (f.proveedores || []).forEach(p => { const n = p.id ? p.nombre : "sin proveedor"; res[n] = (res[n] || 0) + p.productos; }));
+                  const txt = Object.entries(res).map(([n, c]) => n + " (" + c + ")").join(" · ");
+                  return txt ? <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 3 }}>Proveedor: {txt}</div> : null;
+                })()}
+                {asignando && asignando.k === k && (() => {
+                  const sinProv = g.formas.reduce((t, f) => t + (f.proveedores || []).filter(p => !p.id).reduce((a, p) => a + p.productos, 0), 0);
+                  const elegido = Number(asignando.proveedor_id) || 0;
+                  const conOtro = g.formas.reduce((t, f) => t + (f.proveedores || []).filter(p => p.id && p.id !== elegido).reduce((a, p) => a + p.productos, 0), 0);
+                  const cuantos = asignando.pisar ? sinProv + conOtro : sinProv;
+                  return <div className="pop-in" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                    <span style={{ fontSize: 12.5 }}>Proveedor:</span>
+                    <select className="inp" autoFocus style={{ flex: "1 1 180px", maxWidth: 280 }} value={asignando.proveedor_id} onChange={e => setAsignando(x => ({ ...x, proveedor_id: e.target.value }))}>
+                      <option value="">Elegí un proveedor…</option>
+                      {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                    {elegido > 0 && conOtro > 0 && <label style={{ fontSize: 12, display: "flex", gap: 6, alignItems: "center", flexBasis: "100%" }}>
+                      <input type="checkbox" checked={!!asignando.pisar} onChange={e => setAsignando(x => ({ ...x, pisar: e.target.checked }))} />
+                      Cambiar también {conOtro === 1 ? "1 producto que ya tiene" : conOtro + " productos que ya tienen"} otro proveedor
+                    </label>}
+                    <button className="btn btn-g btn-sm" onClick={() => setAsignando(null)}>Cancelar</button>
+                    <button className="btn btn-p btn-sm" disabled={guardando || !elegido || cuantos === 0} onClick={asignarProveedor}>{elegido && cuantos === 0 ? "No hay nada para cambiar" : "Asignar a " + cuantos + (cuantos === 1 ? " producto" : " productos")}</button>
+                  </div>;
+                })()}
                 {abierta && <div className="pop-in" style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
                   <span style={{ fontSize: 12.5 }}>Que diga:</span>
                   <input className="inp" autoFocus style={{ flex: "1 1 160px", maxWidth: 260 }} value={editando.a} onChange={e => setEditando(x => ({ ...x, a: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardar(); }} />

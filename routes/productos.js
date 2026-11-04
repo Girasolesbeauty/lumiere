@@ -70,6 +70,10 @@ router.get('/marcas/lista', async (req, res) => {
   try {
     const r = await pool.query(`SELECT TRIM(marca) AS marca, COUNT(*)::int AS productos, COUNT(*) FILTER (WHERE activo)::int AS activos
       FROM productos WHERE COALESCE(TRIM(marca), '') <> '' GROUP BY TRIM(marca) ORDER BY TRIM(marca)`);
+    // Con que proveedor esta cargada cada marca (id vacio = productos sin proveedor)
+    const pv = await pool.query(`SELECT TRIM(p.marca) AS marca, p.proveedor_id AS id, pr.nombre, COUNT(*)::int AS productos
+      FROM productos p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id WHERE COALESCE(TRIM(p.marca), '') <> '' GROUP BY 1, 2, 3 ORDER BY 4 DESC`);
+    r.rows.forEach(x => { x.proveedores = pv.rows.filter(y => y.marca === x.marca).map(y => ({ id: y.id, nombre: y.nombre, productos: y.productos })); });
     const grupos = {};
     r.rows.forEach(x => { const k = claveMarca(x.marca); (grupos[k] = grupos[k] || []).push(x); });
     const sinMarca = (await pool.query(`SELECT COUNT(*)::int AS n FROM productos WHERE activo AND COALESCE(TRIM(marca), '') = ''`)).rows[0].n;
@@ -90,6 +94,37 @@ router.put('/marcas/renombrar', async (req, res) => {
     const r = await pool.query(`UPDATE productos SET marca = $1 WHERE TRIM(marca) = ANY($2::text[]) AND marca IS DISTINCT FROM $1`, [a, de]);
     res.json({ ok: true, productos_actualizados: r.rowCount });
   } catch (e) { console.error('[marcas]', e.message); res.status(500).json({ error: 'No se pudo cambiar la marca' }); }
+});
+
+// Asignar un proveedor a todos los productos de una marca de una vez. Por defecto solo completa los que no
+// tienen proveedor; con "pisar" cambia tambien los que ya tienen otro. Devuelve como estaba cada uno para poder deshacer.
+router.put('/marcas/proveedor', async (req, res) => {
+  try {
+    if (!(await puedeEditarProductos(req.usuario))) return res.status(403).json({ error: 'No tenés permiso para editar productos' });
+    const de = [...new Set((Array.isArray(req.body.marcas) ? req.body.marcas : [req.body.marcas]).map(x => String(x || '').trim()).filter(Boolean))].slice(0, 50);
+    const pid = parseInt(req.body.proveedor_id, 10);
+    const pisar = req.body.pisar === true;
+    if (!de.length || !pid) return res.status(400).json({ error: 'Elegí la marca y el proveedor' });
+    const prov = (await pool.query('SELECT id, nombre FROM proveedores WHERE id = $1', [pid])).rows[0];
+    if (!prov) return res.status(404).json({ error: 'No se encontró ese proveedor' });
+    const antes = (await pool.query(
+      `SELECT id, proveedor_id FROM productos WHERE TRIM(marca) = ANY($1::text[]) AND proveedor_id IS DISTINCT FROM $2 AND ($3 OR proveedor_id IS NULL)`, [de, pid, pisar])).rows;
+    const omitidos = pisar ? 0 : (await pool.query(
+      `SELECT COUNT(*)::int AS n FROM productos WHERE TRIM(marca) = ANY($1::text[]) AND proveedor_id IS NOT NULL AND proveedor_id <> $2`, [de, pid])).rows[0].n;
+    if (antes.length) await pool.query('UPDATE productos SET proveedor_id = $1 WHERE id = ANY($2::int[])', [pid, antes.map(x => x.id)]);
+    res.json({ ok: true, proveedor: prov.nombre, productos_actualizados: antes.length, omitidos, anteriores: antes });
+  } catch (e) { console.error('[marcas] proveedor:', e.message); res.status(500).json({ error: 'No se pudo asignar el proveedor' }); }
+});
+router.put('/marcas/proveedor/deshacer', async (req, res) => {
+  try {
+    if (!(await puedeEditarProductos(req.usuario))) return res.status(403).json({ error: 'No tenés permiso para editar productos' });
+    const lista = (Array.isArray(req.body.anteriores) ? req.body.anteriores : []).slice(0, 20000)
+      .map(x => ({ id: parseInt(x && x.id, 10), prov: x && x.proveedor_id !== null && x.proveedor_id !== undefined ? parseInt(x.proveedor_id, 10) : null }))
+      .filter(x => x.id && (x.prov === null || x.prov > 0));
+    if (!lista.length) return res.json({ ok: true, productos_actualizados: 0 });
+    const r = await pool.query('UPDATE productos p SET proveedor_id = v.prov FROM (SELECT unnest($1::int[]) AS id, unnest($2::int[]) AS prov) v WHERE p.id = v.id', [lista.map(x => x.id), lista.map(x => x.prov)]);
+    res.json({ ok: true, productos_actualizados: r.rowCount });
+  } catch (e) { console.error('[marcas] deshacer proveedor:', e.message); res.status(500).json({ error: 'No se pudo deshacer' }); }
 });
 
 router.get('/:id', controller.getById);
