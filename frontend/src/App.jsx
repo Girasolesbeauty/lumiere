@@ -8198,7 +8198,7 @@ function MarcasProductos({ temaPal, onCerrar, onCambio }) {
   );
 }
 function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio }) {
-  const [alcance, setAlcance] = useState("todos");
+  const [alcance, setAlcance] = useState(() => { try { return localStorage.getItem("lumiere_precios_elegidos") ? "productos" : "todos"; } catch (e) { return "todos"; } });
   const [filtro, setFiltro] = useState("");
   const [modo, setModo] = useState("subir");
   const [valor, setValor] = useState("");
@@ -8209,7 +8209,9 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
   const [historial, setHistorial] = useState([]);
   const [verTodos, setVerTodos] = useState(false);
   const [ingresos, setIngresos] = useState([]); // ingresos de mercadería recientes (para "lo que llegó")
-  const [elegidos, setElegidos] = useState([]); // ids elegidos a mano
+  // Los productos elegidos a mano quedan guardados en este navegador (si se recarga la página no se pierden)
+  const [elegidos, setElegidos] = useState(() => { try { const v = JSON.parse(localStorage.getItem("lumiere_precios_elegidos") || "[]"); return Array.isArray(v) ? v.filter(x => Number.isInteger(x)) : []; } catch (e) { return []; } });
+  useEffect(() => { try { if (elegidos.length) localStorage.setItem("lumiere_precios_elegidos", JSON.stringify(elegidos)); else localStorage.removeItem("lumiere_precios_elegidos"); } catch (e) {} }, [elegidos]);
   const [buscaProd, setBuscaProd] = useState("");
   useEffect(() => { API.get("/precios-masivos/ingresos").then(r => setIngresos(r.data || [])).catch(() => {}); }, []);
   const esMonto = modo === "sumar" || modo === "restar";
@@ -8235,7 +8237,7 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
     try {
       const r = await API.post("/precios-masivos/aplicar", pedido());
       setAviso({ ok: true, texto: "✓ Listo: se actualizaron " + r.data.cantidad + " precios.", cambioId: r.data.id });
-      setVista(null); setValor("");
+      setVista(null); setValor(""); if (alcance === "productos") setElegidos([]);
       cargarHistorial(); onCambio && onCambio();
     } catch (e) { setAviso({ ok: false, texto: e.response?.data?.error || "No se pudieron actualizar los precios" }); }
     setTrabajando(false);
