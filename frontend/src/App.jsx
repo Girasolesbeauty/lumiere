@@ -5068,7 +5068,7 @@ function POS({ localId, usuario, paletaActual }) {
   const buscadorJSX = (
     <>
           <div style={{ position: "relative" }}>
-            <input ref={busquedaRef} className="inp" placeholder="Escaneá o buscá por nombre, marca o código..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus style={{ paddingRight: 44 }} />
+            <input ref={busquedaRef} data-tour="pos-buscar" className="inp" placeholder="Escaneá o buscá por nombre, marca o código..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={onEscaneo} autoFocus style={{ paddingRight: 44 }} />
             <span className="kbd" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }}>F2</span>
           </div>
           {avisoEscaneo && (
@@ -5164,7 +5164,7 @@ function POS({ localId, usuario, paletaActual }) {
     );
   })() : null;
   const carritoJSX = (
-          <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
+          <div data-tour="pos-carrito" style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 8, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 240 }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid " + temaPal.border, fontSize: 10, color: temaPal.textMuted, fontWeight: 700, letterSpacing: ".1em", background: preventa ? "#2471a320" : temaPal.bg }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minHeight: 22 }}>
               <span>{preventa ? "PREVENTA" : "CARRITO DE COMPRAS"} ({cart.reduce((s2, i) => s2 + i.qty, 0)} u.)</span>
@@ -5917,7 +5917,7 @@ function POS({ localId, usuario, paletaActual }) {
         <div style={{ flexShrink: 0 }}><div className="pt" style={{ whiteSpace: "nowrap" }}>Punto de Venta</div><div className="ps">facturación electrónica · arca</div></div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           {(usuario?.rol === "jefe" || usuario?.rol === "admin") && (
-            <div className="sw-wrap" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
+            <div className="sw-wrap" data-tour="pos-prueba" onClick={() => { setModoPrueba(!modoPrueba); setMensaje(""); }}>
               <div className={"sw " + (modoPrueba ? "on" : "off")}><div className="sw-dot" /></div>
               <span style={{ fontSize: 11, color: modoPrueba ? "#c0392b" : temaPal.textMuted }}>Modo prueba</span>
             </div>
@@ -39294,7 +39294,7 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
     const activo = page === it.id;
     const n = avisos && avisos[it.id];
     return (
-      <button key={it.id} type="button" className={"nav-item" + (activo ? " active" : "") + (marcadoItem ? " marcado" : "")}
+      <button key={it.id} type="button" data-tour={"nav-" + it.id} className={"nav-item" + (activo ? " active" : "") + (marcadoItem ? " marcado" : "")}
         aria-current={activo ? "page" : undefined} title={comprimido ? it.label : undefined}
         style={activo ? { background: "color-mix(in srgb, " + col + " 26%, transparent)", borderColor: "color-mix(in srgb, " + col + " 60%, transparent)", color: p.logoText } : {}}
         onClick={() => elegir(it.id)}>
@@ -39328,7 +39328,7 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
         const mezcla = (pct) => "color-mix(in srgb, " + col + " " + pct + "%, transparent)";
         return (
           <div key={sec.section} className={"nav-grupo" + (abierta ? " abierta" : "")} style={{ "--sec-col": mezcla(55) }}>
-            <button type="button" className="nav-section" aria-expanded={abierta}
+            <button type="button" data-tour={"sec-" + sec.section} className="nav-section" aria-expanded={abierta}
               onClick={() => guardar(abierta ? [] : [sec.section])}
               style={actual && !abierta ? { borderColor: mezcla(70), background: mezcla(14) } : undefined}>
               <span className="nav-sec-ico" style={{ background: mezcla(abierta || actual ? 38 : 24), boxShadow: "inset 0 0 0 1px " + mezcla(45) }} aria-hidden="true">{ICONO_SECCION[sec.section] || "•"}</span>
@@ -39352,6 +39352,151 @@ function MenuLateral({ secciones, page, setPage, comprimido, p, avisos, onElegir
 
 
 
+
+// TUTORIAL GUIADO: recorrido paso a paso. Oscurece la pantalla, deja libre solo el botón que hay
+// que tocar y muestra un cartelito con la explicación. Se puede saltar cuando se quiera.
+const CSS_TUTORIAL = `
+.tut-pan { position: fixed; background: rgba(8,12,20,.76); z-index: 100000; }
+.tut-bloqueo { position: fixed; background: transparent; z-index: 100000; }
+.tut-aro { position: fixed; z-index: 100000; border: 3px solid #f5b400; border-radius: 12px; pointer-events: none; animation: tutPulso 1.5s ease-in-out infinite; }
+@keyframes tutPulso { 0%,100% { box-shadow: 0 0 0 4px rgba(245,180,0,.30); } 50% { box-shadow: 0 0 0 11px rgba(245,180,0,.08); } }
+.tut-card { position: fixed; z-index: 100001; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; background: #1B2431; color: #fff; border: 1px solid rgba(245,180,0,.6); border-radius: 16px; padding: 16px 16px 14px; box-shadow: 0 18px 50px rgba(0,0,0,.5); font-family: 'Inter', system-ui, sans-serif; text-align: left; animation: tutEntra .25s ease-out both; }
+@keyframes tutEntra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.tut-cuenta { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #f5b400; }
+.tut-tit { margin: 6px 0 0; font-size: 18px; font-weight: 800; line-height: 1.25; }
+.tut-txt { margin: 8px 0 0; font-size: 14.5px; line-height: 1.5; color: rgba(255,255,255,.85); }
+.tut-dedo { margin-top: 10px; font-size: 13px; font-weight: 700; color: #ffd45a; }
+.tut-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.tut-saltar { all: unset; cursor: pointer; font-size: 13px; color: rgba(255,255,255,.6); padding: 8px 4px; }
+.tut-saltar:hover { color: #fff; text-decoration: underline; }
+.tut-saltar:focus-visible, .tut-sig:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.tut-sig { all: unset; cursor: pointer; box-sizing: border-box; padding: 10px 18px; border-radius: 12px; font-size: 14.5px; font-weight: 800; color: #0b0e14; background: linear-gradient(135deg, #ffd45a, #f5b400 55%, #d99a00); }
+.tut-sig:hover { filter: brightness(1.07); }
+.tut-barra { height: 4px; border-radius: 4px; background: rgba(255,255,255,.14); margin-top: 12px; overflow: hidden; }
+.tut-barra > i { display: block; height: 100%; background: #f5b400; transition: width .3s; }
+@media (prefers-reduced-motion: reduce) { .tut-aro, .tut-card { animation: none; } }
+`;
+
+const tutIrA = (id, grupo, nombreGrupo, titulo, texto, pagina) => ({
+  modo: "click", titulo, texto,
+  textos: [texto, "Primero abrí el grupo " + nombreGrupo + " del menú.", "Tocá el botón ☰ para abrir el menú."],
+  objetivos: ['[data-tour="nav-' + id + '"]', '[data-tour="sec-' + grupo + '"]', '[data-tour="menu-hamburguesa"]'],
+  avanzaCuando: (p) => p === pagina,
+});
+const PASOS_TUTORIAL = [
+  { modo: "centro", titulo: "¡Bienvenido a Lumiere! 👋", texto: "Te muestro cómo se usa en 2 minutos. Te voy marcando los botones que tenés que tocar. Si querés, podés saltarlo y volver a verlo cuando quieras desde el menú.", boton: "Empezar" },
+  tutIrA("pos", "VENTAS", "Ventas", "Empecemos por vender 🛒", "Tocá Punto de Venta. Desde ahí cobrás todas tus ventas.", "pos"),
+  { modo: "next", pagina: "pos", opcional: true, objetivos: ['[data-tour="pos-prueba"]'], titulo: "Practicá sin miedo 🧪", texto: "Prendé el Modo prueba y vendé de práctica: no se anota nada, no baja el stock y no se factura. Apagalo cuando quieras vender de verdad." },
+  { modo: "next", pagina: "pos", objetivos: ['[data-tour="pos-buscar"]'], titulo: "1. Buscá el producto", texto: "Escribí el nombre o el código, o escaneá con el lector. También podés tocar el producto directamente. Si todavía no cargaste productos, enseguida te muestro dónde." },
+  { modo: "next", pagina: "pos", objetivos: ['[data-tour="pos-carrito"]'], titulo: "2. Se arma el carrito", texto: "Lo que elegís va apareciendo acá. Podés cambiar las cantidades, sacar productos o ponerle un descuento." },
+  { modo: "next", pagina: "pos", titulo: "3. Continuar y cobrar 💵", texto: "Cuando el carrito está listo, tocás Continuar: ahí elegís el cliente, la forma de pago y cobrás. ¡Con eso ya sabés vender!" },
+  tutIrA("inventory", "PRODUCTOS", "Productos", "Ahora, tus productos 📦", "Tocá Productos. Es donde cargás lo que vendés.", "inventory"),
+  { modo: "next", pagina: "inventory", titulo: "Acá cargás tu mercadería", texto: "Creás cada producto con su precio y su stock, y lo editás cuando cambian. Lo que cargues acá aparece en el Punto de Venta." },
+  tutIrA("caja", "CAJA", "Caja", "La plata del día 💰", "Tocá Caja para ver cómo se mueve la plata.", "caja"),
+  { modo: "next", pagina: "caja", titulo: "Entradas y salidas", texto: "Acá se anotan las ventas en efectivo y los gastos del día. Al final de la jornada hacés el Cierre de Caja desde el mismo grupo del menú." },
+  tutIrA("clients", "CLIENTES", "Clientes", "Tus clientes 👥", "Tocá Clientes para ver tu lista.", "clients"),
+  { modo: "next", pagina: "clients", titulo: "Todos tus clientes", texto: "Cada cliente guarda sus compras y sus puntos. Cuando cobrás con su DNI, la venta queda anotada en su ficha." },
+  tutIrA("gerente", "TU GERENTE", "Tu gerente", "Y tu gerente ✨", "Tocá Lumiere, tu gerente.", "gerente"),
+  { modo: "next", pagina: "gerente", titulo: "Te dice cómo viene el negocio", texto: "Mirá tu salud del negocio, qué conviene hacer y qué falta atender. Cuanto más lo uses, mejores consejos te da." },
+  { modo: "centro", titulo: "¡Listo, ya sabés lo básico! 🎉", texto: "Para volver a ver este recorrido, tocá 🎓 Ver tutorial abajo en el menú. Y si te trabás, el botón ❓ Ayuda te responde.", boton: "Terminar" },
+];
+
+function TutorialGuiado({ page, setPage, clave, onCerrar }) {
+  const N = PASOS_TUTORIAL.length;
+  const [i, setI] = useState(() => { try { const g = parseInt(localStorage.getItem(clave + "_paso"), 10); return g > 0 && g < N - 1 ? g : 0; } catch (e) { return 0; } });
+  const paso = PASOS_TUTORIAL[i];
+  const [obj, setObj] = useState({ rect: null, k: -1 });
+  const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const yaDesplazo = useRef(-1);
+
+  const terminar = (hecho) => {
+    try { localStorage.setItem(clave, hecho ? "hecho" : "saltado"); localStorage.removeItem(clave + "_paso"); } catch (e) {}
+    onCerrar();
+  };
+  const siguiente = () => {
+    if (i >= N - 1) return terminar(true);
+    try { localStorage.setItem(clave + "_paso", String(i + 1)); } catch (e) {}
+    setI(i + 1);
+  };
+
+  // Busca el botón que hay que marcar y sigue su posición (si la pantalla cambia o se desplaza)
+  useEffect(() => {
+    const objetivos = paso.objetivos || [];
+    const medir = () => {
+      setVp(v => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }));
+      let nuevo = { rect: null, k: -1 };
+      for (let k = 0; k < objetivos.length; k++) {
+        const el = document.querySelector(objetivos[k]);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2 || r.right <= 0 || r.left >= window.innerWidth) continue;
+        if ((r.top < 0 || r.bottom > window.innerHeight) && yaDesplazo.current !== i) { yaDesplazo.current = i; try { el.scrollIntoView({ block: "center" }); } catch (e) {} }
+        nuevo = { rect: { x: r.left, y: r.top, w: r.width, h: r.height }, k };
+        break;
+      }
+      setObj(a => (a.k === nuevo.k && ((!a.rect && !nuevo.rect) || (a.rect && nuevo.rect && a.rect.x === nuevo.rect.x && a.rect.y === nuevo.rect.y && a.rect.w === nuevo.rect.w && a.rect.h === nuevo.rect.h)) ? a : nuevo));
+    };
+    medir();
+    const t = setInterval(medir, 250);
+    window.addEventListener("resize", medir);
+    window.addEventListener("scroll", medir, true);
+    return () => { clearInterval(t); window.removeEventListener("resize", medir); window.removeEventListener("scroll", medir, true); };
+  }, [i, page]);
+
+  // El paso se cumple solo cuando la persona llega a la pantalla que se le pidió
+  useEffect(() => { if (paso.avanzaCuando && paso.avanzaCuando(page)) siguiente(); }, [page, i]);
+  // Los pasos que explican una pantalla vuelven a ella si la persona estaba en otra
+  useEffect(() => { if (paso.pagina && page !== paso.pagina) setPage(paso.pagina); }, [page, i]);
+  // Lo opcional (ej: el Modo prueba, que solo ve el dueño) se saltea si no está en pantalla
+  useEffect(() => {
+    if (!paso.opcional || obj.rect) return;
+    const t = setTimeout(() => siguiente(), 1500);
+    return () => clearTimeout(t);
+  }, [i, obj.rect]);
+
+  const rect = obj.rect;
+  const { w: VW, h: VH } = vp;
+  const pad = 6;
+  const esClick = paso.modo === "click";
+  const sinObjetivoClick = esClick && !rect; // ej: el menú está cerrado en el celular: no se bloquea nada
+  const texto = paso.textos && obj.k > 0 ? (paso.textos[obj.k] || paso.texto) : paso.texto;
+  const CW = Math.min(340, VW - 24), CH = 210;
+  const clamp = (v, a, b) => Math.max(a, Math.min(v, b));
+  let pos;
+  if (!rect) pos = sinObjetivoClick ? { left: clamp((VW - CW) / 2, 12, VW), bottom: 78 } : { left: clamp((VW - CW) / 2, 12, VW), top: clamp((VH - CH) / 2, 12, VH) };
+  else if (rect.x + rect.w + 16 + CW <= VW && rect.x < VW * 0.4) pos = { left: rect.x + rect.w + 16, top: clamp(rect.y - 10, 12, Math.max(12, VH - CH - 12)) };
+  else if (rect.y + rect.h + 14 + CH <= VH) pos = { left: clamp(rect.x, 12, Math.max(12, VW - CW - 12)), top: rect.y + rect.h + 14 };
+  else pos = { left: clamp(rect.x, 12, Math.max(12, VW - CW - 12)), top: Math.max(12, rect.y - CH - 14) };
+
+  const hx = rect ? Math.max(0, rect.x - pad) : 0, hy = rect ? Math.max(0, rect.y - pad) : 0;
+  const hw = rect ? rect.w + pad * 2 : 0, hh = rect ? rect.h + pad * 2 : 0;
+  return (
+    <>
+      <style>{CSS_TUTORIAL}</style>
+      {rect ? (
+        <>
+          <div className="tut-pan" style={{ left: 0, top: 0, right: 0, height: hy }} />
+          <div className="tut-pan" style={{ left: 0, top: hy + hh, right: 0, bottom: 0 }} />
+          <div className="tut-pan" style={{ left: 0, top: hy, width: hx, height: hh }} />
+          <div className="tut-pan" style={{ left: hx + hw, top: hy, right: 0, height: hh }} />
+          {!esClick && <div className="tut-bloqueo" style={{ left: hx, top: hy, width: hw, height: hh }} />}
+          <div className="tut-aro" style={{ left: hx, top: hy, width: hw, height: hh }} />
+        </>
+      ) : !sinObjetivoClick && <div className="tut-pan" style={{ inset: 0 }} />}
+      <div className="tut-card" style={pos} role="dialog" aria-live="polite" aria-label={"Tutorial: " + paso.titulo}>
+        <div className="tut-cuenta">Paso {i + 1} de {N}</div>
+        <h3 className="tut-tit">{paso.titulo}</h3>
+        <p className="tut-txt">{texto}</p>
+        {esClick && <div className="tut-dedo">👆 Tocá el botón que te marqué</div>}
+        <div className="tut-barra" aria-hidden="true"><i style={{ width: Math.round(((i + 1) / N) * 100) + "%" }} /></div>
+        <div className="tut-pie">
+          <button type="button" className="tut-saltar" onClick={() => terminar(false)}>{i >= N - 1 ? "Cerrar" : "Saltar tutorial"}</button>
+          {!esClick && <button type="button" className="tut-sig" onClick={siguiente} autoFocus>{paso.boton || "Siguiente →"}</button>}
+        </div>
+      </div>
+    </>
+  );
+}
 
 // LOGIN SCREEN
 const CSS_LOGIN = `
@@ -41238,6 +41383,14 @@ function AppWrapper() {
   const [avisoVencida, setAvisoVencida] = useState("");
   // Primer ingreso de un negocio: null = todavia no se sabe, true = falta aceptar los terminos
   const [faltaTerminos, setFaltaTerminos] = useState(null);
+  // Tutorial guiado: arranca solo la primera vez que el dueño de un negocio nuevo entra; se puede repetir desde el menú
+  const [tutorial, setTutorial] = useState(false);
+  const claveTutorial = "lumiere_tutorial_" + (miNegocio?.id || 0) + "_" + (usuario?.id || 0);
+  useEffect(() => {
+    if (!usuario || !local || faltaTerminos !== false || !miNegocio || !miNegocio.id || Number(miNegocio.id) === 1 || miNegocio.bienvenida_pendiente) return;
+    if (usuario.rol !== "jefe" && usuario.rol_id !== 1) return;
+    try { if (!localStorage.getItem(claveTutorial)) setTutorial(true); } catch (e) {}
+  }, [usuario?.id, local?.id, faltaTerminos, miNegocio?.id, miNegocio?.bienvenida_pendiente]);
   useEffect(() => {
     if (!usuario) { setAdminPlataforma(false); setMiNegocio(null); setFaltaTerminos(null); return; }
     API.get("/plataforma/acceso").then(r => setAdminPlataforma(r.data?.admin === true)).catch(() => setAdminPlataforma(false));
@@ -41483,7 +41636,7 @@ function AppWrapper() {
     <>
       <style>{getBaseCss(paletaActual)}</style>
       <div className="mobile-topbar">
-        <button className="mobile-menu-btn" onClick={() => setMenuAbierto(true)} aria-label="Abrir menu">☰</button>
+        <button className="mobile-menu-btn" data-tour="menu-hamburguesa" onClick={() => setMenuAbierto(true)} aria-label="Abrir menu">☰</button>
         <LogoLumiere alto={24} color={paletaActual.logoText} />
         <div style={{ width: 30 }} />
       </div>
@@ -41517,6 +41670,9 @@ function AppWrapper() {
               ))}
             </div>
 
+            <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: paletaActual.logoText, cursor: "pointer" }} role="button" tabIndex={0}
+              onClick={() => { try { localStorage.removeItem(claveTutorial); localStorage.removeItem(claveTutorial + "_paso"); } catch (e) {} setMenuAbierto(false); setTutorial(true); }}
+              onKeyDown={e => { if (e.key === "Enter") e.currentTarget.click(); }}>🎓 Ver tutorial</div>
             <div style={{ marginTop: 6, fontSize: 11, color: paletaActual.navTextDim, cursor: "pointer" }} onClick={handleLogout}>Cerrar sesion</div>
           </div>
         </aside>
@@ -41527,8 +41683,9 @@ function AppWrapper() {
         </main>
         {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
+        {tutorial && <TutorialGuiado page={page} setPage={setPage} clave={claveTutorial} onCerrar={() => setTutorial(false)} />}
         {esJefeMenu && <AvisoServidor p={paletaActual} />}
-        {esJefeMenu && page !== "pos" && <ResumenSemanalAuto usuario={usuario} p={paletaActual} negocioId={miNegocio?.id} />}
+        {esJefeMenu && page !== "pos" && !tutorial && <ResumenSemanalAuto usuario={usuario} p={paletaActual} negocioId={miNegocio?.id} />}
         {puedeVer("tienda-online") && <AvisoVentaWeb usuario={usuario} local={local} paletaActual={paletaActual} />}
       </div>
     </>
