@@ -26799,9 +26799,14 @@ function CyberResultado({ temaPal }) {
   const [err, setErr] = useState("");
   const [filtro, setFiltro] = useState("quietos");
   const [abierto, setAbierto] = useState(true);
-  useEffect(() => { API.get("/promociones/liquidacion/eventos").then(r => { setEventos(r.data || []); if ((r.data || [])[0]) setEv(r.data[0].nombre); }).catch(() => setEventos([])); }, []);
+  useEffect(() => { API.get("/promociones/liquidacion/eventos").then(r => { setEventos(r.data || []); if ((r.data || [])[0]) setEv(r.data[0].nombre); }).catch(e => { setEventos([]); setErr(e.response?.data?.error || e.message || "No se pudo cargar"); }); }, []);
   useEffect(() => { if (!ev) return; setD(null); setErr(""); API.get("/promociones/liquidacion/resultado?nombre=" + encodeURIComponent(ev)).then(r => setD(r.data)).catch(e => setErr(e.response?.data?.error || "No se pudo cargar")); }, [ev]);
-  if (eventos && !eventos.length) return null;
+  // Siempre se ve: si no hay eventos o falla, lo dice (antes se escondía sin avisar)
+  if (eventos && !eventos.length) return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="ct" style={{ marginBottom: 4 }}>📊 Resultado de la liquidación</div>
+      <div style={{ fontSize: 12.5, color: err ? p.red : p.textMuted }}>{err ? "No se pudo cargar: " + err : "Todavía no hay ofertas creadas con fechas. Cuando crees las ofertas del evento (abajo, en \"Crear ofertas\"), acá vas a ver cuánto se vendió de lo que estaba parado o lento."}</div>
+    </div>);
   const $ = (n) => fmt(n).replace(SIN_CEROS, "");
   const fecha = (f) => f ? new Date(f + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" }) : "";
   const g = (k) => (d && d.grupos[k]) || { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado_costo: 0, capital_inicio: 0, quedan: 0, capital_queda: 0 };

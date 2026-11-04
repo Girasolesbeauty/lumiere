@@ -149,8 +149,11 @@ router.put('/halloween-tienda', async (req, res) => {
 const AR_FECHA = (col) => `((((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`;
 router.get('/liquidacion/eventos', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT split_part(nombre, ' · ', 1) AS nombre, MIN(fecha_inicio)::text AS desde, MAX(fecha_fin)::text AS hasta, COUNT(*)::int AS promos
-      FROM promociones WHERE nombre LIKE '% · %' AND fecha_inicio IS NOT NULL GROUP BY 1 ORDER BY MAX(fecha_fin) DESC NULLS LAST LIMIT 20`);
+    // Las del plan de liquidación ("Evento · oferta") y, si no, cualquier promo con fechas que diga Cyber
+    const r = await pool.query(`SELECT CASE WHEN nombre LIKE '% · %' THEN split_part(nombre, ' · ', 1) ELSE nombre END AS nombre,
+        MIN(fecha_inicio)::text AS desde, MAX(fecha_fin)::text AS hasta, COUNT(*)::int AS promos
+      FROM promociones WHERE (nombre LIKE '% · %' OR nombre ILIKE '%cyber%' OR nombre ILIKE '%liquidac%') AND fecha_inicio IS NOT NULL
+      GROUP BY 1 ORDER BY MAX(fecha_fin) DESC NULLS LAST, MIN(fecha_inicio) DESC LIMIT 20`);
     res.json(r.rows);
   } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los eventos' }); }
 });
@@ -160,8 +163,8 @@ router.get('/liquidacion/resultado', async (req, res) => {
   try {
     const nombre = String(req.query.nombre || '').trim().slice(0, 80);
     if (!nombre) return res.status(400).json({ error: 'Falta el evento' });
-    const pr = (await pool.query(`SELECT productos_ids, fecha_inicio::text AS desde, fecha_fin::text AS hasta FROM promociones WHERE nombre LIKE $1`,
-      [nombre.replace(/[%_\\]/g, '\\$&') + ' · %'])).rows;
+    const pr = (await pool.query(`SELECT productos_ids, fecha_inicio::text AS desde, COALESCE(fecha_fin, CURRENT_DATE)::text AS hasta FROM promociones WHERE nombre LIKE $1 OR nombre = $2`,
+      [nombre.replace(/[%_\\]/g, '\\$&') + ' · %', nombre])).rows.filter(x => x.desde);
     if (!pr.length) return res.status(404).json({ error: 'No encontré ofertas de "' + nombre + '"' });
     const ids = [...new Set(pr.flatMap(x => (x.productos_ids || []).map(Number)).filter(n => n > 0))];
     const desde = pr.map(x => x.desde).filter(Boolean).sort()[0];
