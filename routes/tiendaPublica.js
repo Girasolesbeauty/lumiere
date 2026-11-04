@@ -198,6 +198,7 @@ router.get('/:slug/vista-previa', async (req, res) => {
 // Productos publicados con precio y lo disponible en cada local (y sus variantes)
 router.get('/:slug/productos', async (req, res) => {
   try {
+    await require('../lib/transito').revisarTransitoUnaVez(); // que no quede "en camino" algo que no está en ninguna orden
     const pv = tienda.preventaDe(req.tienda);
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS stock_rg, COALESCE(p.stock_ush, 0) AS stock_ush,

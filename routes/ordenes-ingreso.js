@@ -4,6 +4,7 @@ const pool = require('../config/database');
 const { porNegocio } = require('../lib/contexto');
 const multer = require('multer');
 const { analizarFactura } = require('./facturas-proveedor');
+const { recalcularTransito, revisarTransitoUnaVez } = require('../lib/transito');
 const subirFactura = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 // Fecha estimada de ingreso de la orden (la tienda online la muestra en los productos en preventa)
@@ -13,6 +14,7 @@ router.use(async (req, res, next) => {
   if (!conFechaEstimada.get()) {
     try { await pool.query('ALTER TABLE ordenes_ingreso ADD COLUMN IF NOT EXISTS fecha_estimada DATE'); conFechaEstimada.set(true); } catch (e) {}
   }
+  await revisarTransitoUnaVez();
   next();
 });
 
@@ -398,10 +400,6 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
            WHERE id = $2`,
           [diffRg, item.producto_id]
         );
-        await client.query(
-          'UPDATE productos SET stock_transito_rg = GREATEST(COALESCE(stock_transito_rg,0) - $1, 0) WHERE id = $2',
-          [diffRg, item.producto_id]
-        );
       }
     } else {
       const diffUsh = cant - (item.recibido_ush || 0);
@@ -416,12 +414,12 @@ router.put('/:ordenId/items/:itemId/recibir', async (req, res) => {
            WHERE id = $2`,
           [diffUsh, item.producto_id]
         );
-        await client.query(
-          'UPDATE productos SET stock_transito_ush = GREATEST(COALESCE(stock_transito_ush,0) - $1, 0) WHERE id = $2',
-          [diffUsh, item.producto_id]
-        );
       }
     }
+
+    // Lo que sigue "en camino" sale de las órdenes: al confirmar un renglón deja de estar en camino todo lo que se
+    // esperaba de él en este local, aunque haya llegado menos (antes la diferencia quedaba en camino para siempre)
+    if (item.producto_id) await recalcularTransito(client, [item.producto_id]);
 
     // Al recibir, el costo de la factura pasa a ser el costo del producto (el de la última compra)
     if (item.producto_id && cant > 0 && parseFloat(item.costo_unitario) > 0) {
