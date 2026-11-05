@@ -847,6 +847,22 @@ const getAnalisisFinanciero = async (req, res) => {
       puntajeMargen, puntajeVariables, puntajeFijos, puntajeAdmin, puntajeSueldos,
     } = calcularPuntajeSalud(actual, anterior);
 
+    // Mes en curso: la variación de ingresos se compara contra los mismos días del mes anterior (como el Dashboard),
+    // no contra el mes anterior completo (si no, a principio de mes siempre da muy negativo)
+    let variacionMostrar = variacionIngresos, hastaDia = null;
+    try {
+      const h = (await pool.query(`SELECT EXTRACT(DAY FROM ${AR('NOW()')})::int AS d, EXTRACT(MONTH FROM ${AR('NOW()')})::int AS m, EXTRACT(YEAR FROM ${AR('NOW()')})::int AS a`)).rows[0];
+      if (h.m === mesActual && h.a === anioActual) {
+        const loc = normalizarLocalId(local_id);
+        const suma = async (m, a) => num((await pool.query(`SELECT COALESCE(SUM(v.total), 0) AS t FROM ventas v
+          WHERE ${VENTA_VALIDA('v')} AND ${EN_MES('v.creado_en', 1, 2)} AND EXTRACT(DAY FROM ${AR('v.creado_en')}) <= $3${loc !== null ? ' AND v.local_id = $4' : ''}`,
+          loc !== null ? [m, a, h.d, loc] : [m, a, h.d])).rows[0].t);
+        const [ya, antes] = [await suma(mesActual, anioActual), await suma(mesAnteriorNum, anioMesAnterior)];
+        variacionMostrar = antes > 0 ? ((ya - antes) / antes) * 100 : null;
+        hastaDia = h.d;
+      }
+    } catch (e) { console.error('[analisis] mismos dias:', e.message); }
+
     let calificacion, color;
     if (puntajeFinal >= 85) { calificacion = 'Excelente'; color = '#2d7a4f'; }
     else if (puntajeFinal >= 70) { calificacion = 'Buena'; color = '#3F7A2A'; }
@@ -894,7 +910,8 @@ const getAnalisisFinanciero = async (req, res) => {
         anio: anioMesAnterior,
         ingresos: ingresosAnterior,
         margen_neto_pct: parseFloat(margenNetoPctAnterior.toFixed(1)),
-        variacion_ingresos_pct: variacionIngresos !== null ? parseFloat(variacionIngresos.toFixed(1)) : null,
+        variacion_ingresos_pct: variacionMostrar !== null ? parseFloat(variacionMostrar.toFixed(1)) : null,
+        hasta_dia: hastaDia, // si no es null: comparado contra los primeros hasta_dia días del mes anterior
         tendencia: ingresosAnterior === 0 ? 'sin_datos' : (margenNetoPct >= margenNetoPctAnterior ? 'mejora' : 'empeora')
       },
       metricas
