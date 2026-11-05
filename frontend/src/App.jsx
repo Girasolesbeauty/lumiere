@@ -36860,8 +36860,12 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
       const body = { dia: { activo: !!dia.activo, producto_id: dia.producto_id || null, precio: parseInt(dia.precio) || 0, hasta: dia.hastaLocal ? new Date(dia.hastaLocal).toISOString() : null, titulo: dia.titulo || "", pagos: dia.pagos || [] },
         combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, cantidades: c.cantidades || {}, kit_id: c.kit_id || null, precio: parseInt(c.precio) || 0, activo: c.activo !== false, desde: c.desde || null, hasta: c.hasta || null })) };
       const r = await API.put("/tienda/ofertas", body);
-      setDia({ ...r.data.ofertas.dia, hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos); setDiaGuardado(firmaDia(r.data.ofertas.dia));
-      avisar(true, "✓ Ofertas guardadas"); onGuardado && onGuardado();
+      // Si el servidor todavía no conoce "con qué forma de pago vale" (se está actualizando), no lo guarda: se avisa
+      const sinPagos = (body.dia.pagos || []).length > 0 && !Array.isArray(r.data.ofertas.dia && r.data.ofertas.dia.pagos);
+      setDia({ ...r.data.ofertas.dia, ...(sinPagos ? { pagos: body.dia.pagos } : {}), hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos); setDiaGuardado(sinPagos ? "" : firmaDia(r.data.ofertas.dia));
+      if (sinPagos) avisar(false, "Se guardó la oferta, pero no la forma de pago: Lumiere se está actualizando. Probá Guardar de nuevo en unos minutos.");
+      else avisar(true, "✓ Ofertas guardadas");
+      onGuardado && onGuardado();
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo guardar"); }
     setGuardando(false);
   };
