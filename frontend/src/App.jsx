@@ -11316,7 +11316,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
         {loading && !flujoEst ? [0, 1, 2, 3].map(i => <div key={i} className="skel" style={{ height: 96 }} />) : (
           <>
             <KpiCard p={p} titulo="Ingresos" valor={ing} formato={fmt} color={p.green} indice={0} tag={tagVar(varIng)}
-              sub={(flujoEst?.cantidad_ventas || 0) + " ventas" + (varIng !== null ? " · vs mes anterior" : "")} />
+              sub={(flujoEst?.cantidad_ventas || 0) + " ventas" + (varIng !== null ? (cmpAnt && cmpAnt.hasta_dia ? " · vs los mismos " + cmpAnt.hasta_dia + " días del mes anterior" : " · vs mes anterior") : "")} />
             <KpiCard p={p} titulo="Egresos" valor={egr} formato={fmt} color={p.red} indice={1}
               sub={ing > 0 ? Math.round(pctDe(egr, ing)) + "% de lo que entró" : "sin ingresos"} />
             <KpiCard p={p} titulo="Resultado neto" valor={neto} formato={fmt} color={neto >= 0 ? p.green : p.red} indice={2}
