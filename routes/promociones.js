@@ -263,7 +263,8 @@ async function promosOfertaDia() {
   const p = (await pool.query('SELECT precio FROM productos WHERE id = $1', [d.producto_id])).rows[0];
   const lista = p ? parseFloat(p.precio) || 0 : 0;
   if (!(lista > d.precio)) return [];
-  const pct = Math.round((1 - d.precio / lista) * 10000) / 100;
+  // Sin redondear: así el descuento da justo la diferencia de precio, sin centavos sueltos
+  const pct = (1 - d.precio / lista) * 100;
   const pagos = d.pagos || [];
   const tipos = !pagos.length ? [null] : [...new Set(pagos.flatMap(k => k === 'transferencia' ? ['transferencia'] : k === 'retiro' ? ['efectivo', 'debito'] : []))];
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });

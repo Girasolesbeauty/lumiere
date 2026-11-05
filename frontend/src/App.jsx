@@ -5763,7 +5763,8 @@ function POS({ localId, usuario, paletaActual }) {
                 <span>Descuento{(() => { const n = [...promoCalc.usadas, ...(descuentoMedioPago > 0 ? [pctMedioPago + "% pagando con " + medioPagoSel.nombre] : [])]; return n.length ? " (" + n.join(", ") + ")" : ""; })()}</span><span>-{fmt(descuento)}</span>
               </div>
             )}
-            {intereses > 0 && (
+            {/* Solo con un medio con recargo (cuotas): el redondeo de centavos del total no es un interés */}
+            {intereses > 0 && coef > 1 && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 10, color: "#c0392b" }}>
                 <span>Intereses</span><span>+{fmt(intereses)}</span>
               </div>
