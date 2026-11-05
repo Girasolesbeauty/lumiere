@@ -247,9 +247,33 @@ router.get('/', async (req, res) => {
     if (vigentes === 'true') q += " AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)";
     q += ' ORDER BY creado_en DESC';
     const r = await pool.query(q);
-    res.json(r.rows);
+    // con_dia=1 (Punto de Venta y Buscar precio): la oferta del día de la tienda también vale en el local, como una promo más
+    const extra = req.query.con_dia === '1' ? await promosOfertaDia().catch(() => []) : [];
+    res.json([...extra, ...r.rows]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// La oferta del día (Tienda online › Ofertas y combos) como promo del local: un % sobre ese producto (el que da su precio de
+// oferta), sin combinarse con otras, solo hasta su hora de fin y con las formas de pago elegidas: transferencia → transferencia;
+// paga al retirar → efectivo o débito. Mercado Pago y GoCuotas son solo de la tienda.
+async function promosOfertaDia() {
+  const tienda = require('../lib/tienda');
+  const c = (await pool.query('SELECT ofertas FROM tienda_config WHERE id = 1').catch(() => ({ rows: [] }))).rows[0];
+  const d = c && tienda.ofertaDiaActiva(c);
+  if (!d) return [];
+  const p = (await pool.query('SELECT precio FROM productos WHERE id = $1', [d.producto_id])).rows[0];
+  const lista = p ? parseFloat(p.precio) || 0 : 0;
+  if (!(lista > d.precio)) return [];
+  const pct = Math.round((1 - d.precio / lista) * 10000) / 100;
+  const pagos = d.pagos || [];
+  const tipos = !pagos.length ? [null] : [...new Set(pagos.flatMap(k => k === 'transferencia' ? ['transferencia'] : k === 'retiro' ? ['efectivo', 'debito'] : []))];
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const fin = new Date(d.hasta).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  return tipos.map((t, k) => ({
+    id: -1 - k, nombre: '⚡ ' + (d.titulo || 'Oferta del día') + (t ? ' (' + t + ')' : ''), tipo: 'descuento', valor: pct, aplica_a: 'productos',
+    productos_ids: [d.producto_id], categorias: [], medio_pago_tipo: t, sin_medio_pago: null, combinable: false, activo: true,
+    fecha_inicio: hoy, fecha_fin: fin, local_id: null, oferta_dia: true, hasta: d.hasta, precio_oferta: d.precio,
+  }));
+}
 
 // Crear
 router.post('/', async (req, res) => {
