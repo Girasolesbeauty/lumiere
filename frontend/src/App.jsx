@@ -31827,6 +31827,7 @@ function TwOfertaDia({ p, oferta, foto, onAbrir, onAgregar, sin }) {
         {p.marca && <div className="tw-card-m" style={{ margin: "6px 0 0" }}>{p.marca}</div>}
         <h2 onClick={() => onAbrir(p)}>{p.nombre}</h2>
         <div className="tw-oferta-precios">{p.precio_antes ? <s>{fmtTienda(p.precio_antes)}</s> : null}<b>{fmtTienda(p.precio)}</b></div>
+        {(oferta.pagos || []).length > 0 && <div style={{ fontSize: 13, opacity: .85, marginTop: 2 }}>💳 Pagando con {oferta.pagos.map(k => ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[k] || k).join(" o ")}</div>}
         <div className="tw-oferta-termina">Termina en</div>
         <TwReloj hasta={oferta.hasta} />
         <div className="tw-oferta-btns" style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
@@ -33245,7 +33246,12 @@ function TiendaPublica({ slug }) {
   const maxDeItem = (i) => { const p = lista0.find(x => x.id === i.producto_id); if (!p) return 0; if (i.preventa) return esPreventa(p) ? prevDispo(p) : 0; const v = i.variante_id ? (p.variantes || []).find(x => x.id === i.variante_id) : null; return i.variante_id && !v ? 0 : dispo(p, v); };
   const agotado = (p) => (p.variantes ? p.variantes.every(v => dispo(p, v) <= 0) : dispo(p) <= 0) && prevDispo(p) <= 0;
   const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
-  const subtotal = carrito.reduce((t, i) => t + i.precio * i.cantidad, 0);
+  // Oferta del día: si se eligió con qué formas de pago vale y la clienta elige otra, ese producto va a precio normal (igual que el servidor)
+  const diaT = tienda.ofertas && tienda.ofertas.dia;
+  const diaNoVale = !!(diaT && (diaT.pagos || []).length && datos.pago && !diaT.pagos.includes(datos.pago));
+  const carritoCalc = diaNoVale ? carrito.map(i => i.producto_id === diaT.producto_id && !i.preventa ? { ...i, precio: (lista0.find(x => x.id === i.producto_id) || {}).precio_antes || i.precio } : i) : carrito;
+  const montoDia = diaT && !diaNoVale ? carrito.filter(i => i.producto_id === diaT.producto_id && !i.preventa && (lista0.find(x => x.id === i.producto_id) || {}).precio_antes).reduce((t, i) => t + i.precio * i.cantidad, 0) : 0;
+  const subtotal = carritoCalc.reduce((t, i) => t + i.precio * i.cantidad, 0);
   // Solo las muestras de la ciudad elegida (donde hay tester y envases)
   const mu = tienda.muestras, muAca = mu ? mu.opciones.filter(o => !lid || o.locales.includes(lid)) : [];
   const ganaMuestra = muAca.length > 0 && carrito.length > 0 && subtotal >= mu.desde;
@@ -33332,10 +33338,10 @@ function TiendaPublica({ slug }) {
   const envioGratis = gratisDesde && subtotal >= gratisDesde;
   const costoEnvio = datos.entrega === "envio" && zona && !envioGratis ? zona.costo : 0;
   // Combos (el servidor lo vuelve a calcular)
-  const comboCalc = twDescCombos(tienda.ofertas && tienda.ofertas.combos, carrito, datos.pago || null);
+  const comboCalc = twDescCombos(tienda.ofertas && tienda.ofertas.combos, carritoCalc, datos.pago || null);
   const descCombo = comboCalc.descuento;
   // Los cupones no valen en productos con oferta (combos ni promos como las del Cyber): se calculan sobre el resto
-  const baseCupon = twBaseCupon(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
+  const baseCupon = twBaseCupon(promosLid, carritoCalc, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
   const descuentoCupon = cuponOk ? Math.round(Math.min(baseCupon, cuponOk.tipo === "%" ? baseCupon * cuponOk.valor / 100 : cuponOk.valor)) : 0;
   const descAmiga = amigaOk && amigaOk.ok && !cuponOk ? Math.round(baseCupon * amigaOk.pct / 100) : 0;
   // Descuento por forma de pago (configurado en Lumiere; el servidor lo vuelve a calcular)
@@ -33364,12 +33370,13 @@ function TiendaPublica({ slug }) {
   const montoKits = comboCalc.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
   const montoSinPago = comboCalc.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0); // combos del Cyber: ya tienen su precio por pago
   // Si todo el carrito está en oferta (Cyber, combos), el % general de cada forma de pago no se muestra: no se aplica
-  const algoSinOferta = carrito.some(l => !l.preventa && !twEnOferta(promosLid, { id: l.producto_id, categoria: l.categoria || ((productos || []).find(x => x.id === l.producto_id) || {}).categoria })) && subtotal - descCombo - montoKits - montoSinPago > 0;
+  const algoSinOferta = carritoCalc.some(l => !l.preventa && !(diaT && !diaNoVale && l.producto_id === diaT.producto_id) && !twEnOferta(promosLid, { id: l.producto_id, categoria: l.categoria || ((productos || []).find(x => x.id === l.producto_id) || {}).categoria })) && subtotal - descCombo - montoKits - montoSinPago - montoDia > 0;
   const pctKitsPago = pagoElegido && !gcCubre && !sinDescPago && montoKits > 0 ? (descPagosKits[pagoElegido] || 0) : 0;
   // Promociones de Lumiere para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago (igual que el servidor)
-  const promoCalc = twDescPromos(promosLid, carrito, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
+  const promoCalc = twDescPromos(promosLid, carritoCalc, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, pagoElegido && !gcCubre ? pagoElegido : null, (id) => ((productos || []).find(x => x.id === id) || {}).categoria, tienda.packs, (id) => ((productos || []).find(x => x.id === id) || {}).marca);
   const descPromo = promoCalc.descuento;
-  const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto - montoSinPago);
+  // La oferta del día no suma el descuento general por forma de pago (igual que el servidor)
+  const basePago = Math.max(0, subtotal - descCombo - descuentoCupon - descAmiga - promoCalc.monto - montoSinPago - montoDia);
   // Los combos no llevan el descuento general: solo su % de kits (si se configuró). Mismo cálculo que el servidor.
   const enKitsPago = Math.max(0, Math.min(basePago, montoKits));
   const descuentoPago0 = Math.round(enKitsPago * pctKitsPago / 100 + (basePago - enKitsPago) * pctPago / 100);
@@ -34658,6 +34665,7 @@ function TiendaPublica({ slug }) {
                   {ver.resenas && <button className="tw-ficha-est" onClick={() => { const el = document.getElementById("tw-resenas"); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }}><TwEstrellas v={ver.resenas[0]} size={15} /> <b>{String(ver.resenas[0]).replace(".", ",")}</b> <span>({ver.resenas[1]} {ver.resenas[1] === 1 ? "reseña" : "reseñas"})</span></button>}
                   <div className="tw-precio">{ver.precio_antes ? <><s className="tw-antes">{fmtTienda(ver.precio_antes)}</s> <span className="tw-precio-of">{fmtTienda(ver.precio)}</span></> : fmtTienda(ver.precio)}</div>
                   {ver.precio_antes && tienda.ofertas && tienda.ofertas.dia && <div className="tw-ficha-oferta">⚡ {tienda.ofertas.dia.titulo || "Oferta del día"} · termina en <TwReloj hasta={tienda.ofertas.dia.hasta} chico /></div>}
+                  {ver.precio_antes && tienda.ofertas && tienda.ofertas.dia && (tienda.ofertas.dia.pagos || []).length > 0 && <div style={{ fontSize: 13, color: "#8a5a00", marginTop: 4 }}>💳 Precio de oferta pagando con {tienda.ofertas.dia.pagos.map(k => ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[k] || k).join(" o ")}</div>}
                   {tienda.ofertas && tienda.ofertas.combos.filter(cb => cb.productos.includes(ver.id)).map(cb => { const its = cb.productos.map(id => visibles.find(x => x.id === id)); if (!its.every(Boolean) || !twComboHay(cb, its, dispo)) return null; const suma = its.reduce((t, x) => t + x.precio * twCantCombo(cb, x.id), 0); const precioCb = cb.precio > 0 ? Math.min(cb.precio, suma) : suma; return (
                     <div key={cb.id} className="tw-ficha-combo"><span>🎁 <b>Llevalo en combo:</b> {cb.nombre} por <b>{fmtTienda(precioCb)}</b>{suma > precioCb ? " (ahorrás " + fmtTienda(suma - precioCb) + ")" : ""}</span>
                       <button className="tw-btn2" onClick={() => agregarRegalo(its.map(x => ({ p: x, n: twCantCombo(cb, x.id), v: x.variantes ? x.variantes.find(v => dispo(x, v) > 0) : null })))}>Agregar combo</button></div>); })}
@@ -34880,6 +34888,7 @@ function TiendaPublica({ slug }) {
                 <div className="tw-cajon-pie">
                   {carrito.some(i => i.preventa) && <div className="tw-preventa-aviso chico"><b>⏳ Tu pedido tiene productos en PREVENTA</b><span>Todavía no llegaron: te avisamos por WhatsApp cuando estén y ahí retirás todo junto.</span></div>}
                   <div className="tw-linea"><span>Productos</span><span>{fmtTienda(subtotal)}</span></div>
+                  {diaNoVale && carrito.some(i => i.producto_id === diaT.producto_id && !i.preventa) && <div className="tw-linea" style={{ color: "#8a5a00", fontSize: 13 }}><span>⚡ El precio de la oferta del día vale solo con {diaT.pagos.map(k => ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[k] || k).join(" o ")}: con esta forma de pago va a precio normal</span></div>}
                   {comboCalc.combos.filter(cb => cb.ahorro > 0).map(cb => <div key={"cb" + cb.id} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Combo {cb.nombre}{cb.veces > 1 ? " ×" + cb.veces : ""}</span><span>−{fmtTienda(cb.ahorro)}</span></div>)}
                   {descAmiga > 0 && <div className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>💌 Regalo de {amigaOk.nombre} ({amigaOk.pct}%)</span><span>−{fmtTienda(descAmiga)}</span></div>}
                   {descuentoCupon > 0 && <div key={"d" + cuponOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>✨ Descuento ({cuponOk.codigo})</span><span>−<TwRueda valor={descuentoCupon} formato={fmtTienda} dur={1000} /></span></div>}
@@ -36807,7 +36816,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const [secO0, elegirSecO] = useSeccion("ofertas", "dia");
   const secO = desdeRot ? "dia" : secO0;
   // Lo guardado de la oferta del dia (para avisar si hay cambios sin guardar: en la tienda se ve recien al guardar)
-  const firmaDia = (x) => [!!(x && x.activo), parseInt(x && x.producto_id) || 0, parseInt(x && x.precio) || 0, x && (x.hastaLocal !== undefined ? x.hastaLocal : aLocal(x.hasta))].join("|");
+  const firmaDia = (x) => [!!(x && x.activo), parseInt(x && x.producto_id) || 0, parseInt(x && x.precio) || 0, x && (x.hastaLocal !== undefined ? x.hastaLocal : aLocal(x.hasta)), ((x && x.pagos) || []).slice().sort().join(",")].join("|");
   const [diaGuardado, setDiaGuardado] = useState(() => firmaDia(o0.dia || {}));
   const [guardando, setGuardando] = useState(false);
   const [ref, setRef] = useState(() => ({ ...(cfg.referidos || { activo: true, pct: 10, puntos: 500 }) }));
@@ -36847,7 +36856,7 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
   const guardar = async () => {
     setGuardando(true);
     try {
-      const body = { dia: { activo: !!dia.activo, producto_id: dia.producto_id || null, precio: parseInt(dia.precio) || 0, hasta: dia.hastaLocal ? new Date(dia.hastaLocal).toISOString() : null, titulo: dia.titulo || "" },
+      const body = { dia: { activo: !!dia.activo, producto_id: dia.producto_id || null, precio: parseInt(dia.precio) || 0, hasta: dia.hastaLocal ? new Date(dia.hastaLocal).toISOString() : null, titulo: dia.titulo || "", pagos: dia.pagos || [] },
         combos: combos.map(c => ({ id: c.id, nombre: c.nombre, productos: c.productos, cantidades: c.cantidades || {}, kit_id: c.kit_id || null, precio: parseInt(c.precio) || 0, activo: c.activo !== false, desde: c.desde || null, hasta: c.hasta || null })) };
       const r = await API.put("/tienda/ofertas", body);
       setDia({ ...r.data.ofertas.dia, hastaLocal: aLocal(r.data.ofertas.dia.hasta) }); setCombos(r.data.ofertas.combos); setDiaGuardado(firmaDia(r.data.ofertas.dia));
@@ -36904,6 +36913,13 @@ function OfertasTienda({ cfg, productos, temaPal, avisar, esJefe, onGuardado, ur
           {pDia && esJefe && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{[10, 15, 20, 25, 30, 40].map(pc => <button key={pc} className="mini-chip" onClick={() => setDia(x => ({ ...x, precio: Math.round(pDia.precio * (1 - pc / 100) / 100) * 100 }))}>-{pc}%</button>)}</div>}
         </div>
         {pDia && parseInt(dia.precio) > 0 && parseInt(dia.precio) < pDia.precio && <div style={{ fontSize: 12.5, color: temaPal.green, marginTop: 4 }}>{Math.round((1 - parseInt(dia.precio) / pDia.precio) * 100)}% OFF · el cliente ahorra {fmt(pDia.precio - parseInt(dia.precio))}</div>}
+        <div className="fl" style={{ marginTop: 12 }}>¿Con qué forma de pago vale el precio de oferta?</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <button type="button" className={"chip-btn" + (!(dia.pagos || []).length ? " on" : "")} disabled={!esJefe} onClick={() => setDia(x => ({ ...x, pagos: [] }))}>Con todas</button>
+          {[["transferencia", "Transferencia"], ["retiro", "Paga al retirar"], ["mp", "Mercado Pago"], ["gocuotas", "GoCuotas"]].map(([k, t]) => { const on = (dia.pagos || []).includes(k); return (
+            <button key={k} type="button" className={"chip-btn" + (on ? " on" : "")} disabled={!esJefe} onClick={() => setDia(x => { const l = x.pagos || []; return { ...x, pagos: on ? l.filter(y => y !== k) : [...l, k] }; })}>{on ? "✓ " : ""}{t}</button>); })}
+        </div>
+        <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 4 }}>{(dia.pagos || []).length ? "Con las otras formas de pago ese producto va a precio normal (la tienda lo avisa)." : "El precio de oferta vale pague como pague."} La oferta del día no suma además el descuento general por forma de pago.</div>
         <div className="fl" style={{ marginTop: 12 }}>¿Hasta cuándo?</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           {esJefe && <><button className="mini-chip" onClick={() => ponerHasta(finDeHoy())}>Hasta hoy 23:59</button><button className="mini-chip" onClick={() => ponerHasta(new Date(Date.now() + 24 * 3600e3))}>24 horas</button><button className="mini-chip" onClick={() => ponerHasta(new Date(Date.now() + 48 * 3600e3))}>48 horas</button><button className="mini-chip" onClick={() => ponerHasta(domingo())}>Hasta el domingo</button></>}
