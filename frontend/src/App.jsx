@@ -41236,22 +41236,38 @@ function armarSonidoCaja(ctx, destino, t0, variante = 1) {
     monedas(t0, [0.55, 0.62, 0.7, 0.76, 0.85, 0.93], 0.3);
   }
 }
-const VERSION_SONIDO_VENTA = () => { try { const v = parseInt(localStorage.getItem("lumiere_sonido_venta"), 10); return v >= 1 && v <= 3 ? v : 1; } catch (e) { return 1; } };
+// 4 = "Real": grabación de una caja registradora (Pixabay, uso libre también comercial), recortada a 1,5 s.
+// Es la que suena si todavía no se eligió ninguna.
+const VERSION_SONIDO_VENTA = () => { try { const v = parseInt(localStorage.getItem("lumiere_sonido_venta"), 10); return v >= 1 && v <= 4 ? v : 4; } catch (e) { return 4; } };
+let bufferCajaReal = null, cargandoCajaReal = null;
+const cargarCajaReal = (ctx) => {
+  if (bufferCajaReal) return Promise.resolve(bufferCajaReal);
+  if (!cargandoCajaReal) cargandoCajaReal = fetch("/sonidos/venta-caja.mp3").then(r => { if (!r.ok) throw new Error("sin audio"); return r.arrayBuffer(); })
+    .then(b => new Promise((ok, mal) => ctx.decodeAudioData(b, ok, mal))).then(buf => (bufferCajaReal = buf)).catch(e => { cargandoCajaReal = null; throw e; });
+  return cargandoCajaReal;
+};
 function sonarVenta(variante) {
   try {
     prepararSonido();
     const ctx = audioAviso; if (!ctx) return;
-    armarSonidoCaja(ctx, ctx.destination, ctx.currentTime + 0.05, variante || VERSION_SONIDO_VENTA());
+    const v = variante || VERSION_SONIDO_VENTA();
+    if (v === 4) {
+      // Si la grabación no carga (sin conexión), suena la clásica
+      cargarCajaReal(ctx).then(buf => { const s = ctx.createBufferSource(), g = ctx.createGain(); g.gain.value = 0.9; s.buffer = buf; s.connect(g).connect(ctx.destination); s.start(ctx.currentTime + 0.02); })
+        .catch(() => armarSonidoCaja(ctx, ctx.destination, ctx.currentTime + 0.05, 1));
+      return;
+    }
+    armarSonidoCaja(ctx, ctx.destination, ctx.currentTime + 0.05, v);
   } catch (e) {}
 }
-// Elegir cuál de las 3 cajas registradoras suena (se guarda en este navegador)
+// Elegir cuál de las cajas registradoras suena (se guarda en este navegador)
 function SelectorSonidoVenta() {
   const [v, setV] = useState(VERSION_SONIDO_VENTA);
   const elegir = (n) => { setV(n); try { localStorage.setItem("lumiere_sonido_venta", String(n)); } catch (e) {} sonarVenta(n); };
   return (
     <div style={{ textAlign: "right", marginBottom: 4, display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
       <span style={{ fontSize: 12 }}>🔊 Sonido de venta:</span>
-      {[[1, "Clásica"], [2, "Moderna"], [3, "Mecánica"]].map(([n, nombre]) => (
+      {[[4, "Real"], [1, "Clásica"], [2, "Moderna"], [3, "Mecánica"]].map(([n, nombre]) => (
         <button key={n} className={"chip-btn" + (v === n ? " on" : "")} aria-pressed={v === n} onClick={() => elegir(n)} title="Tocá para escucharla y usarla cuando entre una compra">{nombre}</button>
       ))}
     </div>
@@ -41266,7 +41282,7 @@ function AvisoVentaWeb({ usuario, local, paletaActual }) {
   const revisaRes = ["jefe", "admin", "administrativo"].includes(usuario?.rol) || usuario?.rol_id === 1;
   const esJefeU = ["jefe", "admin"].includes(usuario?.rol) || usuario?.rol_id === 1;
   // El navegador solo deja sonar despues de que la persona toca algo en la pagina
-  useEffect(() => { const f = () => prepararSonido(); window.addEventListener("pointerdown", f, { once: true }); window.addEventListener("keydown", f, { once: true }); return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); }; }, []);
+  useEffect(() => { const f = () => { prepararSonido(); if (audioAviso && VERSION_SONIDO_VENTA() === 4) cargarCajaReal(audioAviso).catch(() => {}); }; window.addEventListener("pointerdown", f, { once: true }); window.addEventListener("keydown", f, { once: true }); return () => { window.removeEventListener("pointerdown", f); window.removeEventListener("keydown", f); }; }, []);
   useEffect(() => {
     if (!usuario || !local) return;
     let vivo = true;
