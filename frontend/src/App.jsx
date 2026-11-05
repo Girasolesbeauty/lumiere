@@ -33341,7 +33341,8 @@ function TiendaPublica({ slug }) {
   const comboCalc = twDescCombos(tienda.ofertas && tienda.ofertas.combos, carritoCalc, datos.pago || null);
   const descCombo = comboCalc.descuento;
   // Los cupones no valen en productos con oferta (combos ni promos como las del Cyber): se calculan sobre el resto
-  const baseCupon = twBaseCupon(promosLid, carritoCalc, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
+  // La oferta del día no va con cupón (igual que el servidor)
+  const baseCupon = twBaseCupon(promosLid, diaT && !diaNoVale ? carritoCalc.filter(i => i.preventa || i.producto_id !== diaT.producto_id || !(lista0.find(x => x.id === i.producto_id) || {}).precio_antes) : carritoCalc, comboCalc.combos, tienda.ofertas && tienda.ofertas.combos, (id) => ((productos || []).find(x => x.id === id) || {}).categoria);
   const descuentoCupon = cuponOk ? Math.round(Math.min(baseCupon, cuponOk.tipo === "%" ? baseCupon * cuponOk.valor / 100 : cuponOk.valor)) : 0;
   const descAmiga = amigaOk && amigaOk.ok && !cuponOk ? Math.round(baseCupon * amigaOk.pct / 100) : 0;
   // Descuento por forma de pago (configurado en Lumiere; el servidor lo vuelve a calcular)
