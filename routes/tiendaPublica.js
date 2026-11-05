@@ -128,7 +128,7 @@ router.get('/:slug', async (req, res) => {
       referidos: (() => { const r = tienda.referidosDe(c); return r.activo ? { pct: r.pct, puntos: r.puntos } : null; })(),
       legales: (() => { const l = tienda.legalesDe(c); return { data_fiscal: l.data_fiscal, paginas: l.paginas, firma_lumiere: l.firma_lumiere }; })(),
       puntos_dia: (() => { const k = tienda.puntosDiaDe(c); return k.activo ? { mult: k.mult, dias: k.dias } : null; })(),
-      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, precios_pago: x.precios_pago || null, pct_pago: x.desde && x.hasta && !x.precios_pago ? pctCombos[tienda.claveCombo(x.productos)] || null : null, evento: !!(x.desde && x.hasta), cuotas: x.cuotas || cuotasCombos[[...(x.productos || [])].map(Number).sort((a, b) => a - b).join(',')] || 0 })) }; })(),
+      ofertas: (() => { const o = tienda.ofertasDe(c), d = tienda.ofertaDiaActiva(c); return { dia: d ? { producto_id: d.producto_id, precio: d.precio, hasta: d.hasta, titulo: d.titulo, pagos: d.pagos || [] } : null, combos: o.combos.filter(tienda.comboVigente).map(x => ({ id: x.id, nombre: x.nombre, productos: x.productos, cantidades: x.cantidades, precio: x.precio, precios_pago: x.precios_pago || null, pct_pago: x.desde && x.hasta && !x.precios_pago ? pctCombos[tienda.claveCombo(x.productos)] || null : null, evento: !!(x.desde && x.hasta), cuotas: x.cuotas || cuotasCombos[[...(x.productos || [])].map(Number).sort((a, b) => a - b).join(',')] || 0 })) }; })(),
       descuentos_pago: (() => { const d = tienda.descuentosPagoDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
       descuento_pago_con_cupon: c.descuento_pago_con_cupon !== false,
       descuentos_pago_kits: (() => { const d = tienda.descuentosPagoKitsDe(c); return Object.fromEntries(Object.entries(d).filter(([, v]) => v > 0)); })(),
@@ -500,8 +500,10 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (it.preventa && stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: (stock - ya > 0 ? 'Solo quedan ' + (stock - ya) + ' de ' + p.nombre + ' para reservar en preventa' : 'Ya se reservó todo lo que viene de ' + p.nombre) + '. Actualizá la página.' }); }
       if (stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'No hay stock suficiente de ' + p.nombre + (valor ? ' (' + valor + ')' : '') + (stock - ya > 0 ? ': quedan ' + (stock - ya) : '') + ' en ' + (entrega === 'retiro' ? 'ese local' : 'este momento') }); }
       // Oferta del dia: el precio especial vale mientras dure (no para preventa)
-      const precioLinea = ofDia && ofDia.producto_id === p.id && !it.preventa ? ofDia.precio : num(p.precio);
-      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa, categoria: p.categoria, marca: p.marca });
+      // Si se eligió con qué formas de pago vale, con las demás va el precio normal
+      const conDia = ofDia && ofDia.producto_id === p.id && !it.preventa && tienda.diaValeCon(ofDia, pago);
+      const precioLinea = conDia ? ofDia.precio : num(p.precio);
+      lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa, categoria: p.categoria, marca: p.marca, dia: !!conDia });
     }
     const subtotal = Math.round(lineas.reduce((t, l) => t + l.precio * l.cantidad, 0) * 100) / 100;
     if (entrega === 'envio' && c.envio_gratis_desde && subtotal >= c.envio_gratis_desde) costoEnvio = 0;
@@ -560,7 +562,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     const promo = tienda.descuentoPromos(promosPedido, lineas, combo.enCombos, pago, tienda.packsDe(c));
     const descPromo = promo.descuento;
     // Los combos de un evento (Cyber) ya tienen su precio por forma de pago: no suman el descuento general
-    const montoSinPago = combo.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0);
+    const montoSinPago = combo.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0)
+      // La oferta del día tampoco suma el descuento general por forma de pago (no es acumulable con otras ofertas)
+      + lineas.filter(l => l.dia).reduce((t, l) => t + l.precio * l.cantidad, 0);
     // Si se configuró que no se sume a un cupón (o al regalo de amiga), con cupón no hay descuento por forma de pago
     const sinDescPago = c.descuento_pago_con_cupon === false && (!!cupon || descAmiga > 0);
     const dp = sinDescPago ? { descuento: 0, pct: 0, pctKits: 0 } : tienda.descuentoPagoTotal(c, pago, Math.max(0, subtotal - descCombo - descuento - descAmiga - promo.monto - montoSinPago), combo.combos.filter(x => !x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0));
