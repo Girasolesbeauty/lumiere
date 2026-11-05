@@ -26611,6 +26611,176 @@ function CyberVideos({ temaPal }) {
     </div>
   );
 }
+// ===== Videos de preventa para Instagram (reel 1080x1920) =====
+// Mismo funcionamiento que los del Cyber, con el estilo de la preventa de la tienda (crema y dorado, "✨ PREVENTA",
+// "⏳ Llega pronto"). Se eligen hasta 6 productos que vienen en camino y se graba con el navegador.
+const PV_INTRO = 2.6, PV_PROD = 3.4, PV_FIN = 3.2;
+const pvDurVideo = (n) => PV_INTRO + Math.max(1, n) * PV_PROD + PV_FIN;
+function pvFondo(ctx, W, H, t, u) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#fff8e1"); g.addColorStop(.55, "#fdeec4"); g.addColorStop(1, "#f9dc8c");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // luces doradas que se mueven
+  [[.18 + .1 * Math.sin(t * .5), .15, "245,197,66", .45], [.85 - .08 * Math.sin(t * .6), .8 + .05 * Math.cos(t * .7), "255,255,255", .7]].forEach(([x, y, c, a]) => {
+    const r = 560 * u, gg = ctx.createRadialGradient(x * W, y * H, 0, x * W, y * H, r); gg.addColorStop(0, "rgba(" + c + "," + a + ")"); gg.addColorStop(1, "rgba(" + c + ",0)"); ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
+  });
+  // destellos ✦ que titilan
+  ctx.fillStyle = "#e0a800";
+  for (let i = 0; i < 26; i++) { const x = ((i * 337) % 1000) / 1000 * W, y = ((i * 571) % 1000) / 1000 * H, a = Math.max(0, Math.sin(t * 2 + i * 1.9)); if (a < .1) continue;
+    const r = (8 + 10 * a) * u; ctx.save(); ctx.globalAlpha = a * .8; ctx.translate(x, y); ctx.beginPath(); ctx.moveTo(0, -r); ctx.quadraticCurveTo(0, 0, r, 0); ctx.quadraticCurveTo(0, 0, 0, r); ctx.quadraticCurveTo(0, 0, -r, 0); ctx.quadraticCurveTo(0, 0, 0, -r); ctx.fill(); ctx.restore(); }
+}
+function pvEtiqueta(ctx, cx, y, u, t, txt, px) {
+  ctx.save(); ctx.font = cyF(900, px * u); ctx.letterSpacing = (px * .12 * u) + "px"; const w = ctx.measureText(txt).width + 90 * u, h = px * 1.9 * u;
+  const pul = 1 + .025 * Math.sin(t * 4); ctx.translate(cx, y + h / 2); ctx.scale(pul, pul);
+  const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0); g.addColorStop(0, "#f7d774"); g.addColorStop(.5, "#f5c542"); g.addColorStop(1, "#e9b52b");
+  ctx.shadowColor = "rgba(185,119,14,.35)"; ctx.shadowBlur = 24 * u; ctx.fillStyle = g; flyRect(ctx, -w / 2, -h / 2, w, h, 18 * u); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = "#3b2a10"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, 2 * u); ctx.restore(); ctx.textBaseline = "alphabetic";
+}
+function pvDibujarVideo(ctx, W, H, t, d) {
+  const u = W / 1080, n = Math.max(1, d.prods.length), total = pvDurVideo(n);
+  pvFondo(ctx, W, H, t, u); ctx.textAlign = "center";
+  // 1) intro
+  if (t < PV_INTRO + .2) {
+    const a = 1 - flyEase((t - PV_INTRO + .3) / .45), e = (k) => flyEase((t - k) / .6);
+    ctx.save(); ctx.globalAlpha = a;
+    if (d.marca) { ctx.save(); ctx.globalAlpha = a * e(0); ctx.fillStyle = "#8a5a00"; ctx.font = cyF(800, 34 * u); ctx.letterSpacing = (8 * u) + "px"; ctx.fillText(d.marca.toUpperCase(), W / 2, H * .25); ctx.restore(); }
+    ctx.save(); ctx.globalAlpha = a * e(.15); ctx.translate(W / 2, H * .4); const sc = .6 + .4 * e(.15); ctx.scale(sc, sc); pvEtiqueta(ctx, 0, -90 * u, u, t, "✨ PREVENTA", 96); ctx.restore();
+    ctx.save(); ctx.globalAlpha = a * e(.55); ctx.fillStyle = "#3b2a10"; ctx.font = cyF(900, 92 * u); ctx.fillText("Llega pronto", W / 2, H * .53 + (1 - e(.55)) * 40 * u); ctx.restore();
+    ctx.save(); ctx.globalAlpha = a * e(.9); ctx.fillStyle = "#8a5a00"; ctx.font = cyF(700, 46 * u); ctx.fillText("⏳ Reservá el tuyo antes que se agote", W / 2, H * .6 + (1 - e(.9)) * 30 * u); ctx.restore();
+    ctx.restore();
+  }
+  // encabezado fijo durante los productos
+  const enProds = t >= PV_INTRO - .3 && t < PV_INTRO + n * PV_PROD + .2;
+  if (enProds) { const a = Math.min(flyEase((t - PV_INTRO + .3) / .5), 1 - flyEase((t - (PV_INTRO + n * PV_PROD) + .2) / .4)); if (a > 0) { ctx.save(); ctx.globalAlpha = a; pvEtiqueta(ctx, W / 2, 110 * u, u, t, "✨ PREVENTA", 54); ctx.restore(); } }
+  // 2) un producto por vez
+  for (let i = 0; i < n; i++) {
+    const p = d.prods[i]; if (!p) continue; const t0 = PV_INTRO + i * PV_PROD, lt = t - t0; if (lt < -.1 || lt > PV_PROD + .1) continue;
+    const ent = flyEase(lt / .55), sal = flyEaseInOut((lt - (PV_PROD - .4)) / .4), dy = (1 - ent) * 140 * u, al = ent * (1 - sal);
+    const cw = 700 * u, cx = W / 2, cy = 640 * u + dy + Math.sin(t * 2.2) * 10 * u;
+    ctx.save(); ctx.globalAlpha = al; ctx.translate(cx, cy); ctx.rotate(Math.sin(t * 1.4) * .01);
+    ctx.shadowColor = "rgba(185,119,14,.35)"; ctx.shadowBlur = 50 * u; ctx.fillStyle = "#fff"; flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#f5c542"; ctx.lineWidth = 12 * u; flyRect(ctx, -cw / 2, -cw / 2, cw, cw, 44 * u); ctx.stroke();
+    if (p.img) { const im = p.img, k = Math.min((cw - 80 * u) / im.width, (cw - 80 * u) / im.height); ctx.drawImage(im, -im.width * k / 2, -im.height * k / 2, im.width * k, im.height * k); }
+    else { ctx.fillStyle = "#fdeec4"; flyRect(ctx, -cw / 2 + 30 * u, -cw / 2 + 30 * u, cw - 60 * u, cw - 60 * u, 30 * u); ctx.fill(); ctx.fillStyle = "#b9770e"; ctx.font = cyF(900, 150 * u); ctx.textBaseline = "middle"; ctx.fillText(String(p.nombre).split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase(), 0, 0); ctx.textBaseline = "alphabetic"; }
+    ctx.restore();
+    // textos
+    const tx = (k) => { const e = flyEase((lt - .35 - k * .12) / .45); return { a: e * (1 - sal), dy: (1 - e) * 40 * u }; };
+    let y = 1100 * u, o = tx(0);
+    if (p.marca) { ctx.save(); ctx.globalAlpha = o.a; ctx.fillStyle = "#8a5a00"; ctx.font = cyF(800, 34 * u); ctx.letterSpacing = (6 * u) + "px"; ctx.fillText(p.marca.toUpperCase(), W / 2, y + o.dy); ctx.restore(); }
+    o = tx(1); ctx.save(); ctx.globalAlpha = o.a; ctx.fillStyle = "#2b1f0b"; ctx.font = cyF(700, 58 * u); const ls = flyLineas(ctx, String(p.nombre).toUpperCase(), W - 150 * u, 2); ls.forEach((l, j) => ctx.fillText(l, W / 2, y + 76 * u + j * 66 * u + o.dy)); ctx.restore();
+    y += 76 * u + ls.length * 66 * u + 30 * u;
+    o = tx(2); ctx.save(); ctx.globalAlpha = o.a; ctx.fillStyle = "#111"; ctx.font = cyF(900, 104 * u); ctx.fillText(cyPlata(p.precio), W / 2, y + 90 * u + o.dy); ctx.restore();
+    o = tx(3); ctx.save(); ctx.globalAlpha = o.a; const txt = "⏳ " + (p.llega ? "Llega aprox. " + p.llega : "Llega pronto");
+    ctx.font = cyF(800, 44 * u); const w = Math.min(W - 120 * u, ctx.measureText(txt).width + 80 * u), by = y + 150 * u + o.dy;
+    ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.strokeStyle = "#e9b52b"; ctx.lineWidth = 4 * u; flyRect(ctx, W / 2 - w / 2, by, w, 96 * u, 48 * u); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#8a5a00"; ctx.textBaseline = "middle"; ctx.fillText(txt, W / 2, by + 50 * u); ctx.textBaseline = "alphabetic"; ctx.restore();
+    o = tx(4); ctx.save(); ctx.globalAlpha = o.a; ctx.fillStyle = "#2b1f0b"; ctx.font = cyF(700, 38 * u); ctx.fillText(p.quedan > 0 && p.quedan <= 5 ? "🔥 ¡Quedan solo " + p.quedan + " para reservar!" : "Reservalo ahora y es tuyo apenas llega", W / 2, y + 330 * u + o.dy); ctx.restore();
+    if (n > 1) { for (let j = 0; j < n; j++) { ctx.fillStyle = j === i ? "#b9770e" : "rgba(138,90,0,.25)"; ctx.beginPath(); ctx.arc(W / 2 + (j - (n - 1) / 2) * 34 * u, H - 90 * u, (j === i ? 9 : 6) * u, 0, Math.PI * 2); ctx.fill(); } }
+  }
+  // 3) cierre
+  const tf = t - (PV_INTRO + n * PV_PROD);
+  if (tf > -.1) {
+    const e = (k) => flyEase((tf - k) / .5);
+    ctx.save(); ctx.globalAlpha = e(0); pvEtiqueta(ctx, W / 2, 420 * u, u, t, "✨ PREVENTA", 64); ctx.restore();
+    ctx.save(); ctx.globalAlpha = e(.2); ctx.fillStyle = "#2b1f0b"; ctx.font = cyF(900, 96 * u); ctx.fillText("¡Reservalo", W / 2, 700 * u + (1 - e(.2)) * 40 * u); ctx.fillText("antes que se agote!", W / 2, 810 * u + (1 - e(.2)) * 40 * u); ctx.restore();
+    ctx.save(); ctx.globalAlpha = e(.45); ctx.fillStyle = "#8a5a00"; ctx.font = cyF(700, 44 * u); ctx.fillText("Lo pagás online y te lo guardamos", W / 2, 930 * u); ctx.fillText("apenas llega a tu local", W / 2, 990 * u); ctx.restore();
+    ctx.save(); ctx.globalAlpha = e(.7); const by = 1110 * u, bw = 680 * u, bh = 124 * u; ctx.fillStyle = "#111"; ctx.shadowColor = "rgba(0,0,0,.25)"; ctx.shadowBlur = 30 * u; flyRect(ctx, W / 2 - bw / 2, by, bw, bh, bh / 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "#fff"; ctx.font = cyF(900, 44 * u); ctx.letterSpacing = (4 * u) + "px"; ctx.textBaseline = "middle"; ctx.fillText("RESERVAR ONLINE", W / 2, by + bh / 2 + 2 * u); ctx.textBaseline = "alphabetic"; ctx.restore();
+    ctx.save(); ctx.globalAlpha = e(.85); ctx.fillStyle = "#2b1f0b"; ctx.font = cyF(800, 42 * u); ctx.fillText(d.web, W / 2, 1320 * u); ctx.restore();
+  }
+  ctx.textAlign = "left";
+  return total;
+}
+function PreventaVideos({ temaPal }) {
+  const p = temaPal, base = String(API.defaults.baseURL || "").replace(/\/+$/, "");
+  const [datos, setDatos] = useState(null);
+  const [elegidos, setElegidos] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [local, setLocal] = useState("1");
+  const [imgs, setImgs] = useState({});
+  const [grabando, setGrabando] = useState(0);
+  const [video, setVideo] = useState(null);
+  const [error, setError] = useState("");
+  const lienzo = useRef(null), inicio = useRef(performance.now()), grab = useRef(null);
+  useEffect(() => {
+    API.get("/promociones/cyber-tienda").then(async ({ data: cy }) => {
+      if (!cy.slug) return setDatos({ lista: [], sinTienda: true });
+      const u = base + "/tienda-publica/" + encodeURIComponent(cy.slug);
+      const [t, prods] = await Promise.all([fetch(u).then(r => r.json()).catch(() => ({})), fetch(u + "/productos").then(r => r.json())]);
+      const lista = (Array.isArray(prods) ? prods : []).filter(x => x.preventa && ((x.preventa[1] || 0) + (x.preventa[2] || 0)) > 0);
+      setDatos({ lista, slug: cy.slug, dominio: cy.dominio, tienda: t.titulo || "", activa: !!t.preventa });
+      setElegidos(lista.slice(0, 4).map(x => x.id));
+    }).catch(() => setDatos({ lista: [], error: true }));
+    if (window.FontFace && document.fonts && ![...document.fonts].some(f => f.family === CY_FUENTE[0])) { const ff = new FontFace(...CY_FUENTE); ff.load().then(x => document.fonts.add(x)).catch(() => {}); }
+  }, []);
+  useEffect(() => {
+    if (!datos || !datos.slug) return;
+    elegidos.forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(datos.slug) + "/foto/" + id; });
+  }, [elegidos, datos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const L = Number(local);
+  const prods = datos ? elegidos.map(id => datos.lista.find(x => x.id === id)).filter(Boolean).map(x => ({ id: x.id, nombre: x.nombre, marca: x.marca, precio: x.precio, img: imgs[x.id] || null,
+    llega: twTextoLlega(x.llega && (x.llega[L] || x.llega[1] || x.llega[2])), quedan: (x.preventa && x.preventa[L]) || 0 })) : [];
+  const d = { prods, marca: datos ? datos.tienda : "", web: datos && datos.dominio ? String(datos.dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
+  const dRef = useRef(d); dRef.current = d;
+  const dur = pvDurVideo(prods.length);
+  useEffect(() => {
+    let id; const c = lienzo.current; if (!c) return; const ctx = c.getContext("2d");
+    const paso = () => { const D = pvDurVideo(dRef.current.prods.length); let t = (performance.now() - inicio.current) / 1000; if (grab.current) { if (t >= D) { grab.current.stop(); grab.current = null; } else setGrabando(Math.max(1, Math.round(t / D * 100))); } t = grab.current ? Math.min(t, D) : t % (D + .6); pvDibujarVideo(ctx, c.width, c.height, t, dRef.current); id = requestAnimationFrame(paso); };
+    id = requestAnimationFrame(paso); return () => cancelAnimationFrame(id);
+  }, [datos]);
+  const tipo = () => ["video/mp4;codecs=avc1.640028", "video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x));
+  const grabar = () => {
+    if (!prods.length) return setError("Elegí al menos un producto");
+    const tp = tipo(); if (!tp) return setError("Este navegador no puede grabar video. Probá con Chrome.");
+    setError(""); setVideo(null);
+    let rec; try { rec = new MediaRecorder(lienzo.current.captureStream(30), { mimeType: tp, videoBitsPerSecond: 10000000 }); } catch (e) { return setError("No se pudo grabar: " + e.message); }
+    const partes = []; rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
+    rec.onstop = () => { const blob = new Blob(partes, { type: tp.split(";")[0] }); setVideo({ url: URL.createObjectURL(blob), blob, ext: tp.includes("mp4") ? "mp4" : "webm" }); setGrabando(0); };
+    inicio.current = performance.now(); grab.current = rec; rec.start(250); setGrabando(1);
+  };
+  const alternar = (id) => { setVideo(null); setElegidos(l => l.includes(id) ? l.filter(x => x !== id) : l.length >= 6 ? l : [...l, id]); inicio.current = performance.now(); };
+  const nombre = "preventa-reel." + (video ? video.ext : "mp4");
+  const puedeCompartir = video && navigator.canShare && (() => { try { return navigator.canShare({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) { return false; } })();
+  const q = busca.trim().toLowerCase();
+  const filtrados = datos ? datos.lista.filter(x => !q || (x.nombre + " " + (x.marca || "")).toLowerCase().includes(q)) : [];
+  return (
+    <div className="card" style={{ margin: "14px 0", textAlign: "left" }}>
+      <div className="ct">🎬 Videos de preventa para Instagram (reel)</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, margin: "2px 0 12px" }}>Elegí hasta 6 productos que vienen en camino: el video los muestra uno por uno con su precio y cuándo llegan, con el estilo de la preventa de la tienda. Sale en tamaño reel (1080×1920).</div>
+      {datos === null ? <div className="skel" style={{ height: 160 }} />
+        : datos.sinTienda ? <div className="cli-tip">Primero publicá la tienda online (Configuración › Tienda y dirección).</div>
+        : !datos.lista.length ? <div className="cli-tip">{datos.activa === false ? "Prendé la preventa (acá arriba) para que los productos en camino aparezcan en la tienda y acá." : "Ahora no hay productos en preventa: aparecen cuando cargás una orden de ingreso con mercadería que todavía no llegó."}</div>
+        : <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+              <input className="inp" placeholder="Buscar producto o marca…" value={busca} onChange={e => setBusca(e.target.value)} style={{ flex: "1 1 180px" }} />
+              {!UN_SOLO_LOCAL && <select className="sel" style={{ width: "auto" }} value={local} onChange={e => setLocal(e.target.value)} title="Para la fecha de llegada y lo que queda para reservar"><option value="1">{nombreLocal(1)}</option><option value="2">{nombreLocal(2)}</option></select>}
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 6 }}>{datos.lista.length} productos en preventa · {elegidos.length} de 6 elegidos · el video dura {Math.round(dur)} segundos</div>
+            <div style={{ maxHeight: 340, overflowY: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
+              {filtrados.map(x => { const on = elegidos.includes(x.id), ll = twTextoLlega(x.llega && (x.llega[L] || x.llega[1] || x.llega[2])); return (
+                <label key={x.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderBottom: "1px solid " + p.border, cursor: "pointer", background: on ? p.accent + "14" : "transparent", opacity: !on && elegidos.length >= 6 ? .5 : 1 }}>
+                  <input type="checkbox" checked={on} disabled={!on && elegidos.length >= 6} onChange={() => alternar(x.id)} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.nombre}</span>
+                    <span style={{ fontSize: 11.5, color: p.textMuted }}>{x.marca ? x.marca + " · " : ""}{cyPlata(x.precio)} · {ll ? "llega " + ll : "llega pronto"} · {(x.preventa[1] || 0) + (x.preventa[2] || 0)} para reservar</span>
+                  </span>
+                </label>); })}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12, alignItems: "flex-start" }}>
+              <button className="btn btn-p" disabled={grabando > 0 || !prods.length} onClick={grabar}>{grabando ? "Creando video… " + grabando + "%" : "🎬 Crear video"}</button>
+              {grabando > 0 && <div style={{ fontSize: 11.5, color: p.textMuted }}>Dejá esta pantalla abierta mientras se graba (unos {Math.round(dur)} segundos).</div>}
+              {video && <><a className="btn btn-g" href={video.url} download={nombre}>⬇️ Descargar video</a>
+                {puedeCompartir && <button className="btn btn-g" onClick={async () => { try { await navigator.share({ files: [new File([video.blob], nombre, { type: video.blob.type })] }); } catch (e) {} }}>📲 Compartir</button>}
+                {video.ext !== "mp4" && <div style={{ fontSize: 11.5, color: p.warn, maxWidth: 300 }}>Este navegador lo grabó en WEBM; para MP4 (el que acepta Instagram) crealo desde Chrome actualizado o desde el celular.</div>}</>}
+              {error && <div style={{ fontSize: 12, color: p.red }}>{error}</div>}
+              {prods.some(x => !x.img) && elegidos.every(id => imgs[id] !== undefined) && <div style={{ fontSize: 11.5, color: p.textMuted, maxWidth: 320 }}>Los productos sin foto salen con sus iniciales: cargales la foto en Tienda online › Productos para que se vean mejor.</div>}
+            </div>
+          </div>
+          <canvas ref={lienzo} width={1080} height={1920} style={{ width: 243, height: 432, borderRadius: 14, boxShadow: "0 6px 24px rgba(0,0,0,.25)", background: "#fdeec4" }} />
+        </div>}
+    </div>
+  );
+}
 // ===== Club de WhatsApp: mensajes para los grupos de clientes =====
 // Lumiere propone un mensaje por día (novedades, tip, lo más vendido, beneficio con cupón, ofertas/últimas unidades y encuesta)
 // con los datos reales, más una placa (imagen 1080x1350) para mandar junto al texto. WhatsApp no deja mandar a grupos
@@ -39185,6 +39355,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 <div><div className="fl">Nombre del sector</div><input className="inp" style={{ width: 260 }} maxLength={40} value={cfg.preventa.titulo || ""} onChange={e => set("preventa", { ...cfg.preventa, titulo: e.target.value })} placeholder="Próximos a ingresar" /></div>
                 <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", fontSize: 13, marginTop: 14 }}><input type="checkbox" checked={cfg.preventa.incluir_no_publicados !== false} onChange={e => set("preventa", { ...cfg.preventa, incluir_no_publicados: e.target.checked })} /> Mostrar también los que todavía no publiqué en la tienda</label>
               </div>
+              <PreventaVideos temaPal={temaPal} />
             </CajaSeccion>
           )}
           {it.k === "ruleta" && cfg.ruleta && (() => { const r = cfg.ruleta; const setR = (x) => set("ruleta", { ...r, ...x }); const setP = (i, x) => setR({ premios: r.premios.map((y, j) => j === i ? { ...y, ...x } : y) }); const suma = r.premios.reduce((t, x) => t + (Number(x.chance) || 0), 0); return (
