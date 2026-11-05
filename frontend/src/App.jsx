@@ -2929,7 +2929,7 @@ function BuscarPrecio({ localId, paletaActual, usuario }) {
 
   useEffect(() => {
     API.get("/productos").then(res => setProductos((res.data || []).filter(x => x.activo !== false))).catch(() => {}).finally(() => setLoading(false));
-    API.get("/promociones?activas=true&vigentes=true").then(res => setPromociones(res.data || [])).catch(() => {});
+    API.get("/promociones?activas=true&vigentes=true&con_dia=1").then(res => setPromociones(res.data || [])).catch(() => {});
     API.get("/configuracion").then(res => { setNombreNegocio(res.data?.nombre_negocio || ""); setPlantillaGuardada(res.data?.mensaje_precio || ""); }).catch(() => {});
     if (inputRef.current) inputRef.current.focus();
   }, []);
@@ -3371,7 +3371,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [rutinaCuotas, setRutinaCuotas] = useState(null); // promo "Rutina en cuotas" vigente
   // Las promos se vuelven a leer cada 10 minutos: las que se crean o cambian (o empiezan a medianoche) llegan sin recargar
-  useEffect(() => { const t = setInterval(() => API.get("/promociones?activas=true").then(r => setPromociones(r.data || [])).catch(() => {}), 10 * 60 * 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => API.get("/promociones?activas=true&con_dia=1").then(r => setPromociones(r.data || [])).catch(() => {}), 10 * 60 * 1000); return () => clearInterval(t); }, []);
   useEffect(() => {
     setCcCliente(null);
     if (medioPagoSel?.tipo !== "cuenta_corriente" || !clienteSeleccionado?.id) return;
@@ -3576,7 +3576,7 @@ function POS({ localId, usuario, paletaActual }) {
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
-    API.get("/promociones?activas=true").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
+    API.get("/promociones?activas=true&con_dia=1").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
     API.get("/promociones/rutina-cuotas").then(res => setRutinaCuotas(res.data && res.data.vigente ? res.data : null)).catch(() => setRutinaCuotas(null));
     API.get("/configuracion").then(res => {
       setModoTicket(res.data?.modo_ticket || "imprimir");
@@ -3944,6 +3944,7 @@ function POS({ localId, usuario, paletaActual }) {
       if (promo.sin_medio_pago && (promo.sin_medio_pago === medioPagoTipoActual || tiposMixtos.includes(promo.sin_medio_pago))) continue;
       // Fechas: se revisan acá también (si el Punto de Venta queda abierto de un día para otro, no sigue aplicando una promo vencida)
       if (!promoVigenteHoy(promo)) continue;
+      if (promo.hasta && new Date(promo.hasta) < new Date()) continue; // oferta del día: hasta su hora de fin
       if (promo.local_id && Number(promo.local_id) !== Number(localId)) continue;
       let desc = 0;
       // Descuento por producto (para que, si no se combinan, cada producto tome su mejor promo y no una sola para todo el ticket)
@@ -4050,7 +4051,7 @@ function POS({ localId, usuario, paletaActual }) {
   const conOfertaPos = (() => {
     const k = new Set();
     if (cart.some(i => i.tienda_pedido)) return k;
-    promociones.filter(pr => promoVigenteHoy(pr) && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
+    promociones.filter(pr => promoVigenteHoy(pr) && !(pr.hasta && new Date(pr.hasta) < new Date()) && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
       if (pr.tipo === "descuento") cart.forEach((i, j) => { if (itemAplica(pr, i)) k.add(j); });
       else if (pr.tipo === "combo") {
         const ids = (pr.productos_ids || []).map(Number), cant = pr.combo_cantidades || {};
