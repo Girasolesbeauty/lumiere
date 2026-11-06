@@ -501,6 +501,12 @@ router.post('/:slug/pedidos', async (req, res) => {
       if (stock - ya < it.cantidad) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'No hay stock suficiente de ' + p.nombre + (valor ? ' (' + valor + ')' : '') + (stock - ya > 0 ? ': quedan ' + (stock - ya) : '') + ' en ' + (entrega === 'retiro' ? 'ese local' : 'este momento') }); }
       // Oferta del dia: el precio especial vale mientras dure (no para preventa)
       // Si se eligió con qué formas de pago vale, con las demás va el precio normal
+      // La oferta del día con formas de pago elegidas no se puede pagar con otra (la tienda no deja elegirla)
+      if (ofDia && ofDia.producto_id === p.id && !it.preventa && !tienda.diaValeCon(ofDia, pago)) {
+        const nom = { mp: 'Mercado Pago', gocuotas: 'GoCuotas', transferencia: 'transferencia', retiro: 'pago al retirar' };
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'La oferta del día (' + p.nombre + ') se paga solo con ' + (ofDia.pagos || []).map(k => nom[k] || k).join(' o ') + '. Elegí esa forma de pago.' });
+      }
       const conDia = ofDia && ofDia.producto_id === p.id && !it.preventa && tienda.diaValeCon(ofDia, pago);
       const precioLinea = conDia ? ofDia.precio : num(p.precio);
       lineas.push({ producto_id: p.id, variante_id: it.variante_id, nombre: p.nombre, variante_valor: valor, cantidad: it.cantidad, precio: precioLinea, preventa: it.preventa, categoria: p.categoria, marca: p.marca, dia: !!conDia });
