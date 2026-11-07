@@ -27066,6 +27066,9 @@ function CyberResultado({ temaPal }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
   const [filtro, setFiltro] = useState("quietos");
+  // Alto valor: desde este precio (si no se eligió: el 30% más caro de los parados y lentos). Lo barato y lento suele ser
+  // surtido que hay que tener igual (gloss, delineador, guante): se mira aparte.
+  const [umbral, setUmbral] = useState(() => { try { return parseInt(localStorage.getItem("lumiere_liq_umbral")) || 0; } catch (e) { return 0; } });
   const [abierto, setAbierto] = useState(true);
   useEffect(() => { API.get("/promociones/liquidacion/eventos").then(r => { setEventos(r.data || []); if ((r.data || [])[0]) setEv(r.data[0].nombre); }).catch(e => { setEventos([]); setErr(e.response?.data?.error || e.message || "No se pudo cargar"); }); }, []);
   const [recarga, setRecarga] = useState(0);
@@ -27095,7 +27098,13 @@ function CyberResultado({ temaPal }) {
   const g = (k) => (d && d.grupos[k]) || { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado_costo: 0, capital_inicio: 0, quedan: 0, capital_queda: 0 };
   const quietos = ["parado", "lento"].map(g).reduce((a, x) => { Object.keys(a).forEach(k => a[k] += x[k] || 0); return a; }, { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado_costo: 0, capital_inicio: 0, quedan: 0, capital_queda: 0 });
   const pct = (a, b) => b > 0 ? Math.round(a / b * 100) : 0;
-  const lista = d ? d.productos.filter(x => filtro === "todos" ? true : filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "sin_venta" ? ["parado", "lento"].includes(x.estado) && x.vendidas === 0 && x.stock_hoy > 0 : x.estado === filtro) : [];
+  const quietosL = d ? d.productos.filter(x => ["parado", "lento"].includes(x.estado)) : [];
+  const umbralAuto = (() => { const ps = quietosL.map(x => x.precio).filter(v => v > 0).sort((a, b) => a - b); if (!ps.length) return 0; const v = ps[Math.floor(ps.length * .7)]; return v >= 10000 ? Math.round(v / 1000) * 1000 : Math.round(v / 100) * 100; })();
+  const umb = umbral > 0 ? umbral : umbralAuto;
+  const sumar = (l) => l.reduce((a, x) => ({ productos: a.productos + 1, vendieron: a.vendieron + (x.vendidas > 0 ? 1 : 0), stock_inicio: a.stock_inicio + x.stock_inicio, vendidas: a.vendidas + x.vendidas, cobrado: a.cobrado + x.cobrado,
+    recuperado: a.recuperado + x.recuperado_costo, capital: a.capital + x.stock_inicio * x.costo, queda: a.queda + x.stock_hoy * x.costo }), { productos: 0, vendieron: 0, stock_inicio: 0, vendidas: 0, cobrado: 0, recuperado: 0, capital: 0, queda: 0 });
+  const alto = sumar(quietosL.filter(x => x.precio >= umb)), bajo = sumar(quietosL.filter(x => x.precio < umb));
+  const lista = d ? d.productos.filter(x => filtro === "todos" ? true : filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "alto" ? ["parado", "lento"].includes(x.estado) && x.precio >= umb : filtro === "alto_sin" ? ["parado", "lento"].includes(x.estado) && x.precio >= umb && x.vendidas === 0 && x.stock_hoy > 0 : filtro === "sin_venta" ? ["parado", "lento"].includes(x.estado) && x.vendidas === 0 && x.stock_hoy > 0 : x.estado === filtro) : [];
   const enCurso = d && d.hasta >= new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
   const tarjeta = (k) => { const x = g(k), [ic, t, col, ayuda] = ESTADOS_LIQ[k]; if (!x.productos) return null; return (
     <div key={k} style={{ border: "1px solid " + p.border, borderTop: "4px solid " + col, borderRadius: 12, padding: 12, background: p.card }}>
@@ -27131,17 +27140,39 @@ function CyberResultado({ temaPal }) {
             Se cobraron <b>{$(quietos.cobrado)}</b> y se recuperaron <b>{$(quietos.recuperado_costo)}</b> de plata que estaba quieta en mercadería ({pct(quietos.recuperado_costo, quietos.capital_inicio)}% de los {$(quietos.capital_inicio)} a costo).
             Siguen quietos {quietos.quedan} u. ({$(quietos.capital_queda)} a costo).
           </div>}
+          {quietosL.length > 0 && <div style={{ border: "1px solid " + p.border, borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+              <b style={{ fontSize: 14 }}>💎 Parados y lentos según su valor</b>
+              <span style={{ fontSize: 12, color: p.textMuted }}>Alto valor = precio desde</span>
+              <input className="inp" inputMode="numeric" style={{ width: 110 }} value={umb || ""} onChange={e => { const v = parseInt(e.target.value.replace(/\D/g, "")) || 0; setUmbral(v); try { localStorage.setItem("lumiere_liq_umbral", String(v)); } catch (er) {} }} aria-label="Precio desde el que un producto es de alto valor" />
+              {umbral > 0 && <button className="chip-btn" onClick={() => { setUmbral(0); try { localStorage.removeItem("lumiere_liq_umbral"); } catch (er) {} }}>Automático ({$(umbralAuto)})</button>}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 10 }}>
+              {[["💎 Alto valor", "desde " + $(umb) + " · donde está la plata quieta", alto, "#7d3c98"], ["🧴 Bajo valor", "menos de " + $(umb) + " · surtido que hay que tener (gloss, delineador, guante…)", bajo, "#7f8c8d"]].map(([t, ay, x, col]) => (
+                <div key={t} style={{ borderRadius: 10, padding: 10, borderTop: "4px solid " + col, background: p.card, border: "1px solid " + p.border }}>
+                  <div style={{ fontWeight: 800, fontSize: 13.5 }}>{t} <span style={{ fontWeight: 500, fontSize: 11.5, color: p.textMuted }}>· {ay}</span></div>
+                  <div style={{ fontSize: 26, fontWeight: 900, color: col, marginTop: 4 }}>{pct(x.vendidas, x.stock_inicio)}%<span style={{ fontSize: 12, fontWeight: 600, color: p.textMuted }}> de las unidades vendidas</span></div>
+                  <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+                    <b>{x.vendidas}</b> de {x.stock_inicio} u. · <b>{x.vendieron}</b> de {x.productos} productos ({pct(x.vendieron, x.productos)}%) vendieron algo<br />
+                    Cobrado <b>{$(x.cobrado)}</b> · recuperado a costo <b>{$(x.recuperado)}</b> ({pct(x.recuperado, x.capital)}% de {$(x.capital)})<br />
+                    <span style={{ color: p.textMuted }}>Sigue quieto a costo: {$(x.queda)}</span>
+                  </div>
+                </div>))}
+            </div>
+            <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 6 }}>Usa el precio de lista de cada producto. Si no ponés un precio, toma automáticamente el 30% más caro de lo que estaba parado o lento.</div>
+          </div>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 10 }}>{["parado", "lento", "normal", "rapido", "nuevo"].map(tarjeta)}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0 8px" }}>
-            {[["quietos", "Parados y lentos"], ["sin_venta", "No se vendió ninguno"], ["parado", "Parados"], ["lento", "Lentos"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
+            {[["quietos", "Parados y lentos"], ["alto", "💎 Alto valor"], ["alto_sin", "💎 Alto valor sin vender"], ["sin_venta", "No se vendió ninguno"], ["parado", "Parados"], ["lento", "Lentos"], ["todos", "Todos"]].map(([k, t]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{t}</button>)}
           </div>
           {!lista.length ? <div className="empty">No hay productos acá.</div> : (
             <table>
-              <thead><tr><th>Producto</th><th>Cómo estaba</th><th>Stock al empezar</th><th>Vendidas</th><th>% vendido</th><th>Cobrado</th><th>Quedan</th></tr></thead>
+              <thead><tr><th>Producto</th><th>Cómo estaba</th><th>Precio</th><th>Stock al empezar</th><th>Vendidas</th><th>% vendido</th><th>Cobrado</th><th>Quedan</th></tr></thead>
               <tbody>{lista.slice(0, 200).map(x => { const e = ESTADOS_LIQ[x.estado]; return (
                 <tr key={x.id}>
                   <td><b style={{ fontSize: 12.5 }}>{x.nombre}</b>{x.marca && <div style={{ fontSize: 11, color: p.textMuted }}>{x.marca}</div>}</td>
                   <td style={{ fontSize: 12, color: e[2], fontWeight: 700, whiteSpace: "nowrap" }}>{e[0]} {e[1].replace(/s$/, "").replace("Sin stock al empezar", "Sin stock")}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{$(x.precio)}{x.precio >= umb && ["parado", "lento"].includes(x.estado) ? " 💎" : ""}</td>
                   <td>{x.stock_inicio}</td>
                   <td style={{ fontWeight: 800, color: x.vendidas ? p.green : p.textMuted }}>{x.vendidas}</td>
                   <td>{x.pct === null ? "—" : x.pct + "%"}</td>
