@@ -22,6 +22,9 @@ router.get('/informe-mes', controller.getInformeMes);
 router.get('/exportar-mes', controller.getExportarMes);
 router.get('/reparto-sugerido', controller.getRepartoSugerido);
 router.get('/medallas', controller.getMedallas);
+router.get('/reparto', controller.getReparto);
+router.put('/reparto/config', controller.putRepartoConfig);
+router.post('/reparto/semana', controller.postRepartoSemana);
 router.get('/decisiones/base', controller.getBaseDecisiones);
 
 module.exports = router;

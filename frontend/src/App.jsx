@@ -10987,6 +10987,101 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   );
 }
 
+// ===== Finanzas › Reparto semanal =====
+// Asignación de ingresos por porcentajes (método "Profit First"): cada sábado o domingo se separa lo que entró en la
+// semana (ventas menos lo que cobran los medios de pago) en sus cuentas: mercadería, costos, impuestos/colchón y ganancia.
+function RepartoSemanal({ temaPal }) {
+  const p = temaPal, $ = (n) => fmt(n).replace(SIN_CEROS, "");
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState("");
+  const [editar, setEditar] = useState(null); // partes en edición
+  const [msj, setMsj] = useState(null);
+  const [abierta, setAbierta] = useState(null);
+  const cargar = () => API.get("/finanzas/reparto").then(r => { setD(r.data); setErr(""); }).catch(e => setErr(e.response?.data?.error || "No se pudo cargar"));
+  useEffect(() => { cargar(); }, []);
+  const fechaC = (f) => new Date(f + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  const COL = ["#2471a3", "#b9770e", "#7d3c98", "#2d7a4f", "#c0392b", "#16a085", "#34495e", "#d35400"];
+  const guardarPartes = async () => {
+    try { await API.put("/finanzas/reparto/config", { partes: editar }); setEditar(null); setMsj({ ok: true, t: "✓ Porcentajes guardados" }); cargar(); }
+    catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+  };
+  const marcar = async (s, hecho) => {
+    try { await API.post("/finanzas/reparto/semana", { inicio: s.desde, hecho, base: s.base_hoy, partes: s.partes.map(pt => ({ ...pt, monto: Math.round(s.base_hoy * pt.pct / 100) })) }); setMsj({ ok: true, t: hecho ? "✓ Semana marcada como separada" : "Semana desmarcada" }); cargar(); }
+    catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+  };
+  if (err) return <div className="card"><div className="empty" style={{ color: p.red }}>{err}</div></div>;
+  if (!d) return <div className="card"><div className="skel" style={{ height: 220 }} /></div>;
+  const sumaEd = editar ? Math.round(editar.reduce((t, x) => t + (parseFloat(x.pct) || 0), 0) * 10) / 10 : 100;
+  const pendiente = d.semanas.find(s => (!s.en_curso || s.hasta === d.hoy) && !s.hecho && s.base_hoy > 0);
+  return (
+    <div className="fade">
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="ct" style={{ marginBottom: 4 }}>💰 Reparto semanal de ingresos</div>
+        <div style={{ fontSize: 12.5, color: p.textMuted, lineHeight: 1.55 }}>
+          Es la <b>asignación de ingresos por porcentajes</b> (método <i>Profit First</i>, "primero la ganancia"): cada fin de semana separás lo que entró en distintas cuentas, así la plata de la mercadería, de los gastos y tu ganancia no se mezclan.
+          La semana va de <b>domingo a sábado</b>. Lo que entró = ventas de los dos locales y la tienda online, menos lo que cobran los medios de pago (tarjetas, Mercado Pago, etc.).
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+          {d.partes.map((pt, i) => <div key={pt.k} style={{ flex: "1 1 150px", borderRadius: 10, padding: "8px 10px", border: "1px solid " + p.border, borderTop: "4px solid " + COL[i % COL.length] }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: COL[i % COL.length] }}>{pt.pct}%</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700 }}>{pt.nombre}</div>
+            {pt.donde && <div style={{ fontSize: 11.5, color: p.textMuted }}>→ {pt.donde}</div>}
+          </div>)}
+        </div>
+        {!editar ? <button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={() => { setEditar(d.partes.map(x => ({ ...x }))); setMsj(null); }}>✏️ Cambiar porcentajes y cuentas</button> : (
+          <div style={{ marginTop: 12, border: "1px solid " + p.border, borderRadius: 10, padding: 12, background: p.bg }}>
+            {editar.map((pt, i) => <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+              <input className="inp" style={{ flex: "2 1 180px" }} value={pt.nombre} onChange={e => setEditar(l => l.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))} aria-label="Nombre de la parte" />
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><input className="inp" style={{ width: 80 }} inputMode="decimal" value={pt.pct} onChange={e => setEditar(l => l.map((x, j) => j === i ? { ...x, pct: e.target.value.replace(/[^\d.]/g, "") } : x))} aria-label="Porcentaje" />%</span>
+              <input className="inp" style={{ flex: "2 1 180px" }} placeholder="¿A qué cuenta va? (ej: Santander, plazo fijo)" value={pt.donde || ""} onChange={e => setEditar(l => l.map((x, j) => j === i ? { ...x, donde: e.target.value } : x))} aria-label="Cuenta" />
+              {editar.length > 1 && <button className="icon-btn peligro" onClick={() => setEditar(l => l.filter((x, j) => j !== i))} aria-label="Quitar">✕</button>}
+            </div>)}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {editar.length < 8 && <button className="chip-btn" onClick={() => setEditar(l => [...l, { k: "p" + Date.now().toString(36), nombre: "", pct: 0, donde: "" }])}>+ Otra parte</button>}
+              <b style={{ fontSize: 13, color: sumaEd === 100 ? p.green : p.red }}>Suman {sumaEd}%{sumaEd === 100 ? " ✓" : " (tiene que dar 100%)"}</b>
+              <span style={{ flex: 1 }} />
+              <button className="btn btn-g btn-sm" onClick={() => setEditar(null)}>Cancelar</button>
+              <button className="btn btn-p btn-sm" disabled={sumaEd !== 100} onClick={guardarPartes}>Guardar</button>
+            </div>
+          </div>)}
+        {msj && <div style={{ marginTop: 8, fontSize: 12.5, fontWeight: 700, color: msj.ok ? p.green : p.red }}>{msj.t}</div>}
+      </div>
+
+      {pendiente && <div className="cli-tip" style={{ marginBottom: 14, borderColor: p.warn }}>⏰ Te falta separar la semana del <b>{fechaC(pendiente.desde)} al {fechaC(pendiente.hasta)}</b>: entraron {$(pendiente.base_hoy)}. Abajo te dice cuánto va a cada cuenta.</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {d.semanas.map(s => { const ab = abierta === s.desde || (abierta === null && s === (pendiente || d.semanas[0])); const montos = s.hecho ? s.partes : s.partes.map(pt => ({ ...pt, monto: Math.round(s.base_hoy * pt.pct / 100) })); return (
+          <div key={s.desde} className="card" style={{ padding: 0, overflow: "hidden", borderLeft: "4px solid " + (s.hecho ? p.green : s.en_curso ? p.border : p.warn) }}>
+            <button type="button" onClick={() => setAbierta(ab ? "" : s.desde)} style={{ all: "unset", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", width: "100%", boxSizing: "border-box", padding: "12px 14px" }}>
+              <span style={{ flex: 1 }}><b style={{ fontSize: 14 }}>Semana del {fechaC(s.desde)} al {fechaC(s.hasta)}</b>
+                <span style={{ display: "block", fontSize: 12, color: p.textMuted }}>{s.en_curso ? "En curso · hasta hoy" : s.hecho ? "✓ Separada" + (s.usuario ? " por " + s.usuario : "") + (s.hecho_en ? " el " + new Date(s.hecho_en).toLocaleDateString("es-AR") : "") : "Para separar"}</span></span>
+              <span style={{ textAlign: "right" }}><b style={{ fontSize: 16 }}>{$(s.hecho ? s.base : s.base_hoy)}</b><span style={{ display: "block", fontSize: 11, color: p.textMuted }}>para repartir</span></span>
+              <span aria-hidden="true" style={{ fontSize: 16, opacity: .6 }}>{ab ? "▾" : "▸"}</span>
+            </button>
+            {ab && <div style={{ padding: "0 14px 14px" }}>
+              <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>Ventas {$(s.ventas)} − cobran los medios de pago {$(s.comisiones)} = <b style={{ color: p.text }}>{$(s.base_hoy)}</b>{s.hecho && s.base !== s.base_hoy ? " (cuando la separaste eran " + $(s.base) + ")" : ""}</div>
+              <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 10 }}>{montos.map((pt, i) => <div key={pt.k} style={{ width: pt.pct + "%", background: COL[i % COL.length] }} title={pt.nombre} />)}</div>
+              {montos.map((pt, i) => <div key={pt.k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 0", borderTop: "1px solid " + p.border, fontSize: 13.5 }}>
+                <span><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: COL[i % COL.length], marginRight: 6 }} />{pt.nombre} <span style={{ color: p.textMuted, fontSize: 12 }}>{pt.pct}%{pt.donde ? " → " + pt.donde : ""}</span></span>
+                <b>{$(pt.monto)}</b>
+              </div>)}
+              {(!s.en_curso || s.hasta === d.hoy) && <div style={{ marginTop: 10 }}>{s.hecho ? <button className="btn btn-g btn-sm" onClick={() => marcar(s, false)}>Desmarcar</button>
+                : <button className="btn btn-p btn-sm" onClick={() => marcar(s, true)}>✓ Ya separé esta plata</button>}</div>}
+              {s.en_curso && s.hasta !== d.hoy && <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>La semana todavía no terminó: el sábado a la noche o el domingo vas a ver el total para separar.</div>}
+              {s.en_curso && s.hasta === d.hoy && !s.hecho && <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>Hoy es sábado: si ya cerraron los locales, este es el total de la semana.</div>}
+            </div>}
+          </div>); })}
+      </div>
+
+      {d.acumulado.length > 0 && <div className="card" style={{ marginTop: 14 }}>
+        <div className="ct">Lo que ya separaste</div>
+        {d.acumulado.map(a => <div key={a.k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "6px 0", borderTop: "1px solid " + p.border, fontSize: 13.5 }}>
+          <span>{a.nombre}</span><span>este mes <b>{$(a.mes)}</b> · en total <b>{$(a.total)}</b></span>
+        </div>)}
+      </div>}
+    </div>
+  );
+}
 function Finanzas({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
@@ -11267,8 +11362,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
-    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"],
-  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && (k !== "informe" || esJefe));
+    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["reparto", "💰 Reparto semanal"],
+  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && ((k !== "informe" && k !== "reparto") || esJefe));
 
   return (
     <div className="fade">
@@ -11857,6 +11952,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
       )}
 
       {/* ============ PUNTO DE EQUILIBRIO ============ */}
+      {tab === "reparto" && <RepartoSemanal temaPal={p} />}
       {tab === "equilibrio" && (
         !equilibrio ? <div className="skel" style={{ height: 260 }} /> : (() => {
           const e = equilibrio;
