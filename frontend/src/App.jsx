@@ -13889,13 +13889,22 @@ function DuracionReal({ temaPal }) {
     </div>
   );
 }
+// Grupo de cada tipo de producto (para el gráfico y la tabla de duraciones)
+const REP_GRUPOS = [["capilar", "💇 Pelo", "#8e44ad", /capilar|shampoo|acondicionador|peinado|pelo|cabello/i], ["maquillaje", "💄 Maquillaje", "#c0392b", /maquillaje|labial|delineador|pesta|corrector|primer|polvo|rubor|iluminador|sombras|cejas|base|fijador/i],
+  ["perfume", "🌸 Perfumes y casa", "#d35400", /perfume|difusor/i], ["cuerpo", "🧴 Cuerpo y manos", "#16a085", /corporal|manos|protector/i], ["facial", "✨ Cuidado facial", "#2471a3", /./]];
+const repGrupo = (tipo) => REP_GRUPOS.find(g => g[3].test(tipo || "")) || REP_GRUPOS[REP_GRUPOS.length - 1];
 function ReponerClientes({ temaPal }) {
+  const p = temaPal;
   const [datos, setDatos] = useState(null);
   const [plantilla, setPlantilla] = useState(PLANTILLA_REPONER);
   const [negocio, setNegocio] = useState("");
   const [ocultar, setOcultar] = useState(true);
   const [busca, setBusca] = useState("");
   const [limite, setLimite] = useState(50);
+  const [cuando, setCuando] = useState("todas"); // todas | ya | pronto | semana | despues
+  const [tipoSel, setTipoSel] = useState("");
+  const [verDur, setVerDur] = useState(false);
+  const [verMsj, setVerMsj] = useState(false);
   useEffect(() => { API.get("/configuracion").then(r => setNegocio(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
   const cargar = () => API.get("/postventa/reponer").then(r => setDatos(r.data)).catch(() => setDatos({ error: true, clientes: [] }));
   useEffect(() => { cargar(); }, []);
@@ -13910,37 +13919,124 @@ function ReponerClientes({ temaPal }) {
     } catch (e) {}
   };
   const todos = (datos && datos.clientes) || [];
+  const resta = (c) => c.duracion - c.dias;
+  const tramo = (c) => { const r = resta(c); return r < 0 ? "ya" : r <= 3 ? "pronto" : r <= 7 ? "semana" : "despues"; };
+  const TRAMOS = [["ya", "🔴 Ya se le terminó", "#c0392b"], ["pronto", "🟠 Se termina en 0 a 3 días", "#d35400"], ["semana", "🟡 Esta semana", "#b7950b"], ["despues", "🟢 Más adelante", "#2d7a4f"]];
+  const pendientes = todos.filter(c => !c.avisado || c.recien);
+  const cuenta = (k) => pendientes.filter(c => tramo(c) === k).length;
+  const avisadas = todos.filter(c => c.avisado).length;
+  // Gráfico: clientas por avisar según el tipo de producto
+  const porTipo = Object.values(pendientes.reduce((m, c) => { const k = c.tipo || "Otro"; m[k] = m[k] || { tipo: k, n: 0, urg: 0 }; m[k].n++; if (["ya", "pronto"].includes(tramo(c))) m[k].urg++; return m; }, {})).sort((a, b) => b.n - a.n).slice(0, 10);
+  const maxTipo = Math.max(1, ...porTipo.map(x => x.n));
   const q = busca.trim().toLowerCase();
-  const lista = todos.filter(c => (!q || (c.nombre || "").toLowerCase().includes(q) || (c.producto || "").toLowerCase().includes(q)) && (!ocultar || !c.avisado || c.recien));
-  const estado = (c) => { const r = c.duracion - c.dias; return r > 0 ? ["Se le termina en ~" + r + " día" + (r === 1 ? "" : "s"), "#b7950b"] : r === 0 ? ["Se le termina hoy", "#d35400"] : ["Ya se le terminó (hace ~" + (-r) + " día" + (r === -1 ? "" : "s") + ")", "#c0392b"]; };
+  const lista = todos.filter(c => (!q || (c.nombre || "").toLowerCase().includes(q) || (c.producto || "").toLowerCase().includes(q)) && (!ocultar || !c.avisado || c.recien)
+    && (cuando === "todas" || tramo(c) === cuando) && (!tipoSel || c.tipo === tipoSel))
+    .sort((a, b) => resta(a) - resta(b));
+  const durs = (datos && datos.duraciones) || [];
+  const maxDur = Math.max(30, ...durs.map(d => d.dias));
+  const caja = { border: "1px solid " + p.border, borderRadius: 14, padding: 14, background: p.card };
   return (
     <div className="fade" style={{ textAlign: "left" }}>
-      <div className="cli-tip" style={{ margin: "0 0 12px" }}>🧴 Clientes a las que <b>se les está por terminar</b> un producto que compraron, según cuánto dura cada tipo (aprox.): {((datos && datos.duraciones) || []).map(d => d.tipo.toLowerCase() + " " + d.dias + " días").join(" · ")}. Un mensaje a tiempo trae la recompra.</div>
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div className="ct">Mensaje (podés editarlo)</div>
-        <textarea className="inp" rows={3} style={{ resize: "vertical" }} value={plantilla} onChange={e => setPlantilla(e.target.value)} aria-label="Mensaje" />
-        <div style={{ fontSize: 10, color: temaPal.textMuted, marginTop: 6 }}>{"{nombre}"}, {"{producto}"} y {"{negocio}"} se reemplazan solos.</div>
+      {/* Explicación corta */}
+      <div style={{ ...caja, marginBottom: 12, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", background: "linear-gradient(135deg," + p.card + "," + p.bg + ")" }}>
+        <div style={{ fontSize: 40 }} aria-hidden="true">🧴</div>
+        <div style={{ flex: "1 1 260px" }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>¿A quién se le está por terminar su producto?</div>
+          <div style={{ fontSize: 12.5, color: p.textMuted, lineHeight: 1.5, marginTop: 2 }}>Lumiere mira qué compró cada clienta y cuánto dura ese tipo de producto. Cuando se le está por terminar, aparece acá para mandarle un WhatsApp y que vuelva a comprarlo. <b>Un mensaje a tiempo trae la recompra.</b></div>
+        </div>
+        <button className="btn btn-g btn-sm" onClick={() => setVerDur(v => !v)}>📏 {verDur ? "Ocultar" : "Ver"} cuánto dura cada producto</button>
       </div>
+
+      {/* Duraciones: tarjetitas por grupo, con una barra según cuánto dura */}
+      {verDur && <div style={{ ...caja, marginBottom: 12 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 2 }}>📏 Cuánto dura cada producto (aprox.)</div>
+        <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 10 }}>Es lo que usa Lumiere para calcular cuándo avisarle a cada clienta.</div>
+        {REP_GRUPOS.map(([k, nombre, col]) => { const ds = durs.filter(d => repGrupo(d.tipo)[0] === k); if (!ds.length) return null; return (
+          <div key={k} style={{ marginBottom: 12 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: col, marginBottom: 6 }}>{nombre}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 8 }}>
+              {ds.map(d => <div key={d.tipo} style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "8px 10px" }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.25 }}>{d.tipo.replace(/\s*\(.*\)/, "")}</div>
+                {/\(/.test(d.tipo) && <div style={{ fontSize: 10.5, color: p.textMuted }}>{(d.tipo.match(/\((.*)\)/) || [])[1]}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+                  <div style={{ flex: 1, height: 6, borderRadius: 3, background: p.border, overflow: "hidden" }}><div style={{ width: Math.max(4, d.dias / maxDur * 100) + "%", height: "100%", background: col }} /></div>
+                  <b style={{ fontSize: 12, whiteSpace: "nowrap" }}>{d.dias === 1 ? "1 uso" : d.dias + " días"}</b>
+                </div>
+              </div>)}
+            </div>
+          </div>); })}
+      </div>}
+
+      {/* Números grandes */}
+      {datos && !datos.error && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12 }}>
+        {TRAMOS.map(([k, t, col]) => <button key={k} type="button" onClick={() => setCuando(c => c === k ? "todas" : k)} style={{ ...caja, cursor: "pointer", textAlign: "left", borderTop: "4px solid " + col, outline: cuando === k ? "2px solid " + col : "none", fontFamily: "inherit", color: p.text }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: col, lineHeight: 1.1 }}>{cuenta(k)}</div>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>{t}</div>
+          <div style={{ fontSize: 10.5, color: p.textMuted }}>{cuando === k ? "mostrando solo estas · tocá para ver todas" : "tocá para ver solo estas"}</div>
+        </button>)}
+        <div style={{ ...caja, borderTop: "4px solid " + p.green }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: p.green, lineHeight: 1.1 }}>{avisadas}</div>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>✓ Ya les avisaste</div>
+          <div style={{ fontSize: 10.5, color: p.textMuted }}>de {todos.length} en la lista</div>
+        </div>
+      </div>}
+
+      {/* Gráfico por tipo de producto */}
+      {porTipo.length > 0 && <div style={{ ...caja, marginBottom: 12 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>📊 Clientas por avisar, según el producto</div>
+        {porTipo.map(x => { const col = repGrupo(x.tipo)[2]; const on = tipoSel === x.tipo; return (
+          <button key={x.tipo} type="button" onClick={() => setTipoSel(t => t === x.tipo ? "" : x.tipo)} title="Tocá para ver solo estas clientas" style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, width: "100%", boxSizing: "border-box", padding: "4px 0", opacity: tipoSel && !on ? .45 : 1 }}>
+            <span style={{ width: 150, flexShrink: 0, fontSize: 12.5, fontWeight: on ? 800 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.tipo.replace(/\s*\(.*\)/, "")}</span>
+            <span style={{ flex: 1, height: 16, borderRadius: 8, background: p.bg, overflow: "hidden", display: "flex" }}>
+              <span style={{ width: (x.urg / maxTipo * 100) + "%", background: "#d35400" }} title="ya o en 0 a 3 días" />
+              <span style={{ width: ((x.n - x.urg) / maxTipo * 100) + "%", background: col, opacity: .75 }} />
+            </span>
+            <b style={{ width: 34, textAlign: "right", fontSize: 13 }}>{x.n}</b>
+          </button>); })}
+        <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6 }}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#d35400", verticalAlign: "middle" }} /> ya se le terminó o en 0 a 3 días · el resto, más adelante. Tocá una barra para filtrar.</div>
+      </div>}
+
+      {/* Mensaje (plegado) */}
+      <div style={{ ...caja, marginBottom: 12, padding: verMsj ? 14 : "10px 14px" }}>
+        <button type="button" onClick={() => setVerMsj(v => !v)} style={{ all: "unset", cursor: "pointer", display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
+          <b style={{ fontSize: 13.5 }}>💬 Mensaje que se envía</b>
+          {!verMsj && <span style={{ flex: 1, fontSize: 12, color: p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{plantilla}</span>}
+          <span style={{ fontSize: 12, color: "var(--acento-texto)", marginLeft: "auto" }}>{verMsj ? "Cerrar" : "✏️ Editar"}</span>
+        </button>
+        {verMsj && <><textarea className="inp" rows={3} style={{ resize: "vertical", marginTop: 8 }} value={plantilla} onChange={e => setPlantilla(e.target.value)} aria-label="Mensaje" />
+          <div style={{ fontSize: 11, color: p.textMuted, marginTop: 6 }}>{"{nombre}"}, {"{producto}"} y {"{negocio}"} se reemplazan solos.</div></>}
+      </div>
+
+      {/* Lista de clientas */}
       <div className="card">
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
           <input className="inp" style={{ flex: "1 1 200px" }} placeholder="🔍 Buscar por nombre o producto" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Buscar" />
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}><input type="checkbox" checked={ocultar} onChange={e => setOcultar(e.target.checked)} /> Ocultar a las que ya les avisé</label>
           <button className="btn btn-g btn-sm" onClick={cargar}>Actualizar</button>
         </div>
+        {(cuando !== "todas" || tipoSel) && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {cuando !== "todas" && <button className="chip-btn on" onClick={() => setCuando("todas")}>{TRAMOS.find(x => x[0] === cuando)[1]} ✕</button>}
+          {tipoSel && <button className="chip-btn on" onClick={() => setTipoSel("")}>{tipoSel.replace(/\s*\(.*\)/, "")} ✕</button>}
+        </div>}
         {!datos ? <div className="skel" style={{ height: 160 }} /> : datos.error ? <div className="empty">No se pudo cargar la lista.</div>
-          : lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{todos.length ? "Ya les avisaste a todos. 👏" : "Por ahora no hay clientes a los que se les esté terminando un producto."}</div> : (
-          <div>
-            {lista.slice(0, limite).map(c => { const tel = numeroWhatsApp(c.telefono); const [txt, col] = estado(c); return (
-              <div key={c.id + "-" + c.producto_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid " + temaPal.border, opacity: c.recien ? 0.55 : 1 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{c.nombre || "Sin nombre"} <span style={{ fontWeight: 400, color: temaPal.textMuted }}>· {c.producto}</span></div>
-                  <div style={{ fontSize: 11, color: temaPal.textMuted }}>Lo compró hace {c.dias} días · {c.tipo.toLowerCase()} (dura ~{c.duracion} días) · <b style={{ color: col }}>{txt}</b></div>
-                  {c.avisado && <div style={{ fontSize: 10.5, color: "#2d7a4f", fontWeight: 600, marginTop: 2 }}>{c.recien ? "✓ Mensaje enviado recién" : "Ya le avisaste el " + new Date(c.avisado).toLocaleDateString("es-AR")}</div>}
+          : lista.length === 0 ? <div className="empty" style={{ padding: 24 }}>{todos.length ? (cuando !== "todas" || tipoSel || q ? "No hay clientas con ese filtro." : "Ya les avisaste a todas. 👏") : "Por ahora no hay clientas a las que se les esté terminando un producto."}</div> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {lista.slice(0, limite).map(c => { const tel = numeroWhatsApp(c.telefono); const r = resta(c), [, , col] = TRAMOS.find(x => x[0] === tramo(c)); const usado = Math.min(100, Math.round(c.dias / Math.max(1, c.duracion) * 100)); return (
+              <div key={c.id + "-" + c.producto_id} style={{ border: "1px solid " + p.border, borderLeft: "4px solid " + col, borderRadius: 12, padding: "10px 12px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", opacity: c.recien ? 0.55 : 1 }}>
+                <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{c.nombre || "Sin nombre"}</div>
+                  <div style={{ fontSize: 12.5, marginTop: 1 }}>{c.producto} <span style={{ color: p.textMuted, fontSize: 11.5 }}>· {c.tipo.replace(/\s*\(.*\)/, "").toLowerCase()}</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                    <div style={{ flex: 1, maxWidth: 260, height: 8, borderRadius: 4, background: p.bg, overflow: "hidden" }} title={"Lleva " + c.dias + " de ~" + c.duracion + " días"}><div style={{ width: usado + "%", height: "100%", background: col }} /></div>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: col, whiteSpace: "nowrap" }}>{r > 0 ? "le quedan ~" + r + " día" + (r === 1 ? "" : "s") : r === 0 ? "se termina hoy" : "se terminó hace ~" + (-r) + " día" + (r === -1 ? "" : "s")}</span>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: p.textMuted, marginTop: 2 }}>Lo compró hace {c.dias} días · dura ~{c.duracion === 1 ? "1 uso" : c.duracion + " días"}</div>
+                  {c.avisado && <div style={{ fontSize: 10.5, color: p.green, fontWeight: 700, marginTop: 2 }}>{c.recien ? "✓ Mensaje enviado recién" : "✓ Ya le avisaste el " + new Date(c.avisado).toLocaleDateString("es-AR")}</div>}
                 </div>
-                {tel ? <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }} onClick={() => enviar(c)}>💬 {c.avisado ? "Escribir de nuevo" : "Enviar WhatsApp"}</button>
+                {tel ? <button className="btn btn-sm" style={{ background: "#25d366", color: "#1B2431", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }} onClick={() => enviar(c)}>💬 {c.avisado ? "Escribir de nuevo" : "Enviar WhatsApp"}</button>
                   : <span className="tag tag-neutral" title="Cargale el teléfono en Clientes">Sin teléfono</span>}
               </div>); })}
-            {lista.length > limite && <button className="chip-btn" style={{ marginTop: 10 }} onClick={() => setLimite(l => l + 50)}>Ver 50 más (quedan {lista.length - limite})</button>}
+            {lista.length > limite && <button className="chip-btn" style={{ marginTop: 6, alignSelf: "flex-start" }} onClick={() => setLimite(l => l + 50)}>Ver 50 más (quedan {lista.length - limite})</button>}
           </div>
         )}
       </div>
