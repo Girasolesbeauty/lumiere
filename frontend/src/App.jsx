@@ -26972,7 +26972,22 @@ function CyberResultado({ temaPal }) {
   const [filtro, setFiltro] = useState("quietos");
   const [abierto, setAbierto] = useState(true);
   useEffect(() => { API.get("/promociones/liquidacion/eventos").then(r => { setEventos(r.data || []); if ((r.data || [])[0]) setEv(r.data[0].nombre); }).catch(e => { setEventos([]); setErr(e.response?.data?.error || e.message || "No se pudo cargar"); }); }, []);
-  useEffect(() => { if (!ev) return; setD(null); setErr(""); API.get("/promociones/liquidacion/resultado?nombre=" + encodeURIComponent(ev)).then(r => setD(r.data)).catch(e => setErr(e.response?.data?.error || "No se pudo cargar")); }, [ev]);
+  const [recarga, setRecarga] = useState(0);
+  useEffect(() => { if (!ev) return; setD(null); setErr(""); API.get("/promociones/liquidacion/resultado?nombre=" + encodeURIComponent(ev)).then(r => setD(r.data)).catch(e => setErr(e.response?.data?.error || "No se pudo cargar")); }, [ev, recarga]);
+  // Extender el evento: cambia la fecha de fin de las ofertas ya creadas (sin volver a crearlas)
+  const [nuevoHasta, setNuevoHasta] = useState("");
+  const [extMsj, setExtMsj] = useState(null);
+  const [extendiendo, setExtendiendo] = useState(false);
+  const extender = async () => {
+    if (!nuevoHasta) return;
+    setExtendiendo(true); setExtMsj(null);
+    try {
+      const r = await API.put("/promociones/liquidacion/extender", { nombre: ev, hasta: nuevoHasta });
+      setExtMsj({ ok: true, txt: "✓ Listo: " + r.data.ofertas + " ofertas" + (r.data.combos ? " y " + r.data.combos + " combos de la tienda" : "") + " valen hasta el " + new Date(nuevoHasta + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" }) + " inclusive" + (r.data.cyber ? ". La cuenta regresiva de la tienda también se alargó." : ".") + " Si el Punto de Venta está abierto, recargalo." });
+      setEventos(l => (l || []).map(x => x.nombre === ev ? { ...x, hasta: nuevoHasta } : x)); setRecarga(n => n + 1);
+    } catch (e) { setExtMsj({ ok: false, txt: e.response?.data?.error || "No se pudo extender" }); }
+    setExtendiendo(false);
+  };
   // Siempre se ve: si no hay eventos o falla, lo dice (antes se escondía sin avisar)
   if (eventos && !eventos.length) return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -27007,6 +27022,13 @@ function CyberResultado({ temaPal }) {
         {err && <div className="empty" style={{ color: p.red }}>{err}</div>}
         {!d && !err && <div className="skel" style={{ height: 160, marginTop: 10 }} />}
         {d && <>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "10px 0 4px", padding: "10px 12px", borderRadius: 10, border: "1px solid " + p.border, background: p.bg }}>
+            <b style={{ fontSize: 13 }}>⏩ Extender el evento hasta</b>
+            <input className="inp" type="date" style={{ width: 170 }} value={nuevoHasta || d.hasta} min={new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" })} onChange={e => { setNuevoHasta(e.target.value); setExtMsj(null); }} />
+            <button className="btn btn-p btn-sm" disabled={extendiendo || !nuevoHasta || nuevoHasta === d.hasta} onClick={extender}>{extendiendo ? "Extendiendo…" : "Extender"}</button>
+            <span style={{ fontSize: 11.5, color: p.textMuted, flex: "1 1 220px" }}>Cambia la fecha de fin de todas las ofertas ya creadas (local y tienda), sin tener que crearlas de nuevo.</span>
+            {extMsj && <div style={{ width: "100%", fontSize: 12.5, fontWeight: 700, color: extMsj.ok ? p.green : p.red }}>{extMsj.txt}</div>}
+          </div>
           <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 12px" }}>Del {fecha(d.desde)} al {fecha(d.hasta)}{enCurso ? " (todavía en curso: se actualiza solo)" : ""} · {d.productos.length} productos en oferta · ventas totales del período {$(d.ventas_evento.total)} en {d.ventas_evento.cantidad} ventas. Cada producto se clasifica como estaba según la rotación el día que empezó (ventas de los 90 días anteriores y su stock de ese día).</div>
           {quietos.productos > 0 && <div style={{ background: p.greenDim, border: "1px solid " + p.green, borderRadius: 12, padding: "12px 14px", marginBottom: 12, fontSize: 13.5, lineHeight: 1.55 }}>
             De lo que estaba <b>parado o lento</b> se vendieron <b>{quietos.vendidas} de {quietos.stock_inicio} unidades ({pct(quietos.vendidas, quietos.stock_inicio)}%)</b>, en {quietos.vendieron} de {quietos.productos} productos.

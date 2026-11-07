@@ -157,6 +157,44 @@ router.get('/liquidacion/eventos', async (req, res) => {
     res.json(r.rows);
   } catch (e) { res.status(500).json({ error: 'No se pudieron cargar los eventos' }); }
 });
+// Extender (o acortar) un evento ya creado: cambia la fecha de fin de todas sus ofertas, de sus combos en la tienda y,
+// si es el Cyber de la tienda, también su cuenta regresiva. No hace falta volver a crear las ofertas.
+router.put('/liquidacion/extender', async (req, res) => {
+  const b = req.body || {};
+  const nombre = String(b.nombre || '').trim().slice(0, 80);
+  const hasta = String(b.hasta || '');
+  if (!nombre) return res.status(400).json({ error: 'Falta el evento' });
+  if (!FECHA.test(hasta)) return res.status(400).json({ error: 'Revisá la fecha' });
+  const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  if (hasta < hoy) return res.status(400).json({ error: 'La nueva fecha de fin no puede ser anterior a hoy' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const like = nombre.replace(/[%_\\]/g, '\\$&') + ' · %';
+    const r = await client.query(`UPDATE promociones SET fecha_fin = $2::date, activo = TRUE WHERE (nombre LIKE $1 OR nombre = $3) AND fecha_inicio IS NOT NULL AND fecha_inicio <= $2::date RETURNING id`, [like, hasta, nombre]);
+    if (!r.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No encontré ofertas de "' + nombre + '"' }); }
+    let combos = 0, cyber = false;
+    const tiendaLib = require('../lib/tienda');
+    const c = (await client.query('SELECT ofertas, cyber FROM tienda_config WHERE id = 1').catch(() => ({ rows: [] }))).rows[0];
+    if (c) {
+      // Combos del evento en la tienda (se crearon con el prefijo del evento)
+      const pref = 'cy' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 6);
+      const o = c.ofertas || {};
+      if (Array.isArray(o.combos)) {
+        const nuevos = o.combos.map(x => (String(x.id || '').startsWith(pref) && x.desde ? (combos++, { ...x, hasta }) : x));
+        if (combos) await client.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify({ ...o, combos: nuevos })]);
+      }
+      // El modo Cyber de la tienda (cuenta regresiva arriba): si es un Cyber, se alarga hasta las 23:59 de ese día
+      if (/cyber/i.test(nombre) && c.cyber) {
+        const k = tiendaLib.cyberDe(c);
+        if (k.hasta.slice(0, 10) !== hasta) { await client.query('UPDATE tienda_config SET cyber = $1 WHERE id = 1', [JSON.stringify({ ...k, hasta: hasta + 'T23:59' })]); cyber = true; }
+      }
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, ofertas: r.rows.length, combos, cyber, hasta });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[extender]', e.message); res.status(500).json({ error: 'No se pudo extender: ' + e.message }); }
+  finally { client.release(); }
+});
 // Qué se vendió de los productos del evento, separados por cómo estaban según la rotación el día que empezó
 // (mismo criterio que Análisis de inventario › Rotación, con los 90 días anteriores al evento).
 router.get('/liquidacion/resultado', async (req, res) => {
