@@ -5,6 +5,7 @@ const controller = require('../controllers/finanzasController');
 router.get('/flujo', controller.getFlujo);
 router.post('/egreso', controller.agregarEgreso);
 router.get('/mi-ultimo-egreso', controller.getMiUltimoEgreso);
+router.get('/gastos-cargados', controller.getGastosCargados);
 router.get('/equilibrio', controller.getPuntoEquilibrio);
 router.get('/resumen', controller.getResumen);
 router.get('/flujo-estructurado', controller.getFlujoEstructurado);
