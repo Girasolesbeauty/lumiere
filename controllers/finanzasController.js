@@ -387,7 +387,18 @@ const asegurarCargadoEn = async () => {
   cargadoEnListo.set(true);
 };
 
-const puedeVerGastosDeTodos = (u) => !!u && (u.rol === 'jefe' || u.rol === 'admin' || u.rol === 'administrativo');
+// Jefe/dueño (rol "jefe" o rol_id 1, igual que en el resto del sistema), admin o administrativo ven los
+// gastos de todos. Se lee el usuario de la base porque la sesión solo trae el nombre del rol.
+const ROLES_VEN_TODO = ['jefe', 'admin', 'administrativo'];
+const puedeVerGastosDeTodos = async (u) => {
+  if (!u || !u.id) return false;
+  if (ROLES_VEN_TODO.includes(u.rol)) return true;
+  try {
+    const r = await pool.query('SELECT rol, rol_id FROM usuarios WHERE id = $1', [u.id]);
+    const f = r.rows[0];
+    return !!f && (ROLES_VEN_TODO.includes(f.rol) || Number(f.rol_id) === 1);
+  } catch (e) { return false; }
+};
 
 // Gastos cargados: lista de egresos con filtros para revisar día por día lo que cargó cada uno.
 // Quien no es jefe/admin solo ve los suyos. Junta los egresos de Finanzas y los de la Caja de efectivo.
@@ -395,7 +406,7 @@ const getGastosCargados = async (req, res) => {
   try {
     await asegurarCargadoEn();
     const yo = req.usuario || {};
-    const verTodos = puedeVerGastosDeTodos(yo);
+    const verTodos = await puedeVerGastosDeTodos(yo);
     const q = req.query;
     let usuarioId = q.usuario_id === undefined || q.usuario_id === '' ? null : q.usuario_id;
     if (!verTodos) usuarioId = yo.id;
