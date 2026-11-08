@@ -11082,6 +11082,238 @@ function RepartoSemanal({ temaPal }) {
     </div>
   );
 }
+// Gastos cargados: para revisar día por día los egresos que fue cargando cada persona, con filtros
+// bien específicos (quién, cuándo, texto, monto, categoría, forma de pago y local). Quien no es
+// jefe/admin ve solo los suyos (lo decide el servidor).
+function GastosCargados({ p, categoriasCosto, usuario }) {
+  const hoyD = new Date();
+  const iso = (d) => isoLocal(d);
+  const sumar = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const RANGOS = {
+    hoy: () => [iso(hoyD), iso(hoyD)],
+    ayer: () => [iso(sumar(hoyD, -1)), iso(sumar(hoyD, -1))],
+    semana: () => [iso(sumar(hoyD, -6)), iso(hoyD)],
+    mes: () => [iso(new Date(hoyD.getFullYear(), hoyD.getMonth(), 1)), iso(hoyD)],
+    mespasado: () => [iso(new Date(hoyD.getFullYear(), hoyD.getMonth() - 1, 1)), iso(new Date(hoyD.getFullYear(), hoyD.getMonth(), 0))],
+  };
+  const [rango, setRango] = useState("semana");
+  const [desde, setDesde] = useState(RANGOS.semana()[0]);
+  const [hasta, setHasta] = useState(RANGOS.semana()[1]);
+  const [fechaPor, setFechaPor] = useState("carga");
+  const [usuarioSel, setUsuarioSel] = useState("");
+  const [texto, setTexto] = useState("");
+  const [montoMin, setMontoMin] = useState("");
+  const [montoMax, setMontoMax] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [formaPago, setFormaPago] = useState("");
+  const [local, setLocal] = useState("");
+  const [orden, setOrden] = useState("fecha_desc");
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+  const [cerrados, setCerrados] = useState({});
+  const [formas, setFormas] = useState([]);
+  const pedido = useRef(0);
+
+  const elegirRango = (k) => { setRango(k); if (RANGOS[k]) { const [d, h] = RANGOS[k](); setDesde(d); setHasta(h); } };
+
+  const cargar = () => {
+    const q = new URLSearchParams();
+    if (desde) q.set("desde", desde);
+    if (hasta) q.set("hasta", hasta);
+    q.set("fecha_por", fechaPor);
+    if (usuarioSel) q.set("usuario_id", usuarioSel);
+    if (texto.trim()) q.set("texto", texto.trim());
+    if (montoMin !== "") q.set("monto_min", montoMin);
+    if (montoMax !== "") q.set("monto_max", montoMax);
+    if (categoria) q.set("categoria_id", categoria);
+    if (formaPago) q.set("forma_pago", formaPago);
+    if (local) q.set("local_id", local);
+    const n = ++pedido.current;
+    setCargando(true); setError("");
+    API.get("/finanzas/gastos-cargados?" + q.toString())
+      .then(r => {
+        if (n !== pedido.current) return;
+        setDatos(r.data);
+        const vistas = new Set(formas);
+        (r.data.gastos || []).forEach(g => { if (g.forma_pago) vistas.add(String(g.forma_pago).toLowerCase()); });
+        setFormas([...vistas].sort());
+      })
+      .catch(e => { if (n === pedido.current) { setDatos(null); setError(e?.response?.data?.error || "No se pudieron traer los gastos"); } })
+      .finally(() => { if (n === pedido.current) setCargando(false); });
+  };
+  // Las fechas y los desplegables buscan al toque; el texto y los montos esperan a que termines de escribir
+  useEffect(() => { cargar(); }, [desde, hasta, fechaPor, usuarioSel, categoria, formaPago, local]);
+  useEffect(() => { const t = setTimeout(cargar, 450); return () => clearTimeout(t); }, [texto, montoMin, montoMax]);
+
+  const gastos = useMemo(() => {
+    const lista = [...((datos && datos.gastos) || [])];
+    const clave = (g) => (fechaPor === "carga" ? g.fecha_carga + " " + (g.hora_carga || "") : g.fecha_gasto + " " + (g.hora_carga || ""));
+    if (orden === "monto_desc") lista.sort((a, b) => b.importe - a.importe);
+    else if (orden === "monto_asc") lista.sort((a, b) => a.importe - b.importe);
+    else if (orden === "fecha_asc") lista.sort((a, b) => clave(a).localeCompare(clave(b)));
+    else lista.sort((a, b) => clave(b).localeCompare(clave(a)));
+    return lista;
+  }, [datos, orden, fechaPor]);
+
+  const total = gastos.reduce((s, g) => s + g.importe, 0);
+  const mayor = gastos.reduce((m, g) => (!m || g.importe > m.importe ? g : m), null);
+  const verTodos = !!(datos && datos.ver_todos);
+  const porMonto = orden === "monto_desc" || orden === "monto_asc";
+  const diaDe = (g) => (fechaPor === "carga" ? g.fecha_carga : g.fecha_gasto);
+  const grupos = [];
+  if (!porMonto) {
+    gastos.forEach(g => { const d = diaDe(g); const ult = grupos[grupos.length - 1]; if (ult && ult.dia === d) ult.items.push(g); else grupos.push({ dia: d, items: [g] }); });
+  }
+  const nombreDia = (d) => {
+    if (!d) return "Sin fecha";
+    if (d === iso(hoyD)) return "Hoy";
+    if (d === iso(sumar(hoyD, -1))) return "Ayer";
+    const t = new Date(d + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  const corta = (d) => (d ? d.slice(8, 10) + "/" + d.slice(5, 7) : "");
+  const hayFiltros = texto || montoMin !== "" || montoMax !== "" || categoria || formaPago || local || (verTodos && usuarioSel);
+  const limpiar = () => { setTexto(""); setMontoMin(""); setMontoMax(""); setCategoria(""); setFormaPago(""); setLocal(""); setUsuarioSel(""); };
+  const nombreUsuario = (id) => { const u = ((datos && datos.usuarios) || []).find(x => String(x.id) === String(id)); return u ? u.nombre : ""; };
+
+  const exportar = () => {
+    const esc = (v) => { const s = v === null || v === undefined ? "" : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const filas = [["Fecha del gasto", "Cargado el", "Hora de carga", "Concepto", "Categoría", "Forma de pago", "Cuenta", "Local", "Cargó", "Origen", "Importe"]];
+    gastos.forEach(g => filas.push([g.fecha_gasto, g.fecha_carga, g.carga_exacta ? g.hora_carga : "", g.concepto, g.categoria_nombre, g.forma_pago, g.cuenta_nombre, g.local_id ? nombreLocal(g.local_id) : "Compartido", g.usuario_nombre || "", g.fuente === "caja" ? "Caja de efectivo" : "Finanzas", String(g.importe).replace(".", ",")]));
+    const csv = "﻿" + filas.map(f => f.map(esc).join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = "gastos_" + desde + "_a_" + hasta + ".csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const fila = (g) => {
+    const otroDia = g.fecha_gasto !== g.fecha_carga && g.carga_exacta;
+    return (
+      <div key={g.id} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 4px", borderTop: "1px solid " + p.border + "88" }}>
+        <div style={{ width: 44, flexShrink: 0, fontSize: 12, color: p.textMuted, paddingTop: 2, fontVariantNumeric: "tabular-nums" }}>{porMonto ? corta(diaDe(g)) : (g.carga_exacta ? g.hora_carga : "—")}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: p.text, wordBreak: "break-word" }}>{g.concepto || "(sin concepto)"}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4, fontSize: 11.5, color: p.textMuted }}>
+            {g.categoria_nombre ? <span className="tag" style={{ background: p.accentDim, color: p.accentText }}>{g.categoria_nombre}</span> : <span className="tag" style={{ background: p.warnDim, color: p.warn }}>Sin categoría</span>}
+            {g.forma_pago && <span>💳 {g.forma_pago}</span>}
+            {g.cuenta_nombre && <span>· {g.cuenta_nombre}</span>}
+            {!UN_SOLO_LOCAL && <span>· 📍 {g.local_id ? nombreLocal(g.local_id) : "Compartido"}</span>}
+            {g.fuente === "caja" && <span>· Caja de efectivo</span>}
+            {verTodos && !usuarioSel && <span>· 👤 {g.usuario_nombre || "sin usuario"}</span>}
+            {otroDia && fechaPor === "carga" && <span style={{ color: p.warn }}>· gasto del {corta(g.fecha_gasto)}</span>}
+            {otroDia && fechaPor === "gasto" && <span style={{ color: p.warn }}>· cargado el {corta(g.fecha_carga)} {g.hora_carga}</span>}
+          </div>
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 14.5, color: p.red, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>−{fmt(g.importe)}</div>
+      </div>
+    );
+  };
+
+  const etq = { fontSize: 11, fontWeight: 600, color: p.textMuted, marginBottom: 4, display: "block" };
+  return (
+    <div className="fade">
+      <div className="chart-card" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+          {verTodos ? (
+            <select className="inp" style={{ width: "auto", minWidth: 180, fontWeight: 600 }} value={usuarioSel} onChange={e => setUsuarioSel(e.target.value)} aria-label="Quién cargó">
+              <option value="">👥 Todos los usuarios</option>
+              {((datos && datos.usuarios) || []).map(u => <option key={u.id} value={u.id}>👤 {u.nombre}{usuario && String(u.id) === String(usuario.id) ? " (vos)" : ""}</option>)}
+              <option value="sin">Sin usuario (cargas viejas)</option>
+            </select>
+          ) : (
+            <span style={{ fontWeight: 700, fontSize: 14 }}>👤 Tus gastos cargados</span>
+          )}
+          <div className="seg" role="group" aria-label="Período">
+            {[["hoy", "Hoy"], ["ayer", "Ayer"], ["semana", "7 días"], ["mes", "Este mes"], ["mespasado", "Mes pasado"]].map(([k, l]) => <button key={k} className={rango === k ? "on" : ""} onClick={() => elegirRango(k)}>{l}</button>)}
+          </div>
+          <input className="inp" type="date" style={{ width: 150 }} value={desde} onChange={e => { setDesde(e.target.value); setRango(""); }} aria-label="Desde" />
+          <input className="inp" type="date" style={{ width: 150 }} value={hasta} onChange={e => { setHasta(e.target.value); setRango(""); }} aria-label="Hasta" />
+        </div>
+        <div className="seg" role="group" aria-label="Qué fecha mirar" style={{ marginBottom: 12 }}>
+          <button className={fechaPor === "carga" ? "on" : ""} onClick={() => setFechaPor("carga")}>📅 Día en que se cargó</button>
+          <button className={fechaPor === "gasto" ? "on" : ""} onClick={() => setFechaPor("gasto")}>🧾 Fecha del gasto</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+          <label style={{ gridColumn: "span 2", minWidth: 0 }}><span style={etq}>Nombre o concepto</span>
+            <input className="inp" placeholder="Ej: luz, alquiler, Juan…" value={texto} onChange={e => setTexto(e.target.value)} /></label>
+          <label><span style={etq}>Monto desde $</span>
+            <input className="inp" type="number" inputMode="decimal" min="0" placeholder="0" value={montoMin} onChange={e => setMontoMin(e.target.value)} /></label>
+          <label><span style={etq}>Monto hasta $</span>
+            <input className="inp" type="number" inputMode="decimal" min="0" placeholder="sin tope" value={montoMax} onChange={e => setMontoMax(e.target.value)} /></label>
+          <label><span style={etq}>Categoría</span>
+            <select className="inp" value={categoria} onChange={e => setCategoria(e.target.value)}>
+              <option value="">Todas</option>
+              <option value="sin">⚠ Sin categoría</option>
+              {(categoriasCosto || []).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select></label>
+          <label><span style={etq}>Forma de pago</span>
+            <select className="inp" value={formaPago} onChange={e => setFormaPago(e.target.value)}>
+              <option value="">Todas</option>
+              {formas.map(f => <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>)}
+            </select></label>
+          {!UN_SOLO_LOCAL && <label><span style={etq}>Local</span>
+            <select className="inp" value={local} onChange={e => setLocal(e.target.value)}>
+              <option value="">Todos</option>
+              {Object.keys(NOMBRES_LOCALES).map(id => <option key={id} value={id}>{nombreLocal(id)}</option>)}
+            </select></label>}
+          <label><span style={etq}>Ordenar por</span>
+            <select className="inp" value={orden} onChange={e => setOrden(e.target.value)}>
+              <option value="fecha_desc">Más nuevos primero</option>
+              <option value="fecha_asc">Más viejos primero</option>
+              <option value="monto_desc">Mayor monto</option>
+              <option value="monto_asc">Menor monto</option>
+            </select></label>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+          {hayFiltros && <button className="chip-btn" onClick={limpiar}>✕ Limpiar filtros</button>}
+          <button className="chip-btn" onClick={exportar} disabled={!gastos.length}>⬇ Descargar Excel (CSV)</button>
+          {cargando && <span style={{ fontSize: 12, color: p.textMuted }}>Buscando…</span>}
+        </div>
+      </div>
+
+      {error && <div className="chart-card" style={{ color: p.red, marginBottom: 12 }}>{error}</div>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <div className="chart-card" style={{ padding: 14 }}><div style={etq}>Total {verTodos && usuarioSel && usuarioSel !== "sin" ? "de " + nombreUsuario(usuarioSel) : ""}</div><div style={{ fontWeight: 800, fontSize: 22, color: p.red }}>{fmt(total)}</div></div>
+        <div className="chart-card" style={{ padding: 14 }}><div style={etq}>Cantidad de gastos</div><div style={{ fontWeight: 800, fontSize: 22 }}>{gastos.length}</div></div>
+        <div className="chart-card" style={{ padding: 14 }}><div style={etq}>Promedio por gasto</div><div style={{ fontWeight: 800, fontSize: 22 }}>{fmt(gastos.length ? total / gastos.length : 0)}</div></div>
+        <div className="chart-card" style={{ padding: 14 }}><div style={etq}>El más alto</div><div style={{ fontWeight: 800, fontSize: 22 }}>{mayor ? fmt(mayor.importe) : "—"}</div>{mayor && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mayor.concepto}</div>}</div>
+      </div>
+
+      {!cargando && datos && gastos.length === 0 && (
+        <div className="chart-card" style={{ textAlign: "center", padding: 28, color: p.textMuted }}>No hay gastos con estos filtros.</div>
+      )}
+
+      {porMonto && gastos.length > 0 && (
+        <div className="chart-card" style={{ paddingTop: 6 }}>{gastos.map(fila)}</div>
+      )}
+
+      {!porMonto && grupos.map(gr => {
+        const tot = gr.items.reduce((s, g) => s + g.importe, 0);
+        const cerrado = !!cerrados[gr.dia];
+        return (
+          <div key={gr.dia} className="chart-card" style={{ marginBottom: 10, paddingTop: 10, paddingBottom: cerrado ? 10 : 6 }}>
+            <button onClick={() => setCerrados(c => ({ ...c, [gr.dia]: !cerrado }))} aria-expanded={!cerrado}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: "2px 4px 8px", cursor: "pointer", color: p.text, font: "inherit", textAlign: "left" }}>
+              <span style={{ fontSize: 11, color: p.textMuted, width: 12 }}>{cerrado ? "▸" : "▾"}</span>
+              <span style={{ fontWeight: 700, fontSize: 14.5, flex: 1 }}>{nombreDia(gr.dia)} <span style={{ fontWeight: 500, color: p.textMuted, fontSize: 12.5 }}>· {corta(gr.dia)} · {gr.items.length} gasto{gr.items.length !== 1 ? "s" : ""}</span></span>
+              <span style={{ fontWeight: 800, fontSize: 14.5, color: p.red, fontVariantNumeric: "tabular-nums" }}>{fmt(tot)}</span>
+            </button>
+            {!cerrado && gr.items.map(fila)}
+          </div>
+        );
+      })}
+
+      {fechaPor === "carga" && gastos.some(g => !g.carga_exacta) && (
+        <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 6, lineHeight: 1.5 }}>
+          Los gastos cargados antes de esta actualización no tienen guardada la hora de carga: para esos se usa la fecha del gasto (aparecen con "—").
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Finanzas({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
@@ -11362,7 +11594,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
-    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["reparto", "💰 Reparto semanal"],
+    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["reparto", "💰 Reparto semanal"], ["gastos", "🧾 Gastos cargados"],
   ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && ((k !== "informe" && k !== "reparto") || esJefe));
 
   return (
@@ -11953,6 +12185,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
       {/* ============ PUNTO DE EQUILIBRIO ============ */}
       {tab === "reparto" && <RepartoSemanal temaPal={p} />}
+      {tab === "gastos" && <GastosCargados p={p} categoriasCosto={categoriasCosto} usuario={usuario} />}
       {tab === "equilibrio" && (
         !equilibrio ? <div className="skel" style={{ height: 260 }} /> : (() => {
           const e = equilibrio;

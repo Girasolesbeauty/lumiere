@@ -349,6 +349,7 @@ const agregarEgreso = async (req, res) => {
     if (!concepto || !String(concepto).trim()) return res.status(400).json({ error: 'Falta el concepto' });
     if (fecha && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: 'Fecha invalida' });
     const fechaCarga = fecha ? new Date(fecha + 'T12:00:00') : new Date();
+    await asegurarCargadoEn();
 
     // Si es compartido, se guarda con local_id NULL y el % que le toca al local 1 (el resto
     // es del local 2). Si no vino un %, se usa el reparto por defecto del negocio.
@@ -357,14 +358,14 @@ const agregarEgreso = async (req, res) => {
       const pctFinal = pct !== null ? pct : await obtenerRepartoDefault();
       await asegurarReparto();
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en, pct_local1)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7, $8, $9)`,
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en, pct_local1, cargado_en)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, NULL, $7, $8, $9, NOW())`,
         [concepto, importe, referencia, categoria_id || null, forma_pago || null, cuenta_pago_id || null, usuario_id || null, fechaCarga, pctFinal]
       );
     } else {
       await pool.query(
-        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en)
-         VALUES ($1, 'E', $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, categoria_id, forma_pago, cuenta_pago_id, local_id, usuario_id, creado_en, cargado_en)
+         VALUES ($1, 'E', $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
         [concepto, importe, referencia || 'Manual', categoria_id || null, forma_pago || null, cuenta_pago_id || null, local_id || 1, usuario_id || null, fechaCarga]
       );
     }
@@ -373,6 +374,111 @@ const agregarEgreso = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al agregar egreso: ' + error.message });
+  }
+};
+
+// Momento en que se cargó cada egreso. creado_en es la fecha del gasto (puede ser de otro día),
+// así que para "lo que cargué hoy" hace falta guardar aparte cuándo se tipeó. Los egresos viejos
+// quedan sin dato (NULL) y para ellos se usa la fecha del gasto.
+const cargadoEnListo = porNegocio(false);
+const asegurarCargadoEn = async () => {
+  if (cargadoEnListo.get()) return;
+  await pool.query('ALTER TABLE movimientos_caja ADD COLUMN IF NOT EXISTS cargado_en TIMESTAMP');
+  cargadoEnListo.set(true);
+};
+
+const puedeVerGastosDeTodos = (u) => !!u && (u.rol === 'jefe' || u.rol === 'admin' || u.rol === 'administrativo');
+
+// Gastos cargados: lista de egresos con filtros para revisar día por día lo que cargó cada uno.
+// Quien no es jefe/admin solo ve los suyos. Junta los egresos de Finanzas y los de la Caja de efectivo.
+const getGastosCargados = async (req, res) => {
+  try {
+    await asegurarCargadoEn();
+    const yo = req.usuario || {};
+    const verTodos = puedeVerGastosDeTodos(yo);
+    const q = req.query;
+    let usuarioId = q.usuario_id === undefined || q.usuario_id === '' ? null : q.usuario_id;
+    if (!verTodos) usuarioId = yo.id;
+    if (usuarioId !== null && usuarioId !== 'sin') usuarioId = parseInt(usuarioId, 10) || null;
+    const fechaValida = (f) => (f && /^\d{4}-\d{2}-\d{2}$/.test(f) ? f : null);
+    const desde = fechaValida(q.desde), hasta = fechaValida(q.hasta);
+    const porCarga = q.fecha_por === 'carga';
+    const numero = (v) => (v !== undefined && v !== '' && !isNaN(parseFloat(v)) ? parseFloat(v) : null);
+    const montoMin = numero(q.monto_min), montoMax = numero(q.monto_max);
+    const texto = String(q.texto || '').trim();
+    const categoriaId = q.categoria_id === 'sin' ? 'sin' : (parseInt(q.categoria_id, 10) || null);
+    const formaPago = String(q.forma_pago || '').trim();
+    const localNum = normalizarLocalId(q.local_id);
+    const conCaja = q.incluir_caja !== '0';
+
+    // Finanzas (movimientos_caja): solo egresos cargados a mano (no los automáticos de ventas/comisiones)
+    const p1 = [];
+    const fechaGasto1 = AR('m.creado_en');
+    const fechaCarga1 = `COALESCE(${AR('m.cargado_en')}, ${AR('m.creado_en')})`;
+    const col1 = porCarga ? fechaCarga1 : fechaGasto1;
+    let w1 = `${NO_ANULADO('m')} AND m.tipo = 'E' AND NOT (COALESCE(m.concepto, '') ~* '^(Venta |Gift Card|Seña|Cobro diferencia|Devolucion de diferencia|Pago (total )?comisiones)')`;
+    if (usuarioId === 'sin') w1 += ' AND m.usuario_id IS NULL';
+    else if (usuarioId !== null) { p1.push(usuarioId); w1 += ` AND m.usuario_id = $${p1.length}`; }
+    if (desde) { p1.push(desde); w1 += ` AND ${col1}::date >= $${p1.length}::date`; }
+    if (hasta) { p1.push(hasta); w1 += ` AND ${col1}::date <= $${p1.length}::date`; }
+    if (montoMin !== null) { p1.push(montoMin); w1 += ` AND m.importe >= $${p1.length}`; }
+    if (montoMax !== null) { p1.push(montoMax); w1 += ` AND m.importe <= $${p1.length}`; }
+    if (categoriaId === 'sin') w1 += ' AND m.categoria_id IS NULL';
+    else if (categoriaId) { p1.push(categoriaId); w1 += ` AND m.categoria_id = $${p1.length}`; }
+    if (formaPago) { p1.push(formaPago); w1 += ` AND LOWER(COALESCE(m.forma_pago, '')) = LOWER($${p1.length})`; }
+    if (localNum !== null) { p1.push(localNum); w1 += ` AND (m.local_id = $${p1.length} OR m.local_id IS NULL)`; }
+    if (texto) {
+      p1.push('%' + texto + '%');
+      w1 += ` AND (m.concepto ILIKE $${p1.length} OR COALESCE(m.referencia, '') ILIKE $${p1.length} OR COALESCE(cc.nombre, '') ILIKE $${p1.length} OR COALESCE(cp.nombre, '') ILIKE $${p1.length})`;
+    }
+    const sql1 = `
+      SELECT m.id::text AS id, 'finanzas' AS fuente, m.concepto, m.importe, m.local_id, m.forma_pago, m.referencia,
+             cc.nombre AS categoria_nombre, cp.nombre AS cuenta_nombre, m.usuario_id, u.nombre AS usuario_nombre,
+             to_char(${fechaGasto1}, 'YYYY-MM-DD') AS fecha_gasto,
+             to_char(${fechaCarga1}, 'YYYY-MM-DD') AS fecha_carga,
+             to_char(${fechaCarga1}, 'HH24:MI') AS hora_carga,
+             (m.cargado_en IS NOT NULL) AS carga_exacta
+      FROM movimientos_caja m
+      LEFT JOIN categorias_costo cc ON m.categoria_id = cc.id
+      LEFT JOIN cuentas_pago cp ON m.cuenta_pago_id = cp.id
+      LEFT JOIN usuarios u ON u.id = m.usuario_id
+      WHERE ${w1}
+      ORDER BY ${col1} DESC LIMIT 2000`;
+
+    // Caja de efectivo: egresos (ahí la fecha del gasto y la de carga son la misma)
+    let sql2 = null; const p2 = [];
+    const formaOk = !formaPago || formaPago.toLowerCase() === 'efectivo';
+    if (conCaja && !categoriaId && formaOk) {
+      const f2 = AR('e.creado_en');
+      let w2 = `${NO_ANULADO('e')} AND e.tipo IN ('egreso', 'E') AND COALESCE(e.destino_origen, '') <> 'Pago de comisiones'`;
+      if (usuarioId === 'sin') w2 += ' AND e.usuario_id IS NULL';
+      else if (usuarioId !== null) { p2.push(usuarioId); w2 += ` AND e.usuario_id = $${p2.length}`; }
+      if (desde) { p2.push(desde); w2 += ` AND ${f2}::date >= $${p2.length}::date`; }
+      if (hasta) { p2.push(hasta); w2 += ` AND ${f2}::date <= $${p2.length}::date`; }
+      if (montoMin !== null) { p2.push(montoMin); w2 += ` AND e.importe >= $${p2.length}`; }
+      if (montoMax !== null) { p2.push(montoMax); w2 += ` AND e.importe <= $${p2.length}`; }
+      if (localNum !== null) { p2.push(localNum); w2 += ` AND e.local_id = $${p2.length}`; }
+      if (texto) { p2.push('%' + texto + '%'); w2 += ` AND (COALESCE(e.concepto, '') ILIKE $${p2.length} OR COALESCE(e.destino_origen, '') ILIKE $${p2.length})`; }
+      sql2 = `
+        SELECT 'ef-' || e.id AS id, 'caja' AS fuente, e.concepto, e.importe, e.local_id, 'efectivo' AS forma_pago, NULL AS referencia,
+               e.destino_origen AS categoria_nombre, NULL AS cuenta_nombre, e.usuario_id, u.nombre AS usuario_nombre,
+               to_char(${f2}, 'YYYY-MM-DD') AS fecha_gasto, to_char(${f2}, 'YYYY-MM-DD') AS fecha_carga,
+               to_char(${f2}, 'HH24:MI') AS hora_carga, TRUE AS carga_exacta
+        FROM movimientos_caja_efectivo e
+        LEFT JOIN usuarios u ON u.id = e.usuario_id
+        WHERE ${w2}
+        ORDER BY e.creado_en DESC LIMIT 2000`;
+    }
+    const [r1, r2, us] = await Promise.all([
+      pool.query(sql1, p1),
+      sql2 ? pool.query(sql2, p2).catch((e) => { console.error('[gastos-cargados] caja:', e.message); return { rows: [] }; }) : Promise.resolve({ rows: [] }),
+      verTodos ? pool.query('SELECT id, nombre FROM usuarios ORDER BY nombre') : Promise.resolve({ rows: [] }),
+    ]);
+    const gastos = r1.rows.concat(r2.rows).map(g => ({ ...g, importe: num(g.importe) }));
+    res.json({ gastos, ver_todos: verTodos, usuarios: us.rows, yo: yo.id || null });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener los gastos cargados' });
   }
 };
 
@@ -1609,4 +1715,4 @@ const postRepartoSemana = async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 };
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getReparto, putRepartoConfig, postRepartoSemana, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
