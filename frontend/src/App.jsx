@@ -4872,7 +4872,7 @@ function POS({ localId, usuario, paletaActual }) {
   // así que si se mezclan productos de la oferta con otros, se avisa para cobrarlos en dos tickets
   const cuotasMezcla = (() => {
     if (preventa || medioPagoTipoActual !== "credito" || pagoMixto) return null;
-    const promosCuo = promociones.filter(pr => pr.medio_pago_tipo === "credito" && /\d+\s*cuotas/.test(pr.nombre || "") && promoCuotasOk(pr) && (!pr.local_id || Number(pr.local_id) === Number(localId)));
+    const promosCuo = promociones.filter(pr => promoVigenteHoy(pr) && pr.activo !== false && pr.medio_pago_tipo === "credito" && /\d+\s*cuotas/.test(pr.nombre || "") && promoCuotasOk(pr) && (!pr.local_id || Number(pr.local_id) === Number(localId)));
     if (!promosCuo.length) return null;
     const items = cart.filter(i => !i.es_ajuste && !i.tienda_pedido);
     const cubre = (i) => promosCuo.some(pr => pr.tipo === "combo" ? (pr.productos_ids || []).map(Number).includes(Number(i.id)) : itemAplica(pr, i));
@@ -5800,7 +5800,7 @@ function POS({ localId, usuario, paletaActual }) {
   // Combos vigentes (promos tipo combo de este local), agrupados: hay una promo por cada forma de pagar del mismo combo
   const combosPos = (() => {
     const m = new Map();
-    promociones.filter(pr => pr.tipo === "combo" && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
+    promociones.filter(pr => pr.tipo === "combo" && promoVigenteHoy(pr) && pr.activo !== false && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
       const ids = (pr.productos_ids || []).map(Number), cant = pr.combo_cantidades || {};
       const k = ids.join(",") + "|" + JSON.stringify(cant);
       const items = ids.map(id => ({ p: productos.find(x => Number(x.id) === id), n: parseInt(cant[id]) || 1 }));

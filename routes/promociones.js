@@ -207,7 +207,9 @@ router.put('/liquidacion/terminar', async (req, res) => {
   try {
     await client.query('BEGIN');
     const like = nombre.replace(/[%_\\]/g, '\\$&') + ' · %';
-    const r = await client.query(`UPDATE promociones SET activo = FALSE WHERE (nombre LIKE $1 OR nombre = $2) AND activo = TRUE RETURNING id`, [like, nombre]);
+    // En un Cyber también se apagan las promos sueltas que digan "cyber" (las creadas a mano, sin el formato "Evento · oferta")
+    const esCyber = /cyber/i.test(nombre);
+    const r = await client.query(`UPDATE promociones SET activo = FALSE WHERE (nombre LIKE $1 OR nombre = $2${esCyber ? " OR nombre ILIKE '%cyber%'" : ''}) AND activo = TRUE RETURNING id`, [like, nombre]);
     let combos = 0, cyber = false, rutina = false, mediosOff = 0;
     const tiendaLib = require('../lib/tienda');
     // Sin tienda online la tabla no existe (y un error adentro de la transacción la cancelaría entera)
