@@ -195,6 +195,51 @@ router.put('/liquidacion/extender', async (req, res) => {
   } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[extender]', e.message); res.status(500).json({ error: 'No se pudo extender: ' + e.message }); }
   finally { client.release(); }
 });
+// Terminar un evento (Cyber, liquidación...) de una vez: apaga sus ofertas (local y tienda), sus combos de la tienda,
+// el modo Cyber de la tienda y, si se eligen, las formas de pago en cuotas sin interés que se habían habilitado para
+// el evento y la promo "Rutina en cuotas". No borra nada: el resultado del evento se sigue viendo igual.
+router.put('/liquidacion/terminar', async (req, res) => {
+  const b = req.body || {};
+  const nombre = String(b.nombre || '').trim().slice(0, 80);
+  if (!nombre) return res.status(400).json({ error: 'Falta el evento' });
+  const medios = [...new Set((Array.isArray(b.medios_ids) ? b.medios_ids : []).map(Number).filter(n => Number.isInteger(n) && n > 0))];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const like = nombre.replace(/[%_\\]/g, '\\$&') + ' · %';
+    const r = await client.query(`UPDATE promociones SET activo = FALSE WHERE (nombre LIKE $1 OR nombre = $2) AND activo = TRUE RETURNING id`, [like, nombre]);
+    let combos = 0, cyber = false, rutina = false, mediosOff = 0;
+    const tiendaLib = require('../lib/tienda');
+    // Sin tienda online la tabla no existe (y un error adentro de la transacción la cancelaría entera)
+    const hayTienda = (await client.query("SELECT to_regclass('tienda_config') IS NOT NULL AS hay")).rows[0].hay;
+    const c = hayTienda ? (await client.query('SELECT ofertas, cyber FROM tienda_config WHERE id = 1')).rows[0] : null;
+    if (c) {
+      const pref = 'cy' + nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 6);
+      const o = c.ofertas || {};
+      if (Array.isArray(o.combos)) {
+        const nuevos = o.combos.map(x => (String(x.id || '').startsWith(pref) && x.activo !== false ? (combos++, { ...x, activo: false }) : x));
+        if (combos) await client.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify({ ...o, combos: nuevos })]);
+      }
+      if (/cyber/i.test(nombre) && c.cyber && tiendaLib.cyberDe(c).activo) {
+        await client.query('UPDATE tienda_config SET cyber = $1 WHERE id = 1', [JSON.stringify({ ...c.cyber, activo: false })]);
+        cyber = true;
+      }
+    }
+    if (medios.length) {
+      const m = await client.query('UPDATE medios_pago SET activo = FALSE WHERE id = ANY($1::int[]) AND activo = TRUE RETURNING id', [medios]);
+      mediosOff = m.rows.length;
+    }
+    if (b.rutina === true) {
+      await client.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS promo_rutina JSONB');
+      const rr = await client.query(`UPDATE configuracion_negocio SET promo_rutina = jsonb_set(promo_rutina, '{activo}', 'false'::jsonb)
+        WHERE promo_rutina IS NOT NULL AND COALESCE((promo_rutina->>'activo')::boolean, FALSE) = TRUE RETURNING 1`);
+      rutina = rr.rows.length > 0;
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true, ofertas: r.rows.length, combos, cyber, medios: mediosOff, rutina });
+  } catch (e) { await client.query('ROLLBACK').catch(() => {}); console.error('[terminar]', e.message); res.status(500).json({ error: 'No se pudo terminar: ' + e.message }); }
+  finally { client.release(); }
+});
 // Qué se vendió de los productos del evento, separados por cómo estaban según la rotación el día que empezó
 // (mismo criterio que Análisis de inventario › Rotación, con los 90 días anteriores al evento).
 router.get('/liquidacion/resultado', async (req, res) => {
