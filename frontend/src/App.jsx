@@ -39240,7 +39240,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         <div style={{ fontSize: 17, fontWeight: 900, fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(p.total)}</div>
                         {aRevisar(p) && <button className="btn btn-g btn-sm ped-paso" style={{ whiteSpace: "nowrap" }} title="Sale de Para revisar (queda en Cancelados)" onClick={ev => { ev.stopPropagation(); marcarRevisado(p, true); }}>✓ Ya lo vi</button>}
-                        {paso && <button className="btn btn-p btn-sm ped-paso" onClick={ev => { ev.stopPropagation(); paso[1](); }}>{paso[0]}</button>}
+                        {paso && <button className="btn btn-p btn-sm ped-paso" onClick={ev => { ev.stopPropagation(); /* Al tocar "Ya está listo" en el mismo lugar aparece "Entregar": un doble toque lo mandaba a la caja sin querer */ if (Date.now() - (window.__lumPasoPed || 0) < 1500) return; window.__lumPasoPed = Date.now(); paso[1](); }}>{paso[0]}</button>}
                         <span className="ped-flecha" aria-hidden="true">▾</span>
                       </div>
                     </div>
@@ -39318,6 +39318,11 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                                   <button className="btn btn-g btn-sm" onClick={() => setNotaPed(null)}>✕</button>
                                 </div>
                               ) : <button className="chip-btn" style={{ fontSize: 11, marginTop: 4 }} onClick={() => setNotaPed({ id: p.id, texto: "" })}>+ Agregar nota</button>}
+                              {p.estado === "entregado" && p.tipo !== "giftcard" && <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid " + temaPal.border, fontSize: 12, lineHeight: 1.5 }}>
+                                {p.entregado_en
+                                  ? <span>✅ <b>Entregado</b> · {fh(p.entregado_en)} · {p.entregado_por || "Local"} · {p.entregado_como === "aparte" ? "marcado a mano con «Ya lo cobré en la caja»" : "cobrado en la caja"}{p.venta_id ? " (venta N° " + p.venta_id + ")" : ""}</span>
+                                  : <span style={{ color: temaPal.textMuted }}>✅ Entregado{p.venta_id ? " · cobrado en la caja (venta N° " + p.venta_id + ")" : " · sin venta de la caja asociada"}. Los entregados antes de esta actualización no guardan quién ni cuándo.</span>}
+                              </div>}
                               {p.estado !== "entregado" && <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid " + temaPal.border }}>{p.contactado_en
                                 ? <span style={{ fontSize: 12, color: temaPal.green, fontWeight: 700 }}>✅ Ya le escribimos{p.contactado_por ? " (" + p.contactado_por + ")" : ""} · {fh(p.contactado_en)} <button className="chip-btn" style={{ fontSize: 10.5, marginLeft: 4 }} onClick={() => marcarContactado(p, false)}>deshacer</button></span>
                                 : <button className="chip-btn" style={{ fontSize: 11 }} onClick={() => marcarContactado(p, true)}>💬 Marcar "ya le escribimos"</button>}</div>}

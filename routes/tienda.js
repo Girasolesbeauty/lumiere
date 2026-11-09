@@ -1325,7 +1325,25 @@ router.post('/carritos/:clienteId/recordado', async (req, res) => {
 // Pedido que se cobro en la caja sin cargarlo desde la tienda: queda entregado, se devuelve el stock apartado
 // (la venta de la caja ya lo desconto), se activa el cupon de la ruleta y, si se indica, se vincula esa venta
 // (asi el cierre no cuenta dos veces lo que ya se cobro online).
+// Quién entregó cada pedido, cuándo y cómo (cobrado en la caja o marcado a mano), para poder revisarlo después
+const columnasEntregaListas = require('../lib/contexto').porNegocio(false);
+async function asegurarEntrega() {
+  if (columnasEntregaListas.get()) return;
+  await pool.query('ALTER TABLE tienda_pedidos ADD COLUMN IF NOT EXISTS entregado_en TIMESTAMP');
+  await pool.query('ALTER TABLE tienda_pedidos ADD COLUMN IF NOT EXISTS entregado_por TEXT');
+  await pool.query('ALTER TABLE tienda_pedidos ADD COLUMN IF NOT EXISTS entregado_como TEXT');
+  columnasEntregaListas.set(true);
+}
+async function nombreUsuario(req) {
+  const u = req.usuario || {};
+  if (u.nombre) return u.nombre;
+  if (!u.id) return null;
+  return ((await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre || null;
+}
+
 router.post('/pedidos/:id/cobrado-aparte', async (req, res) => {
+  await asegurarEntrega().catch(e => console.error('[tienda] columnas entrega:', e.message));
+  const por = await nombreUsuario(req);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -1342,7 +1360,8 @@ router.post('/pedidos/:id/cobrado-aparte', async (req, res) => {
       ventaId = v.id;
     }
     if (p.stock_apartado) await tienda.moverStock(client, p, +1);
-    await client.query(`UPDATE tienda_pedidos SET estado = 'entregado', stock_apartado = FALSE, pagado = TRUE, venta_id = COALESCE($2, venta_id), actualizado_en = NOW() WHERE id = $1`, [p.id, ventaId]);
+    await client.query(`UPDATE tienda_pedidos SET estado = 'entregado', stock_apartado = FALSE, pagado = TRUE, venta_id = COALESCE($2, venta_id), actualizado_en = NOW(),
+      entregado_en = NOW(), entregado_por = $3, entregado_como = 'aparte' WHERE id = $1`, [p.id, ventaId, por || 'Local']);
     if (ventaId) await client.query(`UPDATE gift_card_movimientos SET venta_id = $1 WHERE id = $2 AND venta_id IS NULL`, [ventaId, p.gc_mov_id || 0]).catch(() => {});
     await client.query(`UPDATE cupones SET activo = TRUE, fecha_vencimiento = CURRENT_DATE + 30 WHERE codigo = (SELECT cupon FROM tienda_ruleta WHERE pedido_id = $1)`, [p.id]).catch(() => {});
     await tienda.premiarReferida(client, p.id).catch(e => console.error('[tienda] premiar amiga:', e.message));
@@ -1358,8 +1377,14 @@ router.post('/pedidos/:id/cobrado-aparte', async (req, res) => {
 
 router.put('/pedidos/:id/vendido', async (req, res) => {
   try {
-    await pool.query(`UPDATE tienda_pedidos SET estado = 'entregado', venta_id = $1, pagado = TRUE, actualizado_en = NOW() WHERE id = $2 AND estado <> 'cancelado'`,
-      [parseInt(req.body && req.body.venta_id) || null, req.params.id]);
+    await asegurarEntrega().catch(e => console.error('[tienda] columnas entrega:', e.message));
+    const por = await nombreUsuario(req);
+    await pool.query(`UPDATE tienda_pedidos SET estado = 'entregado', venta_id = $1, pagado = TRUE, actualizado_en = NOW(),
+        entregado_en = CASE WHEN estado <> 'entregado' THEN NOW() ELSE entregado_en END,
+        entregado_por = CASE WHEN estado <> 'entregado' THEN $3 ELSE entregado_por END,
+        entregado_como = CASE WHEN estado <> 'entregado' THEN 'caja' ELSE entregado_como END
+      WHERE id = $2 AND estado <> 'cancelado'`,
+      [parseInt(req.body && req.body.venta_id) || null, req.params.id, por || 'Local']);
     // Lo pagado con gift card en la tienda queda atado a esa venta (el saldo ya se desconto al hacer el pedido)
     await pool.query(`UPDATE gift_card_movimientos SET venta_id = $1 WHERE id = (SELECT gc_mov_id FROM tienda_pedidos WHERE id = $2) AND venta_id IS NULL`,
       [parseInt(req.body && req.body.venta_id) || null, req.params.id]).catch(() => {});
