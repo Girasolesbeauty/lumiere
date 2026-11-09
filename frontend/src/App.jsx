@@ -3371,7 +3371,7 @@ function POS({ localId, usuario, paletaActual }) {
   const [medioPagoSel, setMedioPagoSel] = useState(null);
   const [rutinaCuotas, setRutinaCuotas] = useState(null); // promo "Rutina en cuotas" vigente
   // Las promos se vuelven a leer cada 10 minutos: las que se crean o cambian (o empiezan a medianoche) llegan sin recargar
-  useEffect(() => { const t = setInterval(() => API.get("/promociones?activas=true&con_dia=1").then(r => setPromociones(r.data || [])).catch(() => {}), 10 * 60 * 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => API.get("/promociones?activas=true&vigentes=true&con_dia=1").then(r => setPromociones(r.data || [])).catch(() => {}), 10 * 60 * 1000); return () => clearInterval(t); }, []);
   useEffect(() => {
     setCcCliente(null);
     if (medioPagoSel?.tipo !== "cuenta_corriente" || !clienteSeleccionado?.id) return;
@@ -3576,7 +3576,7 @@ function POS({ localId, usuario, paletaActual }) {
     API.get("/medios-pago").then(res => setMediosPago(res.data)).catch(() => setMediosPago([]));
     API.get("/insumos/para-pos?local_id=" + (localId || 1)).then(res => { setInsumosPos(res.data?.insumos || []); setInsumosPosActivo(res.data?.activo === true); }).catch(() => { setInsumosPos([]); setInsumosPosActivo(false); });
     API.get("/config-ticket").then(res => { if (res.data) setConfigTicket(res.data); }).catch(() => {});
-    API.get("/promociones?activas=true&con_dia=1").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
+    API.get("/promociones?activas=true&vigentes=true&con_dia=1").then(res => setPromociones(res.data || [])).catch(() => setPromociones([]));
     API.get("/promociones/rutina-cuotas").then(res => setRutinaCuotas(res.data && res.data.vigente ? res.data : null)).catch(() => setRutinaCuotas(null));
     API.get("/configuracion").then(res => {
       setModoTicket(res.data?.modo_ticket || "imprimir");
@@ -27416,6 +27416,34 @@ function CyberResultado({ temaPal }) {
     } catch (e) { setExtMsj({ ok: false, txt: e.response?.data?.error || "No se pudo extender" }); }
     setExtendiendo(false);
   };
+  // Terminar el evento: apaga sus ofertas, combos, el modo Cyber de la tienda y (si se eligen) las cuotas sin interés
+  const [terminar, setTerminar] = useState(null); // null | { medios: [...], elegidos: {id: bool}, rutina: bool|null }
+  const [terMsj, setTerMsj] = useState(null);
+  const [terminando, setTerminando] = useState(false);
+  const abrirTerminar = async () => {
+    setTerMsj(null);
+    const [m, r] = await Promise.all([API.get("/medios-pago").catch(() => ({ data: [] })), API.get("/promociones/rutina-cuotas").catch(() => ({ data: null }))]);
+    const cuotasN = (x) => parseInt(x.cuotas) > 1 ? parseInt(x.cuotas) : parseInt(((x.nombre || "").match(/(\d+)\s*cuota/i) || [])[1]) || 0;
+    const sinInt = (m.data || []).filter(x => x.activo !== false && cuotasN(x) > 1 && !x.con_interes);
+    const elegidos = {}; sinInt.forEach(x => { elegidos[x.id] = true; });
+    setTerminar({ medios: sinInt, elegidos, rutina: r.data && r.data.activo ? true : null });
+  };
+  const confirmarTerminar = async () => {
+    const ids = terminar.medios.filter(x => terminar.elegidos[x.id]).map(x => x.id);
+    if (!confirm("¿Terminar \"" + ev + "\" ahora?\n\nSe apagan sus ofertas en el local y en la tienda" + (ids.length ? ", " + ids.length + " forma" + (ids.length > 1 ? "s" : "") + " de pago en cuotas sin interés" : "") + (terminar.rutina ? " y la Rutina en cuotas" : "") + ".\nEl resultado del evento se sigue viendo igual.")) return;
+    setTerminando(true); setTerMsj(null);
+    try {
+      const r = await API.put("/promociones/liquidacion/terminar", { nombre: ev, medios_ids: ids, rutina: terminar.rutina === true });
+      const partes = [r.data.ofertas + " oferta" + (r.data.ofertas !== 1 ? "s" : "") + " apagada" + (r.data.ofertas !== 1 ? "s" : "")];
+      if (r.data.combos) partes.push(r.data.combos + " combo" + (r.data.combos > 1 ? "s" : "") + " de la tienda");
+      if (r.data.cyber) partes.push("el modo Cyber de la tienda");
+      if (r.data.medios) partes.push(r.data.medios + " forma" + (r.data.medios > 1 ? "s" : "") + " de pago en cuotas sin interés");
+      if (r.data.rutina) partes.push("la Rutina en cuotas");
+      setTerMsj({ ok: true, txt: "✓ Evento terminado: " + partes.join(", ") + ". Si el Punto de Venta está abierto, recargalo para que deje de mostrarlas." });
+      setTerminar(null);
+    } catch (e) { setTerMsj({ ok: false, txt: e.response?.data?.error || "No se pudo terminar el evento" }); }
+    setTerminando(false);
+  };
   // Siempre se ve: si no hay eventos o falla, lo dice (antes se escondía sin avisar)
   if (eventos && !eventos.length) return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -27462,6 +27490,24 @@ function CyberResultado({ temaPal }) {
             <button className="btn btn-p btn-sm" disabled={extendiendo || !nuevoHasta || nuevoHasta === d.hasta} onClick={extender}>{extendiendo ? "Extendiendo…" : "Extender"}</button>
             <span style={{ fontSize: 11.5, color: p.textMuted, flex: "1 1 220px" }}>Cambia la fecha de fin de todas las ofertas ya creadas (local y tienda), sin tener que crearlas de nuevo.</span>
             {extMsj && <div style={{ width: "100%", fontSize: 12.5, fontWeight: 700, color: extMsj.ok ? p.green : p.red }}>{extMsj.txt}</div>}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "8px 0 4px", padding: "10px 12px", borderRadius: 10, border: "1px solid " + p.red + "55", background: p.redDim }}>
+            <b style={{ fontSize: 13 }}>⏹ Terminar el evento</b>
+            {!terminar && <button className="btn btn-sm" style={{ borderColor: p.red, color: p.red }} onClick={abrirTerminar}>Terminar ahora…</button>}
+            <span style={{ fontSize: 11.5, color: p.textMuted, flex: "1 1 220px" }}>Apaga de una vez todo lo del evento: ofertas del local y de la tienda, combos, modo Cyber y las cuotas sin interés que elijas.</span>
+            {terminar && <div style={{ width: "100%", fontSize: 12.5, lineHeight: 1.6 }}>
+              {terminar.medios.length > 0 ? <>
+                <div style={{ fontWeight: 700, margin: "4px 0 2px" }}>Formas de pago en cuotas sin interés que siguen activas (las tildadas se apagan):</div>
+                {terminar.medios.map(x => <label key={x.id} style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={!!terminar.elegidos[x.id]} onChange={e => setTerminar(t => ({ ...t, elegidos: { ...t.elegidos, [x.id]: e.target.checked } }))} /> {x.nombre}</label>)}
+                <div style={{ fontSize: 11.5, color: p.textMuted }}>Destildá las que uses todo el año (por ejemplo, una promo bancaria). Después las podés volver a prender en Configuración del Negocio › Medios de pago.</div>
+              </> : <div style={{ color: p.textMuted }}>No hay formas de pago en cuotas sin interés activas.</div>}
+              {terminar.rutina !== null && <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", marginTop: 6 }}><input type="checkbox" checked={!!terminar.rutina} onChange={e => setTerminar(t => ({ ...t, rutina: e.target.checked }))} /> Apagar también la promo <b>Rutina en cuotas</b></label>}
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-sm" style={{ background: p.red, borderColor: p.red, color: "#fff" }} disabled={terminando} onClick={confirmarTerminar}>{terminando ? "Terminando…" : "Terminar el evento"}</button>
+                <button className="btn btn-sm" onClick={() => setTerminar(null)}>Cancelar</button>
+              </div>
+            </div>}
+            {terMsj && <div style={{ width: "100%", fontSize: 12.5, fontWeight: 700, color: terMsj.ok ? p.green : p.red }}>{terMsj.txt}</div>}
           </div>
           <div style={{ fontSize: 12, color: p.textMuted, margin: "6px 0 12px" }}>Del {fecha(d.desde)} al {fecha(d.hasta)}{enCurso ? " (todavía en curso: se actualiza solo)" : ""} · {d.productos.length} productos en oferta · ventas totales del período {$(d.ventas_evento.total)} en {d.ventas_evento.cantidad} ventas. Cada producto se clasifica como estaba según la rotación el día que empezó (ventas de los 90 días anteriores y su stock de ese día).</div>
           {quietos.productos > 0 && <div style={{ background: p.greenDim, border: "1px solid " + p.green, borderRadius: 12, padding: "12px 14px", marginBottom: 12, fontSize: 13.5, lineHeight: 1.55 }}>
