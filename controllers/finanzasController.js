@@ -1675,6 +1675,7 @@ async function partesReparto() {
 }
 // Lo que se separó de verdad en una parte (anotado a mano). Las semanas que se marcaron con el botón viejo "Ya separé"
 // no tienen el dato: se toma como que se separó todo lo que correspondía.
+const r2 = (x) => Math.round((parseFloat(x) || 0) * 100) / 100; // con centavos
 const separadoDe = (pt) => (pt && pt.separado !== undefined && pt.separado !== null ? num(pt.separado) : num(pt && pt.monto));
 const getReparto = async (req, res) => {
   try {
@@ -1697,11 +1698,11 @@ const getReparto = async (req, res) => {
       const sepPorK = {}; (detalle || []).forEach(pt => { sepPorK[pt.k] = separadoDe(pt); });
       // Semana ya cerrada y anotada: se ve como quedó cuando se anotó. Si no, lo que corresponde hoy según lo que entró
       const usa = detalle && !enCurso ? detalle : partes.map(pt => ({ ...pt, monto: Math.round(base * pt.pct / 100) }));
-      const partesSemana = usa.map(pt => ({ ...pt, monto: Math.round(num(pt.monto)), separado: h ? Math.round(sepPorK[pt.k] !== undefined ? sepPorK[pt.k] : 0) : 0 }));
-      const corresponde = partesSemana.reduce((t, x) => t + x.monto, 0), separado = partesSemana.reduce((t, x) => t + x.separado, 0);
-      const completa = !!h && separado >= corresponde * 0.995;
+      const partesSemana = usa.map(pt => ({ ...pt, monto: Math.round(num(pt.monto)), separado: h ? r2(sepPorK[pt.k] !== undefined ? sepPorK[pt.k] : 0) : 0 }));
+      const corresponde = partesSemana.reduce((t, x) => t + x.monto, 0), separado = r2(partesSemana.reduce((t, x) => t + x.separado, 0));
+      const completa = !!h && separado >= corresponde * 0.995 - 0.005;
       lista.push({ desde, hasta, en_curso: enCurso, ventas, comisiones, base: h && !enCurso ? Math.round(num(h.base)) : base, base_hoy: base,
-        partes: partesSemana, anotada: !!h, hecho: completa, corresponde, separado, falta: Math.max(0, corresponde - separado),
+        partes: partesSemana, anotada: !!h, hecho: completa, corresponde, separado, falta: r2(Math.max(0, corresponde - separado)),
         hecho_en: h ? h.hecho_en : null, usuario: h ? h.usuario : null });
     }
     // Cuentas: lo que tenés ahora en cada una = lo separado cada semana + lo que sumaste aparte - lo que usaste
@@ -1714,7 +1715,7 @@ const getReparto = async (req, res) => {
     movs.forEach(m => { const x = cta(m.parte_k); const v = num(m.monto); if (m.tipo === 'uso') { x.uso += v; if (m.fecha >= mesIni) x.uso_mes += v; } else x.extra += v; });
     // Lo que todavía falta separar de las semanas ya terminadas (y de la de hoy si es sábado)
     lista.filter(s2 => !s2.en_curso || s2.hasta === hoy.d).forEach(s2 => s2.partes.forEach(pt => { const x = cta(pt.k, pt.nombre, pt.pct, pt.donde); x.falta += Math.max(0, pt.monto - pt.separado); }));
-    const cuentasLista = Object.values(cuentas).map(x => ({ ...x, saldo: Math.round(x.separado_total + x.extra - x.uso), falta: Math.round(x.falta) }));
+    const cuentasLista = Object.values(cuentas).map(x => ({ ...x, separado_mes: r2(x.separado_mes), separado_total: r2(x.separado_total), uso_mes: r2(x.uso_mes), saldo: r2(x.separado_total + x.extra - x.uso), falta: r2(x.falta) }));
     res.json({ partes, semanas: lista, cuentas: cuentasLista, movimientos: movs.slice(0, 40).map(m => ({ ...m, monto: num(m.monto) })), hoy: hoy.d,
       acumulado: cuentasLista.map(x => ({ k: x.k, nombre: x.nombre, mes: x.separado_mes, total: x.separado_total })) });
   } catch (e) { console.error('[reparto]', e.message); res.status(500).json({ error: 'No se pudo calcular el reparto: ' + e.message }); }
@@ -1739,7 +1740,7 @@ const postRepartoSemana = async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) return res.status(400).json({ error: 'Falta la semana' });
     if (b.hecho === false) { await pool.query('DELETE FROM reparto_semanas WHERE inicio = $1', [inicio]); return res.json({ ok: true }); }
     const base = Math.max(0, Math.round(parseFloat(b.base) || 0));
-    const monto = (v) => Math.max(0, Math.min(1e11, Math.round(parseFloat(v) || 0)));
+    const monto = (v) => Math.max(0, Math.min(1e11, r2(v)));
     const partes = limpiarPartes(b.partes).map((pt, i) => {
       const o = (b.partes || [])[i] || {};
       const m = monto(o.monto);
@@ -1770,6 +1771,20 @@ const postRepartoMovimiento = async (req, res) => {
     res.json({ ok: true, id: r.rows[0].id });
   } catch (e) { console.error('[reparto movimiento]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 };
+const putRepartoMovimiento = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const id = parseInt(req.params.id), b = req.body || {};
+    const monto = r2(b.monto);
+    if (!id) return res.status(400).json({ error: 'Falta el movimiento' });
+    if (!(monto > 0) || monto > 1e11) return res.status(400).json({ error: 'Poné un monto mayor a cero' });
+    const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(b.fecha || '')) ? b.fecha : null;
+    const r = await pool.query('UPDATE reparto_movimientos SET monto = $2, nota = $3, fecha = COALESCE($4::date, fecha) WHERE id = $1 RETURNING id',
+      [id, monto, String(b.nota || '').trim().slice(0, 120) || null, fecha]);
+    if (!r.rows.length) return res.status(404).json({ error: 'No se encontró ese movimiento' });
+    res.json({ ok: true });
+  } catch (e) { console.error('[reparto movimiento editar]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+};
 const deleteRepartoMovimiento = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
@@ -1780,4 +1795,4 @@ const deleteRepartoMovimiento = async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
 };
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoMovimiento, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

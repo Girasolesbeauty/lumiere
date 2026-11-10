@@ -11007,13 +11007,23 @@ function RepartoSemanal({ temaPal }) {
   const fechaC = (f) => new Date(f + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" });
   const COL = ["#2471a3", "#b9770e", "#7d3c98", "#2d7a4f", "#c0392b", "#16a085", "#34495e", "#d35400"];
   // "15.000" o "15000" o "15000,50"
-  const aNum = (v) => { const n = parseFloat(String(v === undefined || v === null ? "" : v).replace(/\./g, "").replace(",", ".")); return isFinite(n) && n > 0 ? n : 0; };
+  // Entiende "1.234,56", "1234,56", "1234.56", "1.234" (mil doscientos treinta y cuatro) y "1234". Siempre con hasta 2 decimales.
+  const aNum = (v) => {
+    let t = String(v === undefined || v === null ? "" : v).trim().replace(/[^\d.,]/g, "");
+    if (!t) return 0;
+    if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");                  // la coma es el decimal, los puntos son de miles
+    else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "");                // 1.234 o 1.234.567: puntos de miles
+    else if ((t.match(/\./g) || []).length > 1) t = t.replace(/\./g, "");
+    const n = Math.round(parseFloat(t) * 100) / 100;
+    return isFinite(n) && n > 0 ? n : 0;
+  };
+  const aTexto = (n) => (n ? String(n).replace(".", ",") : "");   // lo ya guardado se muestra con coma: 1234,5
   const guardarPartes = async () => {
     try { await API.put("/finanzas/reparto/config", { partes: editar }); setEditar(null); setMsj({ ok: true, t: "✓ Porcentajes guardados" }); cargar(); }
     catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
   };
   // Valor que muestra el casillero de una parte: lo que se está escribiendo o, si no, lo que ya estaba anotado
-  const valorCasillero = (s, pt) => { const e = edit[s.desde]; if (e && e[pt.k] !== undefined) return e[pt.k]; return s.anotada && pt.separado > 0 ? String(pt.separado) : ""; };
+  const valorCasillero = (s, pt) => { const e = edit[s.desde]; if (e && e[pt.k] !== undefined) return e[pt.k]; return s.anotada && pt.separado > 0 ? aTexto(pt.separado) : ""; };
   const poner = (s, k, v) => setEdit(x => ({ ...x, [s.desde]: { ...(x[s.desde] || {}), [k]: v.replace(/[^\d.,]/g, "") } }));
   // Guarda lo separado en cada parte (todo = poner de una vez lo que correspondía en todas)
   const anotar = async (s, todo) => {
@@ -11034,7 +11044,10 @@ function RepartoSemanal({ temaPal }) {
   const guardarMov = async () => {
     if (!mov || !aNum(mov.monto)) return setMsj({ ok: false, t: "Poné cuánta plata" });
     setGuardando(true);
-    try { await API.post("/finanzas/reparto/movimiento", { parte_k: mov.k, tipo: mov.tipo, monto: aNum(mov.monto), nota: mov.nota }); setMov(null); setMsj({ ok: true, t: mov.tipo === "uso" ? "✓ Anotado: usaste esa plata de la cuenta" : "✓ Anotado: sumaste esa plata a la cuenta" }); cargar(); }
+    try {
+      if (mov.id) await API.put("/finanzas/reparto/movimiento/" + mov.id, { monto: aNum(mov.monto), nota: mov.nota });
+      else await API.post("/finanzas/reparto/movimiento", { parte_k: mov.k, tipo: mov.tipo, monto: aNum(mov.monto), nota: mov.nota });
+      setMsj({ ok: true, t: mov.id ? "✓ Movimiento corregido" : mov.tipo === "uso" ? "✓ Anotado: usaste esa plata de la cuenta" : "✓ Anotado: sumaste esa plata a la cuenta" }); setMov(null); cargar(); }
     catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
     setGuardando(false);
   };
@@ -11105,11 +11118,11 @@ function RepartoSemanal({ temaPal }) {
           ))}
         </div>
         {mov && <div className="pop-in" style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid " + p.border, background: p.bg, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13 }}>{mov.tipo === "uso" ? "Usé plata de" : "Sumé plata a"} {nombreCuenta(mov.k)}:</b>
-          <input className="inp" autoFocus style={{ width: 130 }} inputMode="decimal" placeholder="$ monto" value={mov.monto} onChange={e => setMov(m => ({ ...m, monto: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") guardarMov(); }} aria-label="Monto" />
+          <b style={{ fontSize: 13 }}>{mov.id ? "Corregir: " : ""}{mov.tipo === "uso" ? "Usé plata de" : "Sumé plata a"} {nombreCuenta(mov.k)}:</b>
+          <input className="inp" autoFocus style={{ width: 190 }} inputMode="decimal" placeholder="$ monto (ej: 15.000,50)" value={mov.monto} onChange={e => setMov(m => ({ ...m, monto: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") guardarMov(); }} aria-label="Monto" />
           <input className="inp" style={{ flex: "1 1 200px" }} maxLength={120} placeholder={mov.tipo === "uso" ? "¿En qué? (ej: pagué a IDRAET)" : "Nota (opcional)"} value={mov.nota} onChange={e => setMov(m => ({ ...m, nota: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardarMov(); }} aria-label="Nota" />
           <button className="btn btn-g btn-sm" onClick={() => setMov(null)}>Cancelar</button>
-          <button className="btn btn-p btn-sm" disabled={guardando} onClick={guardarMov}>Anotar</button>
+          <button className="btn btn-p btn-sm" disabled={guardando} onClick={guardarMov}>{mov.id ? "Guardar cambio" : "Anotar"}</button>
         </div>}
         {d.movimientos.length > 0 && <div style={{ marginTop: 10 }}>
           <button className="chip-btn" onClick={() => setVerMovs(v => !v)} aria-expanded={verMovs}>{verMovs ? "▾" : "▸"} Plata usada o sumada a mano ({d.movimientos.length})</button>
@@ -11117,6 +11130,7 @@ function RepartoSemanal({ temaPal }) {
             <span style={{ color: p.textMuted, minWidth: 54 }}>{fechaC(m.fecha)}</span>
             <span style={{ flex: 1 }}><b>{nombreCuenta(m.parte_k)}</b>{m.nota ? " · " + m.nota : ""}{m.usuario ? <span style={{ color: p.textMuted, fontSize: 11.5 }}> · {m.usuario}</span> : null}</span>
             <b style={{ color: m.tipo === "uso" ? p.red : p.green, fontVariantNumeric: "tabular-nums" }}>{m.tipo === "uso" ? "−" : "+"}{$(m.monto)}</b>
+            <button className="icon-btn" onClick={() => { setMov({ id: m.id, k: m.parte_k, tipo: m.tipo, monto: aTexto(m.monto), nota: m.nota || "" }); window.scrollTo({ top: 0, behavior: "smooth" }); }} aria-label="Corregir movimiento" title="Corregir el monto o la nota">✏️</button>
             <button className="icon-btn peligro" onClick={() => { if (window.confirm("¿Borrar este movimiento?")) borrarMov(m.id); }} aria-label="Borrar movimiento">✕</button>
           </div>)}</div>}
         </div>}
@@ -11142,12 +11156,12 @@ function RepartoSemanal({ temaPal }) {
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: "0 12px", alignItems: "center", fontSize: 11.5, color: p.textMuted, padding: "0 0 4px" }}>
                   <span /><span style={{ textAlign: "right" }}>Corresponde</span><span style={{ textAlign: "right", minWidth: 130 }}>Separé</span>
                 </div>
-                {s.partes.map(pt => { const v = aNum(valorCasillero(s, pt)), falta = Math.round(pt.monto - v); return (
+                {s.partes.map(pt => { const v = aNum(valorCasillero(s, pt)), falta = Math.round((pt.monto - v) * 100) / 100; return (
                   <div key={pt.k} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: "0 12px", alignItems: "center", padding: "7px 0", borderTop: "1px solid " + p.border, fontSize: 13.5 }}>
                     <span><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: colorDe(pt.k), marginRight: 6 }} />{pt.nombre} <span style={{ color: p.textMuted, fontSize: 12 }}>{pt.pct}%{pt.donde ? " → " + pt.donde : ""}</span></span>
                     <b style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{$(pt.monto)}</b>
                     <span style={{ minWidth: 130, textAlign: "right" }}>
-                      <input className="inp" style={{ width: 120, textAlign: "right" }} inputMode="decimal" placeholder="$ 0" aria-label={"Separé en " + pt.nombre} value={valorCasillero(s, pt)}
+                      <input className="inp" style={{ width: 140, textAlign: "right" }} inputMode="decimal" placeholder="$ 0,00" aria-label={"Separé en " + pt.nombre} value={valorCasillero(s, pt)}
                         onChange={e => poner(s, pt.k, e.target.value)} onKeyDown={e => { if (e.key === "Enter") anotar(s, false); }} />
                       <span style={{ display: "block", fontSize: 11, color: falta > 0 ? p.warn : p.green }}>{v === 0 && !s.anotada ? "" : falta > 0 ? "faltan " + $(falta) : falta < 0 ? "de más " + $(-falta) : "✓ completo"}</span>
                     </span>
