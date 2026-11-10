@@ -16920,6 +16920,9 @@ function ConfiguracionNegocio({ paletaActual }) {
       ok("Medio de pago guardado!");
     } catch (e) { err(e); }
   };
+  const activarMedio = async (m) => {
+    try { await API.put("/medios-pago/" + m.id, { activo: true }); cargarMedios(); ok("\"" + m.nombre + "\" activado: ya aparece en el Punto de Venta"); } catch (e) { err(e); }
+  };
   const desactivarMedio = async (m) => {
     if (!confirm("Desactivar \"" + m.nombre + "\"? Ya no va a aparecer para elegir en ventas nuevas.")) return;
     try { await API.delete("/medios-pago/" + m.id); cargarMedios(); } catch (e) { err(e); }
@@ -17089,10 +17092,11 @@ function ConfiguracionNegocio({ paletaActual }) {
                   <td>{m.comision}%</td>
                   <td>{parseFloat(m.descuento_pct) > 0 ? <b style={{ color: p.green }}>{parseFloat(m.descuento_pct)}% off</b> : <span style={{ color: p.textMuted }}>—</span>}</td>
                   <td>{m.disponible_online !== false ? "Si" : "No"}</td>
-                  <td>{m.activo ? "Si" : "No"}</td>
+                  <td>{m.activo ? "Si" : <b style={{ color: "#c0392b" }}>No</b>}</td>
                   <td>
                     <button className="btn btn-sm" onClick={() => setEditandoMedio({ ...m })}>Editar</button>
-                    {m.activo && <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => desactivarMedio(m)}>Desactivar</button>}
+                    {m.activo ? <button className="btn btn-sm" style={{ color: "#c0392b" }} onClick={() => desactivarMedio(m)}>Desactivar</button>
+                      : <button className="btn btn-sm btn-p" onClick={() => activarMedio(m)}>Activar</button>}
                   </td>
                 </tr>
               ))}
