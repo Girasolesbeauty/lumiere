@@ -1681,7 +1681,8 @@ const getReparto = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
     const partes = await partesReparto();
-    const semanas = Math.min(26, Math.max(1, parseInt(req.query.semanas) || 8));
+    // Solo se muestran la semana pasada y la actual (lo anterior ya no aparece; el saldo de cada cuenta igual lo cuenta)
+    const semanas = Math.min(26, Math.max(1, parseInt(req.query.semanas) || 2));
     // Semanas de domingo a sábado (hora de Argentina): la actual y las anteriores
     const hoy = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d, EXTRACT(DOW FROM ${AR('NOW()')})::int AS dow`)).rows[0];
     const d0 = new Date(hoy.d + 'T12:00:00Z'); d0.setUTCDate(d0.getUTCDate() - hoy.dow);
