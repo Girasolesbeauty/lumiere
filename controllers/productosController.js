@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const { IMPORTE_VI, SUBTOTAL_VI } = require('../lib/importeReal');
 const { porNegocio } = require('../lib/contexto');
+const liquidacion = require('../lib/liquidacion');
 
 // Agrega campos calculados de disponibilidad real (stock - reservado de preventas) sin tocar el resto.
 const conDisponible = (rows, local) => rows.map(p => {
@@ -414,15 +415,18 @@ async function recalcularMinimos(diasSeguridad = 7) {
   const DIAS_MINIMOS_CONFIABLES = 14;
   const result = await pool.query(`
     SELECT vi.producto_id, SUM(vi.cantidad) AS total_vendido, MIN(v.creado_en) AS primera_venta,
-           MAX(COALESCE(p.lead_time_dias, 7)) AS lead_time
+           MAX(COALESCE(p.lead_time_dias, 7)) AS lead_time, MAX(p.categoria) AS categoria
     FROM venta_items vi
     JOIN ventas v ON v.id = vi.venta_id
     JOIN productos p ON p.id = vi.producto_id
     WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
       AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
       AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
+      AND NOT (${liquidacion.sqlEsLiquidacion('vi', 'v')})
     GROUP BY vi.producto_id
   `);
+  // Las ventas de liquidación (Cyber...) no cuentan como ritmo normal: ni lo vendido ni los días de la liquidación
+  const evs = await liquidacion.eventos();
 
   let actualizados = 0;
   let omitidosPocaHistoria = 0;
@@ -431,7 +435,8 @@ async function recalcularMinimos(diasSeguridad = 7) {
     const totalVendido = parseFloat(row.total_vendido) || 0;
     if (totalVendido <= 0) continue;
     const diasDesdePrimeraVenta = Math.max(1, Math.ceil((Date.now() - new Date(row.primera_venta).getTime()) / (1000 * 60 * 60 * 24)));
-    const diasReales = Math.min(DIAS_HISTORIAL, diasDesdePrimeraVenta);
+    const enLiq = liquidacion.diasEnLiquidacion(evs, { id: row.producto_id, categoria: row.categoria }, Date.now() - DIAS_HISTORIAL * 864e5, Date.now());
+    const diasReales = Math.max(1, Math.min(DIAS_HISTORIAL, diasDesdePrimeraVenta) - enLiq);
     if (diasReales < DIAS_MINIMOS_CONFIABLES) { omitidosPocaHistoria++; continue; }
     const ritmo = totalVendido / diasReales;
     const nuevoMinimo = Math.max(1, Math.ceil(ritmo * (parseInt(row.lead_time) || 7)) + Math.ceil(ritmo * DIAS_SEGURIDAD));
@@ -444,7 +449,24 @@ async function recalcularMinimos(diasSeguridad = 7) {
       detalle.push({ producto: upd.rows[0].nombre, stock_minimo_nuevo: upd.rows[0].stock_minimo, dias_usados: diasReales });
     }
   }
-  return { productos_actualizados: actualizados, omitidos_por_poca_historia: omitidosPocaHistoria, detalle };
+  // Lo que solo se vendió en una liquidación no tiene un ritmo normal: el stock mínimo que le había quedado por esas ventas se saca
+  // (si no, salta "stock bajo" de algo que estaba parado y se liquidó)
+  let reseteadosLiquidacion = 0;
+  try {
+    const liq = await pool.query(`
+      SELECT DISTINCT vi.producto_id FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+      WHERE v.creado_en >= NOW() - INTERVAL '${DIAS_HISTORIAL} days'
+        AND COALESCE(v.anulada, FALSE) = FALSE AND COALESCE(v.canal, '') <> 'prueba'
+        AND (COALESCE(v.es_preventa, FALSE) = FALSE OR v.estado_pago = 'confirmada')
+        AND (${liquidacion.sqlEsLiquidacion('vi', 'v')})`);
+    const conNormales = new Set(result.rows.map(r => r.producto_id));
+    const ids = liq.rows.map(r => r.producto_id).filter(id => !conNormales.has(id));
+    if (ids.length) {
+      const rr = await pool.query('UPDATE productos SET stock_minimo = 0 WHERE id = ANY($1::int[]) AND activo = TRUE AND COALESCE(stock_minimo, 0) > 0 RETURNING id', [ids]);
+      reseteadosLiquidacion = rr.rows.length;
+    }
+  } catch (e) { console.error('stock minimo de liquidaciones:', e.message); }
+  return { productos_actualizados: actualizados, omitidos_por_poca_historia: omitidosPocaHistoria, reseteados_por_liquidacion: reseteadosLiquidacion, detalle };
 }
 
 const recalcularStockMinimo = async (req, res) => {
@@ -515,7 +537,7 @@ const getRotacion = async (req, res) => {
     const r = await pool.query(`
       SELECT p.id, p.nombre, p.marca, p.categoria, COALESCE(p.costo, 0) AS costo, COALESCE(p.precio, 0) AS precio,
              COALESCE(p.lead_time_dias, 7) AS lead_time, pr.nombre AS proveedor, ${colStock} AS stock,
-             COALESCE(s.unidades, 0) AS unidades, COALESCE(s.monto, 0) AS monto, u.ultima AS ultima_venta,
+             COALESCE(s.unidades, 0) AS unidades, COALESCE(s.monto, 0) AS monto, u.ultima AS ultima_venta, COALESCE(l.unidades, 0) AS liq_unidades,
              GREATEST(${columnaCreadoProducto.get() ? 'p.creado_en' : 'NULL::timestamp'}, ${hayIngresos ? 'pi.primero' : 'NULL::timestamp'}) AS llego_en
       FROM productos p
       LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
@@ -523,8 +545,16 @@ const getRotacion = async (req, res) => {
         SELECT vi.producto_id, SUM(vi.cantidad) AS unidades, SUM(${IMPORTE_VI}) AS monto
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
         WHERE ${VALIDA} AND v.creado_en >= NOW() - INTERVAL '${dias} days' ${filtroLocal}
+          AND NOT (${liquidacion.sqlEsLiquidacion('vi', 'v')})
         GROUP BY vi.producto_id
       ) s ON s.producto_id = p.id
+      LEFT JOIN (
+        SELECT vi.producto_id, SUM(vi.cantidad) AS unidades
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+        WHERE ${VALIDA} AND v.creado_en >= NOW() - INTERVAL '${dias} days' ${filtroLocal}
+          AND (${liquidacion.sqlEsLiquidacion('vi', 'v')})
+        GROUP BY vi.producto_id
+      ) l ON l.producto_id = p.id
       LEFT JOIN (
         SELECT vi.producto_id, MAX(v.creado_en) AS ultima
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
@@ -536,7 +566,8 @@ const getRotacion = async (req, res) => {
         FROM ordenes_ingreso_items oii JOIN ordenes_ingreso oi ON oi.id = oii.orden_id
         GROUP BY oii.producto_id
       ) pi ON pi.producto_id = p.id` : ''}
-      WHERE p.activo = TRUE AND (${colStock} > 0 OR COALESCE(s.unidades, 0) > 0)`);
+      WHERE p.activo = TRUE AND (${colStock} > 0 OR COALESCE(s.unidades, 0) > 0 OR COALESCE(l.unidades, 0) > 0)`);
+    const evsLiq = await liquidacion.eventos();
 
     const productos = r.rows.map(row => {
       const stock = parseFloat(row.stock) || 0, unidades = parseFloat(row.unidades) || 0;
@@ -545,7 +576,10 @@ const getRotacion = async (req, res) => {
       const edad = row.llego_en ? Math.max(0, Math.floor((Date.now() - new Date(row.llego_en).getTime()) / 86400000)) : null;
       const enEvaluacion = edad !== null && edad < diasEvaluacion;
       // El ritmo de un producto nuevo se mide sobre los dias que lleva, no sobre todo el periodo
-      const diasVenta = edad !== null && edad < dias ? Math.max(7, edad) : dias;
+      const enLiq = liquidacion.diasEnLiquidacion(evsLiq, { id: row.id, categoria: row.categoria }, Date.now() - dias * 864e5, Date.now());
+      const liqUnidades = parseFloat(row.liq_unidades) || 0;
+      // Los días de liquidación no cuentan, igual que las ventas hechas con ese descuento
+      const diasVenta = Math.max(7, (edad !== null && edad < dias ? Math.max(7, edad) : dias) - enLiq);
       const ritmo = unidades / diasVenta;
       const diasStock = ritmo > 0 ? stock / ritmo : null;
       let estado;
@@ -568,6 +602,8 @@ const getRotacion = async (req, res) => {
         // Descuento maximo que todavia recupera el costo (para liquidar sin perder)
         descuento_max: precio > 0 && costo > 0 && precio > costo ? Math.floor((1 - costo / precio) * 100) : 0,
         reponer: stock <= 0 ? unidades > 0 : (diasStock !== null && diasStock <= leadTime + 7),
+        // Se vendió en una liquidación (Cyber...): esas ventas no cuentan para el ritmo
+        liquidado: liqUnidades > 0 ? { unidades: liqUnidades, evento: liquidacion.eventoDe(evsLiq, { id: row.id, categoria: row.categoria }) } : null,
       };
     });
 
@@ -644,7 +680,7 @@ const getSugerenciaCompra = async (req, res) => {
     const leadOverride = req.query.lead_time !== undefined && req.query.lead_time !== '' ? Math.max(0, parseInt(req.query.lead_time) || 0) : null;
 
     const hayVariantes = !!(await pool.query(`SELECT to_regclass('producto_variantes') AS t`)).rows[0].t;
-    const [provRes, prodRes, ventasRes, varRes, anioRes] = await Promise.all([
+    const [provRes, prodRes, ventasRes, varRes, anioRes, liqRes, evs] = await Promise.all([
       proveedor_id ? pool.query('SELECT id, nombre, whatsapp, telefono, email FROM proveedores WHERE id = $1', [proveedor_id]) : { rows: [] },
       pool.query(`
         SELECT id, nombre, marca, codigo_barras, categoria, COALESCE(costo, 0) AS costo, COALESCE(precio, 0) AS precio,
@@ -660,6 +696,7 @@ const getSugerenciaCompra = async (req, res) => {
         SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
         WHERE ${filtroP} AND v.creado_en >= NOW() - ($2 || ' days')::interval AND ${VENTA_VALIDA_SQL}
+          AND NOT (${liquidacion.sqlEsLiquidacion('vi', 'v')})
         GROUP BY vi.producto_id, v.local_id`, [valorP, diasAnalisis]),
       // Productos con variantes (talles, colores): su stock esta en cada variante
       !hayVariantes ? { rows: [] } : pool.query(`
@@ -672,7 +709,16 @@ const getSugerenciaCompra = async (req, res) => {
         SELECT vi.producto_id, v.local_id, SUM(vi.cantidad) AS vendido, MIN(v.creado_en) AS primera, MAX(v.creado_en) AS ultima
         FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
         WHERE ${filtroP} AND v.creado_en >= NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA_SQL}
+          AND NOT (${liquidacion.sqlEsLiquidacion('vi', 'v')})
         GROUP BY vi.producto_id, v.local_id`, [valorP]),
+      // Lo que se vendió en liquidaciones (Cyber...): no cuenta para el ritmo, pero se muestra para que se entienda
+      pool.query(`
+        SELECT vi.producto_id, SUM(CASE WHEN v.creado_en >= NOW() - ($2 || ' days')::interval THEN vi.cantidad ELSE 0 END) AS periodo, SUM(vi.cantidad) AS anio
+        FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id JOIN productos p ON p.id = vi.producto_id
+        WHERE ${filtroP} AND v.creado_en >= NOW() - INTERVAL '365 days' AND ${VENTA_VALIDA_SQL}
+          AND (${liquidacion.sqlEsLiquidacion('vi', 'v')})
+        GROUP BY vi.producto_id`, [valorP, diasAnalisis]),
+      liquidacion.eventos(),
     ]);
     if (proveedor_id && provRes.rows.length === 0) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
@@ -696,6 +742,8 @@ const getSugerenciaCompra = async (req, res) => {
     });
     const variantes = {};
     varRes.rows.forEach(r => { variantes[r.producto_id] = r; });
+    const liqPorProd = {};
+    liqRes.rows.forEach(r => { liqPorProd[r.producto_id] = { periodo: parseFloat(r.periodo) || 0, anio: parseFloat(r.anio) || 0 }; });
 
     // Demora del proveedor: la que se eligio en pantalla, o la mas comun entre sus productos
     const conteoLead = {};
@@ -705,7 +753,11 @@ const getSugerenciaCompra = async (req, res) => {
     const productos = prodRes.rows.map(p => {
       const leadTime = leadOverride !== null ? leadOverride : parseInt(p.lead_time_dias);
       // Un producto nuevo se mide sobre los dias que lleva cargado, no sobre todo el periodo
-      const diasVenta = Math.max(7, Math.min(diasAnalisis, parseInt(p.dias_vida) || diasAnalisis));
+      // Los días de liquidación no cuentan (igual que lo vendido en ellos): el ritmo es el de los días normales
+      const refProd = { id: p.id, categoria: p.categoria };
+      const diasEvPer = liquidacion.diasEnLiquidacion(evs, refProd, Date.now() - diasAnalisis * 864e5, Date.now());
+      const diasEvAnio = liquidacion.diasEnLiquidacion(evs, refProd, Date.now() - 365 * 864e5, Date.now());
+      const diasVenta = Math.max(7, Math.min(diasAnalisis, parseInt(p.dias_vida) || diasAnalisis) - diasEvPer);
       const vv = variantes[p.id];
       const stock = {
         1: parseInt(p.stock_rg) + (vv ? parseInt(vv.stock_rg) || 0 : 0),
@@ -715,7 +767,7 @@ const getSugerenciaCompra = async (req, res) => {
       const vendAnio = vendidosAnio[p.id] || { 1: 0, 2: 0 };
       // Dias del año en que se pudo vender: desde que se cargo o desde su primera venta (si se cargo despues)
       const desdePrimera = vendAnio.primera ? Math.ceil((Date.now() - vendAnio.primera) / 864e5) : 0;
-      const diasAnio = Math.max(diasVenta, Math.min(365, Math.max(parseInt(p.dias_vida_anio) || 365, desdePrimera)));
+      const diasAnio = Math.max(diasVenta, Math.min(365, Math.max(parseInt(p.dias_vida_anio) || 365, desdePrimera)) - diasEvAnio);
       // Ritmo "cuando habia stock": lo vendido en el año sobre los dias entre la primera y la ultima venta
       // (si estuvo agotado meses, esos meses no cuentan). Minimo 60 dias para no exagerar con pocas ventas.
       const ventana = (rg) => rg && rg.primera && rg.ultima ? Math.min(diasAnio, Math.max(60, Math.ceil((rg.ultima - rg.primera) / 864e5) + 7)) : diasAnio;
@@ -759,6 +811,8 @@ const getSugerenciaCompra = async (req, res) => {
         ...total, vendido_anio: vendAnio[1] + vendAnio[2],
         por_local: porLocal,
         sin_ventas: vend[1] + vend[2] === 0,
+        // Se liquidó en un evento (Cyber...): esas ventas no cuentan para pedir de nuevo
+        liquidado: liqPorProd[p.id] && liqPorProd[p.id].anio > 0 ? { unidades_periodo: liqPorProd[p.id].periodo, unidades_anio: liqPorProd[p.id].anio, evento: liquidacion.eventoDe(evs, refProd) } : null,
         dias_anio: diasAnio,
       };
     });

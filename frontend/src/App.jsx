@@ -6953,7 +6953,7 @@ function Rotacion({ localId, paletaActual }) {
                       <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.stock}</td>
                       <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{x.dias_stock === null ? "—" : x.dias_stock}</td>
                       <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>{$(x.valor_costo)}</td>
-                      <td style={{ whiteSpace: "nowrap" }}><span className={"tag " + e.cls}>{e.i} {e.l}</span></td>
+                      <td style={{ whiteSpace: "nowrap" }}><span className={"tag " + e.cls}>{e.i} {e.l}</span>{x.liquidado && <span className="tag tag-warn" style={{ marginLeft: 4 }} title={"Se vendieron " + x.liquidado.unidades + (x.liquidado.unidades === 1 ? " unidad" : " unidades") + " en " + x.liquidado.evento + ", con mucho descuento. Esas ventas no cuentan como rotación normal: la clasificación se hizo sin ellas."}>🏷️ Liquidado · {x.liquidado.unidades}</span>}</td>
                       <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                         {x.reponer ? <b style={{ color: p.red }}>Reponer{x.stock <= 0 ? " ya" : ""}</b>
                           : (x.estado === "parado" || x.estado === "lento") ? <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}><button className="mini-chip" title="Ponerlo como oferta del día en la tienda online" onClick={() => ponerEnOferta(x)}>⚡ Poner en oferta</button>{x.descuento_max > 0 ? <span title="Descuento máximo que todavía recupera lo que pagaste">Liquidar hasta <b>{x.descuento_max}%</b> off</span> : "Liquidar"}</span>
@@ -7877,7 +7877,8 @@ function Compras({ localId, usuario, paletaActual, tabInicial, verProveedores = 
                                   {pr.marca && <span>{pr.marca}</span>}
                                   {d.necesita_pedido && <span className="tag tag-bad">urgente</span>}
                                   {d.agotado && <span className="tag tag-bad" title="Sin stock y sin nada en camino">agotado</span>}
-                                  {pr.sin_ventas && !d.agotado && <span className="tag tag-neutral">sin ventas</span>}
+                                  {pr.sin_ventas && !d.agotado && <span className="tag tag-neutral">{pr.liquidado ? "solo en liquidación" : "sin ventas"}</span>}
+                                  {pr.liquidado && <span className="tag tag-warn" title={"Se vendieron " + pr.liquidado.unidades_anio + (pr.liquidado.unidades_anio === 1 ? " unidad" : " unidades") + " en " + pr.liquidado.evento + ", con mucho descuento. Esas ventas no cuentan como ritmo normal, por eso no se sugiere pedirlo de nuevo."}>🏷️ liquidado · {pr.liquidado.evento}</span>}
                                   {d.agotado && !d.vendido_anio && <span className="tag tag-neutral" title="No se vendió en el último año: poné a mano cuánto pedir">sin ventas en el año</span>}
                                   {pr.tiene_variantes && <span className="tag tag-neutral" title="El stock incluye todas sus variantes">{pr.cantidad_variantes} variantes</span>}
                                   {pr.dias_venta < sug.dias_analisis && <span className="tag tag-neutral" title={"Producto nuevo: se midió sobre " + pr.dias_venta + " días"}>nuevo</span>}
