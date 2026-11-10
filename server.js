@@ -39,6 +39,7 @@ app.use('/api', require('./middleware/auth'));
 
 // Rutas
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/productos', require('./routes/productos'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/pedidos', require('./routes/pedidos'));

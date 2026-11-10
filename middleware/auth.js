@@ -9,6 +9,7 @@ function rutaLibre(req) {
   if (req.method === 'OPTIONS') return true;
   const p = req.path;
   if (p === '/auth/login' || p === '/auth/registro' || p === '/auth/canje') return true;
+  if (p === '/pagos/webhook') return true; // avisos de Mercado Pago (se verifican por la firma y consultando a Mercado Pago)
   if (p === '/portal' || p.startsWith('/portal/')) return true;
   if (p === '/legal' || p === '/legal/') return true; // los terminos se pueden leer sin sesion
   if (p.startsWith('/tienda-publica/') || p === '/tienda-dominio') return true; // la tienda web la ve cualquiera (el negocio sale de la direccion)
@@ -36,7 +37,7 @@ module.exports = function exigirSesion(req, res, next) {
     const estado = negocios.resumen(neg).estado;
     if (estado === 'suspendido') return res.status(403).json({ error: 'La cuenta de este negocio está suspendida. Escribinos a hola@sistemalumiere.com', suspendido: true });
     // Prueba gratis terminada: se puede entrar y ver todo, pero no cargar ni modificar nada
-    if (estado === 'vencido' && req.method !== 'GET' && req.path !== '/auth/terminos/aceptar') {
+    if (estado === 'vencido' && req.method !== 'GET' && req.path !== '/auth/terminos/aceptar' && !req.path.startsWith('/pagos/')) {
       return res.status(402).json({ error: 'Tu prueba gratis terminó. Podés seguir viendo tus datos; para volver a cargar y vender hay que activar la cuenta. Escribinos a hola@sistemalumiere.com', prueba_vencida: true });
     }
     enNegocio({ id: neg.id, schema: neg.schema }, next);

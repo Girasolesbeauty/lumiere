@@ -41193,15 +41193,132 @@ function PanelPlataforma({ paletaActual }) {
 
 // Aviso de la prueba gratis: cuantos dias quedan, o que ya termino (solo lectura)
 function AvisoPrueba({ negocio, p }) {
-  if (!negocio || (negocio.estado !== "prueba" && negocio.estado !== "vencido")) return null;
+  if (!negocio) return null;
+  const abrirPago = () => window.dispatchEvent(new Event("lumiere-abrir-pago"));
+  // Cuenta paga a la que le falló el cobro: unos días de gracia para resolverlo
+  if (negocio.estado === "activo" && negocio.en_gracia) return (
+    <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "9px 14px", borderRadius: 10, marginBottom: 12, fontSize: 13, fontWeight: 600, background: p.redDim, border: "1px solid " + p.red, color: p.text }}>
+      <span>⚠️ No pudimos cobrar la renovación de tu plan. Revisá tu tarjeta o pagá de nuevo para no quedarte sin poder cargar ni vender.</span>
+      <button type="button" className="btn btn-p btn-sm" style={{ marginLeft: "auto" }} onClick={abrirPago}>Pagar ahora</button>
+    </div>
+  );
+  if (negocio.estado !== "prueba" && negocio.estado !== "vencido") return null;
   const vencido = negocio.estado === "vencido";
-  const wa = "https://wa.me/5492964488770?text=" + encodeURIComponent("Hola, quiero activar mi cuenta de Lumiere (" + negocio.nombre + ")");
   const d = negocio.dias_prueba;
   return (
     <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "9px 14px", borderRadius: 10, marginBottom: 12, fontSize: 13, fontWeight: 600,
       background: vencido ? p.redDim : p.accentDim, border: "1px solid " + (vencido ? p.red : "var(--acento)"), color: p.text }}>
-      <span>{vencido ? "⏰ Tu prueba gratis terminó: podés ver todo, pero no cargar ni vender hasta activar la cuenta." : "🎁 Estás en la prueba gratis: " + (d <= 0 ? "termina hoy" : d === 1 ? "te queda 1 día" : "te quedan " + d + " días") + ", con todo incluido."}</span>
-      <a href={wa} target="_blank" rel="noopener" className="btn btn-p btn-sm" style={{ textDecoration: "none", marginLeft: "auto" }}>Activar mi cuenta</a>
+      <span>{vencido ? (negocio.estuvo_pago ? "⏰ Tu plan venció: podés ver todo, pero no cargar ni vender hasta renovarlo." : "⏰ Tu prueba gratis terminó: podés ver todo, pero no cargar ni vender hasta activar la cuenta.") : "🎁 Estás en la prueba gratis: " + (d <= 0 ? "termina hoy" : d === 1 ? "te queda 1 día" : "te quedan " + d + " días") + ", con todo incluido."}</span>
+      <button type="button" className="btn btn-p btn-sm" style={{ marginLeft: "auto" }} onClick={abrirPago}>{vencido ? "Pagar y seguir usando" : "Activar mi cuenta"}</button>
+    </div>
+  );
+}
+
+// VENTANA DE PAGO: elegir plan y período y pagar con Mercado Pago (tarjeta de crédito o débito, cobro automático en cada período).
+// Salta sola cuando se termina la prueba. Al volver de Mercado Pago confirma el pago y abre la cuenta sin que haya que hacer nada más.
+const PLANES_VENTANA = {
+  esencial: { color: "#3aa0ff", para: "Para el local chico", items: ["Hasta 3 usuarios · 1 local", "Punto de venta y facturación ARCA", "Inventario, caja y cierre de caja"] },
+  profesional: { color: "#f5b400", para: "Para el negocio que crece", items: ["Hasta 8 usuarios · hasta 2 locales", "Qué pedir, compras y proveedores", "Finanzas, comisiones y postventa por WhatsApp"] },
+  estrategico: { color: "#a970ff", para: "Para decidir con datos", items: ["Usuarios ilimitados · hasta 5 locales", "Rotación y toma de decisiones", "Tienda online incluida"] },
+};
+function VentanaPago({ negocio, onCerrar, onActualizar, p }) {
+  const [d, setD] = useState(null);
+  const [plan, setPlan] = useState("profesional");
+  const [periodo, setPeriodo] = useState("mes");
+  const [error, setError] = useState("");
+  const [yendo, setYendo] = useState(false);
+  // "confirmando": volvió de Mercado Pago y todavía no se vio el pago · "listo": ya está activa
+  const [fase, setFase] = useState(() => { try { return /pago=volvio/.test(window.location.search) ? "confirmando" : ""; } catch (e) { return ""; } });
+  useEffect(() => { API.get("/pagos/planes").then(r => setD(r.data)).catch(() => setError("No pudimos cargar los planes. Probá de nuevo en un momento.")); }, []);
+  // Al volver de Mercado Pago el aviso del cobro puede tardar unos segundos: se mira cada 3 segundos hasta 2 minutos
+  useEffect(() => {
+    if (fase !== "confirmando") return;
+    try { window.history.replaceState({}, "", window.location.pathname); } catch (e) {}
+    let intentos = 0, vivo = true;
+    const t = setInterval(async () => {
+      intentos++;
+      try {
+        const r = await API.get("/auth/mi-negocio");
+        if (vivo && r.data && r.data.estado === "activo" && !r.data.en_gracia) { clearInterval(t); setFase("listo"); onActualizar && onActualizar(); return; }
+      } catch (e) {}
+      if (intentos >= 40) { clearInterval(t); if (vivo) setFase("tarda"); }
+    }, 3000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [fase]);
+  const $m = (n) => "$" + Number(n).toLocaleString("es-AR");
+  const wa = "https://wa.me/5492964488770?text=" + encodeURIComponent("Hola, quiero activar mi cuenta de Lumiere (" + (negocio && negocio.nombre || "") + ")");
+  const pagar = async () => {
+    setError(""); setYendo(true);
+    try { const r = await API.post("/pagos/iniciar", { plan, periodo }); window.location.href = r.data.url; }
+    catch (e) { setError(e.response?.data?.error || "No pudimos abrir el pago. Probá de nuevo."); setYendo(false); }
+  };
+  const vencido = negocio && negocio.estado === "vencido";
+  const caja = { maxWidth: 760, width: "100%", maxHeight: "94vh", overflowY: "auto", background: p.card, textAlign: "left" };
+  if (fase === "confirmando" || fase === "tarda" || fase === "listo") return (
+    <div className="pos-overlay" style={{ zIndex: 450 }} role="alertdialog" aria-modal="true" aria-label="Confirmando el pago">
+      <div className="card pop-in" style={{ ...caja, maxWidth: 440, textAlign: "center" }}>
+        <div style={{ fontSize: 46 }}>{fase === "listo" ? "🎉" : fase === "tarda" ? "⏳" : "🔄"}</div>
+        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{fase === "listo" ? "¡Listo! Tu cuenta está activa" : fase === "tarda" ? "Todavía no vemos el pago" : "Estamos confirmando tu pago…"}</div>
+        <div style={{ fontSize: 14, color: p.textMuted, margin: "8px 0 16px" }}>
+          {fase === "listo" ? "Ya podés seguir usando Lumiere como siempre. Gracias por confiar en nosotros." : fase === "tarda" ? "A veces Mercado Pago demora unos minutos. Si ya pagaste, tu cuenta se abre sola apenas llega el aviso; si pasa mucho tiempo, escribinos." : "Un momento: apenas Mercado Pago lo confirma se abre tu cuenta."}
+        </div>
+        {fase === "listo" ? <button className="btn btn-p" onClick={onCerrar}>Seguir</button>
+          : fase === "tarda" ? <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}><button className="btn btn-g" onClick={onCerrar}>Cerrar</button><a className="btn btn-p" style={{ textDecoration: "none" }} href={wa} target="_blank" rel="noopener">Escribinos</a></div>
+          : <div className="skel" style={{ height: 8, borderRadius: 4 }} />}
+      </div>
+    </div>
+  );
+  return (
+    <div className="pos-overlay" style={{ zIndex: 450 }} role="dialog" aria-modal="true" aria-label="Activar tu plan" onClick={onCerrar}>
+      <div className="card pop-in" style={caja} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>{vencido ? (negocio.estuvo_pago ? "Renová tu plan para seguir" : "Tu prueba terminó 🎁") : "Activá tu Lumiere"}</div>
+            <div style={{ fontSize: 13.5, color: p.textMuted, marginTop: 4 }}>Elegí tu plan y pagá con tarjeta de crédito o débito. Se activa en el momento y tus datos quedan como están.</div>
+          </div>
+          <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 20, cursor: "pointer", color: p.textMuted }}>✕</button>
+        </div>
+        {!d && !error && <div className="skel" style={{ height: 220, marginTop: 14 }} />}
+        {d && (<>
+          <div role="group" aria-label="Cómo querés pagar" style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0" }}>
+            {[["mes", "Mensual"], ["tri", "Trimestral · 10% menos"], ["anio", "Anual · 25% menos"]].map(([k, l]) => (
+              <button key={k} type="button" className={"chip-btn" + (periodo === k ? " on" : "")} aria-pressed={periodo === k} onClick={() => setPeriodo(k)}>{l}</button>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
+            {d.planes.map(pl => {
+              const pp = pl.periodos[periodo], v = PLANES_VENTANA[pl.id] || {}, sel = plan === pl.id;
+              return (
+                <button key={pl.id} type="button" onClick={() => setPlan(pl.id)} aria-pressed={sel}
+                  style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: p.text, background: sel ? v.color + "18" : p.bg, border: "2px solid " + (sel ? v.color : p.border), borderRadius: 14, padding: "14px 14px 12px", position: "relative" }}>
+                  {pl.id === "profesional" && <span style={{ position: "absolute", top: -10, right: 12, background: "#f5b400", color: "#14110a", fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 999 }}>El más elegido</span>}
+                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: v.color }}>{pl.nombre}</div>
+                  <div style={{ fontSize: 12, color: p.textMuted }}>{v.para}</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 0", letterSpacing: "-.02em" }}>{$m(pp.mensual)}<span style={{ fontSize: 13, fontWeight: 600, color: p.textMuted }}> /mes</span></div>
+                  <div style={{ fontSize: 12, color: p.textMuted, minHeight: 18 }}>{pp.meses > 1 ? "Pagás " + $m(pp.total) + (pp.meses === 3 ? " cada 3 meses" : " por año") + " · ahorrás " + $m(pp.base_mensual * pp.meses - pp.total) : "Pago mensual"}</div>
+                  <ul style={{ listStyle: "none", margin: "10px 0 0", padding: 0, fontSize: 12.5, display: "flex", flexDirection: "column", gap: 4 }}>
+                    {(v.items || []).map(t => <li key={t}>✓ {t}</li>)}
+                  </ul>
+                </button>
+              );
+            })}
+          </div>
+          {error && <div role="alert" className="lg-error" style={{ marginTop: 12, padding: "9px 12px", borderRadius: 10, background: p.redDim, border: "1px solid " + p.red, fontSize: 13, fontWeight: 600 }}>{error}</div>}
+          {!d.puede_pagar ? (
+            <div style={{ marginTop: 14, fontSize: 13.5, padding: "10px 12px", borderRadius: 10, background: p.accentDim }}>Solo el dueño de la cuenta puede activar el plan. Pedile que entre a Lumiere y lo active.</div>
+          ) : !d.configurado ? (
+            <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13.5, flex: 1 }}>El pago online se está habilitando. Escribinos y activamos tu cuenta en el momento.</span>
+              <a className="btn btn-p" style={{ textDecoration: "none" }} href={wa} target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+            </div>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <button className="btn btn-p" style={{ width: "100%", padding: 14, fontSize: 16 }} disabled={yendo} onClick={pagar}>{yendo ? "Abriendo Mercado Pago…" : "Pagar con Mercado Pago · " + $m(d.planes.find(x => x.id === plan).periodos[periodo].total)}</button>
+              <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8, textAlign: "center", lineHeight: 1.5 }}>🔒 Pago seguro con Mercado Pago, con tarjeta de crédito o débito. Se renueva solo en cada período y podés cancelar cuando quieras desde Lumiere. Por ahora el pago automático es para Argentina (en pesos).</div>
+            </div>
+          )}
+        </>)}
+      </div>
     </div>
   );
 }
@@ -42396,9 +42513,22 @@ function AppWrapper() {
   const [faltaTerminos, setFaltaTerminos] = useState(null);
   // Tutorial guiado: arranca solo la primera vez que el dueño de un negocio nuevo entra; se puede repetir desde el menú
   const [tutorial, setTutorial] = useState(false);
+  // Ventana de pago: salta sola cuando se termina la prueba (o lo que pagó), y se abre desde el aviso de arriba y cuando algo no deja guardar
+  const [pagoAbierto, setPagoAbierto] = useState(() => { try { return /pago=volvio/.test(window.location.search); } catch (e) { return false; } });
+  useEffect(() => {
+    const abrir = () => setPagoAbierto(true);
+    window.addEventListener("lumiere-abrir-pago", abrir); window.addEventListener("lumiere-prueba-vencida", abrir);
+    return () => { window.removeEventListener("lumiere-abrir-pago", abrir); window.removeEventListener("lumiere-prueba-vencida", abrir); };
+  }, []);
+  useEffect(() => {
+    if (!usuario || !miNegocio || !miNegocio.id || Number(miNegocio.id) === 1 || faltaTerminos !== false) return;
+    if (miNegocio.estado !== "vencido" || (usuario.rol !== "jefe" && usuario.rol_id !== 1)) return;
+    try { if (sessionStorage.getItem("lumiere_pago_visto") === "1") return; sessionStorage.setItem("lumiere_pago_visto", "1"); } catch (e) {}
+    setPagoAbierto(true);
+  }, [miNegocio?.id, miNegocio?.estado, faltaTerminos]);
   const claveTutorial = "lumiere_tutorial_" + (miNegocio?.id || 0) + "_" + (usuario?.id || 0);
   useEffect(() => {
-    if (!usuario || !local || faltaTerminos !== false || !miNegocio || !miNegocio.id || !miNegocio.demo_registro || miNegocio.bienvenida_pendiente) return;
+    if (!usuario || !local || faltaTerminos !== false || !miNegocio || !miNegocio.id || !miNegocio.demo_registro || miNegocio.bienvenida_pendiente || miNegocio.estado === "vencido" || miNegocio.estuvo_pago) return;
     if (usuario.rol !== "jefe" && usuario.rol_id !== 1) return;
     try { if (!localStorage.getItem(claveTutorial)) setTutorial(true); } catch (e) {}
   }, [usuario?.id, local?.id, faltaTerminos, miNegocio?.id, miNegocio?.demo_registro, miNegocio?.bienvenida_pendiente]);
@@ -42694,6 +42824,7 @@ function AppWrapper() {
         </main>
         {page !== "pos" && <BarraCelular secciones={NAV_CON_PERMISOS} page={page} setPage={setPage} avisos={avisosMenu} onMas={() => setMenuAbierto(true)} />}
         <AsistenteAyuda usuario={usuario} seccion={page} paletaActual={paletaActual} />
+        {pagoAbierto && miNegocio && <VentanaPago negocio={miNegocio} p={paletaActual} onCerrar={() => setPagoAbierto(false)} onActualizar={() => API.get("/auth/mi-negocio").then(r => setMiNegocio(r.data || null)).catch(() => {})} />}
         {tutorial && <TutorialGuiado page={page} setPage={setPage} clave={claveTutorial} onCerrar={() => setTutorial(false)} />}
         {esJefeMenu && <AvisoServidor p={paletaActual} />}
         {esJefeMenu && page !== "pos" && !tutorial && <ResumenSemanalAuto usuario={usuario} p={paletaActual} negocioId={miNegocio?.id} />}
