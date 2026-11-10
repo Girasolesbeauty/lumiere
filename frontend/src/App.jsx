@@ -11000,6 +11000,7 @@ function RepartoSemanal({ temaPal }) {
   const [abierta, setAbierta] = useState(null);
   const [edit, setEdit] = useState({}); // lo que se está escribiendo: { [desde de la semana]: { [parte]: "monto" } }
   const [mov, setMov] = useState(null); // { k, tipo: "uso" | "extra", monto, nota }: usé / sumé plata de una cuenta
+  const [ajuste, setAjuste] = useState(null); // { k, valor, nota }: corregir el total que hay en una cuenta
   const [verMovs, setVerMovs] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const cargar = () => API.get("/finanzas/reparto").then(r => { setD(r.data); setErr(""); }).catch(e => setErr(e.response?.data?.error || "No se pudo cargar"));
@@ -11049,6 +11050,15 @@ function RepartoSemanal({ temaPal }) {
       else await API.post("/finanzas/reparto/movimiento", { parte_k: mov.k, tipo: mov.tipo, monto: aNum(mov.monto), nota: mov.nota });
       setMsj({ ok: true, t: mov.id ? "✓ Movimiento corregido" : mov.tipo === "uso" ? "✓ Anotado: usaste esa plata de la cuenta" : "✓ Anotado: sumaste esa plata a la cuenta" }); setMov(null); cargar(); }
     catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+    setGuardando(false);
+  };
+  const guardarAjuste = async () => {
+    if (!ajuste || String(ajuste.valor).trim() === "") return setMsj({ ok: false, t: "Escribí cuánta plata hay de verdad en la cuenta (si no hay nada, 0)" });
+    setGuardando(true);
+    try {
+      const r = await API.post("/finanzas/reparto/ajuste", { parte_k: ajuste.k, saldo: aNum(ajuste.valor), nota: ajuste.nota });
+      setMsj({ ok: true, t: r.data.sin_cambios ? "Ya figuraba ese total: no hizo falta cambiar nada" : "✓ Total corregido. La diferencia quedó anotada en el historial" }); setAjuste(null); cargar();
+    } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
     setGuardando(false);
   };
   const borrarMov = async (id) => { try { await API.delete("/finanzas/reparto/movimiento/" + id); cargar(); } catch (e) { setMsj({ ok: false, t: "No se pudo borrar" }); } };
@@ -11111,12 +11121,24 @@ function RepartoSemanal({ temaPal }) {
                 {c.falta > 0 && <><br /><b style={{ color: p.warn }}>Te falta separar {$(c.falta)}</b></>}
               </div>
               <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                <button className="chip-btn" onClick={() => setMov({ k: c.k, tipo: "uso", monto: "", nota: "" })}>− Usé plata</button>
-                <button className="chip-btn" onClick={() => setMov({ k: c.k, tipo: "extra", monto: "", nota: "" })}>+ Sumé plata</button>
+                <button className="chip-btn" onClick={() => { setAjuste(null); setMov({ k: c.k, tipo: "uso", monto: "", nota: "" }); }}>− Usé plata</button>
+                <button className="chip-btn" onClick={() => { setAjuste(null); setMov({ k: c.k, tipo: "extra", monto: "", nota: "" }); }}>+ Sumé plata</button>
+                <button className="chip-btn" title="Poné el total que hay de verdad en esta cuenta" onClick={() => { setMov(null); setAjuste({ k: c.k, valor: aTexto(c.saldo), nota: "" }); }}>✏️ Corregir total</button>
               </div>
             </div>
           ))}
         </div>
+        {ajuste && <div className="pop-in" style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid " + p.border, background: p.bg }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13 }}>Total que hay de verdad en {nombreCuenta(ajuste.k)}:</b>
+            <input className="inp" autoFocus style={{ width: 190 }} inputMode="decimal" placeholder="$ total (ej: 150.000,50)" value={ajuste.valor} onChange={e => setAjuste(a => ({ ...a, valor: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") guardarAjuste(); }} aria-label="Total real de la cuenta" />
+            <input className="inp" style={{ flex: "1 1 180px" }} maxLength={90} placeholder="Nota (opcional)" value={ajuste.nota} onChange={e => setAjuste(a => ({ ...a, nota: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardarAjuste(); }} aria-label="Nota del ajuste" />
+            <button className="btn btn-g btn-sm" onClick={() => setAjuste(null)}>Cancelar</button>
+            <button className="btn btn-p btn-sm" disabled={guardando} onClick={guardarAjuste}>Guardar total</button>
+          </div>
+          {(() => { const c = d.cuentas.find(x => x.k === ajuste.k), nuevo = String(ajuste.valor).trim() === "" ? null : aNum(ajuste.valor); const dif = c && nuevo !== null ? Math.round((nuevo - c.saldo) * 100) / 100 : null;
+            return <div style={{ fontSize: 12, color: p.textMuted, marginTop: 6 }}>Hoy en Lumiere figura <b style={{ color: p.text }}>{$(c ? c.saldo : 0)}</b>.{dif !== null && dif !== 0 ? <> Se va a anotar un ajuste de <b style={{ color: dif > 0 ? p.green : p.red }}>{dif > 0 ? "+" : "−"}{$(Math.abs(dif))}</b>.</> : dif === 0 ? " Ya coincide." : " Escribí cuánta plata hay de verdad y Lumiere anota la diferencia."}</div>; })()}
+        </div>}
         {mov && <div className="pop-in" style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid " + p.border, background: p.bg, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <b style={{ fontSize: 13 }}>{mov.id ? "Corregir: " : ""}{mov.tipo === "uso" ? "Usé plata de" : "Sumé plata a"} {nombreCuenta(mov.k)}:</b>
           <input className="inp" autoFocus style={{ width: 190 }} inputMode="decimal" placeholder="$ monto (ej: 15.000,50)" value={mov.monto} onChange={e => setMov(m => ({ ...m, monto: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") guardarMov(); }} aria-label="Monto" />

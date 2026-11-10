@@ -1771,6 +1771,32 @@ const postRepartoMovimiento = async (req, res) => {
     res.json({ ok: true, id: r.rows[0].id });
   } catch (e) { console.error('[reparto movimiento]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 };
+// Corregir el total de una cuenta: se dice cuánta plata hay de verdad y Lumiere anota la diferencia como un movimiento
+// ("Ajuste de saldo"), así el historial queda y se puede ver qué se corrigió.
+const postRepartoAjuste = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const b = req.body || {};
+    const k = String(b.parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
+    const nuevo = r2(b.saldo);
+    if (!k) return res.status(400).json({ error: 'Elegí la cuenta' });
+    if (b.saldo === undefined || b.saldo === null || String(b.saldo).trim() === '' || !isFinite(nuevo) || nuevo < 0 || nuevo > 1e11) return res.status(400).json({ error: 'Poné cuánta plata hay en la cuenta (0 o más)' });
+    // Lo que figura hoy = lo separado en las semanas + lo sumado a mano - lo usado
+    let actual = 0;
+    (await pool.query('SELECT detalle FROM reparto_semanas')).rows.forEach(h => (h.detalle || []).forEach(pt => { if (pt.k === k) actual += separadoDe(pt); }));
+    (await pool.query('SELECT tipo, monto FROM reparto_movimientos WHERE parte_k = $1', [k])).rows.forEach(m => { actual += m.tipo === 'uso' ? -num(m.monto) : num(m.monto); });
+    actual = r2(actual);
+    const dif = r2(nuevo - actual);
+    if (dif === 0) return res.json({ ok: true, sin_cambios: true, saldo: actual });
+    const f = (n) => '$' + n.toLocaleString('es-AR', { minimumFractionDigits: n === Math.round(n) ? 0 : 2, maximumFractionDigits: 2 });
+    const nota = ('Ajuste de saldo (figuraba ' + f(actual) + ', ahora ' + f(nuevo) + ')' + (String(b.nota || '').trim() ? ' · ' + String(b.nota).trim() : '')).slice(0, 120);
+    const u = req.usuario || {};
+    let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    await pool.query(`INSERT INTO reparto_movimientos (parte_k, tipo, monto, fecha, nota, usuario) VALUES ($1, $2, $3, (${AR('NOW()')})::date, $4, $5)`,
+      [k, dif > 0 ? 'extra' : 'uso', Math.abs(dif), nota, quien]);
+    res.json({ ok: true, saldo: nuevo, diferencia: dif });
+  } catch (e) { console.error('[reparto ajuste]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+};
 const putRepartoMovimiento = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
@@ -1795,4 +1821,4 @@ const deleteRepartoMovimiento = async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
 };
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoMovimiento, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
