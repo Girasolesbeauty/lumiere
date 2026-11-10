@@ -20747,7 +20747,15 @@ function DelMes({ usuario, paletaActual }) {
   const [error, setError] = useState(false);
   const [cfg, setCfg] = useState(null);
   const [msg, setMsg] = useState("");
-  const avisar = (t) => { setMsg(t); setTimeout(() => setMsg(""), 3500); };
+  const avisar = (t, largo) => { setMsg(t); setTimeout(() => setMsg(""), largo ? 9000 : 3500); };
+  // La tarjeta "Premios por puesto" está al final de la pantalla: este atajo lleva hasta ahí y la marca
+  const premiosRef = useRef(null);
+  const [resaltar, setResaltar] = useState(false);
+  const irAPremios = () => {
+    const el = premiosRef.current; if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" }); setResaltar(true); setTimeout(() => setResaltar(false), 5000);
+    setTimeout(() => { const i = el.querySelector("input[aria-label='Premio']"); if (i) i.focus({ preventScroll: true }); }, 600);
+  };
   const cargar = () => { setError(false); API.get("/del-mes" + (periodo ? "?anio=" + periodo.anio + "&mes=" + periodo.mes : "")).then(r => {
     // Un servidor sin actualizar devuelve otra cosa (sin ranking): se avisa en vez de romper la pantalla
     if (!r.data || !Array.isArray(r.data.ranking)) { setError("El servidor todavía no tiene esta versión: falta que se actualice (Railway). Probá en unos minutos."); return; }
@@ -20755,16 +20763,22 @@ function DelMes({ usuario, paletaActual }) {
   useEffect(() => { setD(null); cargar(); }, [periodo && periodo.anio, periodo && periodo.mes]);
   const mover = (delta) => { const f = new Date(d.anio, d.mes - 1 + delta, 1), hoy = new Date(); if (f > new Date(hoy.getFullYear(), hoy.getMonth(), 1)) return; setPeriodo({ anio: f.getFullYear(), mes: f.getMonth() + 1 }); };
   const setP = (i, cambio) => setCfg(c => ({ ...c, premios: c.premios.map((p, j) => j === i ? { ...p, ...cambio } : p) }));
-  const guardarCfg = async () => { try { const r = await API.put("/del-mes/config", cfg); setCfg({ activo: r.data.activo, premios: r.data.premios }); avisar("✓ Guardado"); cargar(); } catch (e) { avisar("No se pudo guardar"); } };
+  const guardarCfg = async () => { try { const r = await API.put("/del-mes/config", cfg); setCfg({ activo: r.data.activo, premios: r.data.premios }); avisar(d && !d.actual && !d.cerrado && (r.data.premios || []).length ? "✓ Premios guardados. Ahora ya podés cerrar " + MESES_DM[d.mes - 1] + " y repartirlos." : "✓ Guardado", true); cargar(); } catch (e) { avisar("No se pudo guardar"); } };
   const cerrar = async () => {
+    if (!(d.premios || []).length) { avisar("Antes de cerrar el mes tenés que definir los premios. Te llevo a donde se cargan 👇", true); irAPremios(); return; }
+    if (sinGuardar && !window.confirm("Tenés cambios sin guardar en los premios. Si cerrás ahora se reparten los premios que ya estaban guardados, no los que cambiaste.\n\n¿Cerrar igual? (Si no, tocá Cancelar y primero guardá los cambios.)")) return;
     if (!window.confirm("¿Cerrar " + MESES_DM[d.mes - 1] + " y repartir los premios?\n\nCada cliente con premio lo va a ver en su cuenta y se le suman los puntos extra. No se puede deshacer.")) return;
-    try { const r = await API.post("/del-mes/cerrar", { anio: d.anio, mes: d.mes }); avisar("✓ Mes cerrado: " + r.data.ganadoras + " ganadoras"); cargar(); } catch (e) { avisar(e.response?.data?.error || "No se pudo cerrar"); }
+    try { const r = await API.post("/del-mes/cerrar", { anio: d.anio, mes: d.mes }); avisar("✓ Mes cerrado: " + r.data.ganadoras + " ganadoras"); cargar(); } catch (e) { avisar(e.response?.data?.error || "No se pudo cerrar", true); if (e.response?.data?.sin_premios) irAPremios(); }
   };
   const entregar = async (g, si) => { try { await API.post("/del-mes/entregado", { anio: d.anio, mes: d.mes, cliente_id: g.cliente_id, entregado: si }); cargar(); } catch (e) {} };
   const waGanadora = (g) => linkWhatsapp(g.telefono, "¡Hola " + String(g.nombre || "").split(" ")[0] + "! 🌻 ¡Felicitaciones! Quedaste en el puesto " + g.puesto + " de la competencia de " + MESES_DM[d.mes - 1] + " 🏆" + (g.premio ? " Te ganaste: " + g.premio + "." : "") + (g.puntos_extra ? " Ya te sumamos " + g.puntos_extra + " puntos." : "") + (g.premio ? " Pasá por el local a buscarlo 🎁" : ""));
   if (error) return <div className="card" style={{ textAlign: "left" }}><div className="ct">🏆 Cliente del mes</div><div style={{ fontSize: 13.5 }}>⚠️ {error}</div><button className="btn btn-g btn-sm" style={{ marginTop: 10 }} onClick={cargar}>Probar de nuevo</button></div>;
   if (!d || !cfg) return <div className="skel" style={{ height: 320 }} />;
   const medalla = ["🥇", "🥈", "🥉"];
+  const normPremios = (l) => JSON.stringify((l || []).map(x => [parseInt(x.desde) || 0, parseInt(x.hasta) || 0, String(x.premio || "").trim(), parseInt(x.puntos) || 0]));
+  const hayPremios = (d.premios || []).length > 0;       // premios que ya están guardados (los que se reparten al cerrar)
+  const sinGuardar = normPremios(cfg.premios) !== normPremios(d.premios);
+  const premioTxt = (x) => puestoTxt({ desde: parseInt(x.desde) || 0, hasta: parseInt(x.hasta) || 0 }) + " " + [x.premio, x.puntos ? "+" + x.puntos + " puntos" : null].filter(Boolean).join(" ");
   return (
     <div className="fade" style={{ textAlign: "left" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
@@ -20778,6 +20792,11 @@ function DelMes({ usuario, paletaActual }) {
         <div className="card" style={{ borderLeft: "4px solid #e0a800", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ flex: 1, fontSize: 13.5 }}>🏁 <b>{MESES_DM[d.mes - 1]} ya terminó.</b> Cerralo para repartir los premios: cada ganadora lo ve en su cuenta y se le suman los puntos extra.</span>
           <button className="btn btn-p" onClick={cerrar}>Cerrar mes y repartir premios</button>
+          <div style={{ flexBasis: "100%", fontSize: 12.5, lineHeight: 1.6, padding: "8px 10px", borderRadius: 8, background: hayPremios ? tp.accentDim : tp.redDim, border: "1px solid " + (hayPremios ? tp.border : tp.red) }}>
+            {hayPremios
+              ? <>🎁 <b>Se van a repartir estos premios:</b> {d.premios.map(premioTxt).join(" · ")}. <button type="button" className="chip-btn" onClick={irAPremios}>Cambiar premios</button></>
+              : <>⚠️ <b>Todavía no definiste los premios.</b> Se cargan en la tarjeta <b>"🎁 Premios por puesto"</b>, que está más abajo en esta misma pantalla. <button type="button" className="btn btn-p btn-sm" onClick={irAPremios}>Definir los premios</button></>}
+          </div>
         </div>
       )}
       {d.cerrado && (
@@ -20811,8 +20830,10 @@ function DelMes({ usuario, paletaActual }) {
         {d.sin_clienta && d.sin_clienta.cant > 0 && <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 10 }}>ℹ️ Cuentan todas las compras de {MESES_DM[d.mes - 1]} desde el día 1 (local y tienda online). Hay <b>{d.sin_clienta.cant} {d.sin_clienta.cant === 1 ? "venta" : "ventas"} sin cliente cargado</b> ({fmt(d.sin_clienta.total)}) que no suman a nadie: en la caja, elegí el cliente (por DNI o nombre) antes de cobrar.</div>}
         <div style={{ fontSize: 11.5, color: tp.textMuted, marginTop: 8 }}>Los clientes ven su puesto, sus puntos del mes y el podio con nombre e inicial. Nunca ven montos ni datos de otras.</div>
       </div>
-      <div className="card">
+      <div className="card" ref={premiosRef} id="premios-por-puesto" style={resaltar ? { outline: "3px solid #f5b400", outlineOffset: 2, transition: "outline .2s" } : undefined}>
         <div className="ct">🎁 Premios por puesto</div>
+        {!hayPremios && <div role="note" style={{ fontSize: 13, padding: "9px 12px", borderRadius: 8, marginBottom: 10, background: tp.redDim, border: "1px solid " + tp.red }}>⚠️ <b>Todavía no guardaste ningún premio.</b> Lo que ves abajo es solo un ejemplo: cambialo por lo que quieras regalar y tocá <b>Guardar</b>. Sin esto no se puede cerrar el mes.</div>}
+        {hayPremios && sinGuardar && <div role="note" style={{ fontSize: 13, padding: "9px 12px", borderRadius: 8, marginBottom: 10, background: tp.accentDim, border: "1px solid " + tp.border }}>✏️ Hiciste cambios que todavía <b>no están guardados</b>. Tocá <b>Guardar</b> para que valgan.</div>}
         <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
           <input type="checkbox" checked={cfg.activo} onChange={e => setCfg(c => ({ ...c, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> Mostrar la competencia a los clientes en su cuenta de la tienda
         </label>
@@ -20831,7 +20852,7 @@ function DelMes({ usuario, paletaActual }) {
         ))}
         <button className="chip-btn" onClick={() => setCfg(c => ({ ...c, premios: [...c.premios, { desde: (c.premios.length ? Math.max(...c.premios.map(p => parseInt(p.hasta) || 0)) : 0) + 1, hasta: (c.premios.length ? Math.max(...c.premios.map(p => parseInt(p.hasta) || 0)) : 0) + 1, premio: "", puntos: 0 }] }))}>+ Agregar puesto</button>
         <div className="cli-tip" style={{ fontSize: 12.5, marginTop: 10 }}>Podés cambiar los premios cuando quieras: se reparten los que estén cargados cuando cerrás el mes. Los puntos extra se suman solos al cerrar; los premios en mano los marcás como entregados.</div>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-p" onClick={guardarCfg}>Guardar</button></div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}><button className="btn btn-p" onClick={guardarCfg}>{!hayPremios ? "Guardar los premios" : sinGuardar ? "Guardar cambios" : "Guardar"}</button></div>
       </div>
       {d.historial.length > 0 && (
         <div className="card">

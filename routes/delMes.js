@@ -45,7 +45,7 @@ router.post('/cerrar', async (req, res) => {
     const cfg = await comp.config();
     const m = await comp.mesDe(req.body && req.body.anio, req.body && req.body.mes);
     if (m.actual) return res.status(400).json({ error: 'El mes todavía no terminó' });
-    if (!cfg.premios.length) return res.status(400).json({ error: 'Primero cargá los premios por puesto' });
+    if (!cfg.premios.length) return res.status(400).json({ error: 'Primero cargá los premios por puesto: se definen en esta misma pantalla, más abajo, en "Premios por puesto"', sin_premios: true });
     const rk = await comp.ranking(m.desde, m.hasta);
     await client.query('BEGIN');
     if ((await client.query('SELECT 1 FROM competencia_ganadoras WHERE anio = $1 AND mes = $2 LIMIT 1 FOR UPDATE', [m.anio, m.mes])).rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese mes ya se cerró' }); }
