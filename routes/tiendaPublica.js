@@ -96,6 +96,8 @@ router.get('/:slug', async (req, res) => {
     // Calendario de Adviento: en diciembre (1 al 25) o antes con el link privado (?adviento=codigo, se ven todos los días)
     const adv = tienda.advientoDe(c), advHoy = tienda.advientoHoy(adv), advVista = !!adv.token && String(req.query.adviento || '') === adv.token;
     const advVer = (adv.activo && advHoy >= 1 && advHoy <= 25) || advVista;
+    // Cartelito "faltan N días": con el calendario prendido, desde que se prende hasta el 1 de diciembre (hora de Argentina)
+    const advPronto = (adv.activo || advVista) && advHoy === 0 ? { desde: adv.anio + '-12-01T00:00:00-03:00', anio: adv.anio } : null;
     const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
     // Cuotas sin interés de cada combo: las de su promo con crédito en el local (para combos creados antes de guardarlas en el combo)
     const cuotasCombos = await pool.query(`SELECT productos_ids, nombre FROM promociones WHERE tipo = 'combo' AND medio_pago_tipo = 'credito' AND activo AND local_id IS NULL
@@ -103,6 +105,7 @@ router.get('/:slug', async (req, res) => {
       .then(r => Object.fromEntries(r.rows.map(x => [[...(x.productos_ids || [])].map(Number).sort((a, b) => a - b).join(','), Math.min(24, parseInt((String(x.nombre).match(/(\d+)\s*cuotas/) || [])[1]) || 0)]).filter(([, n]) => n > 1))).catch(() => ({}));
     const pctCombos = await tienda.pctPagoCombos();
     res.json({
+      adviento_pronto: advPronto,
       adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, musica: adv.musica, constancia: adv.constancia, estrella_puntos: adv.estrella_puntos, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
         dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),

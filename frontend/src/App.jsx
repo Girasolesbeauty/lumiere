@@ -29413,6 +29413,46 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-aviso{margin-top:6px;font-size:13px;color:rgba(255,255,255,.8);min-height:18px;padding:0 14px}
 .tw-adv-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#0c1630;color:#f3e7cf;border:1px solid #e8cf8f;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-adv-vista{left:auto;max-width:420px}}
+/* ===== Cartelito "faltan N días" para el Calendario de Adviento ===== */
+.tw-pron{position:relative;overflow:hidden;isolation:isolate;margin:12px auto 6px;max-width:1240px;width:calc(100% - 24px);box-sizing:border-box;border-radius:20px;padding:14px 18px 14px 96px;color:#fff3dc;display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;
+  background:radial-gradient(120% 180% at 0% 0%,#c3173a 0%,#8a1030 34%,#3a0f2c 66%,#0f2f26 100%);box-shadow:0 12px 30px rgba(138,16,48,.34),inset 0 0 0 1px rgba(255,217,138,.5),inset 0 1px 0 rgba(255,255,255,.35)}
+.tw-pron::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(60% 90% at 88% 0%,rgba(255,217,138,.22),transparent 70%),radial-gradient(40% 60% at 6% 100%,rgba(255,255,255,.12),transparent 70%)}
+.tw-pron::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(115deg,transparent 36%,rgba(255,255,255,.26) 48%,rgba(255,236,190,.34) 52%,transparent 64%);background-size:260% 100%;animation:twPronBrillo 5.2s ease-in-out infinite}
+@keyframes twPronBrillo{0%{background-position:130% 0}60%,100%{background-position:-130% 0}}
+.tw-pron-cielo{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.tw-pron-cielo i{position:absolute;top:-14px;left:var(--x);width:var(--s);height:var(--s);border-radius:50%;background:radial-gradient(circle,#fff 0%,rgba(255,255,255,.9) 42%,rgba(255,255,255,0) 72%);opacity:0;animation:twPronNieve var(--t) linear var(--d) infinite}
+.tw-pron-cielo i:nth-child(3n){animation-name:twPronNieve2}
+@keyframes twPronNieve{0%{transform:translate3d(0,-14px,0);opacity:0}12%{opacity:.95}85%{opacity:.8}100%{transform:translate3d(22px,150px,0);opacity:0}}
+@keyframes twPronNieve2{0%{transform:translate3d(0,-14px,0);opacity:0}12%{opacity:.9}85%{opacity:.75}100%{transform:translate3d(-26px,150px,0);opacity:0}}
+.tw-pron-cielo b{position:absolute;left:var(--x);top:var(--y);font-size:11px;font-weight:400;line-height:1;color:#ffe9b0;text-shadow:0 0 8px #ffd466,0 0 16px rgba(255,212,102,.7);animation:twPronBrilla 2.6s ease-in-out var(--d) infinite}
+@keyframes twPronBrilla{0%,100%{transform:scale(.5) rotate(0);opacity:.2}50%{transform:scale(1.25) rotate(25deg);opacity:1}}
+.tw-pron-santa{position:absolute;left:12px;top:50%;margin-top:-34px;width:68px;height:68px;z-index:2;display:flex;align-items:center;justify-content:center}
+.tw-pron-santa::before{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle,rgba(255,226,150,.55) 0%,rgba(255,226,150,.18) 55%,transparent 72%);animation:twPronAura 3s ease-in-out infinite}
+@keyframes twPronAura{0%,100%{transform:scale(.9);opacity:.7}50%{transform:scale(1.12);opacity:1}}
+.tw-pron-santa .gorro{position:relative;font-size:46px;line-height:1;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35));animation:twPronSanta 3.2s ease-in-out infinite;transform-origin:50% 80%}
+@keyframes twPronSanta{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(5deg) translateY(-4px)}}
+.tw-pron-santa .regalo{position:absolute;right:-4px;bottom:-2px;font-size:22px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));animation:twPronRegalo 2.2s ease-in-out infinite}
+@keyframes twPronRegalo{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-5px) rotate(8deg)}}
+.tw-pron-txt{position:relative;z-index:2;flex:1 1 320px;min-width:0}
+.tw-pron-ceja{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#ffe2a0;border:1px solid rgba(255,226,160,.55);border-radius:999px;padding:3px 10px;margin-bottom:5px;background:rgba(255,226,160,.1)}
+.tw .tw-pron-tit{margin:0;font-size:clamp(15px,2.3vw,20px);line-height:1.2;font-weight:800;letter-spacing:-.01em;color:#fff3dc;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+.tw-pron-tit .n{font-weight:900;color:#ffe08a;background:linear-gradient(90deg,#ffd45a,#fff6d4,#ffc233,#fff6d4,#ffd45a);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:twPronOro 4.5s linear infinite;filter:drop-shadow(0 0 6px rgba(255,212,102,.55))}
+@keyframes twPronOro{to{background-position:300% 0}}
+.tw-pron-sub{margin:5px 0 0;font-size:13px;line-height:1.4;color:rgba(255,243,220,.92)}
+.tw-pron-reloj{position:relative;z-index:2;display:flex;gap:6px;flex-shrink:0}
+.tw-pron-reloj div{min-width:46px;text-align:center;border-radius:11px;padding:5px 4px 4px;background:rgba(255,255,255,.1);border:1px solid rgba(255,226,160,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.25);backdrop-filter:blur(3px);overflow:hidden}
+.tw-pron-reloj b{display:block;font-size:19px;font-weight:900;line-height:1.15;font-variant-numeric:tabular-nums;color:#fff;animation:twPronNum .45s cubic-bezier(.2,.8,.3,1.2)}
+@keyframes twPronNum{from{transform:translateY(-55%);opacity:0}}
+.tw-pron-reloj small{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#ffe2a0;opacity:.9}
+@media(max-width:640px){
+  .tw-pron{padding:12px 12px 12px 74px;border-radius:16px}
+  .tw-pron-santa{left:8px;width:58px;height:58px;margin-top:-29px}.tw-pron-santa .gorro{font-size:38px}.tw-pron-santa .regalo{font-size:18px}
+  .tw-pron-txt{flex-basis:100%}.tw-pron-reloj{width:100%}.tw-pron-reloj div{flex:1}
+  .tw-pron-sub{font-size:12.5px}
+  .tw-pron-ceja{font-size:9px;letter-spacing:.1em;padding:3px 8px}
+}
+@media(prefers-reduced-motion:reduce){.tw-pron::after,.tw-pron-cielo i,.tw-pron-cielo b,.tw-pron-santa::before,.tw-pron-santa .gorro,.tw-pron-santa .regalo,.tw-pron-tit .n,.tw-pron-reloj b{animation:none!important}.tw-pron-cielo i{opacity:.6}}
+
 .tw-adv-nav{background:linear-gradient(90deg,#b8892e,#e9cf8a)!important;border-radius:99px}
 .tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(74,39,104,.97),rgba(15,12,46,.98));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff;perspective:1000px}
@@ -32289,6 +32329,28 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
 }
 // Bienvenida navideña al entrar a la tienda (una vez por día en cada celular; en la vista previa, una vez por visita):
 // la ciudad sube, el árbol de luces se enciende y aparece la ventana de hoy
+// Cartelito "faltan N días" para el Calendario de Adviento: aparece con el calendario prendido, antes del 1 de diciembre.
+// Nieve que cae, estrellitas que titilan, un brillo que cruza, Papá Noel y el reloj que baja.
+function TwAdvPronto({ pr, marca }) {
+  const t = useCuentaRegresiva(pr.desde);
+  if (!t.ms) return null;
+  const titulo = t.d >= 2 ? "Faltan " + t.d + " días" : t.d === 1 ? "Falta 1 día" : "¡Empieza esta medianoche!";
+  return (
+    <section className="tw-pron" aria-label="Cuenta regresiva del Calendario de Adviento">
+      <div className="tw-pron-cielo" aria-hidden="true">
+        {Array.from({ length: 22 }, (_, k) => <i key={k} style={{ "--x": ((k * 37 + 5) % 100) + "%", "--d": ((k % 9) * 0.8) + "s", "--t": (5.5 + (k % 5) * 1.1) + "s", "--s": (4 + (k % 4) * 2.5) + "px" }} />)}
+        {Array.from({ length: 8 }, (_, k) => <b key={k} style={{ "--x": ((k * 47 + 13) % 94) + "%", "--y": ((k * 31 + 9) % 72) + "%", "--d": (k * 0.55) + "s" }}>✦</b>)}
+      </div>
+      <div className="tw-pron-santa" aria-hidden="true"><span className="gorro">🎅</span><span className="regalo">🎁</span></div>
+      <div className="tw-pron-txt">
+        <span className="tw-pron-ceja">✨ Muy pronto · del 1 al 25 de diciembre</span>
+        <h2 className="tw-pron-tit"><span className="n">{titulo}</span> para el Calendario de Adviento digital de {marca || "nuestra tienda"}</h2>
+        <p className="tw-pron-sub">Ofertas, descuentos y regalos en tus compras todos los días, del 1 al 25 de diciembre 🎄❄️</p>
+      </div>
+      <div className="tw-pron-reloj" role="timer" aria-label="Tiempo que falta">{[[t.d, "días"], [t.h, "horas"], [t.m, "min"], [t.s, "seg"]].map(([n, l]) => <div key={l}><b key={n}>{twDos(n)}</b><small>{l}</small></div>)}</div>
+    </section>
+  );
+}
 function TwAdvIntro({ adv, slug }) {
   const clave = "tienda_adv_intro_" + slug + "_" + adv.anio + "_" + adv.hoy;
   const [ver, setVer] = useState(() => {
@@ -35255,6 +35317,7 @@ function TiendaPublica({ slug }) {
           <div className="tw-cartel" style={{ textAlign: "center" }}><div style={{ fontSize: 40 }}>✿</div><h2>{tienda.titulo}</h2><p>Pronto vas a encontrar nuestros productos acá.</p></div>
         ) : (
           <>
+            {tienda.adviento_pronto && <TwAdvPronto pr={tienda.adviento_pronto} marca={tienda.titulo} />}
             {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} foto={foto} onAbrir={abrir} cuenta={{ logueada, pedir, ingresar: () => { setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para juntar los sellos del Calendario de Adviento"), 50); } }} />}
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} foto={foto} prods={cyHeroProds} maxPct={cyHeroMax} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
