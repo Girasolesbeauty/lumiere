@@ -1657,6 +1657,9 @@ async function asegurarRepartoSemanal() {
   await pool.query('CREATE TABLE IF NOT EXISTS reparto_config (id INT PRIMARY KEY, partes JSONB NOT NULL)');
   await pool.query(`CREATE TABLE IF NOT EXISTS reparto_semanas (inicio DATE PRIMARY KEY, hecho_en TIMESTAMP NOT NULL DEFAULT NOW(),
     base NUMERIC NOT NULL DEFAULT 0, detalle JSONB, usuario TEXT)`);
+  // Lo que se saca de una cuenta ("uso") o se suma aparte ("extra"); lo que se separa cada semana va en reparto_semanas
+  await pool.query(`CREATE TABLE IF NOT EXISTS reparto_movimientos (id SERIAL PRIMARY KEY, parte_k TEXT NOT NULL, tipo TEXT NOT NULL, monto NUMERIC NOT NULL,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE, nota TEXT, usuario TEXT, creado_en TIMESTAMP NOT NULL DEFAULT NOW())`);
   repartoListo.set(true);
 }
 const limpiarPartes = (l) => (Array.isArray(l) ? l : []).slice(0, 8).map((x, i) => ({
@@ -1670,6 +1673,9 @@ async function partesReparto() {
   const l = r ? limpiarPartes(r.partes) : [];
   return l.length ? l : REPARTO_DEFECTO;
 }
+// Lo que se separó de verdad en una parte (anotado a mano). Las semanas que se marcaron con el botón viejo "Ya separé"
+// no tienen el dato: se toma como que se separó todo lo que correspondía.
+const separadoDe = (pt) => (pt && pt.separado !== undefined && pt.separado !== null ? num(pt.separado) : num(pt && pt.monto));
 const getReparto = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
@@ -1686,16 +1692,31 @@ const getReparto = async (req, res) => {
       const desde = iso(a), hasta = iso(b);
       const c = await calcularComisionesMedios(null, null, null, { desde, hasta: hasta < hoy.d ? hasta : hoy.d });
       const ventas = Math.round(num(c.total_ventas)), comisiones = Math.round(num(c.total_comisiones)), base = Math.max(0, ventas - comisiones);
-      const h = hechas.get(desde);
-      const usa = h && Array.isArray(h.detalle) ? h.detalle : partes.map(pt => ({ ...pt, monto: Math.round(base * pt.pct / 100) }));
-      lista.push({ desde, hasta, en_curso: hasta >= hoy.d, ventas, comisiones, base: h ? Math.round(num(h.base)) : base, base_hoy: base,
-        partes: usa, hecho: !!h, hecho_en: h ? h.hecho_en : null, usuario: h ? h.usuario : null });
+      const h = hechas.get(desde), enCurso = hasta >= hoy.d;
+      const detalle = h && Array.isArray(h.detalle) ? h.detalle : null;
+      const sepPorK = {}; (detalle || []).forEach(pt => { sepPorK[pt.k] = separadoDe(pt); });
+      // Semana ya cerrada y anotada: se ve como quedó cuando se anotó. Si no, lo que corresponde hoy según lo que entró
+      const usa = detalle && !enCurso ? detalle : partes.map(pt => ({ ...pt, monto: Math.round(base * pt.pct / 100) }));
+      const partesSemana = usa.map(pt => ({ ...pt, monto: Math.round(num(pt.monto)), separado: h ? Math.round(sepPorK[pt.k] !== undefined ? sepPorK[pt.k] : 0) : 0 }));
+      const corresponde = partesSemana.reduce((t, x) => t + x.monto, 0), separado = partesSemana.reduce((t, x) => t + x.separado, 0);
+      const completa = !!h && separado >= corresponde * 0.995;
+      lista.push({ desde, hasta, en_curso: enCurso, ventas, comisiones, base: h && !enCurso ? Math.round(num(h.base)) : base, base_hoy: base,
+        partes: partesSemana, anotada: !!h, hecho: completa, corresponde, separado, falta: Math.max(0, corresponde - separado),
+        hecho_en: h ? h.hecho_en : null, usuario: h ? h.usuario : null });
     }
-    // Lo separado para cada parte este mes y en total (solo semanas marcadas como hechas)
+    // Cuentas: lo que tenés ahora en cada una = lo separado cada semana + lo que sumaste aparte - lo que usaste
+    const movs = (await pool.query(`SELECT id, parte_k, tipo, monto, fecha::text AS fecha, nota, usuario FROM reparto_movimientos ORDER BY fecha DESC, id DESC`)).rows;
     const mesIni = hoy.d.slice(0, 8) + '01';
-    const acum = {};
-    for (const h of hechas.values()) (h.detalle || []).forEach(pt => { const a = acum[pt.k] = acum[pt.k] || { k: pt.k, nombre: pt.nombre, mes: 0, total: 0 }; a.total += num(pt.monto); if (h.inicio >= mesIni) a.mes += num(pt.monto); });
-    res.json({ partes, semanas: lista, acumulado: Object.values(acum), hoy: hoy.d });
+    const cuentas = {};
+    const cta = (k, nombre, pct, donde) => (cuentas[k] = cuentas[k] || { k, nombre: nombre || k, pct: pct || 0, donde: donde || '', separado_mes: 0, separado_total: 0, extra: 0, uso: 0, uso_mes: 0, falta: 0 });
+    partes.forEach(pt => cta(pt.k, pt.nombre, pt.pct, pt.donde));
+    for (const h of hechas.values()) (h.detalle || []).forEach(pt => { const x = cta(pt.k, pt.nombre, pt.pct, pt.donde), m = separadoDe(pt); x.separado_total += m; if (h.inicio >= mesIni) x.separado_mes += m; });
+    movs.forEach(m => { const x = cta(m.parte_k); const v = num(m.monto); if (m.tipo === 'uso') { x.uso += v; if (m.fecha >= mesIni) x.uso_mes += v; } else x.extra += v; });
+    // Lo que todavía falta separar de las semanas ya terminadas (y de la de hoy si es sábado)
+    lista.filter(s2 => !s2.en_curso || s2.hasta === hoy.d).forEach(s2 => s2.partes.forEach(pt => { const x = cta(pt.k, pt.nombre, pt.pct, pt.donde); x.falta += Math.max(0, pt.monto - pt.separado); }));
+    const cuentasLista = Object.values(cuentas).map(x => ({ ...x, saldo: Math.round(x.separado_total + x.extra - x.uso), falta: Math.round(x.falta) }));
+    res.json({ partes, semanas: lista, cuentas: cuentasLista, movimientos: movs.slice(0, 40).map(m => ({ ...m, monto: num(m.monto) })), hoy: hoy.d,
+      acumulado: cuentasLista.map(x => ({ k: x.k, nombre: x.nombre, mes: x.separado_mes, total: x.separado_total })) });
   } catch (e) { console.error('[reparto]', e.message); res.status(500).json({ error: 'No se pudo calcular el reparto: ' + e.message }); }
 };
 const putRepartoConfig = async (req, res) => {
@@ -1709,7 +1730,8 @@ const putRepartoConfig = async (req, res) => {
     res.json({ partes });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 };
-// Marcar (o desmarcar) una semana como separada: guarda la foto de cuánto fue a cada parte
+// Anotar lo que se separó en una semana: cuánto en cada parte (puede ser menos de lo que correspondía). También sirve el botón
+// "Ya separé todo" (sin "separado" en una parte, se toma lo que correspondía). hecho:false borra lo anotado de esa semana.
 const postRepartoSemana = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
@@ -1717,7 +1739,12 @@ const postRepartoSemana = async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) return res.status(400).json({ error: 'Falta la semana' });
     if (b.hecho === false) { await pool.query('DELETE FROM reparto_semanas WHERE inicio = $1', [inicio]); return res.json({ ok: true }); }
     const base = Math.max(0, Math.round(parseFloat(b.base) || 0));
-    const partes = limpiarPartes(b.partes).map((pt, i) => ({ ...pt, monto: Math.max(0, Math.round(parseFloat(((b.partes || [])[i] || {}).monto) || 0)) }));
+    const monto = (v) => Math.max(0, Math.min(1e11, Math.round(parseFloat(v) || 0)));
+    const partes = limpiarPartes(b.partes).map((pt, i) => {
+      const o = (b.partes || [])[i] || {};
+      const m = monto(o.monto);
+      return { ...pt, monto: m, separado: o.separado === undefined || o.separado === null || o.separado === '' ? m : monto(o.separado) };
+    });
     const u = req.usuario || {};
     let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
     await pool.query(`INSERT INTO reparto_semanas (inicio, base, detalle, usuario) VALUES ($1, $2, $3, $4)
@@ -1725,5 +1752,32 @@ const postRepartoSemana = async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
 };
+// Anotar plata que se usó de una cuenta ("uso": ej. pagué a un proveedor) o que se sumó aparte ("extra")
+const postRepartoMovimiento = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const b = req.body || {};
+    const k = String(b.parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
+    const tipo = b.tipo === 'extra' ? 'extra' : 'uso';
+    const monto = Math.round(parseFloat(b.monto) * 100) / 100;
+    const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(b.fecha || '')) ? b.fecha : null;
+    if (!k) return res.status(400).json({ error: 'Elegí la cuenta' });
+    if (!(monto > 0) || monto > 1e11) return res.status(400).json({ error: 'Poné un monto mayor a cero' });
+    const u = req.usuario || {};
+    let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    const r = await pool.query(`INSERT INTO reparto_movimientos (parte_k, tipo, monto, fecha, nota, usuario) VALUES ($1, $2, $3, COALESCE($4::date, (${AR('NOW()')})::date), $5, $6) RETURNING id`,
+      [k, tipo, monto, fecha, String(b.nota || '').trim().slice(0, 120) || null, quien]);
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (e) { console.error('[reparto movimiento]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+};
+const deleteRepartoMovimiento = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Falta el movimiento' });
+    await pool.query('DELETE FROM reparto_movimientos WHERE id = $1', [id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
+};
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

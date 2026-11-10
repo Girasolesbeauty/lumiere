@@ -26,6 +26,8 @@ router.get('/medallas', controller.getMedallas);
 router.get('/reparto', controller.getReparto);
 router.put('/reparto/config', controller.putRepartoConfig);
 router.post('/reparto/semana', controller.postRepartoSemana);
+router.post('/reparto/movimiento', controller.postRepartoMovimiento);
+router.delete('/reparto/movimiento/:id', controller.deleteRepartoMovimiento);
 router.get('/decisiones/base', controller.getBaseDecisiones);
 
 module.exports = router;
