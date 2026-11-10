@@ -20837,6 +20837,7 @@ function DelMes({ usuario, paletaActual }) {
         <label style={{ display: "flex", gap: 10, alignItems: "center", fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
           <input type="checkbox" checked={cfg.activo} onChange={e => setCfg(c => ({ ...c, activo: e.target.checked }))} style={{ width: 18, height: 18 }} /> Mostrar la competencia a los clientes en su cuenta de la tienda
         </label>
+        <div style={{ fontSize: 12, color: tp.textMuted, margin: "-4px 0 10px 28px" }}>Esto muestra el ranking y el podio de todos. <b>Las ganadoras siempre ven el premio que ganaron en su cuenta</b>, esté tildado o no.</div>
         {cfg.premios.map((p, i) => (
           <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
             <span style={{ fontSize: 13 }}>Puesto</span>
@@ -34834,6 +34835,13 @@ function TiendaPublica({ slug }) {
         {miCuenta.competencia && (() => {
           const k = miCuenta.competencia, MES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
           const med = ["🥇", "🥈", "🥉"], pz = (p) => p.desde === p.hasta ? p.desde + "°" : p.desde + "° a " + p.hasta + "°";
+          // La competencia no se muestra a todos: la ganadora igual ve lo que ganó (premio en mano y puntos)
+          if (k.solo_ganados) {
+            const mios = k.ganados.filter(g => !g.entregado || g.puntos).slice(0, 2);
+            return mios.length ? <div className="tw-comp-card">{mios.map(g => (
+              <div key={g.anio + "-" + g.mes} className="tw-comp-ganaste">🎉 <b>¡Quedaste {g.puesto}° en {MES[g.mes - 1]} en el Cliente del mes!</b> {g.premio ? "Ganaste: " + g.premio + "." : ""}{g.puntos ? " Te sumamos " + g.puntos + " puntos." : ""}{g.premio && !g.entregado ? " Pasá por el local a retirarlo 🎁" : ""}</div>
+            ))}</div> : null;
+          }
           return (
             <div className="tw-comp-card">
               {k.ganados.filter(g => !g.entregado || g.puntos).slice(0, 2).map(g => (
