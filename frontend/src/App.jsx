@@ -29591,14 +29591,16 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-v b{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);margin-bottom:3px}
 .tw-adv-v.prendida b{color:#7a4b00;text-shadow:none;font-size:12px}
 .tw-adv-v.listo:not(.hoy){border-color:#ffd56b}
-.tw-adv-v.hoy{z-index:5;border:2px solid #fff;background:linear-gradient(160deg,#ff4d79,#e11d48 60%,#9f1239);transform:scale(1.18);animation:twAdvHoyV 1.4s ease-in-out infinite,twAdvMenea 2.6s ease-in-out 1.2s infinite}
-.tw-adv-v.hoy::before{display:none}
-.tw-adv-v.hoy::after{top:-3px;left:-3px;right:-3px;bottom:-3px;height:auto;background:none;border:2px solid #fff;border-radius:4px;animation:twAdvOnda 1.6s ease-out infinite;pointer-events:none}
-.tw-adv-v.hoy b{font-size:21px;margin-bottom:0;align-self:center}
+/* Sigue siendo una ventana (marco dorado y cruz): iluminada desde adentro con luz cálida, que late */
+.tw-adv-v.hoy{z-index:5;border:2px solid #ffd56b;background:radial-gradient(circle at 50% 42%,#fff1c2 0%,#ffc85a 38%,#e8603c 78%,#a8233f 100%);transform:scale(1.18);animation:twAdvHoyV 1.4s ease-in-out infinite,twAdvMenea 2.6s ease-in-out 1.2s infinite}
+.tw-adv-v.hoy::before{width:2px;margin-left:-1px;background:rgba(122,52,0,.55)}
+.tw-adv-v.hoy::after{height:2px;background:rgba(122,52,0,.5)}
+.tw-adv-v .onda{position:absolute;inset:-4px;border:2px solid #fff3cf;border-radius:3px;animation:twAdvOnda 1.6s ease-out infinite;pointer-events:none}
+.tw-adv-v.hoy b{font-size:21px;margin-bottom:0;align-self:center;color:#fff;text-shadow:0 1px 2px #7a2a00,0 0 8px rgba(122,42,0,.8)}
 .tw-adv-v.hoy{align-items:center}
 .tw-adv-v .hoy-chip{top:-13px;background:#fff;color:#e11d48;font-size:9px;font-weight:900;letter-spacing:.14em;padding:3px 7px 2px;box-shadow:0 3px 8px rgba(0,0,0,.35)}
 .tw-adv-v .dedo{position:absolute;right:-14px;bottom:-14px;font-size:20px;animation:twAdvDedo 1.1s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));pointer-events:none}
-@media (prefers-reduced-motion:reduce){.tw-adv-v.hoy,.tw-adv-v.hoy::after,.tw-adv-v .dedo{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.tw-adv-v.hoy,.tw-adv-v .onda,.tw-adv-v .dedo{animation:none!important}}
 .tw-adv-cuenta{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#e8cf8f;margin-top:10px;padding:0 10px}
 .tw-adv-aviso{margin-top:6px;font-size:13px;color:rgba(255,255,255,.8);min-height:18px;padding:0 14px}
 .tw-adv-pruebabar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:12px 14px 0;padding:9px 12px;border-radius:14px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,213,107,.7);font-size:12.5px;font-weight:600;color:#ffe9b8}
@@ -32503,7 +32505,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
               onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
               {ab && <TwAdvIcono icono={d.icono} className="ic" />}<b>{n}</b>
               {ab && <><i className="hj l" aria-hidden="true" /><i className="hj r" aria-hidden="true" /></>}
-              {esHoy && !ab && <><span className="hoy-chip">HOY</span><span className="dedo" aria-hidden="true">👆</span></>}
+              {esHoy && !ab && <><i className="onda" aria-hidden="true" /><span className="hoy-chip">HOY</span><span className="dedo" aria-hidden="true">👆</span></>}
             </button>);
         })}
       </div>
