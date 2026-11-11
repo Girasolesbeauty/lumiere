@@ -29785,6 +29785,28 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-cod{display:flex;gap:8px;align-items:center;justify-content:center;margin:0 0 12px}
 .tw-adv-cod .tw-adv-btn.sec{padding:9px 14px;font-family:"TwMS",sans-serif;font-weight:700}
 .tw-adv-cod code{font-family:"TwMS",ui-monospace,monospace;font-weight:700;font-size:18px;letter-spacing:.16em;background:#0c1630;color:#ffd98a;padding:9px 14px 7px;border-radius:10px}
+/* ── Tarjeta de la sorpresa, versión mágica: cielo de Nochebuena con estrellas, marco dorado, guirnalda de luces que titila,
+   orbe dorado que brilla, título dorado con destello y nieve cayendo adentro ── */
+.tw-adv-tarjeta{color:#fff4dc;background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.9) 0 1px,transparent 1.6px) 0 0/71px 83px,radial-gradient(circle at 64% 72%,rgba(255,236,170,.75) 0 1.2px,transparent 1.8px) 0 0/97px 89px,radial-gradient(circle at 38% 44%,rgba(255,255,255,.5) 0 .8px,transparent 1.3px) 0 0/43px 59px,radial-gradient(120% 70% at 50% 0%,rgba(255,206,120,.28),transparent 60%),radial-gradient(90% 60% at 100% 100%,rgba(200,16,46,.45),transparent 65%),linear-gradient(180deg,#14214a 0%,#1d1446 50%,#3a0f36 100%);box-shadow:0 0 0 2px #f2cf7a,0 0 0 6px rgba(242,207,122,.25),0 0 60px rgba(255,200,110,.45),0 26px 70px rgba(0,0,0,.6)}
+.tw-adv-tarjeta::after{inset:8px;border:1.5px solid rgba(242,207,122,.55);border-radius:20px;box-shadow:inset 0 0 30px rgba(255,214,140,.18)}
+.tw-adv-tarjeta::before{display:block;top:-7px;left:26px;right:26px}
+.tw-adv-tnieve i{background:#fff;opacity:.9;box-shadow:0 0 6px rgba(255,255,255,.9)}
+.tw-adv-dia{color:#fff3c4;box-shadow:0 3px 14px rgba(200,16,46,.55),0 0 0 1px rgba(242,207,122,.6)}
+.tw-adv-tarjeta .big{background:radial-gradient(circle,#fffdf3 0 50%,#ffe49a 54% 57%,#fff3d0 60%);box-shadow:0 0 0 3px #f2cf7a,0 0 0 9px rgba(242,207,122,.18),0 0 46px 10px rgba(255,210,120,.6)}
+.tw-adv-tarjeta .big .halo{background:repeating-conic-gradient(from 0deg,rgba(255,226,150,.55) 0 7deg,transparent 7deg 18deg)}
+.tw-adv-tarjeta h3{background:linear-gradient(100deg,#ffe9a8 0%,#f5c45e 35%,#fff6d6 50%,#f5c45e 65%,#ffe9a8 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 10px rgba(255,190,90,.45));animation:twAdvOro 4s linear infinite}
+@keyframes twAdvOro{to{background-position:-220% 0}}
+.tw-adv-tarjeta p{color:rgba(255,244,220,.88)}
+.tw-adv-premio.paso{background:rgba(255,255,255,.08);border-color:rgba(242,207,122,.45);color:rgba(255,244,220,.75)}
+.tw-adv-premio.paso small{color:#e9c46a}.tw-adv-premio.paso b{color:rgba(255,244,220,.85)}
+.tw-adv-pg small{color:#e9c46a}
+.tw-adv-pg b{color:#fff4dc}
+.tw-adv-pg .img{border-color:#f2cf7a;box-shadow:0 0 0 4px rgba(242,207,122,.18),0 10px 24px rgba(0,0,0,.4),0 0 26px rgba(255,210,120,.35)}
+.tw-adv-ingresa{background:rgba(255,255,255,.08);border-color:rgba(242,207,122,.5);color:#ffe9b8}
+.tw .tw-adv-ingresa .tw-adv-link{color:#ffd56b!important}
+.tw-adv-cod code{background:#fff3d6;color:#8e0c20}
+.tw-adv-sellado{background:rgba(255,243,214,.95)}
+@media (prefers-reduced-motion:reduce){.tw-adv-tarjeta h3{animation:none}}
 .tw-adv-prods{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:0 -6px;text-align:left;scroll-snap-type:x mandatory;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-prods>*{flex:0 0 150px;scroll-snap-align:start}
 .tw-adv-info{display:inline-block;margin:0 auto 12px;padding:7px 14px;border-radius:999px;background:#fff3d6;color:#6b4a00;font-size:13px;font-weight:600;line-height:1.35;max-width:100%}
