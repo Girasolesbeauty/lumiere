@@ -41596,7 +41596,7 @@ function AvisoPrueba({ negocio, p }) {
 // VENTANA DE PAGO: elegir plan y período y pagar con Mercado Pago (tarjeta de crédito o débito, cobro automático en cada período).
 // Salta sola cuando se termina la prueba. Al volver de Mercado Pago confirma el pago y abre la cuenta sin que haya que hacer nada más.
 const PLANES_VENTANA = {
-  basico: { color: "#3aa0ff", para: "Para ordenarte y controlar todo", items: ["Hasta 8 usuarios · hasta 2 locales", "Compras y proveedores", "Finanzas completas y comisiones"] },
+  basico: { color: "#3aa0ff", para: "Para ordenarte y controlar todo", items: ["Vos + 2 empleados · hasta 2 locales", "Compras y proveedores", "Finanzas completas y comisiones"] },
   estrategico: { color: "#f5b400", para: "Para el negocio que crece", items: ["Usuarios ilimitados · hasta 5 locales", "Qué pedir, control de inventario y postventa", "Rotación del inventario"] },
   premium: { color: "#a970ff", para: "Para decidir con datos y vender online", items: ["Todo lo del Estratégico", "Tienda online incluida", "Toma de decisiones"] },
 };
