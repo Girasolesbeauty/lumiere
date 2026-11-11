@@ -29611,6 +29611,15 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media (prefers-reduced-motion:reduce){.tw-adv-v.hoy,.tw-adv-v .onda,.tw-adv-v .dedo{animation:none!important}}
 .tw-adv-cuenta{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#e8cf8f;margin-top:10px;padding:0 10px}
 .tw-adv-aviso{margin-top:6px;font-size:13px;color:rgba(255,255,255,.8);min-height:18px;padding:0 14px}
+/* Lema y cartel luminoso del hotel (marquesina con lamparitas que titilan) */
+.tw-adv-lema{margin:10px auto 0;max-width:420px;padding:0 18px;font-family:"TwDM",Georgia,serif;font-size:19px;line-height:1.3;color:#ffe9b8}
+.tw-adv-lema b{font-weight:400;color:#ffd56b;text-shadow:0 0 12px rgba(255,200,100,.55)}
+.tw-adv-ciudad{container-type:inline-size}
+.tw-adv-marquesina{position:absolute;left:22%;right:22%;top:83.5%;height:4%;z-index:2;display:flex;align-items:center;justify-content:center;border-radius:5px;background:linear-gradient(180deg,#2a0d14,#4a1220);box-shadow:0 0 0 2px #c9962c,0 0 0 4px #2a0d14,0 0 18px rgba(255,190,90,.55);pointer-events:none}
+.tw-adv-marquesina::before{content:"";position:absolute;inset:-4px;border-radius:7px;background:radial-gradient(circle,#fff3c4 0 1.6px,transparent 2.2px) 0 0/9px 9px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:3px;animation:twAdvMarq 1.2s steps(2) infinite}
+.tw-adv-marquesina span{font-family:"TwDM",Georgia,serif;font-size:12px;font-size:4.1cqw;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;background:linear-gradient(180deg,#fff4cf,#f2c454);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 4px rgba(255,200,90,.85))}
+@keyframes twAdvMarq{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.tw-adv-marquesina::before{animation:none}}
 .tw-adv-pruebabar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:12px 14px 0;padding:9px 12px;border-radius:14px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,213,107,.7);font-size:12.5px;font-weight:600;color:#ffe9b8}
 .tw-adv-pruebabar select{font:inherit;font-weight:700;border-radius:999px;border:0;padding:5px 10px;background:#fff;color:#2a1c00}
 .tw-adv-pruebabar button{font:inherit;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;padding:5px 10px;cursor:pointer}
@@ -32676,8 +32685,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   return (
     <section className="tw-adv" id="tw-adviento" aria-label={adv.titulo}>
       <TwAdvNieve />
-      <div className="tw-adv-ceja"><span>🎄 Navidad {adv.anio}</span></div>
+      <div className="tw-adv-ceja"><span>🗽 Navidad en Nueva York · {adv.anio}</span></div>
       <h2>{advTitulo(adv.titulo)}</h2>
+      <p className="tw-adv-lema">Todos queremos pasar una Navidad en Nueva York. <b>¿Por qué esperar?</b> ✨</p>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
       {prueba && <div className="tw-adv-pruebabar">
         <span>🧪 Probar como si fuera el</span>
@@ -32687,6 +32697,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef} onDoubleClick={nevar}>
         <TwAdvCiudad />
         <TwAdvProgreso n={prendidas} />
+        <div className="tw-adv-marquesina" aria-hidden="true"><span>★ Navidad en Nueva York ★</span></div>
         {trineo > 0 && <div key={trineo} className="tw-adv-vuela" onAnimationEnd={() => setTrineo(0)}><TwAdvTrineo /></div>}
         {estrella && <button key={estrella.k} className="tw-adv-estrella" style={{ left: estrella.x + "%", top: estrella.y + "%" }} onClick={tocarEstrella} onAnimationEnd={() => setEstrella(null)} aria-label="Estrella fugaz: tocala y pedí un deseo"><i /></button>}
         {dias.map(d => {
