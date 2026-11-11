@@ -41596,13 +41596,13 @@ function AvisoPrueba({ negocio, p }) {
 // VENTANA DE PAGO: elegir plan y período y pagar con Mercado Pago (tarjeta de crédito o débito, cobro automático en cada período).
 // Salta sola cuando se termina la prueba. Al volver de Mercado Pago confirma el pago y abre la cuenta sin que haya que hacer nada más.
 const PLANES_VENTANA = {
-  esencial: { color: "#3aa0ff", para: "Para el local chico", items: ["Hasta 3 usuarios · 1 local", "Punto de venta y facturación ARCA", "Inventario, caja y cierre de caja"] },
-  profesional: { color: "#f5b400", para: "Para el negocio que crece", items: ["Hasta 8 usuarios · hasta 2 locales", "Qué pedir, compras y proveedores", "Finanzas, comisiones y postventa por WhatsApp"] },
-  estrategico: { color: "#a970ff", para: "Para decidir con datos", items: ["Usuarios ilimitados · hasta 5 locales", "Rotación y toma de decisiones", "Tienda online incluida"] },
+  basico: { color: "#3aa0ff", para: "Para ordenarte y controlar todo", items: ["Hasta 8 usuarios · hasta 2 locales", "Qué pedir, compras y proveedores", "Finanzas, comisiones y postventa por WhatsApp"] },
+  estrategico: { color: "#f5b400", para: "Para el negocio que crece", items: ["Usuarios ilimitados · hasta 5 locales", "Todo lo del Básico", "Rotación del inventario"] },
+  premium: { color: "#a970ff", para: "Para decidir con datos y vender online", items: ["Todo lo del Estratégico", "Tienda online incluida", "Toma de decisiones"] },
 };
 function VentanaPago({ negocio, onCerrar, onActualizar, p }) {
   const [d, setD] = useState(null);
-  const [plan, setPlan] = useState("profesional");
+  const [plan, setPlan] = useState("estrategico");
   const [periodo, setPeriodo] = useState("mes");
   const [error, setError] = useState("");
   const [yendo, setYendo] = useState(false);
@@ -41670,7 +41670,7 @@ function VentanaPago({ negocio, onCerrar, onActualizar, p }) {
               return (
                 <button key={pl.id} type="button" onClick={() => setPlan(pl.id)} aria-pressed={sel}
                   style={{ textAlign: "left", cursor: "pointer", fontFamily: "inherit", color: p.text, background: sel ? v.color + "18" : p.bg, border: "2px solid " + (sel ? v.color : p.border), borderRadius: 14, padding: "14px 14px 12px", position: "relative" }}>
-                  {pl.id === "profesional" && <span style={{ position: "absolute", top: -10, right: 12, background: "#f5b400", color: "#14110a", fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 999 }}>El más elegido</span>}
+                  {pl.id === "estrategico" && <span style={{ position: "absolute", top: -10, right: 12, background: "#f5b400", color: "#14110a", fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 999 }}>El más elegido</span>}
                   <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: v.color }}>{pl.nombre}</div>
                   <div style={{ fontSize: 12, color: p.textMuted }}>{v.para}</div>
                   <div style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 0", letterSpacing: "-.02em" }}>{$m(pp.mensual)}<span style={{ fontSize: 13, fontWeight: 600, color: p.textMuted }}> /mes</span></div>
