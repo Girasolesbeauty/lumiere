@@ -29734,6 +29734,14 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvSaluda{0%{transform:rotate(-14deg)}100%{transform:rotate(16deg)}}
 .tw-adv-pers .nariz-r{animation:twAdvTw .9s ease-in-out infinite}
 .tw-adv-pers .globo{position:absolute;right:66px;bottom:20px;white-space:nowrap;background:#fff;color:#8e0c20;font-family:"TwMS",sans-serif;font-weight:800;font-size:12px;padding:6px 11px;border-radius:14px 14px 4px 14px;box-shadow:0 4px 12px rgba(0,0,0,.18),0 0 0 1.5px #e0b54f;opacity:0;transform:scale(.4);transform-origin:100% 80%}
+.tw-adv-pers .globo{white-space:normal;width:196px;right:62px;bottom:34px;text-align:left;font-size:12px;line-height:1.3;font-weight:700;color:#5a0a18;padding:8px 11px 9px}
+.tw-adv-pers .globo small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b8892e;margin-bottom:3px}
+.tw-adv-pers .globo b{color:#c8102e;font-weight:900}
+.tw-adv-pers .globo em{display:block;font-style:normal;font-weight:500;font-size:10.5px;line-height:1.3;color:#6b4a3a;margin-top:4px}
+/* El personaje con su globo va abajo de todo de la tarjeta (en fila), así no tapa la sorpresa */
+.tw-adv-pers{position:relative;right:auto;bottom:auto;width:auto;display:flex;align-items:flex-end;gap:6px;margin:16px -6px -8px 0;text-align:left}
+.tw-adv-pers svg{width:66px;flex-shrink:0}
+.tw-adv-pers .globo{position:relative;right:auto;bottom:auto;width:auto;flex:1;min-width:0;margin-bottom:22px;border-radius:14px 14px 4px 14px}
 .tw-adv-escena.listo .tw-adv-pers .globo{animation:twAdvGlobo .5s cubic-bezier(.3,1.6,.5,1) 2.1s forwards}
 @keyframes twAdvGlobo{to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.tw-adv-pers,.tw-adv-pers .globo{opacity:1;transform:none;animation:none!important}.tw-adv-pers .brazo{animation:none!important}}
@@ -32361,11 +32369,15 @@ const ADV_PERSONAJES = [
 ];
 // Qué personaje sale cada día (se van turnando)
 const advPersonaje = (dia) => ADV_PERSONAJES[(Math.max(1, dia) - 1) % ADV_PERSONAJES.length];
-function TwAdvPersonaje({ dia }) {
-  const [nombre, frase, dibujo] = advPersonaje(dia);
+// Maratón de películas navideñas: el personaje del día cuenta solo qué peli toca ver. Es la peli de la escena de la ventana
+// (ADV_PELIS); si la tienda puso un emoji propio, la de la escena que le toca a ese día por defecto
+function TwAdvPersonaje({ dia, esHoy, icono }) {
+  const [nombre, , dibujo] = advPersonaje(dia);
+  const pe = ADV_PELIS[advEscenaDe(icono) || ADV_ESCENA_DIA[(Math.max(1, Math.min(25, dia)) - 1)]] || [];
+  const m = /^(.*?)\s*\((\d{4})\)$/.exec(pe[0] || ""), peli = m ? m[1] : pe[0], anio = m ? m[2] : "";
   return (
-    <div className={"tw-adv-pers p" + ((Math.max(1, dia) - 1) % ADV_PERSONAJES.length)} aria-hidden="true">
-      <span className="globo">{frase}</span>
+    <div className={"tw-adv-pers p" + ((Math.max(1, dia) - 1) % ADV_PERSONAJES.length)}>
+      <span className="globo" role="status"><small>🎬 Maratón navideña · día {dia}</small>{esHoy ? "Hoy toca ver" : "Ese día tocaba"} <b>{peli}</b>{anio ? " (" + anio + ")" : ""} 🍿{pe[1] && <em>Buscá la escena: {pe[1]}</em>}</span>
       <svg viewBox="0 0 80 100" role="img" aria-label={nombre}>{dibujo}</svg>
     </div>
   );
@@ -32534,7 +32546,6 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
             {abriendo.fase === "abre" && <button className="tw-adv-saltar" onClick={saltar}>Saltar ›</button>}
             {(() => { const info = advInfo(sel, hoy, false); return (
             <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 46 } : undefined}>
-              <TwAdvPersonaje dia={sel.dia} />
               <div className="tw-adv-tnieve" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <i key={i} />)}</div>
               <svg className="tw-adv-mono" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z" fill="#c8102e" /><path d="M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z" fill="#c8102e" /><path d="M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z" fill="#8e0c20" opacity=".55" /><path d="M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z" fill="#a50e26" /><circle cx="60" cy="30" r="7" fill="#e0b54f" /><circle cx="58" cy="28" r="2.4" fill="#fff3c4" /></svg>
               <svg className="tw-adv-acebo i" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#1f6b3f" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#185c35" /><circle cx="30" cy="22" r="4" fill="#d01c33" /><circle cx="36" cy="25" r="3.6" fill="#b5122a" /><circle cx="26" cy="27" r="3.4" fill="#e02740" /></svg>
@@ -32551,6 +32562,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
               {premioSello && sel.dia === hoy && <div className="tw-adv-sellado"><span className="st"><TwAdvIcono icono={sel.icono} /></span><div><b>¡Sumaste el sello del día {sel.dia}!</b>{premioSello.premios && premioSello.premios.length ? <span>🎉 Ganaste {premioSello.premios.reduce((t, h) => t + h.puntos, 0).toLocaleString("es-AR")} puntos por juntar {premioSello.premios[premioSello.premios.length - 1].dias} {premioSello.premios[premioSello.premios.length - 1].dias === 1 ? "sello" : "sellos"}</span> : <span>Llevás {(premioSello.sellos || []).length} de 25 en tu álbum</span>}</div></div>}
               {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-ingresa">🎖️ <button className="tw-adv-link" onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
               <button className="tw-adv-btn rojo" onClick={cerrarDia}>{sel.dia === hoy ? "¡Gracias! ✨" : "Cerrar"}</button>
+              <TwAdvPersonaje dia={sel.dia} esHoy={sel.dia === hoy} icono={sel.icono} />
             </div>); })()}
           </div>
         </div>
