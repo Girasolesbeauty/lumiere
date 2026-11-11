@@ -29768,53 +29768,14 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-regalos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 12px;margin:2px 0 16px}
 .tw .tw-adv-pg{width:132px;border:0;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:#2a1f12!important;font:inherit}
 .tw-adv-escena.listo .tw-adv-pg{animation:twAdvHijo .6s cubic-bezier(.3,1.3,.5,1) calc(.95s + var(--i) * .12s) both}
-.tw-adv-pg{--d:calc(1.3s + var(--i) * .45s)}
-/* Caja de regalo encima del producto: roja con cinta y moño dorados */
-.tw-adv-pg .caja{position:absolute;inset:-6px -6px -4px;z-index:3;pointer-events:none;transform-origin:50% 100%}
-.tw-adv-pg .caja i{position:absolute;display:block}
-.tw-adv-pg .caja .cuerpo{left:4%;right:4%;top:15%;bottom:0;border-radius:10px;background:radial-gradient(circle,rgba(255,224,150,.55) 0 1.4px,transparent 2px) 0 0/14px 14px,linear-gradient(135deg,#e01e3c,#9e0f25);box-shadow:inset 0 -10px 16px rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.2),0 10px 18px rgba(0,0,0,.4)}
-.tw-adv-pg .caja .cinta-v{left:50%;width:16%;margin-left:-8%;top:15%;bottom:0;background:linear-gradient(90deg,#b8862a,#ffe7a3 50%,#b8862a)}
-.tw-adv-pg .caja .cinta-h{left:4%;right:4%;top:52%;height:14%;background:linear-gradient(180deg,#b8862a,#ffe7a3 50%,#b8862a)}
-.tw-adv-pg .caja .tapa{left:0;right:0;top:0;height:20%;border-radius:8px;background:radial-gradient(circle,rgba(255,224,150,.5) 0 1.4px,transparent 2px) 0 0/14px 14px,linear-gradient(135deg,#f0294a,#ab132c);box-shadow:inset 0 2px 0 rgba(255,255,255,.25),0 5px 8px rgba(0,0,0,.35)}
-.tw-adv-pg .caja .cinta-t{left:50%;width:16%;margin-left:-8%;top:0;bottom:0;background:linear-gradient(90deg,#b8862a,#ffe7a3 50%,#b8862a)}
-.tw-adv-pg .caja .lazo{top:-18%;width:30%;height:22%;border:6px solid #f2c454;border-radius:50%;background:rgba(255,231,163,.25);box-shadow:0 2px 4px rgba(0,0,0,.25)}
-.tw-adv-pg .caja .lazo.l{right:49%;transform:rotate(-22deg);transform-origin:100% 90%}
-.tw-adv-pg .caja .lazo.r{left:49%;transform:rotate(22deg);transform-origin:0 90%}
-.tw-adv-pg .caja .nudo{left:50%;top:-6%;width:14%;height:12%;margin-left:-7%;border-radius:40%;background:radial-gradient(circle at 40% 35%,#fff0c2,#d4a23c);box-shadow:0 2px 4px rgba(0,0,0,.3)}
-.tw-adv-pg .caja .cola{top:2%;width:8%;height:24%;border-radius:2px 2px 0 0;background:linear-gradient(90deg,#c9962c,#ffe39a);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)}
-.tw-adv-pg .caja .cola.l{left:40%;transform:rotate(22deg);transform-origin:50% 0}
-.tw-adv-pg .caja .cola.r{right:40%;transform:rotate(-22deg);transform-origin:50% 0}
-.tw-adv-pg .chispas{position:absolute;left:50%;top:50%;width:0;height:0;z-index:4;pointer-events:none}
-.tw-adv-pg .chispas i{position:absolute;width:10px;height:10px;margin:-5px;background:#ffe39a;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);opacity:0;filter:drop-shadow(0 0 4px #ffd56b)}
-/* La secuencia: se sacude, se desata el moño, se sueltan las cintas, vuela la tapa, se cae la caja y aparece el producto */
-.tw-adv-escena.listo .tw-adv-pg .caja{animation:twCjMenea .75s ease-in-out var(--d),twCjFin .01s linear calc(var(--d) + 2.2s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .lazo.l{animation:twCjLazoL .5s ease-in calc(var(--d) + .8s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .lazo.r{animation:twCjLazoR .5s ease-in calc(var(--d) + .8s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .nudo{animation:twCjCae .45s ease-in calc(var(--d) + .95s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .cola.l{animation:twCjColaL .5s ease-in calc(var(--d) + .9s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .cola.r{animation:twCjColaR .5s ease-in calc(var(--d) + .9s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .cinta-v,.tw-adv-escena.listo .tw-adv-pg .caja .cinta-t{animation:twCjCintaV .35s ease-in calc(var(--d) + 1.05s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .cinta-h{animation:twCjCintaH .35s ease-in calc(var(--d) + 1.05s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .tapa{animation:twCjTapa .6s cubic-bezier(.3,.7,.4,1) calc(var(--d) + 1.3s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .caja .cuerpo{animation:twCjCuerpo .55s ease-in calc(var(--d) + 1.6s) forwards}
-.tw-adv-escena.listo .tw-adv-pg .img>img,.tw-adv-escena.listo .tw-adv-pg .img>.ph{animation:twCjSale .7s cubic-bezier(.3,1.7,.5,1) calc(var(--d) + 1.6s) both}
-.tw-adv-escena.listo .tw-adv-pg .img>em,.tw-adv-escena.listo .tw-adv-pg .img>.moñito{animation:twCjAparece .4s ease-out calc(var(--d) + 2s) both}
-.tw-adv-escena.listo .tw-adv-pg .chispas i{animation:twCjChispa .9s ease-out calc(var(--d) + 1.6s) forwards}
-@keyframes twCjMenea{0%,100%{transform:none}15%{transform:rotate(-6deg) scale(1.04)}30%{transform:rotate(6deg) scale(1.04)}45%{transform:rotate(-5deg)}60%{transform:rotate(4deg)}75%{transform:rotate(-2deg)}}
-@keyframes twCjFin{to{visibility:hidden}}
-@keyframes twCjLazoL{to{transform:translate(-26px,-30px) rotate(-150deg) scale(.3);opacity:0}}
-@keyframes twCjLazoR{to{transform:translate(26px,-30px) rotate(150deg) scale(.3);opacity:0}}
-@keyframes twCjCae{to{transform:translateY(-34px) scale(.3);opacity:0}}
-@keyframes twCjColaL{to{transform:translate(-20px,40px) rotate(80deg);opacity:0}}
-@keyframes twCjColaR{to{transform:translate(20px,40px) rotate(-80deg);opacity:0}}
-@keyframes twCjCintaV{to{transform:scaleY(0);opacity:0}}
-@keyframes twCjCintaH{to{transform:scaleX(0);opacity:0}}
-@keyframes twCjTapa{0%{transform:none}35%{transform:translateY(-22px) rotate(-8deg)}100%{transform:translate(34px,-90px) rotate(32deg);opacity:0}}
-@keyframes twCjCuerpo{0%{transform:none}30%{transform:translateY(-4px)}100%{transform:translateY(46px) scale(.75);opacity:0}}
-@keyframes twCjSale{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
-@keyframes twCjAparece{from{opacity:0}to{opacity:1}}
-@keyframes twCjChispa{0%{opacity:1;transform:rotate(var(--a)) translateX(10px) scale(.4)}100%{opacity:0;transform:rotate(var(--a)) translateX(84px) scale(1.1)}}
-@media (prefers-reduced-motion:reduce){.tw-adv-pg .caja,.tw-adv-pg .chispas{display:none}.tw-adv-escena.listo .tw-adv-pg .img>*{animation:none!important;opacity:1}}
+/* Regalo que se abre (TwAdvRegalo): mientras está envuelto no se ve el marco blanco ni el producto */
+.tw-adv-pg .img{transition:background-color .5s,border-color .5s,box-shadow .5s}
+.tw-adv-pg .img.envuelto{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+.tw-adv-pg .img.envuelto>*:not(.tw-adv-gift):not(.tw-adv-gift-fx){opacity:0}
+.tw-adv-gift{position:absolute;left:-14px;top:-30px;width:calc(100% + 28px);height:calc(100% + 40px);z-index:3;pointer-events:none;overflow:visible}
+.tw-adv-gift-fx{position:absolute;left:50%;top:50%;width:0;height:0;z-index:4;pointer-events:none}
+.tw-adv-gift-fx i{position:absolute;width:11px;height:11px;margin:-5.5px;background:#ffe39a;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);opacity:0;filter:drop-shadow(0 0 5px #ffd56b)}
+.tw-adv-gift-fx i.c{width:6px;height:6px;margin:-3px;border-radius:50%;clip-path:none;background:#fff}
 .tw-adv-pg .img{position:relative;width:118px;height:118px;border-radius:22px;background:#fff;border:2px solid #e0b54f;box-shadow:0 8px 18px rgba(120,80,20,.22);display:flex;align-items:center;justify-content:center;overflow:visible;animation:twAdvFlotaP 3.4s ease-in-out calc(var(--i) * .5s) infinite}
 .tw-adv-pg .img img{width:100%;height:100%;object-fit:cover;border-radius:20px}
 .tw-adv-pg .img .ph{font-size:34px;color:#c9a45a}
@@ -32297,6 +32258,15 @@ const twAdvSon = {
     src.connect(f).connect(g).connect(c.destination); src.start(c.currentTime + cuando);
   } catch (e) {} },
   campanita() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 2093, dur: .5, vol: .05 }); twTono(c, { f1: 3136, dur: .3, vol: .015 }); twVibrar(8); },
+  // Regalo que se abre: papel que cruje al sacudirse, la cinta que se desliza, el "pop" de la tapa y campanitas
+  regalo() {
+    const c = twSonidoOn() && twCtx(); if (!c) return;
+    this.ruido(c, .8, .2, .05, 3200, "bandpass"); this.ruido(c, 1.05, .18, .05, 3900, "bandpass");
+    twTono(c, { f1: 900, f2: 1900, dur: .35, vol: .012, tipo: "triangle", cuando: 1.85 });
+    twTono(c, { f1: 420, f2: 150, dur: .2, vol: .06, cuando: 2.3 }); this.ruido(c, 2.3, .07, .07, 1200, "lowpass");
+    [1568, 2093, 2349, 2637, 3136, 4186].forEach((f, i) => { twTono(c, { f1: f, dur: 1.1, vol: .03, cuando: 2.5 + i * .07 }); twTono(c, { f1: f * 2.01, dur: .5, vol: .008, cuando: 2.5 + i * .07 }); });
+    setTimeout(() => twVibrar(20), 2300);
+  },
   abrir() {
     const c = twSonidoOn() && twCtx(); if (!c) return;
     [1046, 1318, 1568].forEach((f, i) => twTono(c, { f1: f, dur: .25, vol: .02, cuando: .75 + i * .08 })); // se prende la luz
@@ -32450,6 +32420,97 @@ function TwAdvPersonaje({ dia, esHoy, icono }) {
       <svg viewBox="0 0 80 100" role="img" aria-label={nombre}>{dibujo}</svg>
     </div>
   );
+}
+// Regalo que se abre encima de cada producto de la sorpresa (SVG + Web Animations, con anticipación y rebotes):
+// cae la caja, se sacude, se desata el moño, se sueltan las cintas, salta la tapa, sale luz de adentro y sube el producto
+function TwAdvRegalo({ listo, indice = 0 }) {
+  const raiz = useRef(null), hecho = useRef(false);
+  useEffect(() => {
+    const svg = raiz.current; if (!svg) return;
+    const marco = svg.parentElement; if (!marco) return;
+    if (!listo) { marco.classList.add("envuelto"); return; }
+    if (hecho.current) return; hecho.current = true;
+    const q = (s) => svg.querySelector(s);
+    const hijos = [...marco.children].filter(e => e !== svg && !e.classList.contains("tw-adv-gift-fx"));
+    const destapar = () => { marco.classList.remove("envuelto"); };
+    if (twMenosMovimiento() || !svg.animate) { destapar(); svg.style.display = "none"; return; }
+    marco.classList.add("envuelto");
+    const T = 1000 + indice * 520; // espera a que suba la tarjeta y aparezca el producto (y una caja después de la otra)
+    const A = (el, kf, o) => el && el.animate(kf, { fill: "both", easing: "cubic-bezier(.33,1,.68,1)", ...o, delay: T + (o.delay || 0) });
+    const resorte = "cubic-bezier(.34,1.56,.64,1)", entra = "cubic-bezier(.32,0,.67,0)";
+    // 1) cae la caja con rebote
+    A(q(".todo"), [{ transform: "translateY(-46px) scale(.7)", opacity: 0 }, { transform: "translateY(4px) scale(1.04,.94)", opacity: 1, offset: .6 }, { transform: "translateY(-3px) scale(.98,1.03)", offset: .8 }, { transform: "none", opacity: 1 }], { duration: 650 });
+    A(q(".sombra"), [{ transform: "scale(.4)", opacity: 0 }, { transform: "none", opacity: .35 }], { duration: 650 });
+    // 2) se sacude (anticipación)
+    A(q(".sacude"), [{ transform: "none" }, { transform: "rotate(-5deg)", offset: .18 }, { transform: "rotate(5deg)", offset: .36 }, { transform: "rotate(-4deg)", offset: .54 }, { transform: "rotate(3deg)", offset: .72 }, { transform: "rotate(-1deg)", offset: .88 }, { transform: "none" }], { delay: 700, duration: 760, easing: "ease-in-out", fill: "none" });
+    // 3) se desata el moño
+    A(q(".lazo.l"), [{ transform: "none", opacity: 1 }, { transform: "rotate(14deg) scale(1.08)", offset: .25 }, { transform: "translate(-34px,-30px) rotate(-130deg) scale(.2)", opacity: 0 }], { delay: 1500, duration: 620, easing: entra });
+    A(q(".lazo.r"), [{ transform: "none", opacity: 1 }, { transform: "rotate(-14deg) scale(1.08)", offset: .25 }, { transform: "translate(34px,-30px) rotate(130deg) scale(.2)", opacity: 0 }], { delay: 1500, duration: 620, easing: entra });
+    A(q(".nudo"), [{ transform: "none", opacity: 1 }, { transform: "scale(1.35)", offset: .3 }, { transform: "scale(0)", opacity: 0 }], { delay: 1560, duration: 420 });
+    A(q(".cola.l"), [{ transform: "none", opacity: 1 }, { transform: "translate(-16px,34px) rotate(70deg)", opacity: 0 }], { delay: 1600, duration: 560, easing: entra });
+    A(q(".cola.r"), [{ transform: "none", opacity: 1 }, { transform: "translate(16px,34px) rotate(-70deg)", opacity: 0 }], { delay: 1600, duration: 560, easing: entra });
+    // 4) se sueltan las cintas
+    [".cinta-v", ".cinta-t"].forEach(s => A(q(s), [{ transform: "none", opacity: 1 }, { transform: "scaleY(0)", opacity: 0 }], { delay: 1800, duration: 380, easing: entra }));
+    A(q(".cinta-h"), [{ transform: "none", opacity: 1 }, { transform: "scaleX(0)", opacity: 0 }], { delay: 1800, duration: 380, easing: entra });
+    // 5) la caja junta fuerza y salta la tapa
+    A(q(".cuerpo-g"), [{ transform: "none" }, { transform: "scale(1.06,.9)", offset: .45 }, { transform: "scale(.97,1.04)", offset: .75 }, { transform: "none" }], { delay: 2150, duration: 420, fill: "none" });
+    A(q(".tapa"), [{ transform: "none", opacity: 1 }, { transform: "translateY(4px) scale(1.04,.92)", offset: .15 }, { transform: "translate(6px,-58px) rotate(-12deg)", opacity: 1, offset: .55 }, { transform: "translate(70px,10px) rotate(38deg)", opacity: 0 }], { delay: 2250, duration: 900, easing: "cubic-bezier(.25,.8,.35,1)" });
+    // 6) sale luz de adentro
+    A(q(".luz"), [{ transform: "scale(.2)", opacity: 0 }, { transform: "scale(1.15)", opacity: 1, offset: .35 }, { transform: "scale(1.5)", opacity: 0 }], { delay: 2350, duration: 1100 });
+    A(q(".rayos"), [{ transform: "scale(.3) rotate(0deg)", opacity: 0 }, { transform: "scale(1) rotate(25deg)", opacity: .9, offset: .4 }, { transform: "scale(1.25) rotate(60deg)", opacity: 0 }], { delay: 2350, duration: 1300 });
+    // 7) la caja baja y se va, y sube el producto
+    A(q(".cuerpo-g"), [{ transform: "none", opacity: 1 }, { transform: "translateY(26px) scale(.9)", opacity: 0 }], { delay: 2450, duration: 420, easing: entra });
+    A(q(".sombra"), [{ opacity: .35 }, { opacity: 0 }], { delay: 2450, duration: 420 });
+    const t = setTimeout(destapar, T + 2880);
+    hijos.forEach((el, k) => el.animate([{ transform: "translateY(26px) scale(.55)", opacity: 0 }, { transform: "translateY(-6px) scale(1.06)", opacity: 1, offset: .65 }, { transform: "none", opacity: 1 }], { delay: T + 2820 + k * 40, duration: 700, easing: resorte, fill: "both" }));
+    // 8) chispitas
+    const fx = marco.querySelector(".tw-adv-gift-fx");
+    if (fx) [...fx.children].forEach((p, k) => {
+      const a = (k / fx.children.length) * Math.PI * 2 + Math.random() * .4, d = 60 + Math.random() * 40;
+      p.animate([{ transform: "translate(0,0) scale(.3)", opacity: 0 }, { opacity: 1, offset: .15 }, { transform: "translate(" + Math.cos(a) * d + "px," + (Math.sin(a) * d - 14) + "px) scale(1) rotate(" + (k * 40) + "deg)", opacity: 0 }], { delay: T + 2450 + (k % 3) * 60, duration: 1000 + Math.random() * 300, easing: "cubic-bezier(.2,.8,.3,1)", fill: "both" });
+    });
+    // Sonido: papel, cinta, "pop" de la tapa y campanitas al aparecer el producto
+    const s = setTimeout(() => twAdvSon.regalo && twAdvSon.regalo(), T);
+    return () => { clearTimeout(t); clearTimeout(s); };
+  }, [listo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const id = "g" + indice;
+  return (<>
+    <svg ref={raiz} className="tw-adv-gift" viewBox="0 0 120 132" aria-hidden="true">
+      <defs>
+        <linearGradient id={id + "r"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff5a76" /><stop offset=".45" stopColor="#e3264a" /><stop offset="1" stopColor="#9c0d28" /></linearGradient>
+        <linearGradient id={id + "t"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff6b84" /><stop offset="1" stopColor="#c8163a" /></linearGradient>
+        <linearGradient id={id + "o"} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#a8701a" /><stop offset=".42" stopColor="#ffe9a6" /><stop offset=".58" stopColor="#f6c75a" /><stop offset="1" stopColor="#9a6414" /></linearGradient>
+        <linearGradient id={id + "oh"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a8701a" /><stop offset=".42" stopColor="#ffe9a6" /><stop offset=".58" stopColor="#f6c75a" /><stop offset="1" stopColor="#9a6414" /></linearGradient>
+        <radialGradient id={id + "l"}><stop offset="0" stopColor="#fffbe6" /><stop offset=".35" stopColor="#ffe08a" stopOpacity=".85" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
+        <pattern id={id + "p"} width="11" height="11" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.1" fill="#ffe3a0" opacity=".55" /><circle cx="8" cy="8" r="1.1" fill="#ffe3a0" opacity=".55" /></pattern>
+      </defs>
+      <ellipse className="sombra" cx="60" cy="124" rx="42" ry="5" fill="#000" opacity=".35" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
+      <g className="rayos" style={{ transformBox: "view-box", transformOrigin: "60px 56px", opacity: 0 }}>{Array.from({ length: 12 }, (_, k) => <path key={k} d="M60 56 L56 -6 L64 -6 Z" fill="#fff3c4" opacity=".55" transform={"rotate(" + k * 30 + " 60 56)"} />)}</g>
+      <circle className="luz" cx="60" cy="56" r="56" fill={"url(#" + id + "l)"} style={{ transformBox: "fill-box", transformOrigin: "center", opacity: 0 }} />
+      <g className="todo" style={{ transformBox: "view-box", transformOrigin: "60px 122px" }}><g className="sacude" style={{ transformBox: "view-box", transformOrigin: "60px 122px" }}>
+        <g className="cuerpo-g" style={{ transformBox: "view-box", transformOrigin: "60px 122px" }}>
+          <rect x="16" y="52" width="88" height="70" rx="9" fill={"url(#" + id + "r)"} />
+          <rect x="16" y="52" width="88" height="70" rx="9" fill={"url(#" + id + "p)"} />
+          <rect x="82" y="52" width="22" height="70" rx="9" fill="#000" opacity=".12" />
+          <rect x="16" y="52" width="88" height="7" fill="#000" opacity=".18" />
+          <rect className="cinta-v" x="53" y="52" width="14" height="70" fill={"url(#" + id + "o)"} style={{ transformBox: "fill-box", transformOrigin: "50% 0" }} />
+          <rect className="cinta-h" x="16" y="80" width="88" height="12" fill={"url(#" + id + "oh)"} style={{ transformBox: "fill-box", transformOrigin: "50% 50%" }} />
+        </g>
+        <g className="tapa" style={{ transformBox: "fill-box", transformOrigin: "50% 100%" }}>
+          <rect x="10" y="36" width="100" height="21" rx="7" fill={"url(#" + id + "t)"} />
+          <rect x="10" y="36" width="100" height="21" rx="7" fill={"url(#" + id + "p)"} />
+          <rect x="12" y="37" width="96" height="4" rx="2" fill="#fff" opacity=".22" />
+          <rect className="cinta-t" x="53" y="36" width="14" height="21" fill={"url(#" + id + "o)"} style={{ transformBox: "fill-box", transformOrigin: "50% 100%" }} />
+          <path className="cola l" d="M58 38 L44 62 L50.5 59 L53 66 L62 39 Z" fill={"url(#" + id + "o)"} style={{ transformBox: "fill-box", transformOrigin: "80% 0" }} />
+          <path className="cola r" d="M62 38 L76 62 L69.5 59 L67 66 L58 39 Z" fill={"url(#" + id + "o)"} style={{ transformBox: "fill-box", transformOrigin: "20% 0" }} />
+          <g className="lazo l" style={{ transformBox: "fill-box", transformOrigin: "100% 80%" }}><path d="M60 34 C46 12 20 14 27 31 C32 43 50 41 60 34 Z" fill={"url(#" + id + "o)"} /><path d="M58 34 C48 24 34 24 34 30 C36 36 48 37 58 34 Z" fill="#9a6414" opacity=".45" /></g>
+          <g className="lazo r" style={{ transformBox: "fill-box", transformOrigin: "0 80%" }}><path d="M60 34 C74 12 100 14 93 31 C88 43 70 41 60 34 Z" fill={"url(#" + id + "o)"} /><path d="M62 34 C72 24 86 24 86 30 C84 36 72 37 62 34 Z" fill="#9a6414" opacity=".45" /></g>
+          <g className="nudo" style={{ transformBox: "fill-box", transformOrigin: "center" }}><rect x="53" y="27" width="14" height="14" rx="5" fill={"url(#" + id + "oh)"} /><rect x="56" y="29" width="5" height="3" rx="1.5" fill="#fff" opacity=".6" /></g>
+        </g>
+      </g></g>
+    </svg>
+    <span className="tw-adv-gift-fx" aria-hidden="true">{Array.from({ length: 14 }, (_, k) => <i key={k} className={k % 3 === 0 ? "c" : ""} />)}</span>
+  </>);
 }
 function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }) {
   // Vista previa: se simula un día (los siguientes quedan cerrados) y lo que se abre se guarda solo en esta pestaña, así cada prueba arranca de cero
@@ -32627,9 +32688,8 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
               {sel.codigo && sel.tipo === "codigo" && !(info || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
               {prods.length > 0 && <div className="tw-adv-regalos">{prods.map((p, i) => <button key={p.id} className="tw-adv-pg" style={{ "--i": i }} onClick={() => { cerrarDia(); onAbrir && onAbrir(p); }}>
                 <span className="img">{p.foto && foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="ph">✿</span>}{sel.tipo === "descuento" && sel.pct > 0 && !(info || {}).paso && <em>-{sel.pct}%</em>}<i className="moñito" aria-hidden="true" />
-                  {/* Primero es un regalo: se sacude, se desata el moño, vuela la tapa y sale el producto */}
-                  <span className="caja" aria-hidden="true"><i className="cuerpo" /><i className="cinta-v" /><i className="cinta-h" /><i className="tapa"><i className="cinta-t" /></i><i className="cola l" /><i className="cola r" /><i className="lazo l" /><i className="lazo r" /><i className="nudo" /></span>
-                  <span className="chispas" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => <i key={k} style={{ "--a": k * 36 + "deg" }} />)}</span></span>
+                  {/* Primero es un regalo que se abre (con sonido) y de adentro sale el producto */}
+                  <TwAdvRegalo listo={/listo/.test(abriendo.fase)} indice={i} /></span>
                 {p.marca && <small>{p.marca}</small>}<b>{p.nombre}</b></button>)}</div>}
               {premioSello && sel.dia === hoy && <div className="tw-adv-sellado"><span className="st"><TwAdvIcono icono={sel.icono} /></span><div><b>¡Sumaste el sello del día {sel.dia}!</b>{premioSello.premios && premioSello.premios.length ? <span>🎉 Ganaste {premioSello.premios.reduce((t, h) => t + h.puntos, 0).toLocaleString("es-AR")} puntos por juntar {premioSello.premios[premioSello.premios.length - 1].dias} {premioSello.premios[premioSello.premios.length - 1].dias === 1 ? "sello" : "sellos"}</span> : <span>Llevás {(premioSello.sellos || []).length} de 25 en tu álbum</span>}</div></div>}
               {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-ingresa">🎖️ <button className="tw-adv-link" onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
