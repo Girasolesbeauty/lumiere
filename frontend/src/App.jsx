@@ -29584,42 +29584,21 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv h2{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-style:normal;font-weight:800;font-size:34px;letter-spacing:-.02em;line-height:1.05;margin-top:12px;text-shadow:none}
 .tw-adv h2 b{font-weight:800;background:linear-gradient(90deg,#ffd56b,#ff8fa3);-webkit-background-clip:text;background-clip:text;color:transparent}
 .tw-adv-bajada{color:rgba(255,255,255,.78)}
-.tw-adv-cal{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-width:520px;margin:18px auto 4px;padding:0 14px}
-.tw-adv-c{position:relative;aspect-ratio:1/1;min-height:70px;padding:0;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(155deg,rgba(255,255,255,.14),rgba(255,255,255,.04));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 10px 22px rgba(0,0,0,.28);color:#fff;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;-webkit-tap-highlight-color:transparent;transition:transform .15s}
-.tw-adv-c:active{transform:scale(.95)}
-.tw-adv-c b{font-weight:800;font-size:30px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.tw-adv-c .sub{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.6}
-.tw-adv-c.bloq{opacity:.5}
-.tw-adv-c.bloq .sub{letter-spacing:0;font-size:11px;opacity:.9}
-.tw-adv-c.listo:not(.hoy){border-color:rgba(255,213,107,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 0 1px rgba(255,213,107,.25),0 10px 22px rgba(0,0,0,.28)}
-.tw-adv-c.listo:not(.hoy) .sub{color:#ffd56b;opacity:1}
-.tw-adv-c.prendida{border-color:rgba(255,233,184,.9);background:linear-gradient(155deg,#fff6df,#ffd98a 60%,#f2b84b);box-shadow:inset 0 2px 0 rgba(255,255,255,.7),0 8px 20px rgba(242,184,75,.35)}
-.tw-adv-c.prendida .ic{position:absolute;inset:14% 14% 18%;width:auto;height:auto;display:flex;align-items:center;justify-content:center;font-size:30px}
-.tw-adv-c.prendida .ic svg{width:100%;height:100%}
-.tw-adv-c.prendida b{position:absolute;top:6px;left:8px;font-size:13px;color:#7a4b00}
-.tw-adv-c.nav{grid-column:1/-1;aspect-ratio:auto;min-height:84px;flex-direction:row;gap:12px;background:linear-gradient(120deg,rgba(255,213,107,.28),rgba(225,29,72,.3));border-color:rgba(255,213,107,.75)}
-.tw-adv-c.nav b{font-size:38px}
-.tw-adv-c.nav .sub{font-size:13px;letter-spacing:.08em;opacity:.95;color:#ffe9b8}
-.tw-adv-c.nav.prendida .ic{inset:10% auto 10% 50%;width:64px;transform:translateX(-50%)}
-/* La de hoy: roja, más grande, se sacude cada tanto y titila */
-.tw-adv-c.hoy{z-index:2;border:0;background:linear-gradient(150deg,#ff4d79,#e11d48 55%,#9f1239);box-shadow:0 0 0 3px #fff,0 0 30px 8px rgba(255,77,121,.6);animation:twAdvMenea 2.6s ease-in-out 1.2s infinite}
-.tw-adv-c.hoy b{font-size:38px;text-shadow:0 2px 8px rgba(0,0,0,.25)}
-.tw-adv-c.hoy::after{content:"";position:absolute;inset:-3px;border-radius:20px;border:3px solid #fff;animation:twAdvOnda 1.6s ease-out infinite;pointer-events:none}
-.tw-adv-c .hoy-chip{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#fff;color:#e11d48;font-size:10px;font-weight:900;letter-spacing:.16em;padding:3px 9px;border-radius:999px;box-shadow:0 4px 10px rgba(0,0,0,.25);white-space:nowrap;line-height:1.2}
-.tw-adv-c .dedo{position:absolute;right:-6px;bottom:-8px;font-size:22px;animation:twAdvDedo 1.1s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
-.tw-adv-c.tiembla{animation:twAdvNoV .4s}
-.tw-adv-c.recien{animation:twAdvRecien 1.1s ease-out}
-.tw-adv-cal .tw-adv-c{opacity:0}
-.tw-adv-cal.on .tw-adv-c{animation:twAdvAparece .45s cubic-bezier(.2,.9,.3,1.2) calc(var(--i) * 30ms) both}
-.tw-adv-cal.on .tw-adv-c.hoy{animation:twAdvAparece .45s cubic-bezier(.2,.9,.3,1.2) calc(var(--i) * 30ms) both,twAdvMenea 2.6s ease-in-out 1.4s infinite}
-.tw-adv-cal.on .tw-adv-c.tiembla{animation:twAdvNoV .4s;opacity:1}
-.tw-adv-cal.on .tw-adv-c.recien{animation:twAdvRecien 1.1s ease-out;opacity:1}
-.tw-adv-cal .tw-adv-vuela{top:-4%}
-@keyframes twAdvAparece{from{opacity:0;transform:translateY(12px) scale(.9)}to{opacity:1;transform:none}}
-@keyframes twAdvMenea{0%,62%,100%{transform:none}66%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(8deg) scale(1.08)}74%{transform:rotate(-6deg) scale(1.06)}78%{transform:rotate(5deg) scale(1.05)}82%{transform:rotate(-2deg) scale(1.03)}86%{transform:none}}
+@keyframes twAdvMenea{0%,62%,100%{transform:scale(1.18)}66%{transform:rotate(-9deg) scale(1.32)}70%{transform:rotate(9deg) scale(1.32)}74%{transform:rotate(-6deg) scale(1.28)}78%{transform:rotate(5deg) scale(1.25)}82%{transform:rotate(-2deg) scale(1.2)}86%{transform:scale(1.18)}}
 @keyframes twAdvOnda{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
 @keyframes twAdvDedo{0%,100%{transform:translate(0,0)}50%{transform:translate(-4px,-5px)}}
-@media (prefers-reduced-motion:reduce){.tw-adv-cal .tw-adv-c,.tw-adv-cal.on .tw-adv-c,.tw-adv-c.hoy,.tw-adv-c.hoy::after,.tw-adv-c .dedo{animation:none!important;opacity:1}}
+/* Ventanas del edificio: números grandes y modernos; la de hoy roja, más grande, con onda, dedito y sacudón */
+.tw-adv-v b{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);margin-bottom:3px}
+.tw-adv-v.prendida b{color:#7a4b00;text-shadow:none;font-size:12px}
+.tw-adv-v.listo:not(.hoy){border-color:#ffd56b}
+.tw-adv-v.hoy{z-index:5;border:2px solid #fff;background:linear-gradient(160deg,#ff4d79,#e11d48 60%,#9f1239);transform:scale(1.18);animation:twAdvHoyV 1.4s ease-in-out infinite,twAdvMenea 2.6s ease-in-out 1.2s infinite}
+.tw-adv-v.hoy::before{display:none}
+.tw-adv-v.hoy::after{top:-3px;left:-3px;right:-3px;bottom:-3px;height:auto;background:none;border:2px solid #fff;border-radius:4px;animation:twAdvOnda 1.6s ease-out infinite;pointer-events:none}
+.tw-adv-v.hoy b{font-size:21px;margin-bottom:0;align-self:center}
+.tw-adv-v.hoy{align-items:center}
+.tw-adv-v .hoy-chip{top:-13px;background:#fff;color:#e11d48;font-size:9px;font-weight:900;letter-spacing:.14em;padding:3px 7px 2px;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.tw-adv-v .dedo{position:absolute;right:-14px;bottom:-14px;font-size:20px;animation:twAdvDedo 1.1s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));pointer-events:none}
+@media (prefers-reduced-motion:reduce){.tw-adv-v.hoy,.tw-adv-v.hoy::after,.tw-adv-v .dedo{animation:none!important}}
 .tw-adv-cuenta{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#e8cf8f;margin-top:10px;padding:0 10px}
 .tw-adv-aviso{margin-top:6px;font-size:13px;color:rgba(255,255,255,.8);min-height:18px;padding:0 14px}
 .tw-adv-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#0c1630;color:#f3e7cf;border:1px solid #e8cf8f;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
@@ -32487,19 +32466,19 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       <div className="tw-adv-ceja"><span>🎄 Navidad {adv.anio}</span></div>
       <h2>{advTitulo(adv.titulo)}</h2>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
-      <div className={"tw-adv-cal" + (encendido ? " on" : "")} ref={ciudadRef} onDoubleClick={nevar}>
+      <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef} onDoubleClick={nevar}>
+        <TwAdvCiudad />
+        <TwAdvProgreso n={prendidas} />
         {trineo > 0 && <div key={trineo} className="tw-adv-vuela" onAnimationEnd={() => setTrineo(0)}><TwAdvTrineo /></div>}
         {estrella && <button key={estrella.k} className="tw-adv-estrella" style={{ left: estrella.x + "%", top: estrella.y + "%" }} onClick={tocarEstrella} onAnimationEnd={() => setEstrella(null)} aria-label="Estrella fugaz: tocala y pedí un deseo"><i /></button>}
         {adv.dias.map(d => {
-          const n = d.dia, esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n), nav = n === 25;
+          const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
           return (
-            <button key={n} data-dia={n} style={{ "--i": n }}
-              className={"tw-adv-c" + (nav ? " nav" : "") + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "") + (recien === n ? " recien" : "")}
-              onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : esHoy ? " (hoy: tocala)" : "")}>
-              {ab && <TwAdvIcono icono={d.icono} className="ic" />}
-              <b>{n}</b>
-              {nav && !ab && <span className="sub">Navidad ✨</span>}
-              {!nav && !ab && !esHoy && <span className="sub">{d.bloqueado ? "🔒" : "dic"}</span>}
+            <button key={n} data-dia={n} className={"tw-adv-v" + (v.pent ? " pent" : "") + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "") + (recien === n ? " recien" : "")}
+              style={{ left: (v.x / 360 * 100) + "%", top: (v.y / ADV_ALTO * 100) + "%", width: (v.w / 360 * 100) + "%", height: (v.h / ADV_ALTO * 100) + "%" }}
+              onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
+              {ab && <TwAdvIcono icono={d.icono} className="ic" />}<b>{n}</b>
+              {ab && <><i className="hj l" aria-hidden="true" /><i className="hj r" aria-hidden="true" /></>}
               {esHoy && !ab && <><span className="hoy-chip">HOY</span><span className="dedo" aria-hidden="true">👆</span></>}
             </button>);
         })}
@@ -32507,7 +32486,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       {nevada.length > 0 && <TwAdvNevada capas={nevada} seVa={nieveSeVa} />}
       {deseo && <div className="tw-adv-deseo" role="status" onClick={() => setDeseo(null)}><b>🌠 ¡Pediste un deseo!</b><span>{deseo.msg}</span>{deseo.extra && <small>{deseo.extra}</small>}</div>}
       <div className="tw-adv-cuenta">✦ {prendidas} de 25 ventanas encendidas ✦</div>
-      <div className="tw-adv-tips">🌠 Tocá las estrellas fugaces · ❄️ <span className="cel">Sacudí el celular</span><span className="pc">Doble clic en el calendario</span>: cuanto más, más nieva</div>
+      <div className="tw-adv-tips">🌠 Tocá las estrellas fugaces · ❄️ <span className="cel">Sacudí el celular</span><span className="pc">Doble clic en el edificio</span>: cuanto más, más nieva</div>
       <TwAdvAlbum adv={adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
       <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 && !adv.vista_previa ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
