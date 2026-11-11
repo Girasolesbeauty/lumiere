@@ -29440,6 +29440,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw .tw-nav .tw-cy-nav{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;border-radius:999px;padding:6px 14px;font-weight:900;letter-spacing:.1em}
 .tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
 @font-face{font-family:"TwPF";font-display:swap;font-style:italic;font-weight:500;src:url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2) format("woff2")}
+@font-face{font-family:"TwDM";font-display:swap;font-style:normal;font-weight:400;src:url(https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2G_Bx0g.woff2) format("woff2")}
 @font-face{font-family:"TwJS";font-display:swap;font-weight:400 700;src:url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2) format("woff2")}
 .tw-adv{position:relative;overflow:hidden;margin:14px 12px 10px;border-radius:26px;padding:26px 0 18px;background:linear-gradient(180deg,#0f0c2e 0%,#241a52 40%,#4a2768 78%,#7a3466 100%);color:#fff;text-align:center;isolation:isolate;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-ceja{font-size:10.5px;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:#d9bf7f;padding:0 14px}
@@ -29588,7 +29589,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @keyframes twAdvOnda{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.35)}}
 @keyframes twAdvDedo{0%,100%{transform:translate(0,0)}50%{transform:translate(-4px,-5px)}}
 /* Ventanas del edificio: números grandes y modernos; la de hoy roja, más grande, con onda, dedito y sacudón */
-.tw-adv-v b{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);margin-bottom:3px}
+.tw-adv-v b{font-family:"TwDM",Georgia,"Times New Roman",serif;font-weight:400;font-size:19px;letter-spacing:0;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);margin-bottom:3px}
 .tw-adv-v.prendida b{color:#7a4b00;text-shadow:none;font-size:12px}
 .tw-adv-v.listo:not(.hoy){border-color:#ffd56b}
 /* Sigue siendo una ventana (marco dorado y cruz): iluminada desde adentro con luz cálida, que late */
@@ -29596,16 +29597,16 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-v.hoy::before{width:2px;margin-left:-1px;background:rgba(122,52,0,.55)}
 .tw-adv-v.hoy::after{height:2px;background:rgba(122,52,0,.5)}
 .tw-adv-v .onda{position:absolute;inset:-4px;border:2px solid #fff3cf;border-radius:3px;animation:twAdvOnda 1.6s ease-out infinite;pointer-events:none}
-.tw-adv-v.hoy b{font-size:21px;margin-bottom:0;align-self:center;color:#fff;text-shadow:0 1px 2px #7a2a00,0 0 8px rgba(122,42,0,.8)}
+.tw-adv-v.hoy b{font-size:23px;margin-bottom:0;align-self:center;color:#fff;text-shadow:0 1px 2px #7a2a00,0 0 8px rgba(122,42,0,.8)}
 .tw-adv-v.hoy{align-items:center}
 .tw-adv-v .hoy-chip{top:-13px;background:#fff;color:#e11d48;font-size:9px;font-weight:900;letter-spacing:.14em;padding:3px 7px 2px;box-shadow:0 3px 8px rgba(0,0,0,.35)}
 .tw-adv-v .dedo{position:absolute;right:-14px;bottom:-14px;font-size:20px;animation:twAdvDedo 1.1s ease-in-out infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));pointer-events:none}
 /* La 25 (ventana de arco de la torre): mismo número moderno que las demás y, si es hoy, la misma luz cálida */
-.tw-adv-v.pent b{font-family:"Inter","Helvetica Neue",Helvetica,Arial,sans-serif;font-style:normal;font-weight:800;font-size:19px;letter-spacing:-.02em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);margin-bottom:6px}
+.tw-adv-v.pent b{font-family:"TwDM",Georgia,"Times New Roman",serif;font-style:normal;font-weight:400;font-size:21px;letter-spacing:0;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);margin-bottom:6px}
 .tw-adv-v.pent.prendida b{font-size:12px;color:#7a4b00;text-shadow:none}
 .tw-adv-v.pent.listo:not(.hoy){border-color:#ffd56b}
 .tw-adv-v.pent.hoy{background:radial-gradient(circle at 50% 42%,#fff1c2 0%,#ffc85a 38%,#e8603c 78%,#a8233f 100%);border-width:2px}
-.tw-adv-v.pent.hoy b{font-size:22px;text-shadow:0 1px 2px #7a2a00,0 0 8px rgba(122,42,0,.8)}
+.tw-adv-v.pent.hoy b{font-size:24px;text-shadow:0 1px 2px #7a2a00,0 0 8px rgba(122,42,0,.8)}
 .tw-adv-v.pent .onda{border-radius:26px 26px 4px 4px}
 @media (prefers-reduced-motion:reduce){.tw-adv-v.hoy,.tw-adv-v .onda,.tw-adv-v .dedo{animation:none!important}}
 .tw-adv-cuenta{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#e8cf8f;margin-top:10px;padding:0 10px}
