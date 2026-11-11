@@ -13,7 +13,7 @@ const SINONIMOS = {
   marca: ['marca', 'fabricante', 'brand'],
   categoria: ['categoria', 'rubro', 'familia', 'linea', 'tipo', 'seccion', 'category'],
   precio: ['precio', 'precio venta', 'precio de venta', 'precio publico', 'pvp', 'precio final', 'precio lista', 'valor', 'price', 'precio unitario'],
-  costo: ['costo', 'precio costo', 'precio de costo', 'costo unitario', 'compra', 'precio compra', 'cost'],
+  costo: ['costo', 'c', 'c sin iva', 'c con iva', 'costo sin iva', 'costo con iva', 'precio c', 'lista c', 'precio mayorista', 'mayorista', 'precio costo', 'precio de costo', 'costo unitario', 'compra', 'precio compra', 'cost'],
   stock: ['stock', 'cantidad', 'existencia', 'existencias', 'unidades', 'stock actual', 'inventario', 'qty'],
   stock_minimo: ['stock minimo', 'minimo', 'stock min', 'min', 'punto de pedido', 'reposicion'],
   codigo_barras: ['codigo de barras', 'codigo barras', 'codigo', 'ean', 'sku', 'cod barras', 'barcode', 'cod', 'codigo de producto', 'upc'],
