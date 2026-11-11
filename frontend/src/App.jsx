@@ -8260,6 +8260,148 @@ function MarcasProductos({ temaPal, onCerrar, onCambio }) {
     </div>
   );
 }
+// Cargar productos de golpe desde un Excel o CSV: se elige el archivo, Lumiere adivina qué es cada columna,
+// se ve cómo van a quedar (vista previa) y recién ahí se importa.
+const CAMPOS_IMPORTAR = [["nombre", "Nombre *"], ["precio", "Precio de venta *"], ["costo", "Costo"], ["stock", "Stock"], ["marca", "Marca"], ["categoria", "Categoría"], ["codigo_barras", "Código de barras"], ["proveedor", "Proveedor"], ["stock_minimo", "Stock mínimo"]];
+function ImportarProductos({ temaPal, localId, nombreLocal, onCerrar, onCambio }) {
+  const [archivo, setArchivo] = useState(null); // { nombre, datos (base64) }
+  const [vista, setVista] = useState(null);
+  const [mapeo, setMapeo] = useState(null);
+  const [existentes, setExistentes] = useState("saltear");
+  const [trabajando, setTrabajando] = useState(false);
+  const [error, setError] = useState("");
+  const [hecho, setHecho] = useState(null);
+  const pedir = async (arch, map, confirmar) => {
+    setTrabajando(true); setError("");
+    try {
+      const r = await API.post("/productos/importar", { archivo: arch.datos, mapeo: map || undefined, confirmar: !!confirmar, existentes, local_id: localId });
+      if (confirmar) { setHecho(r.data); onCambio && onCambio(); }
+      else { setVista(r.data); setMapeo(r.data.mapeo); }
+    } catch (e) { setError(e.response?.data?.error || "No se pudo leer el archivo"); }
+    setTrabajando(false);
+  };
+  const leer = (f) => {
+    if (!f) return;
+    if (f.size > 6 * 1024 * 1024) return setError("El archivo es muy grande (máximo 6 MB). Dividilo en partes.");
+    const fr = new FileReader();
+    fr.onload = () => { const a = { nombre: f.name, datos: String(fr.result).split(",")[1] || "" }; setArchivo(a); setVista(null); setHecho(null); pedir(a, null, false); };
+    fr.onerror = () => setError("No pude abrir el archivo");
+    fr.readAsDataURL(f);
+  };
+  const cambiarColumna = (campo, valor) => { const m = { ...mapeo, [campo]: valor === "" ? -1 : parseInt(valor) }; setMapeo(m); pedir(archivo, m, false); };
+  const descargarModelo = () => {
+    const filas = [["Nombre", "Marca", "Categoría", "Precio de venta", "Costo", "Stock", "Código de barras", "Proveedor"],
+      ["Crema hidratante 50 ml", "Laneige", "Skincare", "32000", "16500", "7", "7790001234567", "Distribuidora Sol"],
+      ["Remera lisa algodón", "Básicos", "Remeras", "12900,50", "5400", "30", "", ""]];
+    const csv = "\uFEFF" + filas.map(f => f.join(";")).join("\r\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "modelo-productos-lumiere.csv"; a.click();
+  };
+  const puedeImportar = vista && vista.ok && vista.validos > 0 && (vista.nuevos > 0 || existentes === "actualizar");
+  const th = { textAlign: "left", fontSize: 11, color: temaPal.textMuted, padding: "4px 8px", whiteSpace: "nowrap" }, td = { fontSize: 12.5, padding: "4px 8px", borderTop: "1px solid " + temaPal.border };
+  return (
+    <div className="pos-overlay" onClick={onCerrar}>
+      <div className="card pop-in" role="dialog" aria-label="Importar productos" style={{ maxWidth: 820, width: "100%", maxHeight: "92vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>📤 Importar productos desde Excel</div>
+          <button onClick={onCerrar} aria-label="Cerrar" style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: temaPal.textMuted }}>✕</button>
+        </div>
+        {hecho ? (
+          <div style={{ padding: "10px 0" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: temaPal.green, marginBottom: 8 }}>✓ Listo, ya están cargados</div>
+            <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>
+              <b>{hecho.creados}</b> producto{hecho.creados !== 1 ? "s" : ""} nuevo{hecho.creados !== 1 ? "s" : ""}
+              {hecho.actualizados > 0 && <> · <b>{hecho.actualizados}</b> actualizado{hecho.actualizados !== 1 ? "s" : ""}</>}
+              {hecho.salteados > 0 && <> · <b>{hecho.salteados}</b> ya existían (no se tocaron)</>}
+              {hecho.proveedores_nuevos > 0 && <> · <b>{hecho.proveedores_nuevos}</b> proveedor{hecho.proveedores_nuevos !== 1 ? "es" : ""} nuevo{hecho.proveedores_nuevos !== 1 ? "s" : ""}</>}
+              {hecho.n_errores > 0 && <div style={{ color: temaPal.textMuted }}>{hecho.n_errores} fila{hecho.n_errores !== 1 ? "s" : ""} no se cargaron (sin nombre, sin precio o repetidas).</div>}
+            </div>
+            <button className="btn btn-p" style={{ marginTop: 14 }} onClick={onCerrar}>Ver mis productos</button>
+          </div>
+        ) : (<>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Subí tu lista de productos en Excel (.xlsx) o CSV. Lumiere reconoce las columnas solo; antes de cargar nada ves cómo van a quedar.</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+            <label className="btn btn-p btn-sm" style={{ cursor: "pointer" }}>{archivo ? "Elegir otro archivo" : "📂 Elegir archivo"}
+              <input type="file" accept=".xlsx,.xls,.csv,text/csv" style={{ display: "none" }} onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; leer(f); }} />
+            </label>
+            <button className="btn btn-g btn-sm" onClick={descargarModelo}>⬇️ Descargar modelo de ejemplo</button>
+            {archivo && <span style={{ fontSize: 12, color: temaPal.textMuted }}>{archivo.nombre}</span>}
+            {trabajando && <span style={{ fontSize: 12, color: temaPal.textMuted }}>Leyendo…</span>}
+          </div>
+          {error && <div role="alert" style={{ background: temaPal.redDim, border: "1px solid " + temaPal.red, borderRadius: 8, padding: "8px 12px", fontSize: 12.5, marginBottom: 10 }}>{error}</div>}
+          {vista && mapeo && (<>
+            {!vista.ok && <div style={{ background: temaPal.redDim, border: "1px solid " + temaPal.red, borderRadius: 8, padding: "8px 12px", fontSize: 12.5, marginBottom: 10 }}>No pude reconocer la columna de <b>{vista.falta.join(" y ")}</b>. Elegila abajo.</div>}
+            <div className="fl" style={{ marginBottom: 6 }}>¿Qué es cada columna de tu archivo? <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>(si algo está mal, cambialo)</span></div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 8, marginBottom: 12 }}>
+              {CAMPOS_IMPORTAR.map(([k, l]) => (
+                <label key={k} style={{ fontSize: 11.5, color: temaPal.textMuted }}>{l}
+                  <select className="sel" style={{ width: "100%", marginTop: 2 }} value={mapeo[k] >= 0 ? mapeo[k] : ""} onChange={e => cambiarColumna(k, e.target.value)}>
+                    <option value="">— no está en mi archivo —</option>
+                    {vista.columnas.map((c, i) => <option key={i} value={i}>{c}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+            {vista.ok && (<>
+              <div style={{ fontSize: 13, marginBottom: 8, lineHeight: 1.6 }}>
+                Encontré <b>{vista.total}</b> filas: <b style={{ color: temaPal.green }}>{vista.nuevos} productos nuevos</b>
+                {vista.ya_estan > 0 && <>, <b>{vista.ya_estan}</b> que ya tenés cargados</>}
+                {vista.n_errores > 0 && <>, <b style={{ color: temaPal.red }}>{vista.n_errores}</b> con problemas</>}.
+              </div>
+              <div style={{ overflowX: "auto", border: "1px solid " + temaPal.border, borderRadius: 8, marginBottom: 10 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr><th style={th}>Nombre</th><th style={th}>Marca</th><th style={th}>Categoría</th><th style={{ ...th, textAlign: "right" }}>Precio</th><th style={{ ...th, textAlign: "right" }}>Costo</th><th style={{ ...th, textAlign: "right" }}>Stock</th></tr></thead>
+                  <tbody>{vista.muestra.map((m, i) => (
+                    <tr key={i}><td style={td}>{m.nombre}</td><td style={td}>{m.marca || "—"}</td><td style={td}>{m.categoria || "—"}</td><td style={{ ...td, textAlign: "right" }}>${m.precio.toLocaleString("es-AR")}</td><td style={{ ...td, textAlign: "right" }}>{m.costo !== null ? "$" + m.costo.toLocaleString("es-AR") : "—"}</td><td style={{ ...td, textAlign: "right" }}>{m.stock}</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              {vista.validos > vista.muestra.length && <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: -4, marginBottom: 10 }}>Se muestran los primeros {vista.muestra.length}.</div>}
+              {vista.errores.length > 0 && (
+                <details style={{ marginBottom: 10, fontSize: 12 }}><summary style={{ cursor: "pointer", color: temaPal.red }}>Ver las filas con problemas ({vista.n_errores}) — no se van a cargar</summary>
+                  <div style={{ marginTop: 4, color: temaPal.textMuted }}>{vista.errores.map((e, i) => <div key={i}>Fila {e.fila}{e.nombre ? " · " + e.nombre : ""}: {e.motivo}</div>)}{vista.n_errores > vista.errores.length && <div>… y {vista.n_errores - vista.errores.length} más</div>}</div>
+                </details>
+              )}
+              {vista.ya_estan > 0 && (
+                <div style={{ marginBottom: 10, fontSize: 12.5 }}>
+                  <div className="fl">Los {vista.ya_estan} que ya tenés cargados (mismo código de barras o mismo nombre y marca):</div>
+                  <label style={{ display: "block", marginTop: 4 }}><input type="radio" checked={existentes === "saltear"} onChange={() => setExistentes("saltear")} /> No tocarlos</label>
+                  <label style={{ display: "block", marginTop: 2 }}><input type="radio" checked={existentes === "actualizar"} onChange={() => setExistentes("actualizar")} /> Actualizar su precio y costo con los del archivo (el stock no se toca)</label>
+                </div>
+              )}
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>El stock de los productos nuevos se carga en <b>{nombreLocal ? nombreLocal(localId) : "tu local"}</b>.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-p" disabled={trabajando || !puedeImportar} onClick={() => pedir(archivo, mapeo, true)}>{trabajando ? "Importando…" : "Importar " + (existentes === "actualizar" ? vista.validos : vista.nuevos) + " producto" + ((existentes === "actualizar" ? vista.validos : vista.nuevos) !== 1 ? "s" : "")}</button>
+                <button className="btn btn-g" onClick={onCerrar}>Cancelar</button>
+              </div>
+            </>)}
+          </>)}
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+// Productos de ejemplo para probar Lumiere sin cargar nada: se eligen por rubro y se pueden quitar cuando quieras
+function EjemplosProductos({ temaPal, estado, onCambio, avisar }) {
+  const [trabajando, setTrabajando] = useState(false);
+  const cargar = async (rubro) => {
+    setTrabajando(true);
+    try { const r = await API.post("/productos/ejemplo", { rubro }); avisar && avisar("✓ Cargué " + r.data.cargados + " productos de ejemplo"); onCambio(); }
+    catch (e) { avisar && avisar("Error: " + (e.response?.data?.error || "no se pudieron cargar")); }
+    setTrabajando(false);
+  };
+  return (
+    <div style={{ textAlign: "center", padding: "18px 12px" }}>
+      <div style={{ fontSize: 28 }}>🧪</div>
+      <div style={{ fontWeight: 800, fontSize: 14, margin: "4px 0" }}>¿Querés probar Lumiere sin cargar nada?</div>
+      <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 10 }}>Elegí tu rubro y te cargo 10 productos de ejemplo con precios y stock para que pruebes vender, ver el stock y los informes. Después los quitás con un clic.</div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+        {(estado.rubros || []).map(r => <button key={r.k} className="btn btn-g btn-sm" disabled={trabajando} onClick={() => cargar(r.k)}>{r.nombre}</button>)}
+      </div>
+    </div>
+  );
+}
+
 function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio }) {
   const [alcance, setAlcance] = useState(() => { try { return localStorage.getItem("lumiere_precios_elegidos") ? "productos" : "todos"; } catch (e) { return "todos"; } });
   const [filtro, setFiltro] = useState("");
@@ -8567,6 +8709,10 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
   const tabsModo = TABS_INVENTARIO[modo] || TABS_INVENTARIO.productos;
   const [showPrecios, setShowPrecios] = useState(false);
   const [showMarcas, setShowMarcas] = useState(false);
+  const [showImportar, setShowImportar] = useState(false);
+  const [ejemplos, setEjemplos] = useState(null); // { rubros, ejemplos, productos }
+  const cargarEjemplos = () => API.get("/productos/ejemplo").then(r => setEjemplos(r.data)).catch(() => {});
+  useEffect(() => { cargarEjemplos(); }, []);
   const [showEliminarTr, setShowEliminarTr] = useState(false);
   const [tab, setTab] = useState(tabsModo[0]);
   const [filtroInicial] = useState(() => modo === "productos" ? tabInicialDe("inventory") : null);
@@ -9132,6 +9278,7 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
         </div>
         {modo === "productos" && <div className="dash-actions">
           <button className="btn btn-g btn-sm" onClick={exportarCSV} title="Descargar la lista filtrada para abrir en Excel">📥 Exportar</button>
+          {puedeHacer("inventario.crear") && <button className="btn btn-g btn-sm" onClick={() => setShowImportar(true)} title="Cargar muchos productos de una vez desde un Excel o CSV">📤 Importar</button>}
           {puedeHacer("inventario.editar") && <button className="btn btn-g btn-sm" onClick={() => setShowPrecios(true)} title="Subir o bajar muchos precios de una vez">📈 Actualizar precios</button>}
           <button className="btn btn-g btn-sm" onClick={() => setShowMarcas(true)} title="Ver las marcas y corregir cómo están escritas">🏷️ Marcas</button>
           <button className="btn btn-g btn-sm" onClick={() => irASeccion("etiquetas")} title="Imprimir etiquetas de precio">🏷️ Etiquetas</button>
@@ -9144,7 +9291,15 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
         </div>
       )}
 
+      {modo === "productos" && ejemplos && ejemplos.ejemplos > 0 && puedeHacer("inventario.crear") && (
+        <div className="pop-in" style={{ background: temaPal.accentDim || temaPal.greenDim, border: "1px solid " + temaPal.border, borderRadius: 8, padding: "9px 14px", marginBottom: 14, fontSize: 12.5, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <span>🧪 Estás viendo <b>{ejemplos.ejemplos} productos de ejemplo</b>. Cuando quieras empezar con los tuyos, quitalos.</span>
+          <button className="btn btn-g btn-sm" onClick={async () => { if (!confirm("¿Quitar los productos de ejemplo? Los que cargaste vos no se tocan.")) return; try { const r = await API.delete("/productos/ejemplo"); setMensaje("✓ Quité " + r.data.quitados + " productos de ejemplo"); cargar(); cargarEjemplos(); } catch (e) { setMensaje("Error: no se pudieron quitar"); } }}>Quitar los de ejemplo</button>
+          <button className="btn btn-p btn-sm" onClick={() => setShowImportar(true)}>📤 Importar los míos</button>
+        </div>
+      )}
       {showMarcas && <MarcasProductos temaPal={temaPal} onCerrar={() => setShowMarcas(false)} onCambio={cargar} />}
+      {showImportar && <ImportarProductos temaPal={temaPal} localId={localId} nombreLocal={nombreLocal} onCerrar={() => setShowImportar(false)} onCambio={() => { cargar(); cargarEjemplos(); }} />}
       {showPrecios && <ActualizarPrecios productos={productos} proveedores={proveedores} temaPal={temaPal} onCerrar={() => setShowPrecios(false)} onCambio={cargar} />}
 
       {showForm && (
@@ -9381,7 +9536,16 @@ function Inventario({ localId, usuario, paletaActual, modo = "productos" }) {
             {loading ? (
               <div style={{ padding: 14 }}>{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="skel" style={{ height: 38, marginBottom: 8 }} />)}</div>
             ) : ordenados.length === 0 ? (
-              <div className="empty">{productos.length === 0 ? "Todavía no hay productos cargados." : "Ningún producto coincide con los filtros."}</div>
+              productos.length === 0 && puedeHacer("inventario.crear") ? (
+                <div style={{ padding: "10px 6px" }}>
+                  <div style={{ textAlign: "center", padding: "14px 12px 4px" }}>
+                    <div style={{ fontWeight: 800, fontSize: 15 }}>Todavía no hay productos cargados</div>
+                    <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "4px 0 10px" }}>Si ya tenés tu lista en Excel, subila y quedan todos cargados en un minuto.</div>
+                    <button className="btn btn-p" onClick={() => setShowImportar(true)}>📤 Importar desde Excel</button>
+                  </div>
+                  {ejemplos && ejemplos.rubros && <div style={{ borderTop: "1px solid " + temaPal.border, marginTop: 12 }}><EjemplosProductos temaPal={temaPal} estado={ejemplos} avisar={(t) => setMensaje(t)} onCambio={() => { cargar(); cargarEjemplos(); }} /></div>}
+                </div>
+              ) : <div className="empty">{productos.length === 0 ? "Todavía no hay productos cargados." : "Ningún producto coincide con los filtros."}</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table className={"sin-tarjetas inv-tabla" + (UN_SOLO_LOCAL ? "" : " dos-locales")}>

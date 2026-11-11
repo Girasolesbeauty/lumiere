@@ -27,6 +27,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
+app.use('/api/productos/importar', express.json({ limit: '9mb' })); // el Excel de productos viaja en el pedido
 app.use(express.json({ limit: '1mb' })); // 1mb: el logo del negocio viaja como imagen chica en el pedido
 
 // Que version del codigo esta corriendo (Railway pone el commit): Lumiere la compara con la de las pantallas
@@ -40,6 +41,7 @@ app.use('/api', require('./middleware/auth'));
 // Rutas
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/pagos', require('./routes/pagos'));
+app.use('/api/productos', require('./routes/productos-importar'));
 app.use('/api/productos', require('./routes/productos'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/pedidos', require('./routes/pedidos'));
