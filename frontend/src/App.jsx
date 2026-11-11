@@ -29601,6 +29601,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media (prefers-reduced-motion:reduce){.tw-adv-v.hoy,.tw-adv-v.hoy::after,.tw-adv-v .dedo{animation:none!important}}
 .tw-adv-cuenta{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#e8cf8f;margin-top:10px;padding:0 10px}
 .tw-adv-aviso{margin-top:6px;font-size:13px;color:rgba(255,255,255,.8);min-height:18px;padding:0 14px}
+.tw-adv-pruebabar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:12px 14px 0;padding:9px 12px;border-radius:14px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,213,107,.7);font-size:12.5px;font-weight:600;color:#ffe9b8}
+.tw-adv-pruebabar select{font:inherit;font-weight:700;border-radius:999px;border:0;padding:5px 10px;background:#fff;color:#2a1c00}
+.tw-adv-pruebabar button{font:inherit;font-size:12px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;padding:5px 10px;cursor:pointer}
+.tw-adv-v.hoy.llama{animation:twAdvHoyV 1.4s ease-in-out infinite,twAdvLlama .5s ease-in-out 3}
+@keyframes twAdvLlama{0%,100%{transform:scale(1.18)}25%{transform:rotate(-12deg) scale(1.4)}75%{transform:rotate(12deg) scale(1.4)}}
 .tw-adv-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#0c1630;color:#f3e7cf;border:1px solid #e8cf8f;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 30px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-adv-vista{left:auto;max-width:420px}}
 /* ===== Cartelito "faltan N días" para el Calendario de Adviento ===== */
@@ -32356,13 +32361,18 @@ function TwAdvPersonaje({ dia }) {
   );
 }
 function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }) {
-  const clave = "tienda_adv_" + slug + "_" + adv.anio;
-  const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(localStorage.getItem(clave) || "[]"); } catch (e) { return []; } });
+  // Vista previa: se simula un día (los siguientes quedan cerrados) y lo que se abre se guarda solo en esta pestaña, así cada prueba arranca de cero
+  const prueba = !!adv.vista_previa;
+  const [diaPrueba, setDiaPrueba] = useState(() => advDiaPrueba(slug));
+  const clave = "tienda_adv_" + slug + "_" + adv.anio + (prueba ? "_prueba" : "");
+  const almacen = () => (prueba ? sessionStorage : localStorage);
+  const [abiertas, setAbiertas] = useState(() => { try { return JSON.parse(almacen().getItem(clave) || "[]"); } catch (e) { return []; } });
   const [abriendo, setAbriendo] = useState(null); // { d, fase }
   const [aviso, setAviso] = useState("");
   const [tiembla, setTiembla] = useState(0);
   const [copiado, setCopiado] = useState(false);
-  const hoy = adv.hoy;
+  const hoy = prueba ? diaPrueba : adv.hoy;
+  const dias = prueba ? adv.dias.map(d => (d.dia > diaPrueba ? { ...d, bloqueado: true } : d)) : adv.dias;
   const timers = useRef([]);
   const ciudadRef = useRef(null);
   const [encendido, setEncendido] = useState(false);
@@ -32376,7 +32386,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   const [nieveSeVa, setNieveSeVa] = useState(false);
   const vigente = hoy >= 1 && hoy <= 25 && !adv.vista_previa;
   useEffect(() => { if (cuenta.logueada && vigente && cuenta.pedir) cuenta.pedir("/adviento/mio").then(setMio).catch(() => {}); else setMio(null); }, [cuenta.logueada]); // eslint-disable-line react-hooks/exhaustive-deps
-  const marcar = (dia) => setAbiertas(l => { if (l.includes(dia)) return l; const n = [...l, dia]; try { localStorage.setItem(clave, JSON.stringify(n)); } catch (e) {} return n; });
+  const marcar = (dia) => setAbiertas(l => { if (l.includes(dia)) return l; const n = [...l, dia]; try { almacen().setItem(clave, JSON.stringify(n)); } catch (e) {} return n; });
+  const elegirDiaPrueba = (n) => { setDiaPrueba(n); try { sessionStorage.setItem("tienda_adv_prueba_" + slug, String(n)); } catch (e) {} };
+  const cerrarTodas = () => { setAbiertas([]); try { almacen().removeItem(clave); } catch (e) {} };
   const abrir = (d) => {
     twAdvSon.campanita(); pedirMovimiento();
     if (d.bloqueado) { setTiembla(d.dia); setAviso("🔒 Esta ventana se enciende el " + d.dia + " de diciembre ✨"); setTimeout(() => setTiembla(0), 450); return; }
@@ -32436,9 +32448,16 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   // "Descubrir la sorpresa" desde la animación de bienvenida: baja al calendario y abre la ventana de hoy
   const abrirRef = useRef(abrir); abrirRef.current = abrir;
   useEffect(() => {
-    const f = () => { const el = document.getElementById("tw-adviento"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); const d = adv.dias[hoy - 1]; if (d && !d.bloqueado) setTimeout(() => abrirRef.current(d), 650); };
+    const f = () => {
+      const v = document.querySelector('#tw-adviento [data-dia="' + hoy + '"]') || document.getElementById("tw-adviento");
+      if (v) v.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => { setLlama(Date.now()); try { const yaToco = !navigator.userActivation || navigator.userActivation.hasBeenActive; if (navigator.vibrate && yaToco && !twMenosMovimiento()) navigator.vibrate([70, 50, 70]); } catch (e) {} }, 700);
+    };
     window.addEventListener("tw-adv-hoy", f); return () => window.removeEventListener("tw-adv-hoy", f);
   }, [hoy, adv]);
+  // Al llegar desde la bienvenida, la ventana de hoy se sacude fuerte un momento
+  const [llama, setLlama] = useState(0);
+  useEffect(() => { if (!llama) return; const t = setTimeout(() => setLlama(0), 1600); return () => clearTimeout(t); }, [llama]);
   useEffect(() => { if (!abriendo) return; const k = (e) => { if (e.key === "Escape") cerrarDia(); }; window.addEventListener("keydown", k); const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { window.removeEventListener("keydown", k); document.body.style.overflow = o; }; }, [!!abriendo]);
   const confeti = useMemo(() => Array.from({ length: 44 }, (_, i) => ({ x: Math.round(Math.cos(i / 44 * Math.PI * 2) * (100 + (i % 5) * 38)) + "px", y: Math.round(Math.sin(i / 44 * Math.PI * 2) * (90 + (i % 4) * 38) - 30) + "px", k: [...ADV_LUCES, "#fff", "#ffe9a8"][i % 8], r: ((i * 97) % 540 - 270) + "deg", f: i % 3 })), []);
   const prendidas = abiertas.filter(n => n >= 1 && n <= 25).length;
@@ -32453,9 +32472,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   const [recien, setRecien] = useState(0);
   // Si la de hoy todavía no se abrió, el celu vibra cortito al ver el calendario (una vez por día; iPhone no lo permite)
   const vibrarHoy = () => {
-    if (!vigente || abiertas.includes(hoy)) return;
+    if (!(vigente || prueba) || abiertas.includes(hoy)) return;
     const k = clave + "_vib";
-    try { if (localStorage.getItem(k) === String(hoy)) return; localStorage.setItem(k, String(hoy)); } catch (e) {}
+    if (!prueba) { try { if (localStorage.getItem(k) === String(hoy)) return; localStorage.setItem(k, String(hoy)); } catch (e) {} }
     try { const yaToco = !navigator.userActivation || navigator.userActivation.hasBeenActive; if (navigator.vibrate && yaToco && !twMenosMovimiento()) navigator.vibrate([70, 50, 70]); } catch (e) {}
   };
   const sel = abriendo && abriendo.d;
@@ -32466,15 +32485,20 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       <div className="tw-adv-ceja"><span>🎄 Navidad {adv.anio}</span></div>
       <h2>{advTitulo(adv.titulo)}</h2>
       {adv.bajada && <p className="tw-adv-bajada">{adv.bajada}</p>}
+      {prueba && <div className="tw-adv-pruebabar">
+        <span>🧪 Probar como si fuera el</span>
+        <select value={diaPrueba} onChange={e => elegirDiaPrueba(parseInt(e.target.value))} aria-label="Día a simular">{Array.from({ length: 25 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} de diciembre</option>)}</select>
+        {abiertas.length > 0 && <button onClick={cerrarTodas}>Cerrar todas las ventanas</button>}
+      </div>}
       <div className={"tw-adv-ciudad" + (encendido ? " on" : "")} ref={ciudadRef} onDoubleClick={nevar}>
         <TwAdvCiudad />
         <TwAdvProgreso n={prendidas} />
         {trineo > 0 && <div key={trineo} className="tw-adv-vuela" onAnimationEnd={() => setTrineo(0)}><TwAdvTrineo /></div>}
         {estrella && <button key={estrella.k} className="tw-adv-estrella" style={{ left: estrella.x + "%", top: estrella.y + "%" }} onClick={tocarEstrella} onAnimationEnd={() => setEstrella(null)} aria-label="Estrella fugaz: tocala y pedí un deseo"><i /></button>}
-        {adv.dias.map(d => {
-          const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy && !adv.vista_previa, ab = abiertas.includes(n);
+        {dias.map(d => {
+          const n = d.dia, v = ADV_VENT[n], esHoy = n === hoy, ab = abiertas.includes(n);
           return (
-            <button key={n} data-dia={n} className={"tw-adv-v" + (v.pent ? " pent" : "") + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" : "") + (tiembla === n ? " tiembla" : "") + (recien === n ? " recien" : "")}
+            <button key={n} data-dia={n} className={"tw-adv-v" + (v.pent ? " pent" : "") + (ab ? " prendida" : d.bloqueado ? " bloq" : " listo") + (esHoy && !ab ? " hoy" + (llama ? " llama" : "") : "") + (tiembla === n ? " tiembla" : "") + (recien === n ? " recien" : "")}
               style={{ left: (v.x / 360 * 100) + "%", top: (v.y / ADV_ALTO * 100) + "%", width: (v.w / 360 * 100) + "%", height: (v.h / ADV_ALTO * 100) + "%" }}
               onClick={() => abrir(d)} aria-label={"Día " + n + (d.bloqueado ? " (todavía no)" : ab ? " (abierta)" : "")}>
               {ab && <TwAdvIcono icono={d.icono} className="ic" />}<b>{n}</b>
@@ -32487,8 +32511,8 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       {deseo && <div className="tw-adv-deseo" role="status" onClick={() => setDeseo(null)}><b>🌠 ¡Pediste un deseo!</b><span>{deseo.msg}</span>{deseo.extra && <small>{deseo.extra}</small>}</div>}
       <div className="tw-adv-cuenta">✦ {prendidas} de 25 ventanas encendidas ✦</div>
       <div className="tw-adv-tips">🌠 Tocá las estrellas fugaces · ❄️ <span className="cel">Sacudí el celular</span><span className="pc">Doble clic en el edificio</span>: cuanto más, más nieva</div>
-      <TwAdvAlbum adv={adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
-      <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 && !adv.vista_previa ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
+      <TwAdvAlbum adv={prueba ? { ...adv, hoy } : adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
+      <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
         <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={cerrarDia}>
           <TwAdvNieve />
@@ -32498,7 +32522,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
             <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} className={"f" + k.f} style={{ "--x": k.x, "--y": k.y, "--k": k.k, "--r": k.r }} />)}</div>
             {abriendo.fase !== "listo" && <div className="tw-adv-zv" ref={zv}><TwAdvVentanaGrande d={sel} /></div>}
             {abriendo.fase === "abre" && <button className="tw-adv-saltar" onClick={saltar}>Saltar ›</button>}
-            {(() => { const info = advInfo(sel, hoy, adv.vista_previa); return (
+            {(() => { const info = advInfo(sel, hoy, false); return (
             <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 46 } : undefined}>
               <TwAdvPersonaje dia={sel.dia} />
               <div className="tw-adv-tnieve" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <i key={i} />)}</div>
@@ -32548,7 +32572,10 @@ function TwAdvPronto({ pr, marca }) {
     </section>
   );
 }
-function TwAdvIntro({ adv, slug }) {
+// Vista previa: el día que se está simulando (arranca en el 1; se elige arriba del edificio). Se guarda solo en esta pestaña
+const advDiaPrueba = (slug) => { try { const n = parseInt(sessionStorage.getItem("tienda_adv_prueba_" + slug)); return n >= 1 && n <= 25 ? n : 1; } catch (e) { return 1; } };
+function TwAdvIntro({ adv: advReal, slug }) {
+  const adv = advReal.vista_previa ? { ...advReal, hoy: advDiaPrueba(slug) } : advReal;
   const clave = "tienda_adv_intro_" + slug + "_" + adv.anio + "_" + adv.hoy;
   const [ver, setVer] = useState(() => {
     if (!(adv.hoy >= 1 && adv.hoy <= 25)) return false;
@@ -34559,7 +34586,7 @@ function TiendaPublica({ slug }) {
   const cabecera = (
     <>
       {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
-      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. Acá podés encender todas las ventanas para probar; en diciembre se enciende una por día.</div>}
+      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. Arriba del edificio elegí qué día de diciembre querés probar: ese día queda destacado y los siguientes, cerrados.</div>}
       {tienda.adviento && <TwAdvIntro adv={tienda.adviento} slug={slug} />}
       {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Los clientes todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
       {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Los clientes todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
