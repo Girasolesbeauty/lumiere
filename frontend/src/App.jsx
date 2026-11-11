@@ -29838,8 +29838,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-intro.sale{animation:twAdvOut .45s ease-in forwards}
 @keyframes twAdvIn{from{opacity:0}to{opacity:1}}
 @keyframes twAdvOut{to{opacity:0;transform:scale(1.04)}}
-.tw-adv-intro>svg{position:absolute;left:50%;bottom:0;height:100%;width:auto;min-width:100%;transform:translateX(-50%)}
-@media (min-aspect-ratio:4/5){.tw-adv-intro>svg{min-width:0;height:100%}.tw-adv-intro::before{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,rgba(10,18,38,0),#0a1226 70%);pointer-events:none}}
+.tw-adv-intro>svg.tw-adv-skyline{position:absolute;left:50%;bottom:0;height:100%;width:auto;min-width:100%;transform:translateX(-50%)}
+@media (min-aspect-ratio:4/5){.tw-adv-intro>svg.tw-adv-skyline{min-width:0;height:100%}.tw-adv-intro::before{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,rgba(10,18,38,0),#0a1226 70%);pointer-events:none}}
 .tw-adv-intro .sky1{animation:twAdvSube2 1.4s cubic-bezier(.2,.8,.3,1) both}
 .tw-adv-intro .sky2{animation:twAdvSube2 1.4s cubic-bezier(.2,.8,.3,1) .15s both}
 @keyframes twAdvSube2{from{transform:translateY(180px)}to{transform:none}}
@@ -29850,7 +29850,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-intro .lz,.tw-adv-intro .est{transform-box:fill-box;transform-origin:center}
 .tw-adv-intro .est{opacity:0;animation:twAdvEst .9s cubic-bezier(.3,1.5,.5,1) 1.9s forwards}
 @keyframes twAdvEst{0%{opacity:0;transform:scale(.2) rotate(-40deg)}100%{opacity:1;transform:none}}
-.tw-adv-intro-txt{position:absolute;left:0;right:0;top:9vh;padding:0 22px;z-index:2}
+.tw-adv-intro-txt{position:relative;flex:0 0 auto;padding:calc(56px + env(safe-area-inset-top)) 22px 0;z-index:2}
 .tw-adv-intro-txt .ceja{font-size:11px;font-weight:600;letter-spacing:.4em;color:#d9bf7f;text-transform:uppercase;opacity:0;animation:twAdvTxt .8s ease-out .4s forwards}
 .tw-adv-intro-txt h2{margin:10px 0 0;font-family:"TwPF",Georgia,serif;font-style:italic;font-weight:500;font-size:clamp(40px,11vw,64px);line-height:1;color:#fff;text-shadow:0 0 30px rgba(255,214,140,.4);opacity:0;animation:twAdvTxt .9s ease-out .7s forwards}
 .tw-adv-intro-txt h2 b{font-weight:500;color:#e8cf8f}
@@ -29862,6 +29862,44 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-intro-pie .num{font-family:"TwPF",Georgia,serif;font-style:italic;font-size:64px;line-height:1;color:#fff;text-shadow:0 0 30px rgba(255,214,140,.8);margin:2px 0 14px}
 .tw-adv-intro-pie .tw-adv-btn{width:100%;padding:15px;font-size:15px}
 .tw-adv-intro-pie .salto{display:block;width:100%;margin-top:10px;border:0;background:none;color:rgba(255,255,255,.75)!important;font:inherit;font-size:14px;letter-spacing:.06em;padding:8px;cursor:pointer}
+.tw-adv-intro{justify-content:space-between}
+.tw-adv-intro-arbol{position:relative;z-index:1;flex:1 1 auto;min-height:150px;width:100%;max-width:460px;margin:6px 0 -30px}
+.tw-adv-intro-arbol svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.tw-adv-intro .titila{animation:twAdvTitila 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes twAdvTitila{0%,100%{opacity:1}50%{opacity:.45}}
+.tw-adv-intro .halo-arbol{animation:twAdvPop .35s ease-out 1.2s forwards,twAdvLatido 3.2s ease-in-out 2s infinite}
+@keyframes twAdvLatido{0%,100%{opacity:.2;transform:scale(1)}50%{opacity:.34;transform:scale(1.06)}}
+.tw-adv-intro .rayos-est{opacity:0;transform-box:fill-box;transform-origin:center;animation:twAdvRayosEst 1s ease-out 2.2s forwards,twAdvGiraEst 18s linear 2.2s infinite}
+@keyframes twAdvRayosEst{to{opacity:1}}
+@keyframes twAdvGiraEst{to{transform:rotate(360deg)}}
+.tw-adv-intro .onda-est{opacity:0;transform-box:fill-box;transform-origin:center;animation:twAdvOndaEst 2.6s ease-out 2.3s infinite}
+.tw-adv-intro .onda-est.o2{animation-delay:3.6s}
+@keyframes twAdvOndaEst{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(4)}}
+.tw-adv-intro-arbol .polvo{position:absolute;left:0;right:0;bottom:12%;height:0}
+.tw-adv-intro-arbol .polvo i{position:absolute;bottom:0;border-radius:50%;background:#ffe39a;box-shadow:0 0 6px 2px rgba(255,214,120,.7);opacity:0;animation:twAdvPolvo linear infinite}
+@keyframes twAdvPolvo{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:1}80%{opacity:.8}100%{opacity:0;transform:translate(var(--x),-58vh) scale(1.1)}}
+.tw-adv-aurora{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.tw-adv-aurora i{position:absolute;width:130vw;height:60vh;left:-15vw;border-radius:50%;filter:blur(60px);opacity:.38;animation:twAdvAurora 14s ease-in-out infinite alternate}
+.tw-adv-aurora i:nth-child(1){top:-18vh;background:radial-gradient(closest-side,#7c3aed,transparent)}
+.tw-adv-aurora i:nth-child(2){top:8vh;background:radial-gradient(closest-side,#0ea5e9,transparent);animation-duration:18s;animation-direction:alternate-reverse;opacity:.25}
+.tw-adv-aurora i:nth-child(3){top:28vh;background:radial-gradient(closest-side,#e11d48,transparent);animation-duration:22s;opacity:.2}
+@keyframes twAdvAurora{0%{transform:translateX(-12vw) scale(1)}100%{transform:translateX(12vw) scale(1.15)}}
+.tw-adv-cielo{position:absolute;inset:0;z-index:0;pointer-events:none}
+.tw-adv-cielo i{position:absolute;border-radius:50%;background:#fff;box-shadow:0 0 4px #fff;animation:twAdvTitila 3s ease-in-out infinite}
+.tw-adv-cielo .fugaz{position:absolute;top:12%;left:-20%;width:120px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,#fff);transform:rotate(-18deg);opacity:0;animation:twAdvFugazI 7s ease-in 3s infinite}
+@keyframes twAdvFugazI{0%{opacity:0;transform:translate(0,0) rotate(-18deg)}4%{opacity:1}14%{opacity:0;transform:translate(120vw,-26vh) rotate(-18deg)}100%{opacity:0;transform:translate(120vw,-26vh) rotate(-18deg)}}
+.tw-adv-intro .vtit{animation:twAdvTitila 2.4s ease-in-out infinite}
+.tw-adv-intro-txt h2 b{background:linear-gradient(100deg,#ffe9a8 0%,#f5c45e 35%,#fff6d6 50%,#f5c45e 65%,#ffe9a8 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:twAdvOro 4s linear infinite}
+.tw-adv-intro-pie{padding-top:30px;flex:0 0 auto}
+.tw-adv-intro-pie .ventana-hoy{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:16px}
+.tw-adv-intro-pie .ventana-hoy .hoy{font-size:12px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#e8cf8f}
+.tw-adv-intro-pie .marco{position:relative;width:64px;height:78px;border:2px solid #ffd56b;border-radius:30px 30px 4px 4px;background:radial-gradient(circle at 50% 45%,#fff1c2 0%,#ffc85a 38%,#e8603c 78%,#a8233f 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 4px rgba(255,213,107,.18),0 0 36px 8px rgba(255,170,80,.55);animation:twAdvMarcoHoy 2.4s ease-in-out infinite}
+.tw-adv-intro-pie .marco::before,.tw-adv-intro-pie .marco::after{content:"";position:absolute;background:rgba(122,52,0,.45)}
+.tw-adv-intro-pie .marco::before{left:50%;top:0;bottom:0;width:2px;margin-left:-1px}
+.tw-adv-intro-pie .marco::after{left:0;right:0;top:42%;height:2px}
+.tw-adv-intro-pie .marco b{position:relative;z-index:1;font-family:"TwDM",Georgia,serif;font-weight:400;font-size:34px;color:#fff;text-shadow:0 1px 3px #7a2a00,0 0 10px rgba(122,42,0,.8)}
+@keyframes twAdvMarcoHoy{0%,70%,100%{transform:none}76%{transform:rotate(-7deg) scale(1.08)}82%{transform:rotate(7deg) scale(1.08)}88%{transform:rotate(-4deg)}94%{transform:rotate(2deg)}}
+@media (prefers-reduced-motion:reduce){.tw-adv-aurora i,.tw-adv-cielo i,.tw-adv-cielo .fugaz,.tw-adv-intro .titila,.tw-adv-intro .rayos-est,.tw-adv-intro .onda-est,.tw-adv-intro-arbol .polvo i,.tw-adv-intro-pie .marco,.tw-adv-intro-txt h2 b,.tw-adv-intro .vtit{animation:none!important}.tw-adv-intro .rayos-est{opacity:1}}
 .tw-adv-intro .tw-adv-cerrar{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px}
 .tw-hw-barra{background:#120a1f!important;color:#ffb347!important;font-weight:800;letter-spacing:.08em;font-size:12px;white-space:nowrap}
 .tw-hw-hero{position:relative;overflow:hidden;margin:14px 16px 8px;border-radius:24px;padding:30px 22px 26px;background:radial-gradient(circle at 82% 12%,#4a2470 0,#1c0d2e 42%,#0b0612 100%);color:#fff;text-align:left;isolation:isolate}
@@ -32780,6 +32818,9 @@ function TwAdvPronto({ pr, marca }) {
 }
 // Vista previa: el día que se está simulando (arranca en el 1; se elige arriba del edificio). Se guarda solo en esta pestaña
 const advDiaPrueba = (slug) => { try { const n = parseInt(sessionStorage.getItem("tienda_adv_prueba_" + slug)); return n >= 1 && n <= 25 ? n : 1; } catch (e) { return 1; } };
+// Bienvenida: estrellas que titilan en el cielo y polvo dorado que sube desde el árbol (posiciones fijas)
+const ADV_INTRO_ESTRELLAS = Array.from({ length: 46 }, (_, k) => ({ left: ((k * 61) % 100) + "%", top: ((k * 37) % 62) + "%", width: (1 + (k % 3)) + "px", height: (1 + (k % 3)) + "px", animationDelay: ((k * .37) % 4).toFixed(2) + "s", animationDuration: (2.2 + (k % 5) * .6).toFixed(1) + "s" }));
+const ADV_INTRO_POLVO = Array.from({ length: 26 }, (_, k) => ({ left: (32 + ((k * 29) % 36)) + "%", animationDelay: (2.2 + (k * .31) % 5).toFixed(2) + "s", animationDuration: (4 + (k % 5) * .7).toFixed(1) + "s", "--x": (((k * 17) % 60) - 30) + "px", width: (2 + (k % 3)) + "px", height: (2 + (k % 3)) + "px" }));
 function TwAdvIntro({ adv: advReal, slug }) {
   const adv = advReal.vista_previa ? { ...advReal, hoy: advDiaPrueba(slug) } : advReal;
   const clave = "tienda_adv_intro_" + slug + "_" + adv.anio + "_" + adv.hoy;
@@ -32798,25 +32839,35 @@ function TwAdvIntro({ adv: advReal, slug }) {
   const { x, top, base, ancho } = ADV_ARB;
   return createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
     <div className={"tw-adv-intro" + (sale ? " sale" : "")} role="dialog" aria-modal="true" aria-label={adv.titulo}>
-      <svg viewBox="0 0 360 700" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-        <defs><radialGradient id="twAdvGlowI"><stop offset="0" stopColor="#fff8e1" /><stop offset=".35" stopColor="#ffd98a" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
-          <linearGradient id="twAdvEstI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff6da" /><stop offset="1" stopColor="#e2b75c" /></linearGradient></defs>
+      {/* Fondo: auroras que se mueven, cielo con estrellas que titilan, una estrella fugaz y la ciudad abajo */}
+      <div className="tw-adv-aurora" aria-hidden="true"><i /><i /><i /></div>
+      <div className="tw-adv-cielo" aria-hidden="true">{ADV_INTRO_ESTRELLAS.map((e, k) => <i key={k} style={e} />)}<b className="fugaz" /></div>
+      <svg className="tw-adv-skyline" viewBox="0 0 360 700" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
         <g className="sky1">{ADV_SKY.map(([bx, w, h, k], i) => <rect key={i} x={bx} y={700 - h * .9} width={w} height={h} fill={k ? "#0e1833" : "#0a1226"} />)}</g>
-        <g className="sky2">{ADV_SKY.filter((_, i) => i % 2).map(([bx, w, h], i) => <g key={i}><rect x={bx + 6} y={700 - h * .55} width={w} height={h} fill="#060a14" />{Array.from({ length: 6 }, (_, r) => <rect key={r} x={bx + 10 + (r % 2) * 8} y={700 - h * .55 + 10 + r * 14} width="3" height="4" fill="#ffd98a" opacity=".5" />)}</g>)}</g>
-        <g transform="translate(180 515) scale(1.6) translate(-180 -700)">
-          <ellipse cx={x} cy={630} rx="80" ry="90" fill="url(#twAdvGlowI)" opacity=".16" className="lz" style={{ animationDelay: "1.2s" }} />
-          {Array.from({ length: 17 }, (_, i) => <line key={i} className="hilo" style={{ animationDelay: (.5 + i * .03) + "s" }} x1={x} y1={top + 8} x2={x - ancho + i * ancho * 2 / 16} y2={base - 4} stroke="#e8c77a" strokeWidth=".6" opacity=".55" />)}
-          {ADV_GUIRN.luces.map((p, k) => <g key={k} className="lz" style={{ animationDelay: (.9 + k * .025) + "s" }}><circle cx={p.x} cy={p.y} r="5" fill="url(#twAdvGlowI)" /><circle cx={p.x} cy={p.y} r="1.8" fill="#fff4d0" /></g>)}
-          <g transform={"translate(" + x + " " + top + ")"}><g className="est"><circle r="34" fill="url(#twAdvGlowI)" /><path d={advEstrella(16)} fill="url(#twAdvEstI)" stroke="#e2b75c" strokeWidth=".6" /></g></g>
-        </g>
+        <g className="sky2">{ADV_SKY.filter((_, i) => i % 2).map(([bx, w, h], i) => <g key={i}><rect x={bx + 6} y={700 - h * .55} width={w} height={h} fill="#060a14" />{Array.from({ length: 6 }, (_, r) => <rect key={r} className={r % 3 ? "" : "vtit"} x={bx + 10 + (r % 2) * 8} y={700 - h * .55 + 10 + r * 14} width="3" height="4" fill="#ffd98a" opacity=".5" />)}</g>)}</g>
       </svg>
       <TwAdvNieve />
       <button className="tw-adv-cerrar" onClick={() => cerrar(false)} aria-label="Cerrar">×</button>
-      <div className="tw-adv-intro-txt"><div className="ceja">Navidad en Nueva York</div><h2>{advTitulo(adv.titulo)}</h2><p className="explica">Abrí cada ventana del <b>Hotel Plaza de Nueva York</b> del 1 al 25 de diciembre y descubrí regalos, sorpresas y descuentos todos los días ✨</p></div>
+      <div className="tw-adv-intro-txt"><div className="ceja">✦ Navidad en Nueva York ✦</div><h2>{advTitulo(adv.titulo)}</h2><p className="explica">Abrí cada ventana del <b>Hotel Plaza de Nueva York</b> del 1 al 25 de diciembre y descubrí regalos, sorpresas y descuentos todos los días ✨</p></div>
+      {/* El árbol de luces, en su propio espacio (debajo del texto, nunca encima) */}
+      <div className="tw-adv-intro-arbol" aria-hidden="true">
+        <svg viewBox="66 478 228 236" preserveAspectRatio="xMidYMid meet">
+          <defs><radialGradient id="twAdvGlowI"><stop offset="0" stopColor="#fff8e1" /><stop offset=".35" stopColor="#ffd98a" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
+            <linearGradient id="twAdvEstI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff6da" /><stop offset="1" stopColor="#e2b75c" /></linearGradient></defs>
+          <ellipse cx={x} cy={630} rx="92" ry="96" fill="url(#twAdvGlowI)" opacity=".2" className="lz halo-arbol" style={{ animationDelay: "1.2s" }} />
+          {Array.from({ length: 17 }, (_, i) => <line key={i} className="hilo" style={{ animationDelay: (.5 + i * .03) + "s" }} x1={x} y1={top + 8} x2={x - ancho + i * ancho * 2 / 16} y2={base - 4} stroke="#e8c77a" strokeWidth=".6" opacity=".55" />)}
+          {ADV_GUIRN.luces.map((p, k) => <g key={k} className="lz" style={{ animationDelay: (.9 + k * .025) + "s" }}><g className="titila" style={{ animationDelay: (2.4 + (k % 7) * .23) + "s" }}><circle cx={p.x} cy={p.y} r="5" fill="url(#twAdvGlowI)" /><circle cx={p.x} cy={p.y} r="1.8" fill="#fff4d0" /></g></g>)}
+          <g transform={"translate(" + x + " " + top + ")"}>
+            <g className="rayos-est">{Array.from({ length: 28 }, (_, k) => <line key={k} x1="0" y1={-18} x2="0" y2={-(26 + (k * 7) % 22)} stroke="#fff3c4" strokeWidth=".7" strokeLinecap="round" opacity={.18 + (k % 3) * .1} transform={"rotate(" + (k * 360 / 28) + ")"} />)}</g>
+            <circle className="onda-est o1" r="14" fill="none" stroke="#ffe39a" strokeWidth=".8" opacity=".6" /><circle className="onda-est o2" r="14" fill="none" stroke="#ffe39a" strokeWidth=".6" opacity=".5" />
+            <g className="est"><circle r="34" fill="url(#twAdvGlowI)" /><path d={advEstrella(16)} fill="url(#twAdvEstI)" stroke="#e2b75c" strokeWidth=".6" /></g>
+          </g>
+        </svg>
+        <div className="polvo">{ADV_INTRO_POLVO.map((e, k) => <i key={k} style={e} />)}</div>
+      </div>
       <div className="tw-adv-intro-pie">
-        <div className="hoy">Hoy se enciende la ventana</div>
-        <div className="num">{adv.hoy}</div>
-        <button className="tw-adv-btn" onClick={() => cerrar(true)}>Descubrir la sorpresa ✨</button>
+        <div className="ventana-hoy"><span className="hoy">Hoy se enciende la ventana</span><span className="marco"><b>{adv.hoy}</b></span></div>
+        <button className="tw-adv-btn" onClick={() => cerrar(true)}>Ir al Hotel Plaza 🏨</button>
         <button className="salto" onClick={() => cerrar(false)}>Ver la tienda</button>
       </div>
     </div>
