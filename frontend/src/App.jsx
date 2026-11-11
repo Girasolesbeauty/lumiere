@@ -29768,6 +29768,53 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-regalos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 12px;margin:2px 0 16px}
 .tw .tw-adv-pg{width:132px;border:0;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:#2a1f12!important;font:inherit}
 .tw-adv-escena.listo .tw-adv-pg{animation:twAdvHijo .6s cubic-bezier(.3,1.3,.5,1) calc(.95s + var(--i) * .12s) both}
+.tw-adv-pg{--d:calc(1.3s + var(--i) * .45s)}
+/* Caja de regalo encima del producto: roja con cinta y moño dorados */
+.tw-adv-pg .caja{position:absolute;inset:-6px -6px -4px;z-index:3;pointer-events:none;transform-origin:50% 100%}
+.tw-adv-pg .caja i{position:absolute;display:block}
+.tw-adv-pg .caja .cuerpo{left:4%;right:4%;top:15%;bottom:0;border-radius:10px;background:radial-gradient(circle,rgba(255,224,150,.55) 0 1.4px,transparent 2px) 0 0/14px 14px,linear-gradient(135deg,#e01e3c,#9e0f25);box-shadow:inset 0 -10px 16px rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.2),0 10px 18px rgba(0,0,0,.4)}
+.tw-adv-pg .caja .cinta-v{left:50%;width:16%;margin-left:-8%;top:15%;bottom:0;background:linear-gradient(90deg,#b8862a,#ffe7a3 50%,#b8862a)}
+.tw-adv-pg .caja .cinta-h{left:4%;right:4%;top:52%;height:14%;background:linear-gradient(180deg,#b8862a,#ffe7a3 50%,#b8862a)}
+.tw-adv-pg .caja .tapa{left:0;right:0;top:0;height:20%;border-radius:8px;background:radial-gradient(circle,rgba(255,224,150,.5) 0 1.4px,transparent 2px) 0 0/14px 14px,linear-gradient(135deg,#f0294a,#ab132c);box-shadow:inset 0 2px 0 rgba(255,255,255,.25),0 5px 8px rgba(0,0,0,.35)}
+.tw-adv-pg .caja .cinta-t{left:50%;width:16%;margin-left:-8%;top:0;bottom:0;background:linear-gradient(90deg,#b8862a,#ffe7a3 50%,#b8862a)}
+.tw-adv-pg .caja .lazo{top:-18%;width:30%;height:22%;border:6px solid #f2c454;border-radius:50%;background:rgba(255,231,163,.25);box-shadow:0 2px 4px rgba(0,0,0,.25)}
+.tw-adv-pg .caja .lazo.l{right:49%;transform:rotate(-22deg);transform-origin:100% 90%}
+.tw-adv-pg .caja .lazo.r{left:49%;transform:rotate(22deg);transform-origin:0 90%}
+.tw-adv-pg .caja .nudo{left:50%;top:-6%;width:14%;height:12%;margin-left:-7%;border-radius:40%;background:radial-gradient(circle at 40% 35%,#fff0c2,#d4a23c);box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.tw-adv-pg .caja .cola{top:2%;width:8%;height:24%;border-radius:2px 2px 0 0;background:linear-gradient(90deg,#c9962c,#ffe39a);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)}
+.tw-adv-pg .caja .cola.l{left:40%;transform:rotate(22deg);transform-origin:50% 0}
+.tw-adv-pg .caja .cola.r{right:40%;transform:rotate(-22deg);transform-origin:50% 0}
+.tw-adv-pg .chispas{position:absolute;left:50%;top:50%;width:0;height:0;z-index:4;pointer-events:none}
+.tw-adv-pg .chispas i{position:absolute;width:10px;height:10px;margin:-5px;background:#ffe39a;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);opacity:0;filter:drop-shadow(0 0 4px #ffd56b)}
+/* La secuencia: se sacude, se desata el moño, se sueltan las cintas, vuela la tapa, se cae la caja y aparece el producto */
+.tw-adv-escena.listo .tw-adv-pg .caja{animation:twCjMenea .75s ease-in-out var(--d),twCjFin .01s linear calc(var(--d) + 2.2s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .lazo.l{animation:twCjLazoL .5s ease-in calc(var(--d) + .8s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .lazo.r{animation:twCjLazoR .5s ease-in calc(var(--d) + .8s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .nudo{animation:twCjCae .45s ease-in calc(var(--d) + .95s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .cola.l{animation:twCjColaL .5s ease-in calc(var(--d) + .9s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .cola.r{animation:twCjColaR .5s ease-in calc(var(--d) + .9s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .cinta-v,.tw-adv-escena.listo .tw-adv-pg .caja .cinta-t{animation:twCjCintaV .35s ease-in calc(var(--d) + 1.05s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .cinta-h{animation:twCjCintaH .35s ease-in calc(var(--d) + 1.05s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .tapa{animation:twCjTapa .6s cubic-bezier(.3,.7,.4,1) calc(var(--d) + 1.3s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .caja .cuerpo{animation:twCjCuerpo .55s ease-in calc(var(--d) + 1.6s) forwards}
+.tw-adv-escena.listo .tw-adv-pg .img>img,.tw-adv-escena.listo .tw-adv-pg .img>.ph{animation:twCjSale .7s cubic-bezier(.3,1.7,.5,1) calc(var(--d) + 1.6s) both}
+.tw-adv-escena.listo .tw-adv-pg .img>em,.tw-adv-escena.listo .tw-adv-pg .img>.moñito{animation:twCjAparece .4s ease-out calc(var(--d) + 2s) both}
+.tw-adv-escena.listo .tw-adv-pg .chispas i{animation:twCjChispa .9s ease-out calc(var(--d) + 1.6s) forwards}
+@keyframes twCjMenea{0%,100%{transform:none}15%{transform:rotate(-6deg) scale(1.04)}30%{transform:rotate(6deg) scale(1.04)}45%{transform:rotate(-5deg)}60%{transform:rotate(4deg)}75%{transform:rotate(-2deg)}}
+@keyframes twCjFin{to{visibility:hidden}}
+@keyframes twCjLazoL{to{transform:translate(-26px,-30px) rotate(-150deg) scale(.3);opacity:0}}
+@keyframes twCjLazoR{to{transform:translate(26px,-30px) rotate(150deg) scale(.3);opacity:0}}
+@keyframes twCjCae{to{transform:translateY(-34px) scale(.3);opacity:0}}
+@keyframes twCjColaL{to{transform:translate(-20px,40px) rotate(80deg);opacity:0}}
+@keyframes twCjColaR{to{transform:translate(20px,40px) rotate(-80deg);opacity:0}}
+@keyframes twCjCintaV{to{transform:scaleY(0);opacity:0}}
+@keyframes twCjCintaH{to{transform:scaleX(0);opacity:0}}
+@keyframes twCjTapa{0%{transform:none}35%{transform:translateY(-22px) rotate(-8deg)}100%{transform:translate(34px,-90px) rotate(32deg);opacity:0}}
+@keyframes twCjCuerpo{0%{transform:none}30%{transform:translateY(-4px)}100%{transform:translateY(46px) scale(.75);opacity:0}}
+@keyframes twCjSale{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+@keyframes twCjAparece{from{opacity:0}to{opacity:1}}
+@keyframes twCjChispa{0%{opacity:1;transform:rotate(var(--a)) translateX(10px) scale(.4)}100%{opacity:0;transform:rotate(var(--a)) translateX(84px) scale(1.1)}}
+@media (prefers-reduced-motion:reduce){.tw-adv-pg .caja,.tw-adv-pg .chispas{display:none}.tw-adv-escena.listo .tw-adv-pg .img>*{animation:none!important;opacity:1}}
 .tw-adv-pg .img{position:relative;width:118px;height:118px;border-radius:22px;background:#fff;border:2px solid #e0b54f;box-shadow:0 8px 18px rgba(120,80,20,.22);display:flex;align-items:center;justify-content:center;overflow:visible;animation:twAdvFlotaP 3.4s ease-in-out calc(var(--i) * .5s) infinite}
 .tw-adv-pg .img img{width:100%;height:100%;object-fit:cover;border-radius:20px}
 .tw-adv-pg .img .ph{font-size:34px;color:#c9a45a}
@@ -32579,7 +32626,10 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
               {info && <div className={"tw-adv-premio" + (info.paso ? " paso" : "")}><small>{info.et}</small><b>{info.dest}</b>{info.nota && <em>{info.nota}</em>}</div>}
               {sel.codigo && sel.tipo === "codigo" && !(info || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
               {prods.length > 0 && <div className="tw-adv-regalos">{prods.map((p, i) => <button key={p.id} className="tw-adv-pg" style={{ "--i": i }} onClick={() => { cerrarDia(); onAbrir && onAbrir(p); }}>
-                <span className="img">{p.foto && foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="ph">✿</span>}{sel.tipo === "descuento" && sel.pct > 0 && !(info || {}).paso && <em>-{sel.pct}%</em>}<i className="moñito" aria-hidden="true" /></span>
+                <span className="img">{p.foto && foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="ph">✿</span>}{sel.tipo === "descuento" && sel.pct > 0 && !(info || {}).paso && <em>-{sel.pct}%</em>}<i className="moñito" aria-hidden="true" />
+                  {/* Primero es un regalo: se sacude, se desata el moño, vuela la tapa y sale el producto */}
+                  <span className="caja" aria-hidden="true"><i className="cuerpo" /><i className="cinta-v" /><i className="cinta-h" /><i className="tapa"><i className="cinta-t" /></i><i className="cola l" /><i className="cola r" /><i className="lazo l" /><i className="lazo r" /><i className="nudo" /></span>
+                  <span className="chispas" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => <i key={k} style={{ "--a": k * 36 + "deg" }} />)}</span></span>
                 {p.marca && <small>{p.marca}</small>}<b>{p.nombre}</b></button>)}</div>}
               {premioSello && sel.dia === hoy && <div className="tw-adv-sellado"><span className="st"><TwAdvIcono icono={sel.icono} /></span><div><b>¡Sumaste el sello del día {sel.dia}!</b>{premioSello.premios && premioSello.premios.length ? <span>🎉 Ganaste {premioSello.premios.reduce((t, h) => t + h.puntos, 0).toLocaleString("es-AR")} puntos por juntar {premioSello.premios[premioSello.premios.length - 1].dias} {premioSello.premios[premioSello.premios.length - 1].dias === 1 ? "sello" : "sellos"}</span> : <span>Llevás {(premioSello.sellos || []).length} de 25 en tu álbum</span>}</div></div>}
               {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-ingresa">🎖️ <button className="tw-adv-link" onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
