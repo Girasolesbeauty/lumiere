@@ -29671,6 +29671,18 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-confeti i.f1{width:5px;height:12px;border-radius:2px}.tw-adv-confeti i.f2{width:9px;height:9px;border-radius:1px;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%)}
 .tw-adv-escena.abre .tw-adv-confeti i{animation:twAdvConf 1.5s cubic-bezier(.2,.7,.4,1) 1.9s forwards}
 .tw-adv-modal{animation:twAdvIn .45s ease-out}
+/* Foto de la película del día de fondo: entra con un zoom lento, oscurecida y con el violeta de la noche encima */
+.tw-adv-foto{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;pointer-events:none;animation:twAdvFoto 9s ease-out both}
+.tw-adv-foto{filter:blur(3px) saturate(1.1)}
+.tw-adv-foto::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,rgba(30,16,60,.25),rgba(12,8,36,.7) 80%)}
+/* Dentro de la tarjeta, la misma foto bien nítida bajo un velo de noche (arriba más clara, abajo más oscura para leer) */
+.tw-adv-modal.con-foto .tw-adv-tarjeta{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.9) 0 1px,transparent 1.6px) 0 0/71px 83px,radial-gradient(circle at 64% 72%,rgba(255,236,170,.75) 0 1.2px,transparent 1.8px) 0 0/97px 89px,linear-gradient(180deg,rgba(14,22,60,.5) 0%,rgba(24,18,66,.42) 30%,rgba(24,18,66,.72) 52%,rgba(40,14,56,.9) 75%,rgba(58,15,54,.95) 100%),var(--foto) center 20%/cover no-repeat,#1d1446}
+.tw-adv-modal.con-foto .tw-adv-tarjeta h3{filter:drop-shadow(0 2px 6px rgba(0,0,0,.85)) drop-shadow(0 0 14px rgba(255,190,90,.35))}
+.tw-adv-modal.con-foto .tw-adv-tarjeta p{text-shadow:0 1px 4px rgba(0,0,0,.8)}
+@keyframes twAdvFoto{from{opacity:0;transform:scale(1.12)}12%{opacity:1}to{opacity:1;transform:scale(1)}}
+.tw-adv-modal>.tw-adv-escena{position:relative;z-index:1}
+.tw .tw-adv-credito{position:fixed;left:10px;bottom:8px;z-index:2;max-width:70vw;font-size:9.5px;line-height:1.3;color:rgba(255,255,255,.6)!important;text-decoration:none;background:rgba(0,0,0,.25);padding:3px 7px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (prefers-reduced-motion:reduce){.tw-adv-foto{animation:none}}
 .tw-adv-zv{position:relative;width:min(300px,82vw);aspect-ratio:300/280;margin:50px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 40px 10px rgba(255,200,110,0);overflow:visible;transform-origin:50% 50%;transform-style:preserve-3d}
 .tw-adv-zv::after{content:"";position:absolute;left:-16px;right:-16px;bottom:-21px;height:14px;border-radius:3px 3px 8px 8px;background:linear-gradient(180deg,#fffaf0,#dfe7f2 55%,#b8892e 56%,#8a6420);box-shadow:0 10px 18px rgba(0,0,0,.5)}
 .tw-adv-escena.abre .tw-adv-zv{animation:twAdvZvGlow .8s ease-out .75s forwards}
@@ -32423,6 +32435,36 @@ function TwAdvPersonaje({ dia, esHoy, icono }) {
 }
 // Regalo que se abre encima de cada producto de la sorpresa (SVG + Web Animations, con anticipación y rebotes):
 // cae la caja, se sacude, se desata el moño, se sueltan las cintas, salta la tapa, sale luz de adentro y sube el producto
+// Foto de fondo de cada ventana, vinculada a la escena y su película: lugares y objetos reales (no fotogramas de las
+// películas), todas de Wikimedia Commons con licencia libre (CC0, dominio público o CC BY / BY-SA, que piden nombrar al autor:
+// por eso el crédito abajo). Están en /public/adviento. [autor, licencia, página de la foto]
+const ADV_FOTOS = {
+  arbol: ["JJonahJackalope", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Rockefeller_Center_Christmas_Tree,_2023-12-02.jpg"],
+  patines: ["Gabriel Rodríguez", "CC BY-SA 2.0", "https://commons.wikimedia.org/wiki/File:New_York_Christmas_tree_and_skating-rink.jpg"],
+  empire: ["Suicasmo", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Empire_State_Building_at_night_20170311.jpg"],
+  taxi: ["David Shankbone", "CC BY 3.0", "https://commons.wikimedia.org/wiki/File:New_York_Blizzard_2013_Snow.JPG"],
+  bolsas: ["Nenad Stojkovic", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Couple_sharing_christmas_presents.jpg"],
+  chocolate: ["Personal Creations", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Hot_cocoa_in_a_mug_with_a_hand_sprinkling_chili_pepper_flakes_onto_the_whipped_cream_(15852162626).jpg"],
+  tortolas: ["Rhockens", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:The_Central_Park_Mall_in_the_snow.jpg"],
+  cascanueces: ["Zelda F. Scott", "CC BY-SA 3.0", "https://commons.wikimedia.org/wiki/File:Nutcracker_christmas_ornament.JPG"],
+  mitones: ["Tomás Fano", "CC BY-SA 2.0", "https://commons.wikimedia.org/wiki/File:Central_Park_Wollman_Rink.jpg"],
+  globo: ["Anthony Quintano", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Snowstorm_2020_The_Plaza_Hotel_Christmas_Decorations_(50732620368).jpg"],
+  baston: ["Anthony Quintano", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Candy_Canes_9_West_New_York_City_Snowstorm_2020_(50733450407).jpg"],
+  carta: ["Matthew Binebrink", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Macy%27s_Believe_2021.jpg"],
+  campana: ["HistoryRespect", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Glowing,_Chiming_Angel_Chimes.jpg"],
+  boleto: ["railfan 44", "Public domain", "https://commons.wikimedia.org/wiki/File:5_of_Roger_Puta_Playing_With_Light_(26945318964).jpg"],
+  corona: ["Spencer Means", "CC BY-SA 2.0", "https://commons.wikimedia.org/wiki/File:Comfortably_settled,_48_West_12th_Street_(1854),_Greenwich_Village,_New_York_-_Flickr_-_Spencer_Means.jpg"],
+  farol: ["Gergő Gulyás", "CC0", "https://commons.wikimedia.org/wiki/File:Winter_Morning_(201072451).jpeg"],
+  gorro: ["Jon Sullivan", "Public domain", "https://commons.wikimedia.org/wiki/File:Santa_Claus_for_Christmas.jpg"],
+  libertad: ["William Warby", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Statue_of_Liberty,_NY.jpg"],
+  puente: ["Emanuel Hahn hahnbo", "CC0", "https://commons.wikimedia.org/wiki/File:Snowy_Brooklyn_Bridge_(Unsplash).jpg"],
+  pretzel: ["35mmMan", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Pretzels_in_Central_Park_-_Flickr_-_35mmMan.jpg"],
+  piano: ["Sagie", "CC BY-SA 2.0", "https://commons.wikimedia.org/wiki/File:The_big_piano_(3696097247).jpg"],
+  carteles: ["Oast House Archive", "CC BY-SA 2.0", "https://commons.wikimedia.org/wiki/File:Regent_Street_Christmas_Lights_2016_-_geograph.org.uk_-_5233956.jpg"],
+  medias: ["Personal Creations", "CC BY 2.0", "https://commons.wikimedia.org/wiki/File:Christmas_Mantel_with_pine_centerpiece,_holly_and_ribbon_decorations_and_personalized_family_stockings_in_front_of_fireplace_(15746934877).jpg"],
+  brindis: ["Myriam Zilles", "CC0", "https://commons.wikimedia.org/wiki/File:Champagne-glasses-1940262_1920.jpg"],
+  trineo: ["W.carter", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:Full_moon_over_Gullmarn_fjord_at_Holma_Marina_2.jpg"],
+};
 function TwAdvRegalo({ listo, indice = 0 }) {
   const raiz = useRef(null), hecho = useRef(false);
   useEffect(() => {
@@ -32666,7 +32708,11 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
       <TwAdvAlbum adv={prueba ? { ...adv, hoy } : adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
       <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
-        <div className="tw-adv-modal" role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={cerrarDia}>
+        <div className={"tw-adv-modal" + (ADV_FOTOS[advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1]] ? " con-foto" : "")} style={{ "--foto": "url(/adviento/" + (advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1]) + ".jpg)" }} role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={cerrarDia}>
+          {(() => { const k = advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1], f = ADV_FOTOS[k]; return f ? <>
+            <div className="tw-adv-foto" style={{ backgroundImage: "url(/adviento/" + k + ".jpg)" }} aria-hidden="true" />
+            <a className="tw-adv-credito" href={f[2]} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>📷 {f[0]} · {f[1]} · Wikimedia Commons</a>
+          </> : null; })()}
           <TwAdvNieve />
           <div className={"tw-adv-escena " + abriendo.fase} onClick={e => e.stopPropagation()}>
             <button className="tw-adv-cerrar" onClick={cerrarDia} aria-label="Cerrar">×</button>
