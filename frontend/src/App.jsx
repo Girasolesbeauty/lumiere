@@ -20853,6 +20853,65 @@ function IdeasMejoras({ localId, usuario, paletaActual }) {
   );
 }
 
+// ¿Dónde poner testers? Elegís un proveedor o marca y, para cada local, te dice de qué productos conviene tener tester:
+// los que tienen stock y se venden poco (la clienta los prueba y se anima a comprar). Lo que ya se vende bien no lo necesita.
+function TestersSugerir({ tp }) {
+  const [opc, setOpc] = useState(null);
+  const [sel, setSel] = useState("");
+  const [d, setD] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  useEffect(() => { API.get("/testers/sugerir").then(r => setOpc(r.data)).catch(() => setOpc({ proveedores: [], marcas: [] })); }, []);
+  useEffect(() => {
+    if (!sel) { setD(null); return; }
+    setCargando(true);
+    const [k, v] = sel.split(":"), q = k === "p" ? "proveedor_id=" + v : "marca=" + encodeURIComponent(sel.slice(2));
+    API.get("/testers/sugerir?" + q).then(r => setD(r.data)).catch(() => setD({ productos: [] })).finally(() => setCargando(false));
+  }, [sel]);
+  const estado = (l) => l.tester ? "ya" : l.stock <= 0 ? "sin" : l.vendidas <= 2 ? "poner" : l.vendidas <= 5 ? "quizas" : "no";
+  const GRUPOS = [["poner", "🧪 Poné tester", "Tienen stock y casi no se venden acá: que la clienta los pruebe", tp.green],
+    ["quizas", "🤔 Si te sobran", "Se venden algo: un tester puede ayudar", tp.warn],
+    ["ya", "✅ Ya tiene tester abierto", "", tp.blue],
+    ["no", "💪 Se venden solos", "No hace falta tester", tp.textMuted],
+    ["sin", "📦 Sin stock en este local", "Primero hay que tener el producto", tp.textMuted]];
+  const locales = UN_SOLO_LOCAL ? [1] : [1, 2];
+  return (
+    <div className="card">
+      <div className="ct">💡 ¿De qué productos poner tester?</div>
+      <div style={{ fontSize: 12.5, color: tp.textMuted, marginBottom: 10 }}>Elegí el proveedor o la marca. Según lo que se vendió en cada local en los últimos 90 días, te dice dónde conviene cada tester: <b>lo que tiene stock y se vende poco</b> es lo que más se beneficia.</div>
+      <select className="sel" value={sel} onChange={e => setSel(e.target.value)} style={{ maxWidth: 420 }}>
+        <option value="">Elegí un proveedor o una marca…</option>
+        {opc && opc.proveedores.length > 0 && <optgroup label="Proveedores">{opc.proveedores.map(p => <option key={"p" + p.id} value={"p:" + p.id}>{p.nombre} ({p.productos})</option>)}</optgroup>}
+        {opc && opc.marcas.length > 0 && <optgroup label="Marcas">{opc.marcas.map(m => <option key={"m" + m.marca} value={"m:" + m.marca}>{m.marca} ({m.productos})</option>)}</optgroup>}
+      </select>
+      {cargando && <div className="skel" style={{ height: 120, marginTop: 12 }} />}
+      {!cargando && d && (d.productos.length === 0 ? <div className="empty">No hay productos activos de ese proveedor o marca.</div> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginTop: 14 }}>
+          {locales.map(l => {
+            const filas = d.productos.map(p => ({ p, x: p.locales.find(z => z.local_id === l) })).filter(f => f.x);
+            const cuenta = filas.filter(f => estado(f.x) === "poner").length;
+            return (
+              <div key={l} style={{ border: "1px solid " + tp.border, borderRadius: 12, padding: 12 }}>
+                <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 2 }}>📍 {nombreLocal(l)}</div>
+                <div style={{ fontSize: 12, color: tp.textMuted, marginBottom: 8 }}>{cuenta} tester{cuenta !== 1 ? "s" : ""} recomendado{cuenta !== 1 ? "s" : ""}</div>
+                {GRUPOS.map(([k, t, sub, col]) => {
+                  const g = filas.filter(f => estado(f.x) === k).sort((a, b) => a.x.vendidas - b.x.vendidas || b.p.precio - a.p.precio);
+                  if (!g.length) return null;
+                  return (
+                    <details key={k} open={k === "poner" || k === "quizas"} style={{ marginTop: 6 }}>
+                      <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13, color: col }}>{t} ({g.length}){sub && <span style={{ fontWeight: 400, color: tp.textMuted }}> · {sub}</span>}</summary>
+                      {g.map(({ p, x }) => (
+                        <div key={p.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5, padding: "5px 2px", borderBottom: "1px solid " + tp.border + "66" }}>
+                          <span style={{ minWidth: 0 }}>{p.nombre}{p.marca && <span style={{ color: tp.textMuted }}> · {p.marca}</span>}</span>
+                          <span style={{ whiteSpace: "nowrap", color: tp.textMuted }}>vendió {x.vendidas} · stock {x.stock}</span>
+                        </div>))}
+                    </details>);
+                })}
+              </div>);
+          })}
+        </div>))}
+    </div>
+  );
+}
 function Testers({ localId, usuario, paletaActual }) {
   const tp = paletaActual || PALETA_CLARA;
   const [d, setD] = useState(null);
@@ -20885,6 +20944,7 @@ function Testers({ localId, usuario, paletaActual }) {
         <button className="btn btn-p" onClick={() => setNuevo({ q: "", prod: null, local: Number(localId) || 1, descontar: true, nota: "" })}>+ Abrir tester</button>
       </div>
       {msg && <div className="card" role="status" style={{ padding: "10px 14px", fontSize: 13 }}>{msg}</div>}
+      <TestersSugerir tp={tp} />
       {nuevo && (
         <div className="card">
           <div className="ct">Abrir un tester</div>
