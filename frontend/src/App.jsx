@@ -30461,7 +30461,7 @@ const ADV_PELIS = {
   carteles: ["Realmente amor (2003)", "Los carteles en la puerta mientras suena \"Noche de paz\"", "Día de mensajes: tarjeta escrita a mano en cada pedido", "nochepaz"],
   medias: ["Mi pobre angelito (1990)", "La casa de los McCallister decorada para Navidad", "Día de las medias: mini productos para llenar las medias navideñas", "campanas"],
   brindis: ["El descanso (2006)", "Iris, Amanda, Graham y Miles brindan todos juntos en Año Nuevo", "Día de brindis: maquillaje de fiesta y glow para Nochebuena", "auld"],
-  trineo: ["Operación Regalo (2011)", "Arthur y su abuelo reparten el último regalo en el trineo antiguo", "¡Navidad! Gracias y sorpresa final para todas", "jingle"],
+  trineo: ["Harry Potter y la piedra filosofal (serie de HBO Max, ¡estreno hoy!)", "La mañana de Navidad en Hogwarts, cuando Harry recibe su primer suéter tejido y la capa de invisibilidad", "¡Navidad! Gracias y sorpresa final para todas", "jingle"],
 };
 const twAdvMusica = {
   on: false, master: null, timer: null, prox: 0, i: 0, tema: 0,
