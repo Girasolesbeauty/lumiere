@@ -8438,6 +8438,7 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
   };
   const aplicar = async () => {
     if (!vista?.cambian?.length) return;
+    if ((modo === "subir" || modo === "bajar") && parseFloat(valor) >= 100 && !confirm("Ojo: vas a " + (modo === "subir" ? "subir" : "bajar") + " un " + valor + "% (no $" + valor + "). ¿Seguro?")) return;
     if (!confirm("¿Cambiar el precio de " + vista.cambian.length + " producto" + (vista.cambian.length !== 1 ? "s" : "") + "? Después lo podés deshacer desde esta misma ventana.")) return;
     setTrabajando(true); setAviso(null);
     try {
@@ -8550,6 +8551,12 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
             </select>
           </div>
         </div>
+        {(modo === "subir" || modo === "bajar") && parseFloat(valor) >= 100 && (
+          <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 10, background: temaPal.warnDim, border: "1px solid " + temaPal.warn, fontSize: 13, lineHeight: 1.45 }}>
+            ⚠️ Vas a {modo === "subir" ? "subir" : "bajar"} un <b>{valor}%</b>: un producto de $10.000 pasaría a <b>${(10000 * (modo === "subir" ? 1 + parseFloat(valor) / 100 : Math.max(0, 1 - parseFloat(valor) / 100))).toLocaleString("es-AR")}</b>. ¿Querías {modo === "subir" ? "sumar" : "restar"} <b>${valor}</b> a cada producto?
+            <div style={{ marginTop: 8 }}><button className="btn btn-p btn-sm" onClick={() => setModo(modo === "subir" ? "sumar" : "restar")}>Sí, {modo === "subir" ? "sumar" : "restar"} ${valor} a cada uno</button></div>
+          </div>
+        )}
 
         {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} style={{ background: aviso.ok ? temaPal.greenDim : temaPal.redDim, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, margin: "4px 0 12px" }}>{aviso.texto}
           {aviso.cambioId && <button className="chip-btn" style={{ marginLeft: 8 }} onClick={() => { try { sessionStorage.setItem("lumiere_etiquetas_cambio", String(aviso.cambioId)); } catch (e) {} onCerrar(); irASeccion("etiquetas"); }}>🏷️ Imprimir sus etiquetas nuevas</button>}</div>}
