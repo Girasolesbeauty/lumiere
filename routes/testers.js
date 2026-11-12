@@ -87,13 +87,18 @@ router.get('/sugerir', async (req, res) => {
     await asegurar();
     const prov = parseInt(req.query.proveedor_id) || null, marca = String(req.query.marca || '').trim();
     if (!prov && !marca) {
-      const pr = (await pool.query(`SELECT pr.id, pr.nombre, COUNT(p.id)::int AS productos FROM proveedores pr JOIN productos p ON p.proveedor_id = pr.id AND COALESCE(p.activo, TRUE)
-        GROUP BY pr.id, pr.nombre HAVING COUNT(p.id) > 0 ORDER BY pr.nombre`)).rows;
+      // Un proveedor cuenta si tiene productos asignados o si le compraste algo con una orden de ingreso
+      // (muchos productos no tienen el proveedor cargado en la ficha, pero sí llegaron en sus facturas)
+      const pr = (await pool.query(`SELECT pr.id, pr.nombre, COUNT(DISTINCT p.id)::int AS productos FROM proveedores pr
+        JOIN productos p ON COALESCE(p.activo, TRUE) AND (p.proveedor_id = pr.id OR p.id IN (SELECT oi.producto_id FROM ordenes_ingreso_items oi JOIN ordenes_ingreso o ON o.id = oi.orden_id
+          WHERE o.proveedor_id = pr.id OR LOWER(TRIM(o.proveedor_nombre)) = LOWER(TRIM(pr.nombre))))
+        GROUP BY pr.id, pr.nombre ORDER BY pr.nombre`)).rows;
       const ma = (await pool.query(`SELECT TRIM(marca) AS marca, COUNT(*)::int AS productos FROM productos WHERE COALESCE(activo, TRUE) AND COALESCE(TRIM(marca), '') <> '' GROUP BY 1 ORDER BY 1`)).rows;
       return res.json({ proveedores: pr, marcas: ma });
     }
     const vals = [], cond = [];
-    if (prov) { vals.push(prov); cond.push('p.proveedor_id = $' + vals.length); }
+    if (prov) { vals.push(prov); const k = vals.length; cond.push(`p.proveedor_id = $${k} OR p.id IN (SELECT oi.producto_id FROM ordenes_ingreso_items oi JOIN ordenes_ingreso o ON o.id = oi.orden_id
+      WHERE o.proveedor_id = $${k} OR LOWER(TRIM(o.proveedor_nombre)) = (SELECT LOWER(TRIM(nombre)) FROM proveedores WHERE id = $${k}))`); }
     if (marca) { vals.push(marca); cond.push('LOWER(TRIM(p.marca)) = LOWER($' + vals.length + ')'); }
     const prods = (await pool.query(`SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS s1, COALESCE(p.stock_ush, 0) AS s2
       FROM productos p WHERE COALESCE(p.activo, TRUE) AND (${cond.join(' OR ')}) ORDER BY p.nombre`, vals)).rows;
