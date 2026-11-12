@@ -5,6 +5,7 @@
 const express = require('express');
 const pool = require('../config/database');
 const { porNegocio } = require('../lib/contexto');
+const { VENTA_VALIDA } = require('../lib/niveles');
 
 const router = express.Router();
 const n = (x) => parseFloat(x) || 0;
@@ -76,6 +77,37 @@ router.get('/', async (req, res) => {
       puede_descontar: await puedeAjustar(pool, req.usuario),
     });
   } catch (e) { console.error('[testers]', e.message); res.status(500).json({ error: 'No se pudieron cargar los testers' }); }
+});
+
+// ¿Dónde conviene poner testers? Para un proveedor (o marca), cada producto en cada local con lo que se vendió
+// ahí en los últimos 90 días, el stock y si ya tiene tester abierto. Lo que tiene stock y se vende poco (o nada) es
+// lo que más se beneficia de un tester: la clienta lo prueba y lo compra.
+router.get('/sugerir', async (req, res) => {
+  try {
+    await asegurar();
+    const prov = parseInt(req.query.proveedor_id) || null, marca = String(req.query.marca || '').trim();
+    if (!prov && !marca) {
+      const pr = (await pool.query(`SELECT pr.id, pr.nombre, COUNT(p.id)::int AS productos FROM proveedores pr JOIN productos p ON p.proveedor_id = pr.id AND COALESCE(p.activo, TRUE)
+        GROUP BY pr.id, pr.nombre HAVING COUNT(p.id) > 0 ORDER BY pr.nombre`)).rows;
+      const ma = (await pool.query(`SELECT TRIM(marca) AS marca, COUNT(*)::int AS productos FROM productos WHERE COALESCE(activo, TRUE) AND COALESCE(TRIM(marca), '') <> '' GROUP BY 1 ORDER BY 1`)).rows;
+      return res.json({ proveedores: pr, marcas: ma });
+    }
+    const vals = [], cond = [];
+    if (prov) { vals.push(prov); cond.push('p.proveedor_id = $' + vals.length); }
+    if (marca) { vals.push(marca); cond.push('LOWER(TRIM(p.marca)) = LOWER($' + vals.length + ')'); }
+    const prods = (await pool.query(`SELECT p.id, p.nombre, p.marca, p.categoria, p.precio, COALESCE(p.stock_rg, 0) AS s1, COALESCE(p.stock_ush, 0) AS s2
+      FROM productos p WHERE COALESCE(p.activo, TRUE) AND (${cond.join(' OR ')}) ORDER BY p.nombre`, vals)).rows;
+    const ids = prods.map(x => x.id);
+    if (!ids.length) return res.json({ productos: [] });
+    const ventas = (await pool.query(`SELECT vi.producto_id, COALESCE(v.local_id, 1) AS local_id, SUM(vi.cantidad)::int AS u
+      FROM venta_items vi JOIN ventas v ON v.id = vi.venta_id
+      WHERE ${VENTA_VALIDA} AND v.creado_en >= NOW() - INTERVAL '90 days' AND vi.producto_id = ANY($1::int[]) GROUP BY 1, 2`, [ids])).rows;
+    const abiertos = (await pool.query(`SELECT producto_id, local_id FROM testers WHERE terminado_en IS NULL AND producto_id = ANY($1::int[])`, [ids])).rows;
+    const vtas = (id, l) => (ventas.find(v => v.producto_id === id && Number(v.local_id) === l) || {}).u || 0;
+    const tiene = (id, l) => abiertos.some(a => a.producto_id === id && Number(a.local_id) === l);
+    res.json({ productos: prods.map(x => ({ id: x.id, nombre: x.nombre, marca: x.marca, categoria: x.categoria, precio: n(x.precio),
+      locales: [1, 2].map(l => ({ local_id: l, stock: parseInt(l === 1 ? x.s1 : x.s2) || 0, vendidas: vtas(x.id, l), tester: tiene(x.id, l) })) })) });
+  } catch (e) { console.error('[testers] sugerir:', e.message); res.status(500).json({ error: 'No se pudo armar la sugerencia' }); }
 });
 
 // Abrir un tester
