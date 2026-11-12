@@ -8549,6 +8549,7 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
               <option value={500}>A $500</option>
               <option value={1000}>A $1.000</option>
             </select>
+            {redondeo > 1 && <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 4 }}>{modo === "bajar" || modo === "restar" ? "Se redondea para abajo." : modo === "margen" ? "Se redondea al más cercano." : "Se redondea para arriba: nunca suma menos de lo que pusiste."}</div>}
           </div>
         </div>
         {(modo === "subir" || modo === "bajar") && parseFloat(valor) >= 100 && (

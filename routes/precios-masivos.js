@@ -83,10 +83,10 @@ function precioNuevo(prod, p) {
   // igual o mas barato, si se baja no puede quedar igual o mas caro, y nunca en $0
   const paso = p.redondeo || 0;
   if (paso) {
-    let r = Math.round(n / paso) * paso;
+    // Si se sube, se redondea siempre para arriba (si no, "sumar $515 redondeado a $1.000" podía sumar solo $100);
+    // si se baja, siempre para abajo. Desde el costo, al más cercano.
     const sube = p.modo === 'subir' || p.modo === 'sumar', baja = p.modo === 'bajar' || p.modo === 'restar';
-    if (sube && r <= precio) r = Math.ceil(n / paso) * paso;
-    if (baja && r >= precio) r = Math.floor(n / paso) * paso;
+    let r = sube ? Math.ceil(n / paso - 1e-9) * paso : baja ? Math.floor(n / paso + 1e-9) * paso : Math.round(n / paso) * paso;
     if (r > 0 && !(baja && r >= precio)) n = r;
   }
   return n > 0 ? n : null;
