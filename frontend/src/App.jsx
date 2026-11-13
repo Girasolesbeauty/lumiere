@@ -34641,7 +34641,11 @@ function TiendaPublica({ slug }) {
   useEffect(() => {
     const tel = String(datos.telefono || "").replace(/\D/g, "");
     if (!amigaCod || !amigaInfo || cuponOk || paso !== "datos" || tel.length < 8) { setAmigaOk(null); return; }
-    const t = setTimeout(() => pedir("/amiga/validar", { method: "POST", body: JSON.stringify({ codigo: amigaCod, telefono: datos.telefono }) }).then(setAmigaOk).catch(() => setAmigaOk(null)), 500);
+    const t = setTimeout(() => pedir("/amiga/validar", { method: "POST", body: JSON.stringify({ codigo: amigaCod, telefono: datos.telefono }) }).then(r => {
+      // Es su propio link: el código no le sirve, se olvida para que el cartel no vuelva a aparecer
+      if (r && !r.ok && /propio link/i.test(r.motivo || "")) { setAmigaInfo(null); setAmigaCod(null); try { localStorage.removeItem("tw_amiga_" + slug); localStorage.removeItem("tw_hw_amiga_" + slug); } catch (e) {} setAmigaOk(null); return; }
+      setAmigaOk(r);
+    }).catch(() => setAmigaOk(null)), 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amigaCod, amigaInfo, datos.telefono, cuponOk, paso]);
@@ -36322,7 +36326,7 @@ function TiendaPublica({ slug }) {
                   <div id="tw-ck-datos" className="tw-lbl tw-paso" style={{ marginTop: 0 }}><span className={"tw-paso-n" + (faltaDatos ? "" : " ok")}>{faltaDatos ? "1" : "✓"}</span>Tus datos{intentoPedir && faltaDatos && <span className="tw-falta-tag">Falta completar</span>}</div>
                   <input className="tw-inp" placeholder="Nombre y apellido" autoComplete="name" value={datos.nombre || ""} onChange={e => setDatos(d => ({ ...d, nombre: e.target.value }))} style={{ marginBottom: 8 }} />
                   <input className="tw-inp" placeholder="WhatsApp (ej: 2964 123456)" inputMode="tel" autoComplete="tel" value={datos.telefono || ""} onChange={e => setDatos(d => ({ ...d, telefono: e.target.value }))} style={{ marginBottom: 8 }} />
-                  {amigaInfo && !cuponOk && !(amigaOk && !amigaOk.ok && /propio link/i.test(amigaOk.motivo || "")) && <div className={"tw-amiga-check" + (amigaOk && amigaOk.ok ? " ok" : amigaOk ? " no" : "")}>{amigaOk && amigaOk.ok ? <>💌 ¡Listo! Se aplicó el regalo de <b>{amigaOk.nombre}</b>: {amigaOk.pct}% OFF</> : amigaOk ? <>💌 {amigaOk.motivo}</> : <>💌 Tenés el regalo de <b>{amigaInfo.nombre}</b> ({amigaInfo.pct}% OFF en tu primera compra). Escribí tu WhatsApp para aplicarlo.</>}</div>}
+                  {amigaInfo && !cuponOk && !(!amigaOk && String(datos.telefono || "").replace(/\D/g, "").length >= 8) && <div className={"tw-amiga-check" + (amigaOk && amigaOk.ok ? " ok" : amigaOk ? " no" : "")}>{amigaOk && amigaOk.ok ? <>💌 ¡Listo! Se aplicó el regalo de <b>{amigaOk.nombre}</b>: {amigaOk.pct}% OFF</> : amigaOk ? <>💌 {amigaOk.motivo}</> : <>💌 Tenés el regalo de <b>{amigaInfo.nombre}</b> ({amigaInfo.pct}% OFF en tu primera compra). Escribí tu WhatsApp para aplicarlo.</>}</div>}
                   <input className="tw-inp" placeholder="Email (opcional)" inputMode="email" autoComplete="email" value={datos.email || ""} onChange={e => setDatos(d => ({ ...d, email: e.target.value }))} />
                   <div id="tw-ck-entrega" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaEntrega || faltaEnvio ? "" : " ok")}>{faltaEntrega || faltaEnvio ? "2" : "✓"}</span>¿Cómo lo recibís?{intentoPedir && (faltaEntrega || faltaEnvio) && <span className="tw-falta-tag">{faltaEntrega ? "Tocá una opción" : "Falta completar"}</span>}</div>
                   {ciudad && <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>Comprás en <b>{ciudad.nombre}</b>. {ciudades.length > 1 && <button style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", fontSize: 13 }} onClick={() => setEligeCiudad(true)}>Cambiar</button>}</div>}
