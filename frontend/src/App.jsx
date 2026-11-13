@@ -28978,7 +28978,8 @@ button.tw-puntosdia-barra{cursor:pointer}
 .tw-paso-n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--n);color:#fff;font-size:11.5px;letter-spacing:0}
 .tw-paso-n.ok{background:#2d7a4f}
 .tw-falta-tag{background:#d9534f;color:#fff;border-radius:999px;padding:3px 9px;font-size:10.5px;letter-spacing:.04em}
-.tw-baja{position:sticky;bottom:10px;z-index:5;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:10px 0 0;padding:12px 16px;border:0;border-radius:999px;background:var(--n,#1f1b16);color:#fff;font:inherit;font-weight:800;font-size:14.5px;box-shadow:0 10px 24px rgba(0,0,0,.28);cursor:pointer;animation:twBajaLate 2s ease-in-out infinite}
+.tw .tw-baja{position:sticky;bottom:10px;z-index:5;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:10px 0 0;padding:12px 16px;border:0;border-radius:999px;background:var(--n,#1f1b16);color:#fff;font:inherit;font-weight:800;font-size:14.5px;box-shadow:0 10px 24px rgba(0,0,0,.28);cursor:pointer;animation:twBajaLate 2s ease-in-out infinite;margin-bottom:12px}
+.tw .tw-baja, .tw .tw-baja span, .tw .tw-baja i{color:#fff!important}
 .tw-baja i{font-style:normal;font-size:20px;line-height:1;animation:twBajaFlecha 1s ease-in-out infinite}
 @keyframes twBajaFlecha{0%,100%{transform:translateY(-3px)}50%{transform:translateY(4px)}}
 @keyframes twBajaLate{0%,100%{box-shadow:0 10px 24px rgba(0,0,0,.28)}50%{box-shadow:0 10px 24px rgba(0,0,0,.28),0 0 0 6px rgba(0,0,0,.08)}}
@@ -34333,17 +34334,22 @@ function TiendaPublica({ slug }) {
   const [videoI, setVideoI] = useState(null); // video abierto en grande (numero en la lista), o null
   const toqueMedia = useRef(null);
   const [paso, setPaso] = useState(null); // null | "carrito" | "datos"
-  // Mucha gente no baja hasta los medios de pago: mientras esa parte no se vea, flota un aviso con una flecha que la lleva
-  const [pagoVisto, setPagoVisto] = useState(false);
+  // Mucha gente no baja hasta los medios de pago: si lo que falta completar (cómo lo recibís o cómo pagás) quedó más abajo
+  // de lo que se ve, flota un aviso con una flecha que lleva ahí. Si ya está a la vista, o arriba, no aparece.
+  const [bajaHacia, setBajaHacia] = useState(null); // null | "entrega" | "pago"
+  const faltaRef = useRef(null); // lo calcula cada render: "entrega" | "pago" | null
   useEffect(() => {
-    if (paso !== "datos") { setPagoVisto(false); return; }
-    let o = null, t = setTimeout(() => {
-      const el = document.getElementById("tw-ck-pago");
-      if (!el || !window.IntersectionObserver) { setPagoVisto(true); return; }
-      o = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setPagoVisto(true); o.disconnect(); } }, { threshold: .15 });
-      o.observe(el);
-    }, 300);
-    return () => { clearTimeout(t); if (o) o.disconnect(); };
+    if (paso !== "datos") { setBajaHacia(null); return; }
+    const mirar = () => {
+      const k = faltaRef.current, el = k && document.getElementById(k === "entrega" ? "tw-ck-entrega" : "tw-ck-pago");
+      const caja = el && el.closest(".tw-cajon-cuerpo");
+      if (!el || !caja) return setBajaHacia(null);
+      const abajo = el.getBoundingClientRect().top > caja.getBoundingClientRect().bottom - 90;
+      setBajaHacia(abajo ? k : null);
+    };
+    const t = setInterval(mirar, 400); mirar();
+    const c = document.querySelector(".tw-cajon-cuerpo"); if (c) c.addEventListener("scroll", mirar, { passive: true });
+    return () => { clearInterval(t); if (c) c.removeEventListener("scroll", mirar); };
   }, [paso]);
   // Politica o boton de arrepentimiento abierto (tambien con ?legal=arrepentimiento en el link)
   const [legal, setLegal] = useState(() => { const k = new URLSearchParams(window.location.search).get("legal"); return k && TW_LEGALES[k] ? k : null; });
@@ -35220,6 +35226,7 @@ function TiendaPublica({ slug }) {
   const faltaPago = !pagoElegido && !gcCubre;
   const faltan = [!lid && "elegir tu ciudad", !datos.nombre && "tu nombre", !datos.telefono && "tu WhatsApp", lid && !datos.entrega && "cómo lo recibís (retiro o envío)",
     datos.entrega === "envio" && !zona && "tu zona de envío", datos.entrega === "envio" && !datos.direccion && "la dirección", faltaPago && "cómo pagás"].filter(Boolean);
+  faltaRef.current = faltaEntrega || faltaEnvio ? "entrega" : faltaPago ? "pago" : null;
   const bajarAlSiguiente = () => {
     const el = document.getElementById(faltaEntrega || faltaEnvio ? "tw-ck-entrega" : "tw-ck-pago");
     el && el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -36383,7 +36390,7 @@ function TiendaPublica({ slug }) {
                   {logueada && <TwPuntos monto={subtotal - descCombo - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descCombo - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   {faltan.length > 0 && <div className={"tw-faltan" + (intentoPedir ? " fuerte" : "")} role="status">⚠️ Para seguir te falta: <b>{faltan.join(", ")}</b></div>}
-                  {!pagoVisto && !gcCubre && <button type="button" className="tw-baja" onClick={bajarAlSiguiente}><span>{faltaEntrega || faltaEnvio ? "Seguí bajando: cómo lo recibís y cómo pagás" : "Seguí bajando para elegir cómo pagás"}</span><i aria-hidden="true">↓</i></button>}
+                  {bajaHacia && <button type="button" className="tw-baja" onClick={bajarAlSiguiente}><span>{bajaHacia === "entrega" ? "Bajá para elegir cómo lo recibís" : "Bajá para elegir cómo pagás"}</span><i aria-hidden="true">↓</i></button>}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="tw-btn2" onClick={() => setPaso("carrito")}>Atrás</button>
                     <button className={"tw-btn full" + (listoParaPedir ? "" : " apagado")} disabled={enviando} aria-disabled={!listoParaPedir} onClick={irAPedir}>{enviando ? "Enviando…" : !gcCubre && (pagoElegido === "mp" || pagoElegido === "gocuotas") ? "Ir a pagar" : "Hacer el pedido"}</button>
