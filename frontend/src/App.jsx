@@ -36387,7 +36387,6 @@ function TiendaPublica({ slug }) {
                   {datos.entrega === "envio" && <div className="tw-linea"><span>Envío</span><span>{zona ? (costoEnvio ? fmtTienda(costoEnvio) : "Gratis") : "—"}</span></div>}
                   {gcUsa > 0 && <div key={"g" + gcOk.codigo} className="tw-linea tw-desc-ok" style={{ color: "#2d7a4f", borderRadius: 6 }}><span>🎁 Gift card ({gcOk.codigo})</span><span>−<TwRueda valor={gcUsa} formato={fmtTienda} dur={900} /></span></div>}
                   <div className="tw-linea" style={{ fontWeight: 800, fontSize: 19, marginBottom: 12 }}><span>{gcUsa > 0 ? "Total a pagar" : "Total"}</span><span><TwRueda key={"t" + (cuponOk ? cuponOk.codigo : "") + pagoElegido + (gcOk ? gcOk.codigo : "")} valor={totalPagar} desde={subtotal + costoEnvio} formato={fmtTienda} dur={1000} /></span></div>
-                  {logueada && <TwPuntos monto={subtotal - descCombo - descuentoCupon} tengo={miCuenta ? (miCuenta.puntos || 0) : null} />}
                   {tienda.ruleta && tienda.ruleta.aviso && <TwRuletaAviso monto={subtotal - descCombo - descuentoCupon} minimo={tienda.ruleta.minimo} />}
                   {faltan.length > 0 && <div className={"tw-faltan" + (intentoPedir ? " fuerte" : "")} role="status">⚠️ Para seguir te falta: <b>{faltan.join(", ")}</b></div>}
                   {bajaHacia && <button type="button" className="tw-baja" onClick={bajarAlSiguiente}><span>{bajaHacia === "entrega" ? "Bajá para elegir cómo lo recibís" : "Bajá para elegir cómo pagás"}</span><i aria-hidden="true">↓</i></button>}
