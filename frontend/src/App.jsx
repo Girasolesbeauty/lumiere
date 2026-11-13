@@ -4621,6 +4621,31 @@ function POS({ localId, usuario, paletaActual }) {
     }
   };
 
+  // Corregir el precio de una preventa (ej: se vendió en promo, pagó todo, y figura que falta saldar)
+  const [ajustePrev, setAjustePrev] = useState(null); // { p, precios: { item_id: "valor" }, error, guardando }
+  const abrirAjustePrev = (p) => setAjustePrev({ p, precios: Object.fromEntries((p.items || []).map(it => [it.item_id, String(parseFloat(it.precio_unitario) || 0)])), error: "", guardando: false });
+  const ajusteTotal = ajustePrev ? (ajustePrev.p.items || []).reduce((a, it) => a + (parseFloat(ajustePrev.precios[it.item_id]) || 0) * (parseFloat(it.cantidad) || 0), 0) + (parseFloat(ajustePrev.p.costo_envio) || 0) : 0;
+  const ajustePagado = ajustePrev ? (parseFloat(ajustePrev.p.monto_sena) || 0) + (parseFloat(ajustePrev.p.monto_gift_card) || 0) : 0;
+  // "Ya pagó todo": los precios se acomodan para que el total sea justo lo que pagó
+  const ajusteYaPago = () => setAjustePrev(a => {
+    const its = a.p.items || [], envio = parseFloat(a.p.costo_envio) || 0;
+    const suma = its.reduce((x, it) => x + (parseFloat(a.precios[it.item_id]) || 0) * (parseFloat(it.cantidad) || 0), 0);
+    const meta = Math.max(0, ajustePagado - envio);
+    if (!its.length) return a;
+    const precios = { ...a.precios };
+    if (its.length === 1 || suma <= 0) { const it = its[0]; precios[it.item_id] = String(Math.round(meta / (parseFloat(it.cantidad) || 1) * 100) / 100); its.slice(1).forEach(x => { precios[x.item_id] = "0"; }); }
+    else { const f = meta / suma; let acum = 0; its.forEach((it, i) => { const c = parseFloat(it.cantidad) || 1; const v = i < its.length - 1 ? Math.round((parseFloat(a.precios[it.item_id]) || 0) * f * 100) / 100 : Math.round((meta - acum) / c * 100) / 100; acum += v * c; precios[it.item_id] = String(v); }); }
+    return { ...a, precios, error: "" };
+  });
+  const guardarAjustePrev = async () => {
+    setAjustePrev(a => ({ ...a, guardando: true, error: "" }));
+    try {
+      const r = await API.put("/ventas/" + ajustePrev.p.id + "/preventa-precio", { items: (ajustePrev.p.items || []).map(it => ({ id: it.item_id, precio_unitario: parseFloat(ajustePrev.precios[it.item_id]) || 0 })) });
+      setAjustePrev(null); cargarPreventas();
+      setMensaje("✅ Precio corregido. Total: " + fmt(r.data.total) + (r.data.falta > 0.5 ? " · falta pagar " + fmt(r.data.falta) : " · ya está pagada"));
+      setTimeout(() => setMensaje(""), 7000);
+    } catch (e) { setAjustePrev(a => ({ ...a, guardando: false, error: e.response?.data?.error || "No se pudo cambiar el precio" })); }
+  };
   const cancelarPreventa = async (p) => {
     try {
       await API.put("/ventas/" + p.id, { estado: "cancelada" });
@@ -4951,6 +4976,7 @@ function POS({ localId, usuario, paletaActual }) {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
+                <button className="btn btn-g btn-sm" onClick={() => abrirAjustePrev(p)} title="Cambiar el precio de esta preventa (por ejemplo, si se vendió en promo)">✏️ Precio</button>
                 <button className="btn btn-g btn-sm" onClick={() => cancelarPreventa(p)}>Cancelar</button>
               </div>
             </div>
@@ -4966,6 +4992,31 @@ function POS({ localId, usuario, paletaActual }) {
             )}
           </div>
         ))}
+        {ajustePrev && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: 20 }} onClick={() => !ajustePrev.guardando && setAjustePrev(null)}>
+            <div className="card" role="dialog" aria-label="Corregir precio de la preventa" style={{ width: 420, maxWidth: "100%", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>✏️ Corregir precio de la preventa</div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>{ajustePrev.p.nombre_preventa || "Consumidor Final"}. Poné el <b>precio final</b> al que se vendió cada producto (por ejemplo, el precio de la promo de ese día). Lo que ya pagó no cambia.</div>
+              {(ajustePrev.p.items || []).map(it => (
+                <div key={it.item_id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>{it.nombre || it.producto_nombre} <span style={{ color: temaPal.textMuted }}>x{it.cantidad}</span><div style={{ fontSize: 10.5, color: temaPal.textMuted }}>Antes: {fmt(parseFloat(it.precio_unitario) || 0)} c/u</div></div>
+                  <input className="inp" style={{ width: 130, textAlign: "right" }} inputMode="decimal" aria-label={"Precio de " + (it.nombre || "producto")} value={ajustePrev.precios[it.item_id] ?? ""} onChange={e => { const v = e.target.value.replace(",", "."); setAjustePrev(a => ({ ...a, precios: { ...a.precios, [it.item_id]: v }, error: "" })); }} />
+                </div>
+              ))}
+              <div style={{ background: temaPal.bg, borderRadius: 8, padding: "8px 12px", margin: "6px 0 10px", fontSize: 12.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Total nuevo</span><b>{fmt(ajusteTotal)}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between", color: temaPal.textMuted }}><span>Ya pagó</span><span>{fmt(ajustePagado)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, color: ajusteTotal - ajustePagado > 0.5 ? temaPal.warn : "#2d7a4f" }}><span>{ajusteTotal - ajustePagado > 0.5 ? "Falta pagar" : ajusteTotal + 0.5 < ajustePagado ? "Pagó de más" : "✓ Queda pagada"}</span><span>{fmt(Math.abs(ajusteTotal - ajustePagado))}</span></div>
+              </div>
+              {ajustePagado > 0 && Math.abs(ajusteTotal - ajustePagado) > 0.5 && <button className="btn btn-g btn-sm" style={{ width: "100%", marginBottom: 10 }} onClick={ajusteYaPago}>💡 Ya pagó todo: dejar el total en {fmt(ajustePagado)}</button>}
+              {ajustePrev.error && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 10, fontSize: 11.5, color: "#c0392b" }}>{ajustePrev.error}</div>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g" style={{ flex: 1 }} disabled={ajustePrev.guardando} onClick={() => setAjustePrev(null)}>Cancelar</button>
+                <button className="btn btn-p" style={{ flex: 1 }} disabled={ajustePrev.guardando || ajusteTotal + 0.5 < ajustePagado} onClick={guardarAjustePrev}>{ajustePrev.guardando ? "Guardando…" : "Guardar precio"}</button>
+              </div>
+            </div>
+          </div>
+        )}
         {confirmandoPreventa && (
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: "20px" }}>
             <div className="card" style={{ width: 380, background: temaPal.card }}>

@@ -79,6 +79,7 @@ const getAll = async (req, res) => {
         COALESCE(
           json_agg(
             json_build_object(
+              'item_id', vi.id,
               'producto_id', vi.producto_id,
               'nombre', p.nombre,
               'cantidad', vi.cantidad,
@@ -1100,4 +1101,63 @@ const getProductosVendidosDia = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
+// Corregir el precio de una preventa que todavia no se entrego. Caso tipico: se vendio con una promo y el
+// cliente ya pago todo, pero el total quedo con el precio normal y figura que "falta saldar". Se cambia el
+// precio de cada producto (precio final que paga) y el total pasa a ser la suma. Lo que ya pago no se toca.
+// Queda registrado quien lo cambio, cuando y los precios de antes (columna preventa_ajustes).
+const corregirPrecioPreventa = async (req, res) => {
+  const u = req.usuario || {};
+  let puede = u.rol === 'jefe' || u.rol === 'admin' || u.rol === 'administrativo' || Number(u.rol_id) === 1;
+  if (!puede) {
+    try { puede = (await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso IN ('inventario.editar', 'ventas.editar')`, [u.id])).rows.length > 0; } catch (e) {}
+  }
+  if (!puede) return res.status(403).json({ error: 'No tenés permiso para cambiar el precio de una preventa' });
+  const nuevos = Array.isArray((req.body || {}).items) ? req.body.items : [];
+  if (!nuevos.length) return res.status(400).json({ error: 'Faltan los precios' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('ALTER TABLE ventas ADD COLUMN IF NOT EXISTS preventa_ajustes JSONB');
+    const v = (await client.query('SELECT to_jsonb(v) AS j FROM ventas v WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!v) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró la preventa' }); }
+    const venta = v.j;
+    if (venta.es_preventa !== true || venta.estado_pago !== 'reservado' || venta.anulada === true) {
+      await client.query('ROLLBACK'); return res.status(400).json({ error: 'Solo se puede corregir el precio de una preventa que todavía no se entregó' });
+    }
+    const items = (await client.query('SELECT id, producto_id, cantidad, precio_unitario FROM venta_items WHERE venta_id = $1 ORDER BY id', [venta.id])).rows;
+    const porId = Object.fromEntries(nuevos.map(x => [Number(x.id), parseFloat(x.precio_unitario)]));
+    const antes = [];
+    let suma = 0;
+    for (const it of items) {
+      let precio = porId[it.id];
+      if (precio === undefined || Number.isNaN(precio)) precio = parseFloat(it.precio_unitario);
+      if (!(precio >= 0) || precio > 1e9) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Revisá los precios: tienen que ser números positivos' }); }
+      precio = Math.round(precio * 100) / 100;
+      if (precio !== parseFloat(it.precio_unitario)) {
+        antes.push({ item_id: it.id, producto_id: it.producto_id, antes: parseFloat(it.precio_unitario), despues: precio });
+        await client.query('UPDATE venta_items SET precio_unitario = $1, subtotal = $2 WHERE id = $3', [precio, Math.round(precio * it.cantidad * 100) / 100, it.id]);
+      }
+      suma += precio * it.cantidad;
+    }
+    suma = Math.round(suma * 100) / 100;
+    const envio = parseFloat(venta.costo_envio) || 0;
+    const total = Math.round((suma + envio) * 100) / 100;
+    const pagado = (parseFloat(venta.monto_sena) || 0) + (parseFloat(venta.monto_gift_card) || 0);
+    if (total + 0.5 < pagado) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'El total nuevo (' + total + ') no puede ser menor a lo que ya pagó (' + pagado + ')' }); }
+    if (!antes.length && Math.abs(total - parseFloat(venta.total)) < 0.01) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No cambió ningún precio' }); }
+    let quien = null;
+    try { quien = (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    const registro = { fecha: new Date().toISOString(), usuario_id: u.id || null, usuario: quien || u.email || null, total_antes: parseFloat(venta.total), total_despues: total, items: antes };
+    await client.query(`UPDATE ventas SET subtotal = $1, total = $2, descuento = 0,
+        preventa_ajustes = COALESCE(preventa_ajustes, '[]'::jsonb) || $3::jsonb WHERE id = $4`,
+      [suma, total, JSON.stringify([registro]), venta.id]);
+    await client.query('COMMIT');
+    res.json({ ok: true, total, pagado, falta: Math.max(0, Math.round((total - pagado) * 100) / 100) });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[preventa] corregir precio:', e.message);
+    res.status(500).json({ error: 'No se pudo cambiar el precio. No se cambió nada.' });
+  } finally { client.release(); }
+};
+
+module.exports = { getAll, getById, create, update, confirmarEntrega, corregirPrecioPreventa, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
