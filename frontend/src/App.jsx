@@ -28437,6 +28437,15 @@ html:has(.tw){overflow-x:hidden}
 .tw button{font-family:inherit;color:inherit}
 .tw a{color:inherit}
 .tw-anuncio{background:#000;color:#fff;font-size:12.5px;letter-spacing:.04em;text-align:center;height:34px;overflow:hidden;position:relative}
+/* Cinta: las frases corren de derecha a izquierda sin cortes (dos copias iguales, se mueve la mitad y vuelve a empezar) */
+.tw-cinta{background:#000;color:#fff;font-size:12.5px;letter-spacing:.04em;height:34px;overflow:hidden;display:flex;align-items:center;white-space:nowrap}
+.tw-cinta-pista{display:flex;flex-shrink:0;animation:twCinta var(--dur,30s) linear infinite;will-change:transform}
+.tw-cinta:hover .tw-cinta-pista{animation-play-state:paused}
+.tw-cinta-grupo{display:flex;flex-shrink:0}
+.tw-cinta-frase{padding:0 22px}
+.tw-cinta-sep{opacity:.55;font-size:10px}
+@keyframes twCinta{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.tw-cinta{justify-content:center}.tw-cinta-pista{animation:none}.tw-cinta-pista .tw-cinta-grupo~.tw-cinta-grupo,.tw-cinta-pista .tw-cinta-sep,.tw-cinta-pista .tw-cinta-frase~.tw-cinta-frase{display:none}}
 .tw-anuncio div{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0 12px;animation:twAnuncio .6s cubic-bezier(.2,.7,.2,1)}
 @keyframes twAnuncio{from{transform:translateY(100%);opacity:0}to{transform:none;opacity:1}}
 .tw-cab{position:sticky;top:0;z-index:15;background:rgba(255,255,255,.96);backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--b);transition:box-shadow .3s}
@@ -34264,6 +34273,21 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
   );
 }
 
+// La franja negra de arriba de la tienda: las frases pasan corriendo como una cinta.
+// Si son pocas o cortas se repiten, para que la cinta siempre cubra todo el ancho (también en compu).
+function TwCinta({ frases }) {
+  const largo = frases.join("").length || 1;
+  const veces = Math.max(1, Math.ceil(260 / largo));
+  const grupo = Array.from({ length: veces }, () => frases).flat();
+  const dur = Math.max(14, Math.round(grupo.join("").length * 0.2)) + "s"; // velocidad pareja, se lee tranquilo
+  const copia = (k) => (
+    <span className="tw-cinta-grupo" key={k} aria-hidden={k > 0 ? "true" : undefined}>
+      {grupo.map((f, i) => <Fragment key={i}><span className="tw-cinta-frase">{f}</span><span className="tw-cinta-sep">✦</span></Fragment>)}
+    </span>
+  );
+  return <div className="tw-cinta" role="marquee" aria-label={frases.join(". ")}><div className="tw-cinta-pista" style={{ "--dur": dur }}>{copia(0)}{copia(1)}</div></div>;
+}
+
 function TiendaPublica({ slug }) {
   const base = (API.defaults.baseURL || "") + "/tienda-publica/" + encodeURIComponent(slug);
   // "Ver como cliente" desde Lumiere: la llave llega en la direccion (#vista=...), queda solo en esta pestaña y no toca la cuenta propia
@@ -34482,7 +34506,6 @@ function TiendaPublica({ slug }) {
   const [intentoPedir, setIntentoPedir] = useState(false);
   const [toast, setToast] = useState(null);
   const [salto, setSalto] = useState(0);
-  const [anuncio, setAnuncio] = useState(0);
   const [sombra, setSombra] = useState(false);
   const [pedido, setPedido] = useState(null);
   const tilesRef = useRef(null);
@@ -34645,7 +34668,6 @@ function TiendaPublica({ slug }) {
   useEffect(() => { if (logueada) cargarCuenta(); }, [logueada]);
   useEffect(() => { if (paso === "datos" && cuponIn && !cuponOk) aplicarCupon(cuponIn); }, [paso]);
   // Banner y tira de anuncios pasan solos
-  useEffect(() => { const t = setInterval(() => setAnuncio(a => a + 1), 4000); return () => clearInterval(t); }, []);
   // Las secciones aparecen suavemente al bajar
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") { document.querySelectorAll(".tw-rv").forEach(el => el.classList.add("in")); return; }
@@ -35007,7 +35029,7 @@ function TiendaPublica({ slug }) {
 
   const cabecera = (
     <>
-      {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <div className="tw-anuncio" aria-live="polite"><div key={anuncio}>{anuncios[anuncio % anuncios.length]}</div></div>}
+      {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <TwCinta frases={anuncios} />}
       {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. Arriba del edificio elegí qué día de diciembre querés probar: ese día queda destacado y los siguientes, cerrados.</div>}
       {tienda.adviento && <TwAdvIntro adv={tienda.adviento} slug={slug} />}
       {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Los clientes todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
