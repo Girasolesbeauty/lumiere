@@ -8460,6 +8460,34 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
     setTrabajando(false);
   };
 
+  // Deshacer algunos: el cambio se deshace solo en los productos que se tilden
+  const [parcial, setParcial] = useState(null); // { h, detalle, sel: [ids], ingreso, aviso }
+  const abrirParcial = async (h) => {
+    setAviso(null);
+    try { const r = await API.get("/precios-masivos/" + h.id + "/productos"); setParcial({ h, detalle: (r.data.detalle || []).filter(it => !it.deshecho), sel: [], ingreso: "", aviso: null }); }
+    catch (e) { setAviso({ ok: false, texto: e.response?.data?.error || "No se pudo abrir ese cambio" }); }
+  };
+  const tildarIngreso = async (id) => {
+    setParcial(x => ({ ...x, ingreso: id, aviso: null }));
+    if (!id) return;
+    try {
+      const r = await API.get("/precios-masivos/ingresos/" + id + "/productos");
+      const delIngreso = new Set(r.data || []);
+      setParcial(x => { const nuevos = x.detalle.filter(it => delIngreso.has(it.id)).map(it => it.id); return { ...x, sel: [...new Set([...x.sel, ...nuevos])], aviso: nuevos.length ? "Se tildaron " + nuevos.length + " producto" + (nuevos.length === 1 ? "" : "s") + " que también estaban en ese ingreso." : "Ninguno de estos productos estaba en ese ingreso." }; });
+    } catch (e) { setParcial(x => ({ ...x, aviso: "No se pudieron traer los productos de ese ingreso" })); }
+  };
+  const deshacerParcial = async () => {
+    const n = parcial.sel.length; if (!n) return;
+    if (!confirm("¿Volver " + n + " producto" + (n === 1 ? "" : "s") + " al precio que tenían antes de \"" + parcial.h.descripcion + "\"? El resto queda como está.")) return;
+    setTrabajando(true);
+    try {
+      const r = await API.post("/precios-masivos/" + parcial.h.id + "/deshacer", { ids: parcial.sel });
+      setAviso({ ok: true, texto: "✓ Listo: " + r.data.vueltos + " producto" + (r.data.vueltos === 1 ? "" : "s") + " volvieron a su precio anterior." + (r.data.salteados ? " " + r.data.salteados + " no se tocaron porque su precio se cambió después." : "") });
+      setParcial(null); cargarHistorial(); onCambio && onCambio();
+    } catch (e) { setParcial(x => ({ ...x, aviso: e.response?.data?.error || "No se pudo deshacer" })); }
+    setTrabajando(false);
+  };
+
   const pct = (a, d) => a > 0 ? Math.round((d - a) / a * 1000) / 10 : null;
   const margenDe = (precio, costo) => costo > 0 && precio > 0 ? Math.round((precio - costo) / precio * 100) : null;
   const filas = vista ? (verTodos ? vista.cambian : vista.cambian.slice(0, 30)) : [];
@@ -8609,6 +8637,47 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
           </div>
         )}
 
+        {parcial && (
+          <div className="pos-overlay" style={{ zIndex: 1300 }} onClick={() => setParcial(null)}>
+            <div className="card pop-in" role="dialog" aria-label="Deshacer algunos" style={{ maxWidth: 560, width: "100%", maxHeight: "88vh", overflowY: "auto", background: temaPal.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <b style={{ fontSize: 16 }}>↩ Deshacer en algunos productos</b>
+                <button className="chip-btn" onClick={() => setParcial(null)}>✕</button>
+              </div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "4px 0 12px" }}>Cambio: <b style={{ color: temaPal.text }}>{parcial.h.descripcion}</b>. Tildá los productos que tienen que volver al precio de antes. Los demás quedan como están.</div>
+              {ingresos.length > 0 && (
+                <div style={{ background: temaPal.bg, border: "1px solid " + temaPal.border, borderRadius: 10, padding: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>⚡ Tildar de una los que vinieron en otro ingreso</div>
+                  <select className="input" value={parcial.ingreso} onChange={e => tildarIngreso(e.target.value)} style={{ width: "100%" }}>
+                    <option value="">Elegí el ingreso de mercadería…</option>
+                    {ingresos.map(o => <option key={o.id} value={o.id}>{new Date(o.creado_en).toLocaleDateString("es-AR")} · {o.proveedor || "Sin proveedor"}{o.numero_factura ? " · factura " + o.numero_factura : ""} · {o.productos} productos</option>)}
+                  </select>
+                  {parcial.aviso && <div style={{ fontSize: 12, marginTop: 6, color: temaPal.textMuted }}>{parcial.aviso}</div>}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 12 }}>
+                <button className="chip-btn" onClick={() => setParcial(x => ({ ...x, sel: x.detalle.map(it => it.id) }))}>Tildar todos</button>
+                <button className="chip-btn" onClick={() => setParcial(x => ({ ...x, sel: [] }))}>Destildar todos</button>
+                <span style={{ marginLeft: "auto", alignSelf: "center", color: temaPal.textMuted }}>{parcial.sel.length} de {parcial.detalle.length}</span>
+              </div>
+              <div style={{ border: "1px solid " + temaPal.border, borderRadius: 10, maxHeight: 340, overflowY: "auto" }}>
+                {parcial.detalle.map(it => {
+                  const on = parcial.sel.includes(it.id), otro = it.precio_hoy != null && Number(it.precio_hoy) !== Number(it.despues);
+                  return (
+                    <label key={it.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderBottom: "1px solid " + temaPal.border, cursor: "pointer", fontSize: 13, background: on ? "rgba(201,168,76,.12)" : "transparent" }}>
+                      <input type="checkbox" checked={on} onChange={() => setParcial(x => ({ ...x, sel: on ? x.sel.filter(i => i !== it.id) : [...x.sel, it.id] }))} />
+                      <span style={{ flex: 1, minWidth: 0 }}>{it.nombre}{otro && <span style={{ display: "block", fontSize: 11, color: "#b7791f" }}>Su precio se cambió después ({fmt(it.precio_hoy)}): no se va a tocar</span>}</span>
+                      <span style={{ whiteSpace: "nowrap", fontSize: 12.5 }}>{fmt(it.despues)} → <b>{fmt(it.antes)}</b></span>
+                    </label>
+                  );
+                })}
+                {!parcial.detalle.length && <div style={{ padding: 14, fontSize: 13, color: temaPal.textMuted }}>No quedan productos por deshacer en este cambio.</div>}
+              </div>
+              <button className="btn btn-p" style={{ width: "100%", marginTop: 12 }} disabled={trabajando || !parcial.sel.length} onClick={deshacerParcial}>↩ Volver {parcial.sel.length || ""} al precio anterior</button>
+            </div>
+          </div>
+        )}
+
         {historial.length > 0 && (
           <div style={{ marginTop: 18, borderTop: "1px solid " + temaPal.border, paddingTop: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".08em", color: temaPal.textMuted, marginBottom: 8 }}>ÚLTIMOS CAMBIOS</div>
@@ -8616,9 +8685,10 @@ function ActualizarPrecios({ productos, proveedores, temaPal, onCerrar, onCambio
               <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid " + temaPal.border, fontSize: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, textDecoration: h.deshecho_en ? "line-through" : "none", color: h.deshecho_en ? temaPal.textMuted : temaPal.text }}>{h.descripcion}</div>
-                  <div style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(h.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {h.cantidad} productos{h.usuario_nombre ? " · " + h.usuario_nombre : ""}{h.deshecho_en ? " · deshecho" : ""}</div>
+                  <div style={{ fontSize: 10, color: temaPal.textMuted }}>{new Date(h.creado_en).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {h.cantidad} productos{h.usuario_nombre ? " · " + h.usuario_nombre : ""}{h.deshecho_en ? " · deshecho" : h.deshechos ? " · " + h.deshechos + " ya deshechos" : ""}</div>
                 </div>
-                {!h.deshecho_en && <button className="chip-btn" disabled={trabajando} onClick={() => deshacer(h)}>↩ Deshacer</button>}
+                {!h.deshecho_en && <button className="chip-btn" disabled={trabajando} onClick={() => abrirParcial(h)} title="Elegir en qué productos se deshace">↩ Deshacer algunos</button>}
+                {!h.deshecho_en && <button className="chip-btn" disabled={trabajando} onClick={() => deshacer(h)}>↩ Deshacer{h.deshechos ? " el resto" : " todo"}</button>}
               </div>
             ))}
           </div>

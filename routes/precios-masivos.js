@@ -198,7 +198,9 @@ router.post('/aplicar', async (req, res) => {
 router.get('/historial', async (req, res) => {
   try {
     await asegurarTabla();
-    const r = await pool.query(`SELECT id, creado_en, usuario_nombre, descripcion, cantidad, deshecho_en FROM precios_cambios ORDER BY id DESC LIMIT 15`);
+    const r = await pool.query(`SELECT id, creado_en, usuario_nombre, descripcion, cantidad, deshecho_en,
+      (SELECT COUNT(*) FROM jsonb_array_elements(COALESCE(detalle, '[]'::jsonb)) x WHERE (x->>'deshecho')::boolean)::int AS deshechos
+      FROM precios_cambios ORDER BY id DESC LIMIT 15`);
     res.json(r.rows);
   } catch (e) {
     res.status(500).json({ error: 'No se pudo cargar el historial' });
@@ -211,14 +213,21 @@ router.get('/:id/productos', async (req, res) => {
     await asegurarTabla();
     const r = await pool.query('SELECT detalle, deshecho_en FROM precios_cambios WHERE id = $1', [req.params.id]);
     if (!r.rows.length) return res.status(404).json({ error: 'No se encontró ese cambio' });
-    res.json({ deshecho: !!r.rows[0].deshecho_en, ids: (r.rows[0].detalle || []).map(it => it.id) });
+    const det = r.rows[0].detalle || [];
+    // precio_hoy: para avisar si el precio se volvió a cambiar después (ahí no se deshace)
+    const hoy = det.length ? (await pool.query('SELECT id, precio FROM productos WHERE id = ANY($1::int[])', [det.map(it => it.id)])).rows : [];
+    const pHoy = Object.fromEntries(hoy.map(x => [x.id, Number(x.precio)]));
+    res.json({ deshecho: !!r.rows[0].deshecho_en, ids: det.map(it => it.id),
+      detalle: det.map(it => ({ ...it, precio_hoy: pHoy[it.id] != null ? pHoy[it.id] : null })) });
   } catch (e) {
     res.status(500).json({ error: 'No se pudo leer el cambio' });
   }
 });
 
 // Deshacer: vuelve cada producto a su precio anterior, salvo los que se cambiaron a mano
-// despues (esos se dejan como estan, para no pisar un cambio mas nuevo)
+// despues (esos se dejan como estan, para no pisar un cambio mas nuevo).
+// Con { ids: [...] } se deshace solo en esos productos (deshacer algunos); el cambio queda
+// marcado como deshecho recien cuando ya no le queda ningun producto por deshacer.
 router.post('/:id/deshacer', async (req, res) => {
   if (!(await puedeEditar(req))) return res.status(403).json({ error: 'No tenés permiso para cambiar precios' });
   let client;
@@ -230,14 +239,20 @@ router.post('/:id/deshacer', async (req, res) => {
     const cambio = r.rows[0];
     if (!cambio) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró ese cambio' }); }
     if (cambio.deshecho_en) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese cambio ya se deshizo' }); }
+    const soloIds = Array.isArray((req.body || {}).ids) ? new Set(req.body.ids.map(x => parseInt(x)).filter(x => x > 0)) : null;
+    if (soloIds && !soloIds.size) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí al menos un producto' }); }
     let vueltos = 0, salteados = 0;
-    for (const it of cambio.detalle || []) {
+    const detalle = cambio.detalle || [];
+    for (const it of detalle) {
+      if (it.deshecho || (soloIds && !soloIds.has(Number(it.id)))) continue;
       const u = await client.query('UPDATE productos SET precio = $1 WHERE id = $2 AND precio = $3', [it.antes, it.id, it.despues]);
       if (u.rowCount) vueltos++; else salteados++;
+      it.deshecho = true;
     }
-    await client.query('UPDATE precios_cambios SET deshecho_en = NOW() WHERE id = $1', [cambio.id]);
+    const quedan = detalle.some(it => !it.deshecho);
+    await client.query('UPDATE precios_cambios SET detalle = $2, deshecho_en = CASE WHEN $3 THEN NULL ELSE NOW() END WHERE id = $1', [cambio.id, JSON.stringify(detalle), quedan]);
     await client.query('COMMIT');
-    res.json({ ok: true, vueltos, salteados });
+    res.json({ ok: true, vueltos, salteados, parcial: quedan });
   } catch (e) {
     if (client) { try { await client.query('ROLLBACK'); } catch (x) {} }
     console.error('[precios] deshacer:', e.message);
