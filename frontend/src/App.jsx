@@ -1259,6 +1259,15 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .ped-bloque { border: 1.5px solid; border-radius: 16px; overflow: clip; }
 .ped-atn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; white-space: nowrap; }
 .ped-atn.ok { background: #1e9e57; color: #fff; }
+.ped-atn.tranqui { background: transparent; color: #1e7a46; border: 1.5px solid #1e9e5788; }
+@media (max-width: 640px) {
+  .ped-bloque .ped-bloque-cab small { display: none; }
+  .ped-bloque .ped-bloque-cab { gap: 8px; padding: 10px 10px; }
+  .ped-bloque .ped-bloque-cab b { font-size: 15px; }
+  .ped-bloque .ped-bloque-ic { width: 34px; height: 34px; font-size: 17px; border-radius: 10px; }
+  .ped-bloque .ped-bloque-n { min-width: 30px; height: 30px; font-size: 14px; }
+  .ped-bloque .ped-atn { font-size: 11px; padding: 2px 8px; }
+}
 .ped-atn.falta { background: #e67e22; color: #fff; box-shadow: 0 0 0 0 rgba(230,126,34,.5); animation: pedAtnLate 1.8s ease-out infinite; }
 @keyframes pedAtnLate { 0% { box-shadow: 0 0 0 0 rgba(230,126,34,.55); } 70% { box-shadow: 0 0 0 8px rgba(230,126,34,0); } 100% { box-shadow: 0 0 0 0 rgba(230,126,34,0); } }
 @media (prefers-reduced-motion: reduce) { .ped-atn.falta { animation: none; } }
@@ -39722,9 +39731,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   // Grupos de pedidos plegados (se recuerda en este navegador)
   const [pedPlegados, setPedPlegados] = useState(() => { try { return JSON.parse(localStorage.getItem("lumiere_ped_plegados") || "[]"); } catch (e) { return []; } });
   // Los grupos que arrancan cerrados (cancelados, entregados) se guardan al revés: "+grupo" = lo abrieron
-  const PLEGADOS_DEF = ["cancelado", "entregado"];
-  const estaPlegado = (k) => PLEGADOS_DEF.includes(k) ? !pedPlegados.includes("+" + k) : pedPlegados.includes(k);
-  const plegarPed = (k) => setPedPlegados(l => { const key = PLEGADOS_DEF.includes(k) ? "+" + k : k; const n = l.includes(key) ? l.filter(x => x !== key) : [...l, key]; try { localStorage.setItem("lumiere_ped_plegados", JSON.stringify(n)); } catch (e) {} return n; });
+  // Cerrado o abierto: lo que eligió la persona ("+grupo" = abierto, "grupo" = cerrado) o, si no eligió, lo de siempre:
+  // cancelados y entregados cerrados; rechazados y vencidos cerrados cuando ya están todos atendidos (no hay nada que hacer).
+  // En rechazados y vencidos lo que se elige no se guarda: así, si entra uno nuevo sin atender, el grupo se vuelve a abrir solo.
+  const AUTO_PLEG = ["rechazado", "vencido"];
+  const [plegTmp, setPlegTmp] = useState({});
+  const estaPlegado = (k, def) => AUTO_PLEG.includes(k) ? (k in plegTmp ? plegTmp[k] : def) : pedPlegados.includes("+" + k) ? false : pedPlegados.includes(k) ? true : def;
+  const plegarPed = (k, def) => {
+    const ahora = estaPlegado(k, def);
+    if (AUTO_PLEG.includes(k)) return setPlegTmp(t => ({ ...t, [k]: !ahora }));
+    setPedPlegados(l => { const n = l.filter(x => x !== k && x !== "+" + k); if (ahora !== def) {} else n.push(ahora ? "+" + k : k); try { localStorage.setItem("lumiere_ped_plegados", JSON.stringify(n)); } catch (e) {} return n; });
+  };
   const [tab, setTab] = useState(() => { const t = tabInicialDe("tienda-online"); if (t) return t; try { return sessionStorage.getItem("lumiere_tienda_tab") || "pedidos"; } catch (e) { return "pedidos"; } });
   useEffect(() => {
     try { sessionStorage.setItem("lumiere_tienda_tab", tab); } catch (e) {}
@@ -40539,20 +40556,21 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}
-                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => grupoPed(p) === est).sort((a, b) => (necesitaAtencion(b) && !atendidoPed(b) ? 1 : 0) - (necesitaAtencion(a) && !atendidoPed(a) ? 1 : 0)); if (!l.length) return null; const sinVer = l.filter(x => necesitaAtencion(x) && !atendidoPed(x)).length, yaAt = l.filter(x => necesitaAtencion(x) && atendidoPed(x)).length; return (
-                  <section key={est} className={"ped-bloque" + (estaPlegado(est) ? " plegado" : "") + (est === "cancelado" ? " inactivo" : "")} style={{ "--c": c, borderColor: c + "66", background: c + "0d" }} aria-label={titulo}>
-                    <button type="button" className="ped-bloque-cab" aria-expanded={!estaPlegado(est)} onClick={() => plegarPed(est)} style={{ background: "linear-gradient(" + c + "1f, " + c + "1f), " + temaPal.card, color: temaPal.text }}>
+                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => grupoPed(p) === est).sort((a, b) => (necesitaAtencion(b) && !atendidoPed(b) ? 1 : 0) - (necesitaAtencion(a) && !atendidoPed(a) ? 1 : 0)); if (!l.length) return null; const sinVer = l.filter(x => necesitaAtencion(x) && !atendidoPed(x)).length, yaAt = l.filter(x => necesitaAtencion(x) && atendidoPed(x)).length;
+                  const todoOk = AUTO_PLEG.includes(est) && sinVer === 0, def = ["cancelado", "entregado"].includes(est) || todoOk, pleg = estaPlegado(est, def); return (
+                  <section key={est} className={"ped-bloque" + (pleg ? " plegado" : "") + (est === "cancelado" || todoOk ? " inactivo" : "")} style={{ "--c": c, borderColor: c + "66", background: c + "0d" }} aria-label={titulo}>
+                    <button type="button" className="ped-bloque-cab" aria-expanded={!pleg} onClick={() => plegarPed(est, def)} style={{ background: "linear-gradient(" + c + "1f, " + c + "1f), " + temaPal.card, color: temaPal.text }}>
                       <span className="ped-bloque-ic" style={{ background: c }}>{ico}</span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <b style={{ color: c }}>{titulo}</b>
                         <small style={{ color: temaPal.textMuted }}>{hacer}</small>
                       </span>
                       {sinVer > 0 && <span className="ped-atn falta" title="Nadie le escribió ni lo revisó todavía">🔔 {sinVer} por atender</span>}
-                      {yaAt > 0 && <span className="ped-atn ok" title="Alguien ya le escribió o lo revisó">✓ {yaAt} {yaAt === 1 ? "atendido" : "atendidos"}</span>}
+                      {yaAt > 0 && (todoOk ? <span className="ped-atn tranqui" title="Todos tienen a alguien que les escribió o los revisó">✓ Todo atendido</span> : <span className="ped-atn ok" title="Alguien ya le escribió o lo revisó">✓ {yaAt}</span>)}
                       <span className="ped-bloque-n" style={{ background: c }}>{l.length}</span>
                       <span className="ped-bloque-flecha" style={{ color: c }} aria-hidden="true">▾</span>
                     </button>
-                    {!estaPlegado(est) && <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "10px 8px 8px" }}>{l.map(tarjetaPed)}</div>}
+                    {!pleg && <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "10px 8px 8px" }}>{l.map(tarjetaPed)}</div>}
                   </section>
                 ); })}
               </div>
