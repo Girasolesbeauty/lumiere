@@ -1212,4 +1212,114 @@ const cambiarLocalVenta = async (req, res) => {
   } finally { client.release(); }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, corregirPrecioPreventa, cambiarLocalVenta, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
+// ---- Cambiar un producto de una preventa del local (ej: no llegó, o llegó en otro tono) ----
+// Se reemplaza el producto (la reserva pasa al nuevo) y el total se ajusta por la diferencia de precio, sin tocar los
+// descuentos del ticket. Si el nuevo sale más, lo que falta se cobra al entregar (como cualquier saldo de preventa).
+// Si sale menos, el cliente queda con saldo a favor: se resuelve con resolverFavorPreventa (crédito o devolución).
+const puedeAjustarPreventa = async (u) => {
+  if (u.rol === 'jefe' || u.rol === 'admin' || u.rol === 'administrativo' || Number(u.rol_id) === 1) return true;
+  try { return (await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso IN ('inventario.editar', 'ventas.editar')`, [u.id])).rows.length > 0; } catch (e) { return false; }
+};
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const nombreUsuario = async (client, u) => { try { return (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || u.email || null; } catch (e) { return u.email || null; } };
+
+const cambiarItemPreventa = async (req, res) => {
+  const u = req.usuario || {};
+  if (!(await puedeAjustarPreventa(u))) return res.status(403).json({ error: 'No tenés permiso para cambiar productos de una preventa' });
+  const b = req.body || {};
+  const itemId = parseInt(b.item_id), prodId = parseInt(b.producto_id), cant = Math.max(1, Math.min(99, parseInt(b.cantidad) || 1));
+  if (!itemId || !prodId) return res.status(400).json({ error: 'Elegí el producto nuevo' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('ALTER TABLE ventas ADD COLUMN IF NOT EXISTS preventa_ajustes JSONB');
+    const venta = (await client.query('SELECT to_jsonb(v) AS j FROM ventas v WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0]?.j;
+    if (!venta) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró la preventa' }); }
+    if (venta.es_preventa !== true || venta.estado_pago !== 'reservado' || venta.anulada === true) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Solo se puede cambiar un producto de una preventa que todavía no se entregó' }); }
+    const it = (await client.query('SELECT * FROM venta_items WHERE id = $1 AND venta_id = $2', [itemId, venta.id])).rows[0];
+    if (!it || !it.producto_id) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No se encontró ese producto en la preventa' }); }
+    const prod = (await client.query('SELECT id, nombre, precio FROM productos WHERE id = $1 AND COALESCE(activo, TRUE)', [prodId])).rows[0];
+    if (!prod) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No se encontró el producto nuevo' }); }
+    let varId = null, varValor = null;
+    if (b.variante_id) {
+      const v = (await client.query('SELECT id, valor FROM producto_variantes WHERE id = $1 AND producto_id = $2', [parseInt(b.variante_id), prod.id])).rows[0];
+      if (!v) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí una variante válida' }); }
+      varId = v.id; varValor = v.valor;
+    }
+    const precio = b.precio_unitario !== undefined && b.precio_unitario !== null && b.precio_unitario !== '' ? r2(b.precio_unitario) : r2(prod.precio);
+    if (!(precio >= 0)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Revisá el precio' }); }
+    // La reserva pasa del producto viejo al nuevo (en el local de la preventa)
+    const col = Number(venta.preventa_local) === 2 ? 'reservado_ush' : 'reservado_rg';
+    await client.query(`UPDATE productos SET ${col} = GREATEST(COALESCE(${col}, 0) - $1, 0) WHERE id = $2`, [it.cantidad, it.producto_id]);
+    await client.query(`UPDATE productos SET ${col} = COALESCE(${col}, 0) + $1 WHERE id = $2`, [cant, prod.id]);
+    const antes = r2(parseFloat(it.precio_unitario) * it.cantidad), despues = r2(precio * cant);
+    await client.query('UPDATE venta_items SET producto_id = $1, variante_id = $2, variante_valor = $3, cantidad = $4, precio_unitario = $5, subtotal = $6 WHERE id = $7',
+      [prod.id, varId, varValor, cant, precio, despues, it.id]);
+    const total = r2(Math.max(0, parseFloat(venta.total) + despues - antes));
+    const subtotal = r2(Math.max(0, parseFloat(venta.subtotal || venta.total) + despues - antes));
+    const pagado = r2((parseFloat(venta.monto_sena) || 0) + (parseFloat(venta.monto_gift_card) || 0));
+    const nombreViejo = (await client.query('SELECT nombre FROM productos WHERE id = $1', [it.producto_id])).rows[0]?.nombre || 'Producto';
+    const registro = { tipo: 'cambio', fecha: new Date().toISOString(), usuario_id: u.id || null, usuario: await nombreUsuario(client, u),
+      de: it.cantidad + 'x ' + nombreViejo, a: cant + 'x ' + prod.nombre + (varValor ? ' (' + varValor + ')' : ''), total_antes: parseFloat(venta.total), total_despues: total, diferencia: r2(despues - antes) };
+    await client.query(`UPDATE ventas SET total = $1, subtotal = $2, preventa_ajustes = COALESCE(preventa_ajustes, '[]'::jsonb) || $3::jsonb WHERE id = $4`,
+      [total, subtotal, JSON.stringify([registro]), venta.id]);
+    await client.query('COMMIT');
+    res.json({ ok: true, total, pagado, diferencia: registro.diferencia, falta: r2(Math.max(0, total - pagado)), a_favor: r2(Math.max(0, pagado - total)), producto: prod.nombre });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[preventa] cambiar producto:', e.message);
+    res.status(500).json({ error: 'No se pudo cambiar el producto. No se cambió nada.' });
+  } finally { client.release(); }
+};
+
+// Saldo a favor de una preventa (pagó más de lo que vale ahora): crédito para usar después (gift card) o devolución
+const resolverFavorPreventa = async (req, res) => {
+  const u = req.usuario || {};
+  if (!(await puedeAjustarPreventa(u))) return res.status(403).json({ error: 'No tenés permiso' });
+  const accion = (req.body || {}).accion;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const venta = (await client.query('SELECT to_jsonb(v) AS j FROM ventas v WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0]?.j;
+    if (!venta || venta.es_preventa !== true || venta.estado_pago !== 'reservado' || venta.anulada === true) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'No se encontró la preventa' }); }
+    const sena = parseFloat(venta.monto_sena) || 0, pagado = r2(sena + (parseFloat(venta.monto_gift_card) || 0));
+    const favor = r2(pagado - parseFloat(venta.total));
+    if (favor < 0.5) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Esta preventa no tiene saldo a favor del cliente' }); }
+    if (favor > sena + 0.005) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'El saldo a favor sale de una gift card: resolvelo desde Gift Cards' }); }
+    const local = Number(venta.preventa_local || venta.local_id) === 2 ? 2 : 1, ref = venta.numero_factura || ('#' + venta.id);
+    const quien = await nombreUsuario(client, u);
+    let gc = null;
+    if (accion === 'credito') {
+      const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let codigo = null;
+      for (let i = 0; i < 12 && !codigo; i++) {
+        const c = 'GIFT-' + Array.from(require('crypto').randomBytes(6), x => letras[x % letras.length]).join('');
+        if (!(await client.query('SELECT 1 FROM gift_cards WHERE codigo = $1', [c])).rows.length) codigo = c;
+      }
+      let cli = null;
+      if (venta.cliente_id) cli = (await client.query('SELECT nombre, telefono FROM clientes WHERE id = $1', [venta.cliente_id])).rows[0] || null;
+      gc = (await client.query(`INSERT INTO gift_cards (codigo, monto_inicial, saldo, beneficiario_nombre, beneficiario_telefono, cliente_id, estado, local_id, emitida_por, venta_origen_id, venta_origen_numero, mensaje)
+        VALUES ($1, $2, $2, $3, $4, $5, 'activa', $6, $7, $8, $9, $10) RETURNING id, codigo`,
+        [codigo, favor, (cli && cli.nombre) || venta.nombre_preventa || 'Cliente', (cli && cli.telefono) || null, venta.cliente_id || null, local, u.id || null, venta.id, ref, 'Crédito a favor por cambio en la preventa ' + ref])).rows[0];
+      await client.query(`INSERT INTO gift_card_movimientos (gift_card_id, tipo, importe, saldo_resultante, usuario_id) VALUES ($1, 'emision', $2, $2, $3)`, [gc.id, favor, u.id || null]);
+      // Como los demás créditos por cambio: no es plata nueva (importe 0 en la caja)
+      await client.query(`INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id) VALUES ($1, 'I', 0, $2, $3)`,
+        ['Gift Card ' + codigo + ' (credito por cambio, preventa ' + ref + ')', codigo, local]);
+    } else if (accion === 'devolver') {
+      await client.query(`INSERT INTO movimientos_caja (concepto, tipo, importe, referencia, local_id) VALUES ($1, 'E', $2, $3, $4)`,
+        ['Devolucion de diferencia en efectivo (preventa ' + ref + ')', favor, ref, local]);
+    } else { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Elegí crédito o devolución' }); }
+    // Lo pagado queda igual al total: al entregar no hay nada más que cobrar ni devolver
+    const registro = { tipo: accion === 'credito' ? 'credito' : 'devolucion', fecha: new Date().toISOString(), usuario_id: u.id || null, usuario: quien, importe: favor, gc_codigo: gc ? gc.codigo : null };
+    await client.query(`UPDATE ventas SET monto_sena = $1, preventa_ajustes = COALESCE(preventa_ajustes, '[]'::jsonb) || $2::jsonb WHERE id = $3`,
+      [r2(sena - favor), JSON.stringify([registro]), venta.id]);
+    await client.query('COMMIT');
+    res.json({ ok: true, importe: favor, gc_codigo: gc ? gc.codigo : null });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[preventa] saldo a favor:', e.message);
+    res.status(500).json({ error: 'No se pudo registrar. No se cambió nada.' });
+  } finally { client.release(); }
+};
+
+module.exports = { getAll, getById, create, update, confirmarEntrega, corregirPrecioPreventa, cambiarLocalVenta, cambiarItemPreventa, resolverFavorPreventa, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
