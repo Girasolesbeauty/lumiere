@@ -37745,6 +37745,27 @@ const MOTIVOS_VENC_PED = [["mirando", "🛒 Solo estaba mirando / armó el carri
 // Por que se cancelo un pedido (los de la lista de vencidos que tambien aplican, mas los propios de una cancelacion)
 const MOTIVOS_CANC_PED = [["clienta", "🙋 El cliente pidió cancelar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["sin_stock", "📦 No teníamos el producto"], ["duplicado", "📑 Pedido repetido o con error"], ["cambio", "🔁 Lo cambió por otro pedido"], ["local", "🏪 Lo compró en el local"], ["otro_medio", "💳 Quería pagar con otro medio"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["prueba", "🧪 Era una prueba"], ["otro", "✏️ Otro motivo"]];
 const motivoVencTxt = (k) => ([...MOTIVOS_VENC_PED, ...MOTIVOS_CANC_PED].find(m => m[0] === k) || [k, k])[1];
+// Mensajes de WhatsApp de los pedidos. Cada negocio los puede cambiar (Pedidos → ✏️ Mensajes de WhatsApp).
+// Variables: {nombre} {tienda} {pedido} {total} {medio} {medios} {local} {horarios} {guardamos} {entrega}
+// Si una variable queda vacía (ej: sin horarios cargados) se saca esa línea, y también la de arriba si terminaba en ":".
+const WA_PEDIDOS = [
+  ["rechazado", "❌ Pago rechazado", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido}.\nVimos que el pago con {medio} no se pudo completar. Te podemos ofrecer otros medios de pago:\n{medios}\n¿Con cuál te queda mejor? Así te lo dejamos listo 💛"],
+  ["pago", "💳 Esperando el pago", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido} ({total}).\nTodavía no nos figura el pago. ¿Te podemos ayudar? Si preferís, también podés pagar con:\n{medios}"],
+  ["listo", "📦 Listo para retirar", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido}.\n¡Tu pedido ya está listo para retirar en {local}! 🎉\n🕒 Te esperamos en estos horarios:\n{horarios}\n{guardamos}"],
+  ["envio", "🛵 Listo para enviar", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido}.\n¡Tu pedido ya está listo y sale para tu casa! 🛵"],
+  ["preventa", "⏳ Llegó la preventa", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido}.\n¡Los productos que compraste en preventa ya llegaron y están listos {entrega}! 🎉\n🕒 Te esperamos en el local en estos horarios:\n{horarios}"],
+  ["cancelado", "🚫 Vencido o cancelado", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido}.\nSe canceló porque no se completó el pago. ¿Lo seguís queriendo? Si querés, te lo volvemos a armar 💛"],
+  ["general", "💬 Cualquier otro", "Hola {nombre}, ¿cómo estás? 😊 Te hablamos de {tienda}, te escribimos por tu pedido N° {pedido}."],
+];
+const armarMsjWa = (plantilla, vars) => {
+  const lineas = String(plantilla || "").split("\n"), out = [];
+  for (const l of lineas) {
+    const usa = [...l.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
+    if (usa.some(k => k in vars && !String(vars[k] || "").trim())) { if (out.length && /:\s*$/.test(out[out.length - 1])) out.pop(); continue; }
+    out.push(l.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)));
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+};
 const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar", giftcard: "Gift card" };
 
 // ---- Lumiere: clientes de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
@@ -39760,7 +39781,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       const r = await API.post("/tienda/pedidos/" + p.id + "/llego-preventa"); cargarPedidos();
       // Llegó una parte: se apartó lo que hay y lo demás sigue esperando
       if (r.data && r.data.faltan && r.data.faltan.length) return avisar(true, "✓ Apartado lo que ya llegó (" + r.data.llegaron.join(", ") + "). Siguen esperando: " + r.data.faltan.join(", ") + ". Cuando lleguen, tocá de nuevo \"Llegó la preventa\".");
-      const txt = "Hola " + String(p.nombre).split(" ")[0] + "! 🎉 Ya llegó tu pedido de preventa N° " + nroPedido(p) + " de " + (cfg?.titulo || "nuestra tienda") + "." + (p.entrega === "retiro" ? " Ya lo podés retirar en " + nombreLocal(p.local_id) + "." : " Te lo enviamos en estos días.") + " ¡Gracias por esperar!";
+      const txt = msjWa(p, "preventa");
       avisar(true, "✓ Listo: quedó apartado. Avisale por WhatsApp.");
       if (p.telefono && confirm("¿Le avisás por WhatsApp que ya llegó?")) window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
     } catch (e) { avisar(false, e.response?.data?.error || "No se pudo"); }
@@ -39816,9 +39837,44 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       p.telefono ? "📞 " + p.telefono : null, cobrar ? "💵 *Cobrar " + fmt(cobrar) + "*" : "✓ Ya está pagado", p.nota ? "📝 " + p.nota : null, ...(p.notas_local || []).map(n => "🗒️ " + n.texto)].filter(Boolean).join("\n");
     window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
   };
+  // Mensajes de WhatsApp: el texto que guardó el negocio o el original, con los datos del pedido
+  const [editWa, setEditWa] = useState(null); // { textos: {k: texto}, guardando, ver }
+  const [nombreNegWa, setNombreNegWa] = useState("");
+  useEffect(() => { API.get("/configuracion").then(r => setNombreNegWa(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
+  const plantillaWa = (k) => ((cfg && cfg.mensajes_wa) || {})[k] || (WA_PEDIDOS.find(x => x[0] === k) || [])[2] || "";
+  const mediosAuto = (p) => {
+    const dp = (cfg && cfg.descuentos_pago) || {}, ap = (cfg && cfg.ayuda_pago) || {}, d = (k) => dp[k] > 0 ? " con " + dp[k] + "% de descuento" : "";
+    return [
+      cfg?.pago_transferencia && p?.pago !== "transferencia" && "• Transferencia" + d("transferencia"),
+      cfg?.pago_mp && p?.pago !== "mp" && "• Mercado Pago (tarjeta, débito o dinero en cuenta)" + d("mp"),
+      cfg?.pago_gocuotas && p?.pago !== "gocuotas" && "• GoCuotas: cuotas sin interés con débito" + d("gocuotas"),
+      cfg?.pago_retiro && p?.entrega === "retiro" && p?.pago !== "retiro" && "• Pagar al retirar en el local",
+      ap.cuotas_local && ap.telefono !== false && "• Por teléfono o en el local: " + ap.cuotas_local,
+    ].filter(Boolean).join("\n");
+  };
+  const varsWa = (p, textos) => {
+    const hor = (((cfg && cfg.links && cfg.links.locales) || {})[p.local_id] || {}).horarios;
+    const t = textos || ((cfg && cfg.mensajes_wa) || {});
+    return {
+      nombre: String(p.nombre || "").split(" ")[0], tienda: cfg?.titulo || nombreNegWa || "nuestra tienda", pedido: nroPedido(p), total: fmt(p.total),
+      medio: PAGO_TIENDA[p.pago] || "el medio que elegiste", medios: (t.medios || "").trim() || mediosAuto(p), local: nombreLocal(p.local_id),
+      horarios: Array.isArray(hor) ? hor.join("\n") : (hor || ""),
+      guardamos: p.vence_en && p.entrega === "retiro" ? (() => { const d = new Date(p.vence_en); return "Te lo guardamos hasta el " + d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "numeric" }) + " a las " + d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }) + " hs."; })() : "",
+      entrega: p.entrega === "retiro" ? "para retirar en " + nombreLocal(p.local_id) : "y te los enviamos a tu casa en estos días",
+    };
+  };
+  // Qué mensaje corresponde según cómo está el pedido
+  const claveWa = (p) => esRechazado(p) ? "rechazado" : (esVencido(p) || p.estado === "cancelado") ? "cancelado" : p.estado === "pendiente_pago" ? "pago"
+    : ["preparado", "en_caja"].includes(p.estado) ? (p.entrega === "envio" ? "envio" : "listo") : "general";
+  const msjWa = (p, k) => armarMsjWa(plantillaWa(k || claveWa(p)), varsWa(p));
+  const linkWaPed = (p, k) => linkWhatsapp(p.telefono, msjWa(p, k)) || ("https://wa.me/?text=" + encodeURIComponent(msjWa(p, k)));
+  const guardarWa = async () => {
+    setEditWa(x => ({ ...x, guardando: true }));
+    try { const r = await API.put("/tienda/mensajes-wa", { mensajes: editWa.textos }); setCfg(c => ({ ...c, mensajes_wa: r.data.mensajes_wa })); setEditWa(null); avisar(true, "✓ Mensajes guardados"); }
+    catch (e) { setEditWa(x => ({ ...x, guardando: false })); avisar(false, e.response?.data?.error || "No se pudieron guardar"); }
+  };
   const avisarListo = (p) => {
-    const txt = "Hola " + String(p.nombre).split(" ")[0] + "! Tu pedido N° " + nroPedido(p) + " de " + (cfg?.titulo || "nuestra tienda") + " ya está listo" + (p.entrega === "retiro" ? " para retirar en " + nombreLocal(p.local_id) : " y sale para tu casa") + "." + (p.entrega === "retiro" && p.vence_en ? " Te lo guardamos hasta el " + new Date(p.vence_en).toLocaleString("es-AR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) + "." : "") + " ¡Gracias!";
-    window.open(linkWhatsapp(p.telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+    window.open(linkWaPed(p, p.entrega === "envio" ? "envio" : "listo"), "_blank");
   };
   const publicar = async (p, publicado) => {
     setProductos(ps => ps.map(x => x.id === p.id ? { ...x, publicado } : x));
@@ -39991,6 +40047,51 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       </div>
       {/* Aviso flotante: se ve aunque la pantalla esté bajada (en el celular, abajo, arriba de la barra de menú) */}
       {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} onClick={() => setAviso(null)} style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(92px + env(safe-area-inset-bottom))", zIndex: 9999, width: "max-content", maxWidth: "min(560px, 92vw)", background: temaPal.card, color: temaPal.text, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderLeft: "5px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 10, padding: "10px 14px", fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, boxShadow: "0 10px 30px rgba(0,0,0,.35)", cursor: "pointer" }}>{aviso.ok ? "" : "⚠️ "}{aviso.texto}</div>}
+      {editWa && (() => {
+        const ej = { nombre: "Lucía Gómez", local_id: (locsPed[0] && locsPed[0].id) || 1, pago: "mp", entrega: editWa.ver === "envio" ? "envio" : "retiro", numero: 1234, codigo: "AB12", total: 45700, vence_en: new Date(Date.now() + 2 * 864e5).toISOString() };
+        const sinHor = !((((cfg && cfg.links && cfg.links.locales) || {})[ej.local_id] || {}).horarios || "").length;
+        const k = editWa.ver, def = (WA_PEDIDOS.find(x => x[0] === k) || [])[2] || "";
+        return (
+          <div className="pos-overlay" style={{ zIndex: 300 }} onClick={() => !editWa.guardando && setEditWa(null)}>
+            <div className="card pop-in" role="dialog" aria-label="Mensajes de WhatsApp" style={{ width: 760, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", textAlign: "left" }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><div className="ct" style={{ flex: 1, margin: 0 }}>💬 Mensajes de WhatsApp de los pedidos</div><button className="icon-btn" onClick={() => setEditWa(null)} aria-label="Cerrar">✕</button></div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, margin: "4px 0 12px" }}>Al tocar <b>💬 WhatsApp</b> en un pedido se abre el mensaje que corresponde según cómo está el pedido, con sus datos ya puestos. Antes de mandarlo lo podés retocar en WhatsApp.</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                {WA_PEDIDOS.map(([kk, t]) => <button key={kk} className={"chip-btn" + (k === kk ? " on" : "")} onClick={() => setEditWa(x => ({ ...x, ver: kk }))}>{t}{((cfg && cfg.mensajes_wa) || {})[kk] ? " ✎" : ""}</button>)}
+                <button className={"chip-btn" + (k === "medios" ? " on" : "")} onClick={() => setEditWa(x => ({ ...x, ver: "medios" }))}>💳 Medios de pago a ofrecer</button>
+              </div>
+              {k === "medios" ? (
+                <>
+                  <div style={{ fontSize: 12.5, marginBottom: 6 }}>Es lo que va en <b>{"{medios}"}</b> (en "Pago rechazado" y "Esperando el pago"). Si lo dejás vacío, se arma solo con los medios que tenés prendidos en la tienda y sus descuentos, sin el que eligió el cliente.</div>
+                  <textarea className="inp" rows={6} style={{ width: "100%", fontFamily: "inherit" }} placeholder={mediosAuto({ pago: "mp", entrega: "retiro" }) || "• Transferencia con 10% de descuento\n• Mercado Pago en 2 cuotas sin interés\n• Por teléfono: 3 cuotas sin interés en todos los productos"} value={editWa.textos.medios || ""} onChange={e => { const v = e.target.value; setEditWa(x => ({ ...x, textos: { ...x.textos, medios: v } })); }} />
+                  <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>Ejemplo: "• Transferencia con 10% de descuento", "• Mercado Pago en 2 cuotas sin interés", "• Por teléfono: 3 cuotas sin interés en todos los productos".</div>
+                </>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+                  <div>
+                    <textarea className="inp" rows={10} style={{ width: "100%", fontFamily: "inherit", fontSize: 13.5 }} value={editWa.textos[k] || ""} onChange={e => { const v = e.target.value; setEditWa(x => ({ ...x, textos: { ...x.textos, [k]: v } })); }} aria-label="Texto del mensaje" />
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+                      {[["nombre", "Nombre"], ["tienda", "Tienda"], ["pedido", "N° de pedido"], ["total", "Total"], ["medio", "Medio que eligió"], ["medios", "Otros medios"], ["local", "Local"], ["horarios", "Horarios"], ["guardamos", "Hasta cuándo se lo guardamos"], ["entrega", "Retira o envío"]].map(([v, t]) => <button key={v} className="chip-btn" style={{ fontSize: 11 }} title={"Agrega {" + v + "}"} onClick={() => setEditWa(x => ({ ...x, textos: { ...x.textos, [k]: (x.textos[k] || "") + "{" + v + "}" } }))}>+ {t}</button>)}
+                    </div>
+                    {(editWa.textos[k] || "") !== def && <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => setEditWa(x => ({ ...x, textos: { ...x.textos, [k]: def } }))}>↺ Volver al mensaje original</button>}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".06em", color: temaPal.textMuted, marginBottom: 6 }}>ASÍ LE LLEGA (EJEMPLO)</div>
+                    <div style={{ background: "#e7ddd3", borderRadius: 12, padding: 12 }}>
+                      <div style={{ background: "#dcf8c6", color: "#111", borderRadius: "10px 10px 2px 10px", padding: "8px 10px", fontSize: 13.5, whiteSpace: "pre-wrap", lineHeight: 1.45, boxShadow: "0 1px 1px rgba(0,0,0,.12)" }}>{armarMsjWa(editWa.textos[k], varsWa(ej, editWa.textos))}</div>
+                    </div>
+                    {sinHor && /\{horarios\}/.test(editWa.textos[k] || "") && <div style={{ fontSize: 11.5, color: temaPal.warn, marginTop: 6 }}>No hay horarios cargados para este local: cargalos en <b>Configuración → Link para Instagram</b> (mientras tanto esa parte no sale en el mensaje).</div>}
+                  </div>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+                <button className="btn btn-g" onClick={() => setEditWa(null)} disabled={editWa.guardando}>Cancelar</button>
+                <button className="btn btn-p" onClick={guardarWa} disabled={editWa.guardando}>{editWa.guardando ? "Guardando…" : "Guardar mensajes"}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {qrProd && (
         <div className="pos-overlay" style={{ zIndex: 300 }} onClick={() => setQrProd(null)}>
           <div className="card pop-in" style={{ width: 360, maxWidth: "94vw", textAlign: "center" }} onClick={e => e.stopPropagation()}>
@@ -40135,6 +40236,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               </div>
             </div>
             <input className="inp" style={{ flex: "1 1 220px", marginLeft: "auto" }} placeholder="🔎 Buscar por nombre, N° de pedido, teléfono o producto" value={buscaPed} onChange={e => setBuscaPed(e.target.value)} aria-label="Buscar pedido" />
+            {esJefeT && <button className="btn btn-g btn-sm" onClick={() => setEditWa({ textos: Object.fromEntries([...WA_PEDIDOS.map(x => [x[0], plantillaWa(x[0])]), ["medios", ((cfg && cfg.mensajes_wa) || {}).medios || ""]]), guardando: false, ver: "rechazado" })} title="Los mensajes que se abren al tocar WhatsApp en un pedido">✏️ Mensajes de WhatsApp</button>}
             {paraEtiquetar.length > 1 && <button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas(paraEtiquetar)} title="Una etiqueta por cada envío listo para despachar">🏷️ Etiquetas de envío ({paraEtiquetar.length})</button>}
           </div>
           {visiblesB.length === 0 && filtro !== "carritos" ? <div className="card"><div className="empty">{buscaPed ? "Ningún pedido coincide con la búsqueda." : filtro === "activos" ? "No hay pedidos para atender. Cuando alguien compre en la tienda, aparece acá." : "No hay pedidos en este filtro."}</div></div> : (() => {
@@ -40309,7 +40411,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                             {p.estado === "en_caja" && <><button className="btn btn-p btn-sm" onClick={() => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }}>Ir a la caja</button><button className="btn btn-g btn-sm" onClick={() => reapartar(p)} title="Si no se llegó a cobrar">Volver a apartar el stock</button></>}
                             {["confirmado", "preparado"].includes(p.estado) && p.tipo !== "giftcard" && !preventa && <button className="btn btn-g btn-sm" onClick={() => avisarListo(p)}>💬 Avisar que está listo</button>}
                           </>}
-                          {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWhatsapp(p.telefono, "Hola " + String(p.nombre).split(" ")[0] + "! Te escribo por tu pedido N° " + nroPedido(p))} target="_blank" rel="noopener">💬 WhatsApp</a>}
+                          {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWaPed(p)} target="_blank" rel="noopener" title={"Abre WhatsApp con el mensaje de «" + (WA_PEDIDOS.find(x => x[0] === claveWa(p)) || [])[1] + "» listo para mandar"} onClick={() => { if ((esRechazado(p) || procesoDemorado(p)) && !p.contactado_en) marcarContactado(p, true); }}>💬 WhatsApp{claveWa(p) !== "general" ? " · " + (WA_PEDIDOS.find(x => x[0] === claveWa(p)) || [])[1].replace(/^\S+\s/, "") : ""}</a>}
                           {!cerrado && p.entrega === "envio" && p.tipo !== "giftcard" && <><button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas([p])}>🏷️ Etiqueta</button><button className="btn btn-g btn-sm" onClick={() => mandarCadete(p)}>🛵 Cadete</button></>}
                           {!cerrado && <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {p.tipo !== "giftcard" && !preventa && p.estado !== "pendiente_pago" && <button className="btn btn-g btn-sm" title="Si ya lo cobraste en la caja sin cargar este pedido" onClick={cobradoAparte}>✓ Ya lo cobré en la caja</button>}

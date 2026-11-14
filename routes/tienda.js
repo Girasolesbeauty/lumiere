@@ -55,6 +55,20 @@ router.get('/config', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo cargar la configuración' }); }
 });
 
+// Mensajes de WhatsApp de los pedidos: solo se guardan los que el negocio cambio (los vacios vuelven al texto original)
+const CLAVES_WA = ['rechazado', 'pago', 'listo', 'envio', 'preventa', 'cancelado', 'general', 'medios'];
+router.put('/mensajes-wa', async (req, res) => {
+  try {
+    if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado puede cambiar los mensajes' });
+    await tienda.asegurar();
+    const b = (req.body && req.body.mensajes) || {};
+    const m = {};
+    for (const k of CLAVES_WA) { const t = String(b[k] || '').replace(/\r/g, '').trim().slice(0, 1500); if (t) m[k] = t; }
+    await pool.query('UPDATE tienda_config SET mensajes_wa = $1 WHERE id = 1', [JSON.stringify(m)]);
+    res.json({ ok: true, mensajes_wa: m });
+  } catch (e) { console.error('[tienda] mensajes wa:', e.message); res.status(500).json({ error: 'No se pudieron guardar los mensajes' }); }
+});
+
 router.put('/config', async (req, res) => {
   try {
     if (!esJefe(req)) return res.status(403).json({ error: 'Solo el dueño o encargado puede configurar la tienda' });
