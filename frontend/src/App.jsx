@@ -1257,6 +1257,9 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 @media (max-width: 700px) { .oi-item { grid-template-columns: 1fr; } }
 .ped-grupo { border-bottom: 1px solid ${p.border}; }
 .ped-bloque { border: 1.5px solid; border-radius: 16px; overflow: clip; }
+.ped-inactivo { opacity: .62; filter: grayscale(.85); transition: opacity .2s, filter .2s; }
+.ped-inactivo:hover, .ped-inactivo.abierto { opacity: 1; filter: none; }
+.ped-bloque.inactivo .ped-bloque-cab { filter: grayscale(.4); }
 .ped-bloque-cab { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; border-bottom: 1.5px solid var(--c); width: 100%; text-align: left; font: inherit; cursor: pointer; }
 .ped-bloque.plegado .ped-bloque-cab { border-bottom: 0; }
 .ped-bloque-flecha { flex: 0 0 auto; font-size: 18px; font-weight: 900; transition: transform .2s; }
@@ -37734,8 +37737,8 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
 // ===================== TIENDA WEB (en Lumiere) =====================
 // Pedidos de la tienda web, productos publicados y configuracion. Ver routes/tienda.js.
 const ESTADOS_TIENDA = {
-  pendiente_pago: { t: "Esperando pago", c: "#b7950b" }, confirmado: { t: "Nuevo · para preparar", c: "#2471a3" }, preparado: { t: "Listo para entregar", c: "#8e44ad" },
-  en_caja: { t: "En la caja", c: "#d35400" }, entregado: { t: "Entregado", c: "#2d7a4f" }, cancelado: { t: "Cancelado", c: "#95a5a6" },
+  pendiente_pago: { t: "Esperando pago", c: "#b7950b" }, confirmado: { t: "Nuevo · para preparar", c: "#2471a3" }, preparado: { t: "Listo para entregar", c: "#1e9e57" },
+  en_caja: { t: "En la caja", c: "#d35400" }, entregado: { t: "Entregado", c: "#5d8a75" }, cancelado: { t: "Cancelado", c: "#95a5a6" },
 };
 // Por que se vencio un pedido (lo anota el vendedor despues de hablar con el cliente)
 const MOTIVOS_VENC_PED = [["mirando", "🛒 Solo estaba mirando / armó el carrito para probar"], ["arrepintio", "🙅 Se arrepintió, ya no lo quiere"], ["pago", "💳 Tuvo problemas para pagar"], ["otro_medio", "🔁 Quería pagar con otro medio"], ["local", "🏪 Lo compró en el local"], ["caro", "💸 Le pareció caro"], ["envio", "🛵 Por el envío o el retiro"], ["sin_respuesta", "📵 No contestó"], ["otro", "✏️ Otro motivo"]];
@@ -39594,7 +39597,10 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   // Grupos de pedidos plegados (se recuerda en este navegador)
   const [pedPlegados, setPedPlegados] = useState(() => { try { return JSON.parse(localStorage.getItem("lumiere_ped_plegados") || "[]"); } catch (e) { return []; } });
-  const plegarPed = (k) => setPedPlegados(l => { const n = l.includes(k) ? l.filter(x => x !== k) : [...l, k]; try { localStorage.setItem("lumiere_ped_plegados", JSON.stringify(n)); } catch (e) {} return n; });
+  // Los grupos que arrancan cerrados (cancelados, entregados) se guardan al revés: "+grupo" = lo abrieron
+  const PLEGADOS_DEF = ["cancelado", "entregado"];
+  const estaPlegado = (k) => PLEGADOS_DEF.includes(k) ? !pedPlegados.includes("+" + k) : pedPlegados.includes(k);
+  const plegarPed = (k) => setPedPlegados(l => { const key = PLEGADOS_DEF.includes(k) ? "+" + k : k; const n = l.includes(key) ? l.filter(x => x !== key) : [...l, key]; try { localStorage.setItem("lumiere_ped_plegados", JSON.stringify(n)); } catch (e) {} return n; });
   const [tab, setTab] = useState(() => { const t = tabInicialDe("tienda-online"); if (t) return t; try { return sessionStorage.getItem("lumiere_tienda_tab") || "pedidos"; } catch (e) { return "pedidos"; } });
   useEffect(() => {
     try { sessionStorage.setItem("lumiere_tienda_tab", tab); } catch (e) {}
@@ -39901,7 +39907,18 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   // Se cayeron (cancelados, vencidos o con el pago rechazado): van arriba de todo en "Todo para atender" hasta que alguien del local
   // toca "Ya lo vi" o anota por qué. Los que pagaron después de cancelarse quedan hasta resolverlos, aunque sean viejos
   const aRevisar = (p) => p.estado === "cancelado" && !p.revisado_en && (p.pagado || (!p.venc_motivo && Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < 7 * 864e5));
-  const enFiltro = (p, k) => k === "todos" || (k === "activos" ? abiertos.includes(p) || aRevisar(p) : k === "g:revisar" ? aRevisar(p) : k.startsWith("g:") ? etapaPed(p) === k.slice(2) : k === "proceso" ? enProceso(p) : k === "rechazado" ? esRechazado(p) : k === "vencido" ? esVencido(p) : k === "cancelado" ? esCancelado(p) : p.estado === k);
+  // Vista "Todos por estado": cada pedido en un solo grupo de color. Los cerrados (rechazados, vencidos, cancelados)
+  // se ven 15 días (o hasta que alguien los vea); los entregados, 7 días. Lo más viejo, desde los filtros de "Ver".
+  const recientePed = (p, d) => Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < d * 864e5;
+  const grupoPed = (p) => {
+    if (p.estado === "cancelado" && p.pagado && !p.revisado_en) return "revisar";
+    if (esRechazado(p)) return p.estado !== "cancelado" || recientePed(p, 15) || aRevisar(p) ? "rechazado" : null;
+    if (esVencido(p)) return recientePed(p, 15) || aRevisar(p) ? "vencido" : null;
+    if (p.estado === "cancelado") return recientePed(p, 15) || aRevisar(p) ? "cancelado" : null;
+    if (p.estado === "entregado") return recientePed(p, 7) ? "entregado" : null;
+    const e = etapaPed(p); return e === "proceso" ? "pago" : e;
+  };
+  const enFiltro = (p, k) => k === "todos" || (k === "activos" ? !!grupoPed(p) : k === "g:revisar" ? aRevisar(p) : k.startsWith("g:") ? grupoPed(p) === k.slice(2) : k === "proceso" ? enProceso(p) : k === "rechazado" ? esRechazado(p) : k === "vencido" ? esVencido(p) : k === "cancelado" ? esCancelado(p) : p.estado === k);
   const visibles = pedL.filter(p => enFiltro(p, filtro));
   const nPub = productos.filter(p => p.publicado).length;
   const q = busca.trim().toLowerCase();
@@ -39944,7 +39961,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const faltaVenc = (p) => (esVencido(p) || esCancelado(p)) && !p.venc_motivo && Date.now() - new Date(p.actualizado_en || p.creado_en).getTime() < 7 * 864e5;
   const nSinMotivo = pedL.filter(p => faltaVenc(p) && esVencido(p)).length;
   const nSinMotivoCanc = pedL.filter(p => faltaVenc(p) && esCancelado(p)).length;
-  const FILTROS_PED = [["activos", "Todo para atender"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["carritos", "🛒 Carritos abandonados"], ["todos", "Todos"]];
+  const FILTROS_PED = [["activos", "🎨 Todos por estado"], ["proceso", "🔄 En proceso de pago"], ["entregado", "Entregados"], ["rechazado", "❌ Pagos rechazados"], ["vencido", "⌛ Vencidos"], ["cancelado", "Cancelados"], ["carritos", "🛒 Carritos abandonados"], ["todos", "Todos"]];
   const nuevosTotal = ["proceso", "rechazado", "vencido", "cancelado", "carritos"].reduce((t, k) => t + nuevosEn(k), 0);
   // Para atender: agrupados por lo que hay que hacer, en ese orden
   const nRevisar = pedL.filter(aRevisar).length;
@@ -39953,12 +39970,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const locsPed = UN_SOLO_LOCAL ? [] : (locs.length ? locs : [{ id: 1, nombre: nombreLocal(1) }, { id: 2, nombre: nombreLocal(2) }]).filter(l => l.activo !== false);
   const haceTxt = (f) => { const m = Math.round((Date.now() - new Date(f).getTime()) / 60000); return m < 1 ? "recién" : m < 60 ? "hace " + m + " min" : m < 1440 ? "hace " + Math.round(m / 60) + " h" : m < 2880 ? "ayer" : new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }); };
   // Cada grupo: [estado, ícono, título corto, qué hacer, color]
+  const colorPed = (p) => { const g = grupoPed(p) || (esRechazado(p) ? "rechazado" : esVencido(p) ? "vencido" : p.estado === "cancelado" ? "cancelado" : p.estado === "entregado" ? "entregado" : null); const x = GRUPOS_PED.find(z => z[0] === g); return x ? x[4] : (ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado).c; };
   const GRUPOS_PED = [
-    ["revisar", "🔔", "Para revisar", "Se cancelaron, se vencieron o no pasó el pago. Miralos y tocá «Ya lo vi».", "#c0392b"],
-    ["nuevo", "📥", "Para armar", "Ya están listos para preparar. Armalos y tocá «Ya está listo».", "#2471a3"],
-    ["preventa", "⏳", "Preventa: todavía no llegó la mercadería", "Ya los pagaron. Cuando llegue la mercadería, tocá «Llegó la preventa» y armalos.", "#b9770e"],
-    ["pago", "💳", "Esperando el pago", "Todavía no pagaron: no los armes hasta que entre el pago.", "#b7950b"],
-    ["listo", "📦", "Listos", "Ya están armados: falta que los retiren o que salgan con el envío.", "#8e44ad"],
+    ["revisar", "⚠️", "Se canceló pero pagó", "El pago entró después de cancelarse: devolvé la plata o registrá la venta.", "#b03a2e"],
+    ["rechazado", "❌", "Pago rechazado", "Mercado Pago o GoCuotas no aprobó el pago. Escribile para que pruebe con otro medio.", "#e03b2f"],
+    ["nuevo", "📥", "Para armar", "Ya están pagos o confirmados. Armalos y tocá «Ya está listo».", "#2471a3"],
+    ["preventa", "⏳", "Preventa: todavía no llegó la mercadería", "Ya los pagaron. Cuando llegue la mercadería, tocá «Llegó la preventa» y armalos.", "#d9822b"],
+    ["pago", "💳", "Esperando el pago", "Todavía no pagaron (o están pagando online): no los armes hasta que entre el pago.", "#d4a017"],
+    ["listo", "📦", "Listos", "Ya están armados: falta que los retiren o que salgan con el envío.", "#1e9e57"],
+    ["vencido", "⌛", "Vencidos", "Se cancelaron solos porque no pagaron o no los retiraron a tiempo (últimos 15 días).", "#9a7b4f"],
+    ["cancelado", "🚫", "Cancelados", "Los cancelaron desde el local (últimos 15 días). Abrilos para ver quién y por qué.", "#8c96a0"],
+    ["entregado", "✅", "Entregados", "Los últimos 7 días.", "#5d8a75"],
   ];
 
   return (
@@ -40102,7 +40124,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
               {/* En el celular: una barra desplegable en vez de tres filas de botones */}
               <div className="ped-filtros-menu">
                 <button className="ped-menu-btn" aria-expanded={menuFiltro} onClick={() => setMenuFiltro(m => !m)}>
-                  <span>Ver: <b>{(FILTROS_PED.find(x => x[0] === filtro) || ["", filtro === "g:revisar" ? "Para revisar" : filtro.startsWith("g:") ? "Por etapa" : "Todo para atender"])[1]}</b> ({filtro.startsWith("g:") ? visibles.length : contar(filtro)})</span>
+                  <span>Ver: <b>{(FILTROS_PED.find(x => x[0] === filtro) || ["", filtro === "g:revisar" ? "Para revisar" : filtro.startsWith("g:") ? "Por etapa" : "Todos por estado"])[1]}</b> ({filtro.startsWith("g:") ? visibles.length : contar(filtro)})</span>
                   {nuevosTotal > 0 && <span className="ped-burbuja quieta">{nuevosTotal}</span>}
                   <span aria-hidden="true" style={{ marginLeft: "auto" }}>{menuFiltro ? "▴" : "▾"}</span>
                 </button>
@@ -40162,7 +40184,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
                 const tit = (t) => <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: temaPal.textMuted, marginBottom: 6 }}>{t}</div>;
                 return (
-                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "")} style={{ borderLeft: "5px solid " + (procesoDemorado(p) || aRevisar(p) ? "#c0392b" : enProceso(p) ? "#95a5a6" : e.c), padding: 0, overflow: "hidden" }}>
+                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "") + (grupoPed(p) === "cancelado" || (!grupoPed(p) && p.estado === "cancelado") ? " ped-inactivo" : "")} style={{ "--pc": colorPed(p), background: "linear-gradient(90deg, " + colorPed(p) + "14, transparent 55%), " + temaPal.card, borderLeft: "6px solid " + (procesoDemorado(p) && !p.contactado_en ? "#c0392b" : colorPed(p)), padding: 0, overflow: "hidden" }}>
                     {/* Fila: lo esencial y el proximo paso. Tocandola se abre el detalle */}
                     <div className="ped-fila" role="button" tabIndex={0} aria-expanded={abierto} onClick={() => setPedAbiertos(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])} onKeyDown={ev => { if (ev.key === "Enter") ev.currentTarget.click(); }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -40304,18 +40326,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}
-                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => est === "revisar" ? aRevisar(p) : etapaPed(p) === est); if (!l.length) return null; return (
-                  <section key={est} className={"ped-bloque" + (pedPlegados.includes(est) ? " plegado" : "")} style={{ "--c": c, borderColor: c + "66", background: c + "0d" }} aria-label={titulo}>
-                    <button type="button" className="ped-bloque-cab" aria-expanded={!pedPlegados.includes(est)} onClick={() => plegarPed(est)} style={{ background: "linear-gradient(" + c + "1f, " + c + "1f), " + temaPal.card, color: temaPal.text }}>
+                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => grupoPed(p) === est).sort((a, b) => (aRevisar(b) ? 1 : 0) - (aRevisar(a) ? 1 : 0)); if (!l.length) return null; const sinVer = est === "revisar" ? 0 : l.filter(aRevisar).length; return (
+                  <section key={est} className={"ped-bloque" + (estaPlegado(est) ? " plegado" : "") + (est === "cancelado" ? " inactivo" : "")} style={{ "--c": c, borderColor: c + "66", background: c + "0d" }} aria-label={titulo}>
+                    <button type="button" className="ped-bloque-cab" aria-expanded={!estaPlegado(est)} onClick={() => plegarPed(est)} style={{ background: "linear-gradient(" + c + "1f, " + c + "1f), " + temaPal.card, color: temaPal.text }}>
                       <span className="ped-bloque-ic" style={{ background: c }}>{ico}</span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <b style={{ color: c }}>{titulo}</b>
                         <small style={{ color: temaPal.textMuted }}>{hacer}</small>
                       </span>
+                      {sinVer > 0 && <span className="ped-burbuja quieta" title="Todavía nadie tocó «Ya lo vi»">🔔 {sinVer} sin ver</span>}
                       <span className="ped-bloque-n" style={{ background: c }}>{l.length}</span>
                       <span className="ped-bloque-flecha" style={{ color: c }} aria-hidden="true">▾</span>
                     </button>
-                    {!pedPlegados.includes(est) && <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "10px 8px 8px" }}>{l.map(tarjetaPed)}</div>}
+                    {!estaPlegado(est) && <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "10px 8px 8px" }}>{l.map(tarjetaPed)}</div>}
                   </section>
                 ); })}
               </div>
