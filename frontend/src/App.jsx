@@ -1257,6 +1257,13 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 @media (max-width: 700px) { .oi-item { grid-template-columns: 1fr; } }
 .ped-grupo { border-bottom: 1px solid ${p.border}; }
 .ped-bloque { border: 1.5px solid; border-radius: 16px; overflow: clip; }
+.ped-atn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.ped-atn.ok { background: #1e9e57; color: #fff; }
+.ped-atn.falta { background: #e67e22; color: #fff; box-shadow: 0 0 0 0 rgba(230,126,34,.5); animation: pedAtnLate 1.8s ease-out infinite; }
+@keyframes pedAtnLate { 0% { box-shadow: 0 0 0 0 rgba(230,126,34,.55); } 70% { box-shadow: 0 0 0 8px rgba(230,126,34,0); } 100% { box-shadow: 0 0 0 0 rgba(230,126,34,0); } }
+@media (prefers-reduced-motion: reduce) { .ped-atn.falta { animation: none; } }
+.ped-card.ped-falta { box-shadow: 0 0 0 2px #e67e2255, 0 4px 14px rgba(230,126,34,.12); }
+.ped-card.ped-atendido:not(.abierto):not(:hover) { opacity: .78; }
 .ped-inactivo { opacity: .62; filter: grayscale(.85); transition: opacity .2s, filter .2s; }
 .ped-inactivo:hover, .ped-inactivo.abierto { opacity: 1; filter: none; }
 .ped-bloque.inactivo .ped-bloque-cab { filter: grayscale(.4); }
@@ -40026,14 +40033,19 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const locsPed = UN_SOLO_LOCAL ? [] : (locs.length ? locs : [{ id: 1, nombre: nombreLocal(1) }, { id: 2, nombre: nombreLocal(2) }]).filter(l => l.activo !== false);
   const haceTxt = (f) => { const m = Math.round((Date.now() - new Date(f).getTime()) / 60000); return m < 1 ? "recién" : m < 60 ? "hace " + m + " min" : m < 1440 ? "hace " + Math.round(m / 60) + " h" : m < 2880 ? "ayer" : new Date(f).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }); };
   // Cada grupo: [estado, ícono, título corto, qué hacer, color]
+  // ¿Ya lo atendió alguien? (los que tuvieron un problema: pago rechazado, vencido, cancelado o demorado en pagar)
+  // Atendido = alguien le escribió, tocó «Ya lo vi» o anotó por qué se cayó
+  const necesitaAtencion = (p) => grupoPed(p) === "revisar" || esRechazado(p) || esVencido(p) || esCancelado(p) || procesoDemorado(p);
+  const atendidoPed = (p) => !!(p.contactado_en || p.revisado_en || p.venc_motivo) && grupoPed(p) !== "revisar";
+  const quienAtendio = (p) => p.contactado_en ? "Le escribió " + (p.contactado_por || "el local") : p.venc_motivo ? "Anotó " + (p.venc_por || "el local") + " por qué" : p.revisado_en ? "Lo vio " + (p.revisado_por || "el local") : "";
   const colorPed = (p) => { const g = grupoPed(p) || (esRechazado(p) ? "rechazado" : esVencido(p) ? "vencido" : p.estado === "cancelado" ? "cancelado" : p.estado === "entregado" ? "entregado" : null); const x = GRUPOS_PED.find(z => z[0] === g); return x ? x[4] : (ESTADOS_TIENDA[p.estado] || ESTADOS_TIENDA.confirmado).c; };
   const GRUPOS_PED = [
     ["revisar", "⚠️", "Se canceló pero pagó", "El pago entró después de cancelarse: devolvé la plata o registrá la venta.", "#b03a2e"],
-    ["rechazado", "❌", "Pago rechazado", "Mercado Pago o GoCuotas no aprobó el pago. Escribile para que pruebe con otro medio.", "#e03b2f"],
     ["nuevo", "📥", "Para armar", "Ya están pagos o confirmados. Armalos y tocá «Ya está listo».", "#2471a3"],
-    ["preventa", "⏳", "Preventa: todavía no llegó la mercadería", "Ya los pagaron. Cuando llegue la mercadería, tocá «Llegó la preventa» y armalos.", "#d9822b"],
     ["pago", "💳", "Esperando el pago", "Todavía no pagaron (o están pagando online): no los armes hasta que entre el pago.", "#d4a017"],
     ["listo", "📦", "Listos", "Ya están armados: falta que los retiren o que salgan con el envío.", "#1e9e57"],
+    ["preventa", "⏳", "Preventa: todavía no llegó la mercadería", "Ya los pagaron. Cuando llegue la mercadería, tocá «Llegó la preventa» y armalos.", "#d9822b"],
+    ["rechazado", "❌", "Pago rechazado", "Mercado Pago o GoCuotas no aprobó el pago. Escribile para que pruebe con otro medio.", "#e03b2f"],
     ["vencido", "⌛", "Vencidos", "Se cancelaron solos porque no pagaron o no los retiraron a tiempo (últimos 15 días).", "#9a7b4f"],
     ["cancelado", "🚫", "Cancelados", "Los cancelaron desde el local (últimos 15 días). Abrilos para ver quién y por qué.", "#8c96a0"],
     ["entregado", "✅", "Entregados", "Los últimos 7 días.", "#5d8a75"],
@@ -40286,12 +40298,15 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
                 const tit = (t) => <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: temaPal.textMuted, marginBottom: 6 }}>{t}</div>;
                 return (
-                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "") + (grupoPed(p) === "cancelado" || (!grupoPed(p) && p.estado === "cancelado") ? " ped-inactivo" : "")} style={{ "--pc": colorPed(p), background: "linear-gradient(90deg, " + colorPed(p) + "14, transparent 55%), " + temaPal.card, borderLeft: "6px solid " + (procesoDemorado(p) && !p.contactado_en ? "#c0392b" : colorPed(p)), padding: 0, overflow: "hidden" }}>
+                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "") + ((grupoPed(p) === "cancelado" || (!grupoPed(p) && p.estado === "cancelado")) && atendidoPed(p) ? " ped-inactivo" : "") + (necesitaAtencion(p) ? (atendidoPed(p) ? " ped-atendido" : " ped-falta") : "")} style={{ "--pc": colorPed(p), background: "linear-gradient(90deg, " + colorPed(p) + "14, transparent 55%), " + temaPal.card, borderLeft: "6px solid " + (procesoDemorado(p) && !p.contactado_en ? "#c0392b" : colorPed(p)), padding: 0, overflow: "hidden" }}>
                     {/* Fila: lo esencial y el proximo paso. Tocandola se abre el detalle */}
                     <div className="ped-fila" role="button" tabIndex={0} aria-expanded={abierto} onClick={() => setPedAbiertos(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])} onKeyDown={ev => { if (ev.key === "Enter") ev.currentTarget.click(); }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                           {!UN_SOLO_LOCAL && <span className="ped-local" style={{ background: colorLocalPed(p.local_id) }} title={(p.entrega === "envio" ? "Sale de " : "Es de ") + nombreLocal(p.local_id)}>📍 {nombreLocal(p.local_id)}</span>}
+                          {necesitaAtencion(p) && (atendidoPed(p)
+                            ? <span className="ped-atn ok" title={quienAtendio(p)}>✓ Atendido</span>
+                            : <span className="ped-atn falta" title="Nadie le escribió ni lo revisó todavía">🔔 Falta atender</span>)}
                           <b style={{ fontSize: 15 }}>{p.nombre}</b>
                           <span style={{ fontSize: 12, color: temaPal.textMuted }}>N° {nroPedido(p)} · {hace}</span>
                           {indic.length > 0 && <span style={{ fontSize: 13, letterSpacing: 2 }}>{indic.map(([ic, t]) => <span key={t} title={t} aria-label={t}>{ic}</span>)}</span>}
@@ -40309,7 +40324,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                         <div style={{ fontSize: 17, fontWeight: 900, fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(p.total)}</div>
-                        {aRevisar(p) && <button className="btn btn-g btn-sm ped-paso" style={{ whiteSpace: "nowrap" }} title="Sale de Para revisar (queda en Cancelados)" onClick={ev => { ev.stopPropagation(); marcarRevisado(p, true); }}>✓ Ya lo vi</button>}
+                        {aRevisar(p) && !atendidoPed(p) && <button className="btn btn-g btn-sm ped-paso" style={{ whiteSpace: "nowrap" }} title="Queda como atendido" onClick={ev => { ev.stopPropagation(); marcarRevisado(p, true); }}>✓ Ya lo vi</button>}
                         {paso && <button className="btn btn-p btn-sm ped-paso" onClick={ev => { ev.stopPropagation(); /* Al tocar "Ya está listo" en el mismo lugar aparece "Entregar": un doble toque lo mandaba a la caja sin querer */ if (Date.now() - (window.__lumPasoPed || 0) < 1500) return; window.__lumPasoPed = Date.now(); paso[1](); }}>{paso[0]}</button>}
                         <span className="ped-flecha" aria-hidden="true">▾</span>
                       </div>
@@ -40428,7 +40443,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
             if (filtro === "activos" || filtro.startsWith("g:")) return (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {filtro === "activos" && !buscaPed.trim() && nDemorados > 0 && <button className="ped-urge-aviso" onClick={() => setFiltro("proceso")}>🚨 <b>{nDemorados} {nDemorados === 1 ? "pedido lleva" : "pedidos llevan"} más de 2 horas sin terminar de pagar</b> con Mercado Pago o GoCuotas. Escribiles para ofrecerles otro medio de pago → <u>Ver</u></button>}
-                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => grupoPed(p) === est).sort((a, b) => (aRevisar(b) ? 1 : 0) - (aRevisar(a) ? 1 : 0)); if (!l.length) return null; const sinVer = est === "revisar" ? 0 : l.filter(aRevisar).length; return (
+                {GRUPOS_PED.map(([est, ico, titulo, hacer, c]) => { const l = visiblesB.filter(p => grupoPed(p) === est).sort((a, b) => (necesitaAtencion(b) && !atendidoPed(b) ? 1 : 0) - (necesitaAtencion(a) && !atendidoPed(a) ? 1 : 0)); if (!l.length) return null; const sinVer = l.filter(x => necesitaAtencion(x) && !atendidoPed(x)).length, yaAt = l.filter(x => necesitaAtencion(x) && atendidoPed(x)).length; return (
                   <section key={est} className={"ped-bloque" + (estaPlegado(est) ? " plegado" : "") + (est === "cancelado" ? " inactivo" : "")} style={{ "--c": c, borderColor: c + "66", background: c + "0d" }} aria-label={titulo}>
                     <button type="button" className="ped-bloque-cab" aria-expanded={!estaPlegado(est)} onClick={() => plegarPed(est)} style={{ background: "linear-gradient(" + c + "1f, " + c + "1f), " + temaPal.card, color: temaPal.text }}>
                       <span className="ped-bloque-ic" style={{ background: c }}>{ico}</span>
@@ -40436,7 +40451,8 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                         <b style={{ color: c }}>{titulo}</b>
                         <small style={{ color: temaPal.textMuted }}>{hacer}</small>
                       </span>
-                      {sinVer > 0 && <span className="ped-burbuja quieta" title="Todavía nadie tocó «Ya lo vi»">🔔 {sinVer} sin ver</span>}
+                      {sinVer > 0 && <span className="ped-atn falta" title="Nadie le escribió ni lo revisó todavía">🔔 {sinVer} por atender</span>}
+                      {yaAt > 0 && <span className="ped-atn ok" title="Alguien ya le escribió o lo revisó">✓ {yaAt} {yaAt === 1 ? "atendido" : "atendidos"}</span>}
                       <span className="ped-bloque-n" style={{ background: c }}>{l.length}</span>
                       <span className="ped-bloque-flecha" style={{ color: c }} aria-hidden="true">▾</span>
                     </button>
