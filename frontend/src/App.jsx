@@ -4633,6 +4633,42 @@ function POS({ localId, usuario, paletaActual }) {
 
   // Corregir el precio de una preventa (ej: se vendió en promo, pagó todo, y figura que falta saldar)
   const [ajustePrev, setAjustePrev] = useState(null); // { p, precios: { item_id: "valor" }, error, guardando }
+  // Cambiar un producto de una preventa (no llegó o llegó en otro tono) y resolver el saldo a favor
+  const [cambioPrev, setCambioPrev] = useState(null); // { p, it, q, prod, vars, variante, cant, error, guardando }
+  const [favorPrev, setFavorPrev] = useState(null); // { p, importe, guardando, error }
+  const elegirCambioPrev = async (pr) => {
+    setCambioPrev(c => ({ ...c, prod: pr, vars: pr.tiene_variantes ? [] : null, variante: "", error: "" }));
+    if (pr.tiene_variantes) { try { const r = await API.get("/productos/" + pr.id + "/variantes"); setCambioPrev(c => c && c.prod && c.prod.id === pr.id ? { ...c, vars: r.data || [] } : c); } catch (e) {} }
+  };
+  const confirmarCambioPrev = async () => {
+    const c = cambioPrev;
+    if (c.prod.tiene_variantes && !c.variante) return setCambioPrev(x => ({ ...x, error: "Elegí la variante (tono, talle…)" }));
+    setCambioPrev(x => ({ ...x, guardando: true, error: "" }));
+    try {
+      const r = await API.put("/ventas/" + c.p.id + "/preventa-cambiar-producto", { item_id: c.it.item_id, producto_id: c.prod.id, variante_id: c.variante || null, cantidad: c.cant });
+      setCambioPrev(null); cargarPreventas();
+      if (r.data.a_favor > 0.5) setFavorPrev({ p: c.p, importe: r.data.a_favor, guardando: false, error: "" });
+      setMensaje("✅ Cambiado por " + r.data.producto + ". " + (Math.abs(r.data.diferencia) < 0.5 ? "Mismo precio." : r.data.a_favor > 0.5 ? "Le quedan " + fmt(r.data.a_favor) + " a favor." : r.data.falta > 0.5 ? "Al entregar le cobrás " + fmt(r.data.falta) + "." : "Sigue pagada."));
+      setTimeout(() => setMensaje(""), 8000);
+    } catch (e) { setCambioPrev(x => ({ ...x, guardando: false, error: e.response?.data?.error || "No se pudo cambiar" })); }
+  };
+  const resolverFavorPrev = async (accion) => {
+    const f = favorPrev;
+    if (accion === "devolver" && !confirm("¿Le devolvés " + fmt(f.importe) + " en efectivo? Sale de la caja de hoy.")) return;
+    setFavorPrev(x => ({ ...x, guardando: true, error: "" }));
+    try {
+      const r = await API.post("/ventas/" + f.p.id + "/preventa-saldo-favor", { accion });
+      setFavorPrev(null); cargarPreventas();
+      if (accion === "credito") {
+        const cod = r.data.gc_codigo, nom = String(f.p.cliente_nombre || f.p.nombre_preventa || "").split(" ")[0];
+        const txt = "Hola" + (nom ? " " + nom : "") + "! Por el cambio en tu preventa te quedó un crédito a favor de " + fmt(r.data.importe) + ". Tu código es *" + cod + "*: lo podés usar en el local o en la tienda online. 💛";
+        setMensaje("✅ Crédito a favor creado: " + cod + " por " + fmt(r.data.importe) + ". Ya está en Gift Cards.");
+        if (f.p.cliente_telefono && confirm("Crédito " + cod + " creado. ¿Se lo mandás por WhatsApp?")) window.open(linkWhatsapp(f.p.cliente_telefono, txt) || ("https://wa.me/?text=" + encodeURIComponent(txt)), "_blank");
+        else if (!f.p.cliente_telefono) alert("Crédito creado: " + cod + " por " + fmt(r.data.importe) + ".\nAnotáselo al cliente (también lo encontrás en Gift Cards).");
+      } else setMensaje("✅ Devolución de " + fmt(r.data.importe) + " registrada en la caja.");
+      setTimeout(() => setMensaje(""), 9000);
+    } catch (e) { setFavorPrev(x => ({ ...x, guardando: false, error: e.response?.data?.error || "No se pudo" })); }
+  };
   const abrirAjustePrev = (p) => setAjustePrev({ p, precios: Object.fromEntries((p.items || []).map(it => [it.item_id, String(parseFloat(it.precio_unitario) || 0)])), error: "", guardando: false });
   const ajusteTotal = ajustePrev ? (ajustePrev.p.items || []).reduce((a, it) => a + (parseFloat(ajustePrev.precios[it.item_id]) || 0) * (parseFloat(it.cantidad) || 0), 0) + (parseFloat(ajustePrev.p.costo_envio) || 0) : 0;
   const ajustePagado = ajustePrev ? (parseFloat(ajustePrev.p.monto_sena) || 0) + (parseFloat(ajustePrev.p.monto_gift_card) || 0) : 0;
@@ -4986,6 +5022,7 @@ function POS({ localId, usuario, paletaActual }) {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-p btn-sm" onClick={() => abrirConfirmacionEntrega(p)}>Confirmar entrega</button>
+                {((parseFloat(p.monto_sena) || 0) + (parseFloat(p.monto_gift_card) || 0)) - parseFloat(p.total || 0) > 0.5 && <button className="btn btn-sm" style={{ background: "#2471a3", color: "#fff" }} onClick={() => setFavorPrev({ p, importe: Math.round(((parseFloat(p.monto_sena) || 0) + (parseFloat(p.monto_gift_card) || 0) - parseFloat(p.total || 0)) * 100) / 100, guardando: false, error: "" })}>💰 Saldo a favor</button>}
                 <button className="btn btn-g btn-sm" onClick={() => abrirAjustePrev(p)} title="Cambiar el precio de esta preventa (por ejemplo, si se vendió en promo)">✏️ Precio</button>
                 <button className="btn btn-g btn-sm" onClick={() => cancelarPreventa(p)}>Cancelar</button>
               </div>
@@ -4994,7 +5031,7 @@ function POS({ localId, usuario, paletaActual }) {
               <div style={{ background: temaPal.bg, borderRadius: 6, padding: "6px 10px" }}>
                 {p.items.map((it, idx) => (
                   <div key={idx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: idx < p.items.length - 1 ? "1px solid " + temaPal.border : "none" }}>
-                    <span style={{ color: temaPal.textMuted }}>{it.nombre || it.producto_nombre} x{it.cantidad}</span>
+                    <span style={{ color: temaPal.textMuted }}>{it.nombre || it.producto_nombre} x{it.cantidad}{it.producto_id && it.item_id && <button className="chip-btn" style={{ marginLeft: 8, fontSize: 10.5, padding: "1px 8px" }} title="No llegó o llegó en otro tono: cambiarlo por otro producto" onClick={() => setCambioPrev({ p, it, q: "", prod: null, vars: null, variante: "", cant: it.cantidad, error: "", guardando: false })}>🔁 Cambiar</button>}</span>
                     <span style={{ color: temaPal.textMuted }}>{fmt(parseFloat(it.precio_unitario || 0))}</span>
                   </div>
                 ))}
@@ -5002,6 +5039,65 @@ function POS({ localId, usuario, paletaActual }) {
             )}
           </div>
         ))}
+        {cambioPrev && (() => {
+          const c = cambioPrev, qn = normTxt(c.q);
+          const res = qn.length >= 2 ? productos.filter(x => x.id !== c.it.producto_id && x.activo !== false && qn.split(" ").every(w => normTxt([x.nombre, x.marca, x.codigo_barras].join(" ")).includes(w))).slice(0, 8) : [];
+          const viejo = (parseFloat(c.it.precio_unitario) || 0) * c.it.cantidad, nuevo = c.prod ? (parseFloat(c.prod.precio) || 0) * c.cant : 0, dif = nuevo - viejo;
+          const pagado = (parseFloat(c.p.monto_sena) || 0) + (parseFloat(c.p.monto_gift_card) || 0), totalN = Math.max(0, parseFloat(c.p.total || 0) + dif), saldo = totalN - pagado;
+          return (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: 20 }} onClick={() => !c.guardando && setCambioPrev(null)}>
+              <div className="card" role="dialog" aria-label="Cambiar producto de la preventa" style={{ width: 460, maxWidth: "100%", background: temaPal.card }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🔁 Cambiar un producto de la preventa</div>
+                <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>{c.p.nombre_preventa || "Consumidor Final"} · sale <b style={{ color: temaPal.text }}>{c.it.nombre || c.it.producto_nombre} x{c.it.cantidad}</b> ({fmt(viejo)})</div>
+                {!c.prod ? (
+                  <>
+                    <input className="inp" autoFocus placeholder="Buscá el producto nuevo: nombre, marca o código" value={c.q} onChange={e => setCambioPrev(x => ({ ...x, q: e.target.value }))} aria-label="Buscar producto nuevo" />
+                    <div style={{ marginTop: 6, maxHeight: 260, overflowY: "auto" }}>
+                      {res.map(x => <button key={x.id} className="btn btn-g btn-sm" style={{ width: "100%", justifyContent: "space-between", display: "flex", marginBottom: 4, textAlign: "left" }} onClick={() => elegirCambioPrev(x)}><span>{x.nombre}{x.marca ? <span style={{ color: temaPal.textMuted }}> · {x.marca}</span> : null}</span><b>{fmt(parseFloat(x.precio) || 0)}</b></button>)}
+                      {qn.length >= 2 && !res.length && <div style={{ fontSize: 12, color: temaPal.textMuted, padding: 6 }}>No encontré productos con eso.</div>}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8, background: temaPal.bg }}>
+                      <span style={{ flex: 1 }}>Entra <b>{c.prod.nombre}</b> · {fmt(parseFloat(c.prod.precio) || 0)} c/u</span>
+                      <button className="chip-btn" onClick={() => setCambioPrev(x => ({ ...x, prod: null, vars: null, variante: "" }))}>Elegir otro</button>
+                    </div>
+                    {c.prod.tiene_variantes && <select className="inp" style={{ marginTop: 8 }} value={c.variante} onChange={e => setCambioPrev(x => ({ ...x, variante: e.target.value, error: "" }))} aria-label="Variante">
+                      <option value="">Elegí la variante…</option>
+                      {(c.vars || []).map(v => <option key={v.id} value={v.id}>{v.valor}</option>)}
+                    </select>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 13 }}>Cantidad <input className="inp" type="number" min="1" max="99" style={{ width: 80 }} value={c.cant} onChange={e => setCambioPrev(x => ({ ...x, cant: Math.max(1, parseInt(e.target.value) || 1) }))} aria-label="Cantidad" /></div>
+                    <div style={{ background: temaPal.bg, borderRadius: 8, padding: "8px 12px", margin: "10px 0", fontSize: 12.5 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span>Total nuevo de la preventa</span><b>{fmt(totalN)}</b></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", color: temaPal.textMuted }}><span>Ya pagó</span><span>{fmt(pagado)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, color: saldo > 0.5 ? temaPal.warn : saldo < -0.5 ? "#2471a3" : "#2d7a4f" }}><span>{saldo > 0.5 ? "Falta pagar (se cobra al entregar)" : saldo < -0.5 ? "Le queda a favor" : "✓ Queda pagada"}</span><span>{fmt(Math.abs(saldo))}</span></div>
+                      {saldo < -0.5 && <div style={{ fontSize: 11.5, color: temaPal.textMuted, marginTop: 4 }}>Después elegís si se lo dejás como crédito para otra compra o se lo devolvés.</div>}
+                    </div>
+                  </>
+                )}
+                {c.error && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", margin: "8px 0", fontSize: 11.5, color: "#c0392b" }}>{c.error}</div>}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button className="btn btn-g" style={{ flex: 1 }} disabled={c.guardando} onClick={() => setCambioPrev(null)}>Cancelar</button>
+                  {c.prod && <button className="btn btn-p" style={{ flex: 1 }} disabled={c.guardando} onClick={confirmarCambioPrev}>{c.guardando ? "Cambiando…" : "Confirmar cambio"}</button>}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+        {favorPrev && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+            <div className="card" role="dialog" aria-label="Saldo a favor" style={{ width: 420, maxWidth: "100%", background: temaPal.card }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>💰 Le quedan {fmt(favorPrev.importe)} a favor</div>
+              <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 12 }}>{favorPrev.p.nombre_preventa || favorPrev.p.cliente_nombre || "El cliente"} pagó más de lo que vale ahora su preventa. ¿Qué hacemos con la diferencia?</div>
+              <button className="btn btn-p" style={{ width: "100%", marginBottom: 8, textAlign: "left", display: "block" }} disabled={favorPrev.guardando} onClick={() => resolverFavorPrev("credito")}>🎁 Dejarlo como crédito a favor<div style={{ fontSize: 11.5, fontWeight: 500, opacity: .85, marginTop: 2 }}>Un código para usar en el local o en la tienda online (por ejemplo, cuando llegue lo que pidió). Queda en Gift Cards.</div></button>
+              <button className="btn btn-g" style={{ width: "100%", marginBottom: 8 }} disabled={favorPrev.guardando} onClick={() => resolverFavorPrev("devolver")}>💵 Devolvérselo en efectivo</button>
+              {favorPrev.error && <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "8px 12px", marginBottom: 8, fontSize: 11.5, color: "#c0392b" }}>{favorPrev.error}</div>}
+              <button className="btn btn-g btn-sm" style={{ width: "100%" }} disabled={favorPrev.guardando} onClick={() => setFavorPrev(null)}>Decidir después</button>
+              <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>Si decidís después, en la preventa vas a ver el saldo a favor con el botón para resolverlo.</div>
+            </div>
+          </div>
+        )}
         {ajustePrev && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto", padding: 20 }} onClick={() => !ajustePrev.guardando && setAjustePrev(null)}>
             <div className="card" role="dialog" aria-label="Corregir precio de la preventa" style={{ width: 420, maxWidth: "100%", background: temaPal.card }} onClick={e => e.stopPropagation()}>

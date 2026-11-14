@@ -15,5 +15,7 @@ router.put('/:id', controller.update);
 router.put('/:id/confirmar-entrega', controller.confirmarEntrega);
 router.put('/:id/preventa-precio', controller.corregirPrecioPreventa);
 router.put('/:id/cambiar-local', controller.cambiarLocalVenta);
+router.put('/:id/preventa-cambiar-producto', controller.cambiarItemPreventa);
+router.post('/:id/preventa-saldo-favor', controller.resolverFavorPreventa);
 
 module.exports = router;
