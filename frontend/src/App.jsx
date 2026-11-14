@@ -21494,6 +21494,16 @@ function CierreCaja({ localId, usuario, paletaActual }) {
     }
   };
 
+  // Se vendió con el sistema en un local pero la venta fue en el otro: se pasa todo (stock, caja y venta)
+  const cambiarLocalVenta = async (v) => {
+    const otro = Number(v.local_id) === 2 ? 1 : 2;
+    if (!confirm("¿Pasar la venta " + (v.numero_factura || "") + " (" + fmt(parseFloat(v.total)) + ") de " + nombreLocal(v.local_id) + " a " + nombreLocal(otro) + "?\n\n• El stock vuelve a " + nombreLocal(v.local_id) + " y se descuenta de " + nombreLocal(otro) + ".\n• El cobro sale de la caja de " + nombreLocal(v.local_id) + " y pasa a la de " + nombreLocal(otro) + ".\n• La factura de ARCA no cambia.")) return;
+    try {
+      await API.put("/ventas/" + v.id + "/cambiar-local", { local_id: otro });
+      cargar();
+      setAviso("✓ La venta pasó a " + nombreLocal(otro)); setTimeout(() => setAviso(""), 4000);
+    } catch (e) { alert(e.response?.data?.error || "No se pudo cambiar el local"); }
+  };
   const anularVenta = async (v) => {
     const motivo = prompt("Motivo de la anulación de " + (v.numero_factura || "la venta") + " (obligatorio):");
     if (!motivo || !motivo.trim()) return;
@@ -21774,7 +21784,7 @@ function CierreCaja({ localId, usuario, paletaActual }) {
                       <td style={{ fontSize: 11, color: p.textMuted }}>{v.vendedora_nombre || "-"}</td>
                       <td style={{ fontSize: 11, color: p.textMuted }}>{v.medio_pago || "-"}</td>
                       <td style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmt(parseFloat(v.total))}</td>
-                      <td style={{ textAlign: "right" }}>{!v.anulada && puedeHacer("ventas.anular") && <button className="icon-btn peligro" style={{ width: "auto", padding: "0 8px", fontSize: 11 }} onClick={() => anularVenta(v)}>Anular</button>}</td>
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{!v.anulada && !v.es_preventa && (puedeHacer("ventas.anular") || ["jefe", "admin", "administrativo"].includes(usuario?.rol)) && <button className="icon-btn" style={{ width: "auto", padding: "0 8px", fontSize: 11, marginRight: 6 }} title="Se vendió con el sistema en este local pero fue en el otro" onClick={() => cambiarLocalVenta(v)}>⇄ Pasar a {nombreLocal(Number(v.local_id) === 2 ? 1 : 2)}</button>}{!v.anulada && puedeHacer("ventas.anular") && <button className="icon-btn peligro" style={{ width: "auto", padding: "0 8px", fontSize: 11 }} onClick={() => anularVenta(v)}>Anular</button>}</td>
                     </tr>
                   ))}
                 </tbody>

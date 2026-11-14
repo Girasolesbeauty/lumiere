@@ -14,5 +14,6 @@ router.post('/', controller.create);
 router.put('/:id', controller.update);
 router.put('/:id/confirmar-entrega', controller.confirmarEntrega);
 router.put('/:id/preventa-precio', controller.corregirPrecioPreventa);
+router.put('/:id/cambiar-local', controller.cambiarLocalVenta);
 
 module.exports = router;

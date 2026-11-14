@@ -1160,4 +1160,56 @@ const corregirPrecioPreventa = async (req, res) => {
   } finally { client.release(); }
 };
 
-module.exports = { getAll, getById, create, update, confirmarEntrega, corregirPrecioPreventa, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
+// Pasar una venta al otro local (ej: se vendio con el sistema en Rio Grande pero fue en Ushuaia).
+// Mueve todo junto: el stock (vuelve al local de antes y se descuenta del nuevo), los movimientos de caja
+// y el efectivo de esa venta, y el local de la venta (reportes, ventas por local). La factura de ARCA no se toca.
+// Queda registrado quien lo cambio y cuando (columna cambios_local).
+const cambiarLocalVenta = async (req, res) => {
+  const u = req.usuario || {};
+  let puede = u.rol === 'jefe' || u.rol === 'admin' || u.rol === 'administrativo' || Number(u.rol_id) === 1;
+  if (!puede) {
+    try { puede = (await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso IN ('ventas.anular', 'ventas.editar')`, [u.id])).rows.length > 0; } catch (e) {}
+  }
+  if (!puede) return res.status(403).json({ error: 'No tenés permiso para cambiar el local de una venta' });
+  const nuevo = Number((req.body || {}).local_id) === 2 ? 2 : Number((req.body || {}).local_id) === 1 ? 1 : null;
+  if (!nuevo) return res.status(400).json({ error: 'Elegí el local' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('ALTER TABLE ventas ADD COLUMN IF NOT EXISTS cambios_local JSONB');
+    const venta = (await client.query('SELECT * FROM ventas WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!venta) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró la venta' }); }
+    if (venta.anulada) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La venta está anulada' }); }
+    if (venta.es_preventa === true) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Las preventas no se pueden cambiar de local desde acá' }); }
+    const antes = Number(venta.local_id) === 2 ? 2 : 1;
+    if (antes === nuevo) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La venta ya es de ese local' }); }
+    const colA = antes === 2 ? 'stock_ush' : 'stock_rg', colN = nuevo === 2 ? 'stock_ush' : 'stock_rg';
+    // Stock: vuelve al local de antes y sale del nuevo
+    const items = (await client.query('SELECT producto_id, variante_id, cantidad FROM venta_items WHERE venta_id = $1', [venta.id])).rows;
+    for (const it of items) {
+      if (!it.producto_id) continue; // linea de ajuste
+      if (it.variante_id) {
+        await client.query(`UPDATE producto_variantes SET ${colA} = COALESCE(${colA}, 0) + $1, ${colN} = COALESCE(${colN}, 0) - $1 WHERE id = $2`, [it.cantidad, it.variante_id]);
+      } else {
+        await client.query(`UPDATE productos SET ${colA} = COALESCE(${colA}, 0) + $1, ${colN} = COALESCE(${colN}, 0) - $1 WHERE id = $2`, [it.cantidad, it.producto_id]);
+      }
+    }
+    // Caja: los cobros de esa venta pasan al otro local (y el efectivo que se acredito automaticamente)
+    const caja = venta.numero_factura ? await client.query('UPDATE movimientos_caja SET local_id = $1 WHERE referencia = $2 AND local_id IS DISTINCT FROM $1', [nuevo, venta.numero_factura]) : { rowCount: 0 };
+    const efectivo = venta.numero_factura ? await client.query(`UPDATE movimientos_caja_efectivo SET local_id = $1 WHERE concepto = $2 AND tipo = 'ingreso' AND local_id IS DISTINCT FROM $1`, [nuevo, 'Venta ' + venta.numero_factura]) : { rowCount: 0 };
+    // Cuenta corriente: si se vendio fiado, el cargo tambien pasa al otro local
+    if ((await client.query(`SELECT to_regclass('cc_movimientos') AS t`)).rows[0].t) await client.query('UPDATE cc_movimientos SET local_id = $1 WHERE venta_id = $2', [nuevo, venta.id]);
+    let quien = null;
+    try { quien = (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    const registro = { fecha: new Date().toISOString(), usuario_id: u.id || null, usuario: quien || u.email || null, de: antes, a: nuevo };
+    await client.query(`UPDATE ventas SET local_id = $1, cambios_local = COALESCE(cambios_local, '[]'::jsonb) || $2::jsonb WHERE id = $3`, [nuevo, JSON.stringify([registro]), venta.id]);
+    await client.query('COMMIT');
+    res.json({ ok: true, local_id: nuevo, productos: items.filter(it => it.producto_id).length, movimientos_caja: caja.rowCount, movimientos_efectivo: efectivo.rowCount });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[ventas] cambiar local:', e.message);
+    res.status(500).json({ error: 'No se pudo cambiar el local. No se cambió nada.' });
+  } finally { client.release(); }
+};
+
+module.exports = { getAll, getById, create, update, confirmarEntrega, corregirPrecioPreventa, cambiarLocalVenta, getResumenHoy, getResumenMes, crearOnline, eliminarOnline, editarOnline, acreditarEfectivoEnCaja, getProductosVendidosDia };
