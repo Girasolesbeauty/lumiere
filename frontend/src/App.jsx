@@ -35466,7 +35466,8 @@ function TiendaPublica({ slug }) {
     const ordenB = tienda.banner || [];
     const pos = (p) => { const i = ordenB.indexOf(p.id); return i < 0 ? 999 : i; };
     const d = conStock.filter(p => p.destacado).sort((a, b) => pos(a) - pos(b));
-    return (d.length ? d : conStock.filter(p => p.foto)).slice(0, 8);
+    // Solo los que la dueña marcó con la estrella: antes, si no había ninguno, se mostraban los primeros con foto
+    return d.slice(0, 8);
   })();
   // Banners con imagen (3 por fila, como Sephora): cada uno lleva a un producto, sector, categoria o marca
   const bannersImg = (tienda.banners_img || []).filter(bn => bn.imagen && (bn.destino !== "producto" || visibles.some(p => p.id === Number(bn.valor))) && (bn.destino !== "productos" || visibles.some(p => idsBanner(bn).includes(p.id))));
