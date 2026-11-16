@@ -977,7 +977,8 @@ router.get('/resenas', async (req, res) => {
 // Gift card online de cualquier gift card de Lumiere (tambien las vendidas en el local): mensaje y link para mandarla
 router.get('/giftcard/:id/online', async (req, res) => {
   try {
-    const g = (await pool.query('SELECT id, codigo, mensaje, beneficiario_nombre, beneficiario_telefono, comprador_nombre, monto_inicial, saldo FROM gift_cards WHERE id = $1', [req.params.id])).rows[0];
+    await tienda.asegurar();
+    const g = (await pool.query('SELECT id, codigo, mensaje, diseno, beneficiario_nombre, beneficiario_telefono, comprador_nombre, monto_inicial, saldo FROM gift_cards WHERE id = $1', [req.params.id])).rows[0];
     if (!g) return res.status(404).json({ error: 'No se encontró la gift card' });
     const c = await tienda.leerConfig();
     const dominio = await tienda.dominioDe(req.negocio ? req.negocio.id : 1).catch(() => null);

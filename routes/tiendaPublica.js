@@ -704,11 +704,11 @@ router.get('/:slug/regalo/:codigo/:firma', async (req, res) => {
     const codigo = String(req.params.codigo || '').toUpperCase().slice(0, 30);
     if (!tienda.firmaRegaloOk(codigo, req.params.firma)) return res.status(404).json({ error: 'No encontramos este regalo. Revisá el link.' });
     await tienda.asegurar();
-    const g = (await pool.query(`SELECT g.codigo, g.monto_inicial, g.saldo, g.beneficiario_nombre, g.comprador_nombre, g.estado, COALESCE(g.anulada, FALSE) AS anulada, g.mensaje, g.creado_en, l.nombre AS local
+    const g = (await pool.query(`SELECT g.codigo, g.monto_inicial, g.saldo, g.beneficiario_nombre, g.comprador_nombre, g.estado, COALESCE(g.anulada, FALSE) AS anulada, g.mensaje, g.diseno, g.creado_en, l.nombre AS local
       FROM gift_cards g LEFT JOIN locales l ON l.id = g.local_id WHERE UPPER(g.codigo) = $1`, [codigo])).rows[0];
     if (!g) return res.status(404).json({ error: 'No encontramos este regalo. Revisá el link.' });
     res.json({ codigo: g.codigo, monto: num(g.monto_inicial), saldo: num(g.saldo), para: g.beneficiario_nombre, de: String(g.comprador_nombre || '').trim().split(/\s+/)[0] || null,
-      mensaje: g.mensaje || null, estado: g.anulada ? 'anulada' : g.estado, local: g.local || null, creado_en: g.creado_en });
+      mensaje: g.mensaje || null, diseno: g.diseno || null, estado: g.anulada ? 'anulada' : g.estado, local: g.local || null, creado_en: g.creado_en });
   } catch (e) { res.status(500).json({ error: 'No se pudo abrir el regalo' }); }
 });
 
@@ -745,9 +745,9 @@ router.post('/:slug/giftcards', async (req, res) => {
     const clienteId = clienteDeToken(req) || await clienteDe(pool, nombre, telefono, email);
     const codigo = crypto.randomBytes(4).toString('hex').toUpperCase();
     const horas = pago === 'transferencia' ? Math.min(168, Math.max(1, parseInt(c.horas_reserva) || 24)) : tienda.horasPagoOnline(c);
-    pedido = (await pool.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, pago, subtotal, total, estado, stock_apartado, vence_en, tipo, gc_para, gc_para_tel, gc_mensaje)
-      VALUES ($1, $2, $3, $4, $5, 'giftcard', $6, $7, $8, $8, 'pendiente_pago', FALSE, NOW() + ($9 || ' hours')::interval, 'giftcard', $10, $11, $12) RETURNING *`,
-      [codigo, clienteId, nombre, telefono, email, localId, pago, monto, String(horas), para, paraTel, mensaje])).rows[0];
+    pedido = (await pool.query(`INSERT INTO tienda_pedidos (codigo, cliente_id, nombre, telefono, email, entrega, local_id, pago, subtotal, total, estado, stock_apartado, vence_en, tipo, gc_para, gc_para_tel, gc_mensaje, gc_diseno)
+      VALUES ($1, $2, $3, $4, $5, 'giftcard', $6, $7, $8, $8, 'pendiente_pago', FALSE, NOW() + ($9 || ' hours')::interval, 'giftcard', $10, $11, $12, $13) RETURNING *`,
+      [codigo, clienteId, nombre, telefono, email, localId, pago, monto, String(horas), para, paraTel, mensaje, tienda.GC_DISENOS.includes(b.diseno) ? b.diseno : null])).rows[0];
   } catch (e) {
     console.error('[tienda publica] gift card:', e.message);
     return res.status(500).json({ error: 'No se pudo hacer el pedido. Probá de nuevo.' });
@@ -811,7 +811,7 @@ router.get('/:slug/pedidos/:codigo', async (req, res) => {
       subtotal: num(p.subtotal), costo_envio: num(p.costo_envio), descuento: num(p.descuento), descuento_amiga: num(p.descuento_amiga), descuento_combo: num(p.descuento_combo), combos: p.combos || null, muestra: p.muestra || null, adviento_regalo: p.adviento_regalo || null, hw_regalo: p.hw_regalo || null, express_min: p.express_min || null, listo_express: tienda.listoExpress(p), descuento_pago: num(p.descuento_pago), descuento_pago_pct: p.descuento_pago_pct === null ? null : num(p.descuento_pago_pct), cupon: p.cupon || null, total: num(p.total), items, link_pago: p.estado === 'pendiente_pago' ? p.mp_link : null,
       pago_rechazado: !p.pagado && !!p.pago_rechazo, vence_en: p.vence_en, transferencia: p.pago === 'transferencia' && !p.pagado ? (req.tienda.transferencia_datos || '') : null, creado_en: p.creado_en,
       gc_usado: num(p.gc_usado_monto) > 0 ? { codigo: p.gc_usado_codigo, monto: num(p.gc_usado_monto) } : null,
-      giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
+      giftcard: p.tipo === 'giftcard' ? { para: p.gc_para, mensaje: p.gc_mensaje, diseno: p.gc_diseno || null, para_telefono: p.gc_para_tel, codigo: p.gc_codigo || null, firma: p.gc_codigo ? tienda.firmaRegalo(p.gc_codigo) : null, monto: num(p.total), de: p.nombre } : null,
     });
   } catch (e) { res.status(500).json({ error: 'No se pudo consultar el pedido' }); }
 });

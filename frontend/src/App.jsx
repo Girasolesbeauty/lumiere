@@ -15339,7 +15339,7 @@ function GiftCardOnline({ gc, p, onCerrar }) {
     API.get("/tienda/giftcard/" + gc.id + "/online").then(r => { setD(r.data); setF({ mensaje: r.data.mensaje || "", de: r.data.comprador_nombre || "", tel: r.data.beneficiario_telefono || "" }); })
       .catch(e => setAviso(e.response?.data?.error || "No se pudo abrir"));
   }, []);
-  const t = TW_TEMAS_REGALO[d && d.tema] || TW_TEMAS_REGALO.general;
+  const t = twDisenoGc(TW_TEMAS_REGALO[d && d.tema] || TW_TEMAS_REGALO.general, d && d.diseno);
   const link = d && d.slug ? twLinkRegalo(d.dominio, d.slug, d.codigo, d.firma) : "";
   const de1 = String(f.de || "").trim().split(/\s+/)[0];
   const texto = d ? "🎁 ¡" + d.beneficiario_nombre + ", te regalaron una gift card de " + fmt(d.monto_inicial) + " en " + (d.titulo || "nuestra tienda") + "!" + (de1 ? " De parte de " + de1 + "." : "") + "\n\nAbrí tu regalo acá 👉 " + link + "\n\nTu código es *" + d.codigo + "*. Mostralo en el local para usarla." : "";
@@ -30508,6 +30508,21 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-gc-msj{font-family:Georgia,serif;font-style:italic;font-size:14px;margin-top:6px;position:relative;opacity:.95;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tw-gc-cod{position:relative;align-self:flex-start;margin-top:10px;background:var(--b1);color:var(--b1t);border-radius:10px;padding:6px 12px;font:900 20px ui-monospace,Menlo,monospace;letter-spacing:.06em}
 .tw-gc-cod small{display:block;font:800 9.5px Helvetica,Arial,sans-serif;letter-spacing:.14em;opacity:.7}
+.tw-gcd-deco{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:inherit}
+.tw-gcd-deco b{position:absolute;color:rgba(255,255,255,.9);font-weight:400;line-height:1;text-shadow:0 0 8px rgba(255,255,255,.7);animation:twGcdCopo 6s ease-in-out infinite}
+.tw-gcd-3 .tw-gcd-deco b{color:#c58f1a;text-shadow:0 0 6px rgba(255,255,255,.8)}
+@keyframes twGcdCopo{0%,100%{transform:translateY(0) rotate(0);opacity:.3}50%{transform:translateY(9px) rotate(45deg);opacity:1}}
+.tw-gcd-1 .tw-gcd-cinta{position:absolute;top:0;bottom:0;left:72%;width:46px;background:linear-gradient(90deg,#c8962a,#f9e08a 50%,#c8962a);box-shadow:0 0 14px rgba(0,0,0,.25)}
+.tw-gcd-1 .tw-gcd-lazo{position:absolute;left:calc(72% - 20px);top:-8px;font-size:84px;font-style:normal;filter:drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+.tw-gcd-2 .tw-gcd-marco{position:absolute;inset:10px;border:2px solid rgba(245,200,76,.8);border-radius:16px}
+.tw-gcd-3 .tw-gcd-marco{position:absolute;inset:0;border:9px solid #b3121f;border-radius:22px;box-shadow:inset 0 0 0 3px #f6e7bd}
+.tw-gcd-3 .tw-gc-tag{background:rgba(179,18,31,.14)}
+.tw-gcd-elegir{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 18px}
+.tw-gcd-op{border:2px solid transparent;border-radius:14px;padding:14px 6px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font:inherit;box-shadow:0 8px 18px -10px rgba(0,0,0,.45);transition:transform .15s,border-color .15s}
+.tw-gcd-op span{font-size:26px;line-height:1}.tw-gcd-op b{font-size:12.5px;font-weight:800}
+.tw-gcd-op:hover{transform:translateY(-2px)}
+.tw-gcd-op.on{border-color:#222;box-shadow:0 0 0 3px rgba(255,255,255,.9),0 0 0 5px #222}
+@media(prefers-reduced-motion:reduce){.tw-gcd-deco b{animation:none}}
 .tw-gc-emoji{position:absolute;right:14px;bottom:4px;font-size:78px;opacity:.22;transform:rotate(-12deg)}
 .tw-rg-como{list-style:none;padding:0;margin:20px 0 0;display:flex;flex-direction:column;gap:10px}
 .tw-rg-como li{display:flex;gap:12px;align-items:center;background:var(--r3);border-radius:14px;padding:12px 14px;font-size:14.5px;line-height:1.35;color:#333}
@@ -32192,6 +32207,15 @@ const TW_TEMAS_REGALO = {
     mensajes: ["¡Feliz cumple! 🎉", "Para que te des un gustito ✨", "Un mimo para vos 💝"] },
 };
 const twTemaRegalo = (r) => TW_TEMAS_REGALO[r && r.tema] || TW_TEMAS_REGALO.general;
+// Diseños de gift card navideñas: quien la compra elige uno y es el que ve quien la recibe
+const TW_GC_DISENOS = {
+  "navidad-1": { nombre: "Rojo y oro", c1: "#a80f1c", c2: "#e23744", tinta: "#7a0c14", texto: null, emoji: "🎁" },
+  "navidad-2": { nombre: "Pino y nieve", c1: "#0c3b2a", c2: "#1d7a52", tinta: "#0b3324", texto: null, emoji: "🎄" },
+  "navidad-3": { nombre: "Champagne", c1: "#f6e7bd", c2: "#e4be67", tinta: "#4a2c00", texto: "#4a2c00", emoji: "⭐" },
+};
+const twDisenoGc = (t, d) => { const x = TW_GC_DISENOS[d]; return x ? { ...t, c1: x.c1, c2: x.c2, tinta: x.tinta, texto: x.texto, emoji: x.emoji } : t; };
+// Copos que caen sobre la tarjeta (posiciones fijas, sin azar, para que no salten al volver a dibujar)
+const twCoposGc = (n) => Array.from({ length: n }, (_, k) => <b key={k} style={{ left: ((k * 37 + 11) % 96) + "%", top: ((k * 53 + 7) % 84) + "%", fontSize: 11 + (k % 4) * 5, animationDelay: (k % 7) * 0.7 + "s" }}>{k % 3 === 0 ? "✦" : "❄"}</b>);
 // --rx: color del texto sobre el fondo de la tematica (oscuro sobre el amarillo girasol, blanco sobre los demas)
 const twVarsRegalo = (t) => ({ "--r1": t.c1, "--r2": t.c2, "--r3": t.c3, "--rt": t.tinta, "--rx": t.texto || "#fff", "--b1": t.texto ? "#2b2b2b" : "#fff", "--b1t": t.texto ? "#fff" : t.tinta });
 // Logo de la marca que se lee sobre ese fondo
@@ -34051,10 +34075,16 @@ function TwRegalosHero({ r, tienda, onGift, onArmar }) {
 }
 
 // La gift card dibujada (vista previa al comprarla y, ya pagada, con su codigo)
-function TwGiftCard({ t, tienda, monto, para, de, mensaje, codigo }) {
+function TwGiftCard({ t: t0, tienda, monto, para, de, mensaje, codigo, diseno }) {
+  const dis = TW_GC_DISENOS[diseno] ? diseno : null, t = dis ? twDisenoGc(t0, dis) : t0;
   return (
-    <div className="tw-gc" style={twVarsRegalo(t)}>
+    <div className={"tw-gc" + (dis ? " tw-gcd tw-gcd-" + dis.slice(-1) : "")} style={twVarsRegalo(t)}>
       <div className="tw-gc-brillo" />
+      {dis && <div className="tw-gcd-deco" aria-hidden="true">
+        {dis === "navidad-1" && <><i className="tw-gcd-cinta" /><i className="tw-gcd-lazo">🎀</i></>}
+        {dis !== "navidad-1" && <i className="tw-gcd-marco" />}
+        {twCoposGc(dis === "navidad-2" ? 22 : 12)}
+      </div>}
       <div className="tw-gc-top">{twLogoRegalo(tienda, t) ? <img className="tw-gc-logo" src={twLogoRegalo(tienda, t)} alt={tienda.titulo} /> : <span className="tw-gc-marca">{tienda.logo ? <img src={tienda.logo} alt="" /> : null}{tienda.titulo}</span>}<span className="tw-gc-tag">GIFT CARD</span></div>
       <div className="tw-gc-monto">{monto ? fmtTienda(monto) : "$ —"}</div>
       <div className="tw-gc-para">Para <b>{para || "…"}</b>{de ? <> · de <b>{de}</b></> : null}</div>
@@ -34066,7 +34096,8 @@ function TwGiftCard({ t, tienda, monto, para, de, mensaje, codigo }) {
 }
 
 // Imagen de la gift card (para mandarla por WhatsApp o guardarla)
-async function twImagenGiftCard({ t, titulo, monto, para, de, mensaje, codigo, logo }) {
+async function twImagenGiftCard({ t: t0, titulo, monto, para, de, mensaje, codigo, logo, diseno }) {
+  const dis = TW_GC_DISENOS[diseno] ? diseno : null, t = dis ? twDisenoGc(t0, dis) : t0;
   let img = null;
   if (logo) { try { img = new Image(); img.src = logo; await img.decode(); } catch (e) { img = null; } }
   const W = 1080, H = 680, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
@@ -34075,6 +34106,18 @@ async function twImagenGiftCard({ t, titulo, monto, para, de, mensaje, codigo, l
   const fondo = g.createLinearGradient(0, 0, W, H); fondo.addColorStop(0, t.c1); fondo.addColorStop(1, t.c2);
   rr(0, 0, W, H, 48); g.fillStyle = fondo; g.fill();
   g.globalAlpha = .16; g.font = "220px serif"; g.fillText(t.emoji, W - 300, H - 60); g.globalAlpha = 1;
+  if (dis) {
+    g.save(); rr(0, 0, W, H, 48); g.clip();
+    if (dis === "navidad-1") {
+      const cinta = g.createLinearGradient(W * 0.72, 0, W * 0.72 + 96, 0); cinta.addColorStop(0, "#c8962a"); cinta.addColorStop(.5, "#f9e08a"); cinta.addColorStop(1, "#c8962a");
+      g.fillStyle = cinta; g.fillRect(W * 0.72, 0, 96, H); g.font = "150px serif"; g.fillStyle = "#fff"; g.fillText("🎀", W * 0.72 - 28, 120);
+    } else if (dis === "navidad-2") { g.strokeStyle = "rgba(245,200,76,.8)"; g.lineWidth = 5; rr(22, 22, W - 44, H - 44, 36); g.stroke(); }
+    else { g.strokeStyle = "#b3121f"; g.lineWidth = 22; rr(11, 11, W - 22, H - 22, 42); g.stroke(); g.strokeStyle = "#f6e7bd"; g.lineWidth = 5; rr(26, 26, W - 52, H - 52, 30); g.stroke(); }
+    g.fillStyle = dis === "navidad-3" ? "#c58f1a" : "rgba(255,255,255,.85)";
+    const n = dis === "navidad-2" ? 26 : 14;
+    for (let k = 0; k < n; k++) { g.globalAlpha = .45 + (k % 3) * .2; g.font = (22 + (k % 4) * 12) + "px Helvetica, Arial, sans-serif"; g.fillText(k % 3 === 0 ? "✦" : "❄", ((k * 37 + 11) % 96) / 100 * W, ((k * 53 + 14) % 84) / 100 * H + 40); }
+    g.globalAlpha = 1; g.restore();
+  }
   const tx = t.texto || "#fff";
   g.fillStyle = tx; g.textBaseline = "alphabetic";
   if (img) { const h = 120, w = h * (img.naturalWidth || 709) / (img.naturalHeight || 517); g.drawImage(img, 56, 26, w, h); }
@@ -34109,7 +34152,7 @@ function TwGiftCardPedido({ pedido, tienda, slug }) {
   const compartir = async () => {
     setAviso("");
     try {
-      const blob = await twImagenGiftCard({ t, titulo: tienda.titulo, monto: g.monto, para: g.para, de, mensaje: g.mensaje, codigo: g.codigo, logo: twLogoRegalo(tienda, t) });
+      const blob = await twImagenGiftCard({ t, titulo: tienda.titulo, monto: g.monto, para: g.para, de, mensaje: g.mensaje, codigo: g.codigo, logo: twLogoRegalo(tienda, twDisenoGc(t, g.diseno)), diseno: g.diseno });
       const archivo = new File([blob], "gift-card-" + g.codigo + ".png", { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [archivo] })) { await navigator.share({ files: [archivo], text: texto }); return; }
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = archivo.name; document.body.appendChild(a); a.click(); a.remove();
@@ -34118,7 +34161,7 @@ function TwGiftCardPedido({ pedido, tienda, slug }) {
   };
   return (
     <div style={{ margin: "4px 0 18px" }}>
-      <TwGiftCard t={t} tienda={tienda} monto={g.monto} para={g.para} de={de} mensaje={g.mensaje} codigo={g.codigo} />
+      <TwGiftCard t={t} tienda={tienda} monto={g.monto} para={g.para} de={de} mensaje={g.mensaje} codigo={g.codigo} diseno={g.diseno} />
       {g.codigo ? (
         <div className="tw-gc-acciones" style={twVarsRegalo(t)}>
           <button className="tw-rg-otra" onClick={compartir}>📲 Mandar la gift card como imagen</button>
@@ -34165,7 +34208,7 @@ function TwRegaloAbrir({ tienda, valor, pedir, slug, modoRuta }) {
   const mover = (e) => { if (twMenosMovimiento()) return; const r = e.currentTarget.getBoundingClientRect(); const x = ((e.clientX - r.left) / r.width - 0.5), y = ((e.clientY - r.top) / r.height - 0.5); setGiro({ x: -y * 14, y: x * 18 }); };
   const guardar = async () => {
     try {
-      const blob = await twImagenGiftCard({ t, titulo: tienda.titulo, monto: g.monto, para: g.para, de: g.de, mensaje: g.mensaje, codigo: g.codigo, logo: twLogoRegalo(tienda, t) });
+      const blob = await twImagenGiftCard({ t, titulo: tienda.titulo, monto: g.monto, para: g.para, de: g.de, mensaje: g.mensaje, codigo: g.codigo, logo: twLogoRegalo(tienda, twDisenoGc(t, g.diseno)), diseno: g.diseno });
       const archivo = new File([blob], "gift-card-" + g.codigo + ".png", { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [archivo] })) { await navigator.share({ files: [archivo] }); return; }
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = archivo.name; document.body.appendChild(a); a.click(); a.remove();
@@ -34194,7 +34237,7 @@ function TwRegaloAbrir({ tienda, valor, pedir, slug, modoRuta }) {
           <div className="tw-ab-abierto">
             <div className="tw-ab-ceja">{t.emoji} ¡Te regalaron una gift card!</div>
             <div className="tw-ab-tarjeta" onPointerMove={mover} onPointerLeave={() => setGiro({ x: 0, y: 0 })} style={{ transform: "perspective(900px) rotateX(" + giro.x + "deg) rotateY(" + giro.y + "deg)" }}>
-              <TwGiftCard t={t} tienda={tienda} monto={g.monto} para={g.para} de={g.de} mensaje={escrito} codigo={g.codigo} />
+              <TwGiftCard t={t} tienda={tienda} monto={g.monto} para={g.para} de={g.de} mensaje={escrito} codigo={g.codigo} diseno={g.diseno} />
             </div>
             {g.estado === "anulada" ? <div className="tw-rg-aviso">Esta gift card ya no está activa. Escribinos si tenés dudas.</div>
               : g.saldo <= 0 ? <div className="tw-rg-aviso">Esta gift card ya se usó completa.</div>
@@ -34274,7 +34317,7 @@ function twArmarRegalo(cands0, presupuesto, gustos, piel, evitar = [], gustaFn, 
 function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades, lid, datos, setDatos, pedir, slug, modoRuta, onAgregar, onAbrir, onCompartir, copiado }) {
   const t = twTemaRegalo(r);
   const pagos = [tienda.pagos.mp && ["mp", "Mercado Pago", "Tarjeta, débito o dinero en cuenta"], tienda.pagos.gocuotas && ["gocuotas", "GoCuotas", "Cuotas sin interés con débito"], tienda.pagos.transferencia && ["transferencia", "Transferencia", "Te pasamos los datos"]].filter(Boolean);
-  const [gc, setGc] = useState(() => ({ monto: r.montos[1] || r.montos[0] || "", otro: "", para: "", para_telefono: "", mensaje: "", local_id: lid || (ciudades[0] && ciudades[0].id) || 1, pago: pagos[0] ? pagos[0][0] : "" }));
+  const [gc, setGc] = useState(() => ({ monto: r.montos[1] || r.montos[0] || "", otro: "", para: "", para_telefono: "", mensaje: "", diseno: "navidad-1", local_id: lid || (ciudades[0] && ciudades[0].id) || 1, pago: pagos[0] ? pagos[0][0] : "" }));
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
   const monto = gc.monto === "otro" ? Math.round(Number(gc.otro) || 0) : gc.monto;
@@ -34289,7 +34332,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
     setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const x = await pedir("/giftcards", { method: "POST", body: JSON.stringify({ monto, para: gc.para, para_telefono: gc.para_telefono, mensaje: gc.mensaje, local_id: gc.local_id, pago: gc.pago, nombre: datos.nombre, telefono: datos.telefono, email: datos.email, volver_a: window.location.href }) });
+      const x = await pedir("/giftcards", { method: "POST", body: JSON.stringify({ monto, para: gc.para, para_telefono: gc.para_telefono, mensaje: gc.mensaje, diseno: t === TW_TEMAS_REGALO.navidad ? gc.diseno : undefined, local_id: gc.local_id, pago: gc.pago, nombre: datos.nombre, telefono: datos.telefono, email: datos.email, volver_a: window.location.href }) });
       try { const k = "tw_pedidos_" + slug, l = JSON.parse(localStorage.getItem(k) || "[]"); localStorage.setItem(k, JSON.stringify([x.codigo, ...l.filter(c => c !== x.codigo)].slice(0, 5))); } catch (e) {}
       if (x.link_pago) { window.location.href = x.link_pago; return; }
       window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + x.codigo;
@@ -34363,7 +34406,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
       {modo === "gift" && r.giftcards && (
         <section className="tw-rg-panel tw-rg-gift">
           <div className="tw-rg-gift-prev">
-            <TwGiftCard t={t} tienda={tienda} monto={monto} para={gc.para} de={String(datos.nombre || "").split(" ")[0]} mensaje={gc.mensaje} />
+            <TwGiftCard t={t} tienda={tienda} monto={monto} para={gc.para} de={String(datos.nombre || "").split(" ")[0]} mensaje={gc.mensaje} diseno={t === TW_TEMAS_REGALO.navidad ? gc.diseno : null} />
             <ul className="tw-rg-como">
               <li><span>💳</span>Pagás online y te mostramos el código al instante.</li>
               <li><span>📲</span>Se la mandás por WhatsApp como imagen, con tu mensaje.</li>
@@ -34371,6 +34414,16 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
             </ul>
           </div>
           <div className="tw-rg-form">
+            {t === TW_TEMAS_REGALO.navidad && <>
+              <div className="tw-rg-paso"><b>🎄</b> Elegí el diseño</div>
+              <div className="tw-gcd-elegir" role="radiogroup" aria-label="Diseño de la gift card">
+                {Object.entries(TW_GC_DISENOS).map(([k, x]) => (
+                  <button key={k} role="radio" aria-checked={gc.diseno === k} className={"tw-gcd-op tw-gcd-op-" + k.slice(-1) + (gc.diseno === k ? " on" : "")} style={{ background: "linear-gradient(135deg," + x.c1 + "," + x.c2 + ")", color: x.texto || "#fff" }} onClick={() => setGc(g => ({ ...g, diseno: k }))}>
+                    <span aria-hidden="true">{x.emoji}</span><b>{x.nombre}</b>
+                  </button>
+                ))}
+              </div>
+            </>}
             <div className="tw-rg-paso"><b>1</b> Elegí el monto</div>
             <div className="tw-rg-chips">
               {r.montos.map(m => chip(gc.monto === m, () => setGc(g => ({ ...g, monto: m })), fmtTienda(m), m))}
