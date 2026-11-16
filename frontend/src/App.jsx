@@ -30472,9 +30472,15 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media(max-width:760px){.tw-rg-hero{grid-template-columns:1fr;padding:28px 22px 22px;margin-top:18px}.tw-rg-hero-art{height:150px;order:-1;margin:-6px 0 -4px}.tw-rg-caja{width:110px;height:110px}.tw-rg-mini{left:12%}.tw-rg-faltan{width:68px;height:68px;right:8%}.tw-rg-faltan b{font-size:26px}.tw-rg-b1,.tw-rg-b2{flex:1 1 100%;text-align:center}}
 .tw-nav .tw-nav-regalo{background:linear-gradient(90deg,var(--r1,#ff4f87),var(--r2,#ff9b85))!important;color:#fff!important;opacity:1!important;text-shadow:0 1px 2px rgba(0,0,0,.25);border-radius:999px;font-weight:900;padding-left:14px!important;padding-right:14px!important;animation:twRgLatidoS 2.2s ease-in-out infinite}
 @keyframes twRgLatidoS{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-.tw-navbar .tw-nav button.tw-nav-gc{flex-shrink:0;position:relative;overflow:hidden;color:#4a3000!important;background:linear-gradient(110deg,#b8860b,#f5c84c 35%,#fff1b8 50%,#f5c84c 65%,#b8860b)!important;background-size:200% 100%!important;color:#4a3000!important;text-shadow:0 1px 0 rgba(255,255,255,.6);box-shadow:0 0 0 1px rgba(184,134,11,.35),0 4px 14px -4px rgba(245,200,76,.9);animation:twGcOro 3s linear infinite,twRgLatidoS 2.2s ease-in-out infinite}
-.tw-navbar .tw-nav button.tw-nav-gc::after,.tw-navbar .tw-nav button.tw-nav-gc.on::after,.tw-navbar .tw-nav button.tw-nav-gc:hover::after{content:"";position:absolute;top:0;bottom:0;right:auto;height:auto;left:-60%;width:40%;transform-origin:center;background:linear-gradient(100deg,transparent,rgba(255,255,255,.95),transparent);transform:skewX(-20deg);animation:twGcBarre 2.4s ease-in-out infinite;pointer-events:none}
-.tw-nav-gc-chispa{position:absolute;top:1px;right:5px;font-style:normal;font-size:10px;color:#fff;text-shadow:0 0 6px #fff;animation:twRgTitila 1.6s ease-in-out infinite;pointer-events:none}
+/* Gift Cards en el menú: texto simple con dos brillitos dorados que titilan (como Sephora) */
+.tw-navbar .tw-nav button.tw-nav-gc{flex-shrink:0;position:relative;overflow:visible;background:none!important;box-shadow:none!important;animation:none!important;border-radius:0!important;color:#fff!important;text-shadow:none!important;font-weight:500!important;opacity:.85;padding:13px 6px 14px!important;margin:0 6px}
+.tw-navbar .tw-nav button.tw-nav-gc:hover,.tw-navbar .tw-nav button.tw-nav-gc.on{opacity:1}
+.tw-navbar .tw-nav button.tw-nav-gc::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:2px;background:#fff;transform:scaleX(0);transform-origin:left;transition:transform .3s cubic-bezier(.2,.7,.2,1);animation:none;width:auto;top:auto}
+.tw-navbar .tw-nav button.tw-nav-gc:hover::after,.tw-navbar .tw-nav button.tw-nav-gc.on::after{transform:scaleX(1)}
+.tw-nav-gc-chispa{position:absolute;font-style:normal;line-height:1;color:#f5c84c;text-shadow:0 0 6px #ffe08a,0 0 12px rgba(245,200,76,.8);animation:twGcChispa 2s ease-in-out infinite;pointer-events:none}
+.tw-nav-gc-chispa.a{top:3px;right:-8px;font-size:18px}
+.tw-nav-gc-chispa.b{bottom:3px;left:-9px;font-size:13px;animation-delay:.9s}
+@keyframes twGcChispa{0%,100%{transform:scale(.45) rotate(0);opacity:.25}50%{transform:scale(1.15) rotate(35deg);opacity:1}}
 @keyframes twGcOro{0%{background-position:100% 0}100%{background-position:-100% 0}}
 @keyframes twGcBarre{0%,55%{left:-60%}100%{left:130%}}
 .tw-rg{margin-top:18px}
@@ -36111,7 +36117,7 @@ function TiendaPublica({ slug }) {
             {tienda.cyber && <button className={"tw-cy-nav" + (cat === "cyber" && !q ? " on" : "")} onClick={() => irCat("cyber")}>CYBER</button>}
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {tienda.regalos && (tienda.regalos.giftcards
-              ? <button className={"tw-nav-regalo tw-nav-gc" + (cat === "regalos" && !q ? " on" : "")} onClick={() => irRegalos("gift")}><span aria-hidden="true">🎁</span> Gift Cards<i className="tw-nav-gc-chispa" aria-hidden="true">✦</i></button>
+              ? <button className={"tw-nav-regalo tw-nav-gc" + (cat === "regalos" && !q ? " on" : "")} onClick={() => irRegalos("gift")}>Gift Cards<i className="tw-nav-gc-chispa a" aria-hidden="true">✦</i><i className="tw-nav-gc-chispa b" aria-hidden="true">✦</i></button>
               : (() => { const t = twTemaRegalo(tienda.regalos); return <button className={"tw-nav-regalo" + (cat === "regalos" && !q ? " on" : "")} style={twVarsRegalo(t)} onClick={() => irRegalos()}>{t.emoji} {tienda.regalos.tema === "general" ? "Regalos" : t.nombre}</button>; })())}
             {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
             {catSkin && <button className={(cat === catSkin && !q) || menuSkin === catSkin ? "on" : ""} onClick={() => hayMenuSkin ? setMenuSkin(catSkin) : irCat(catSkin)}>{catSkin}{hayMenuSkin ? " ▾" : ""}</button>}
