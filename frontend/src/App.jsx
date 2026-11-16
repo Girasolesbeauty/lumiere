@@ -35158,7 +35158,7 @@ function TiendaPublica({ slug }) {
   // Gift card para pagar (se valida en el servidor y se vuelve a revisar al hacer el pedido)
   const gcCubre = !!gcOk && gcOk.saldo >= subtotal - descCombo - descuentoCupon - descAmiga + costoEnvio;
   const descPagosKits = tienda.descuentos_pago_kits || {};
-  // Con productos en preventa solo se paga con Mercado Pago: otra forma elegida antes no vale
+  // Con productos en preventa solo se paga con Mercado Pago o transferencia: otra forma elegida antes no vale
   const carritoPreventa = carrito.some(i => i.preventa);
   // GoCuotas solo en compras desde el minimo que pone la tienda (lo que suman los productos, sin el envio)
   const gocMin = (tienda.pagos && tienda.pagos.gocuotas_minimo) || 0, gocFalta = gocMin ? Math.max(0, gocMin - (subtotal - descCombo)) : 0;
@@ -35169,7 +35169,7 @@ function TiendaPublica({ slug }) {
   // Oferta del día con formas de pago elegidas: con ese producto en el carrito no se puede pagar con las otras
   const diaPagos = diaT && (diaT.pagos || []).length && carrito.some(i => i.producto_id === diaT.producto_id && !i.preventa && (lista0.find(x => x.id === i.producto_id) || {}).precio_antes) ? diaT.pagos : null;
   const pagoNo = (k) => (k === "gocuotas" && (gocFalta > 0 || cuponContado || gocOferta.length > 0)) || (hwJunta && (k === "mp" || k === "gocuotas")) || (!!diaPagos && !diaPagos.includes(k));
-  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp") && !pagoNo(datos.pago) ? datos.pago : null;
+  const pagoElegido = datos.pago && (!carritoPreventa || datos.pago === "mp" || datos.pago === "transferencia") && !pagoNo(datos.pago) ? datos.pago : null;
   // Sus códigos de Halloween sin usar (para juntarlos en esta compra)
   const hwCodigos = logueada && hwInfo && tienda.halloween ? (hwInfo.premios || []).filter(x => x.tipo === "cupon" && x.cupon && !x.cupon_usado) : [];
   // El mejor descuento de kits entre las formas de pago activas (se muestra en la tarjeta de cada kit)
@@ -35405,7 +35405,7 @@ function TiendaPublica({ slug }) {
                 <TwAyudaPago pedido={pedido} ayuda={tienda.ayuda_pago} linkWa={(t) => wa(t, pedido.local_id)}
                   falla={pedido.pago_rechazado || params.get("gc") === "no" || ["rejected", "null"].includes(params.get("collection_status") || params.get("status") || "")}
                   nombreLocal={pedido.local && pedido.local.nombre}
-                  otrosPagos={pedido.items.some(i => i.preventa) ? [] : [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"]]
+                  otrosPagos={pedido.items.some(i => i.preventa) ? [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"]] : [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar"]]
                     .filter(([k]) => k !== pedido.pago && tienda.pagos && tienda.pagos[k]).map(x => [...x, (tienda.descuentos_pago || {})[x[0]] || 0])}
                   onOtroPago={async (k) => {
                     if (!window.confirm("¿Pagar con " + ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia" })[k] + "? Te armamos el carrito con los mismos productos para que termines la compra.")) throw new Error("no");
@@ -35569,7 +35569,7 @@ function TiendaPublica({ slug }) {
   const enComparar = comparar.map(id => lista0.find(p => p.id === id)).filter(Boolean);
   const toggleComparar = (p) => setComparar(c => c.includes(p.id) ? c.filter(x => x !== p.id) : [...c, p.id].slice(-3));
   const opcionesPago = [["mp", "💳 Mercado Pago", "Tarjeta, débito o dinero en cuenta"], ["gocuotas", "💜 GoCuotas", "Hasta 4 cuotas sin interés con tu tarjeta de débito"], ["transferencia", "🏦 Transferencia", "Te pasamos el alias al confirmar · tenés " + (parseInt(tienda.horas_reserva) || 24) + " h para transferir"], ["retiro", "💵 Pago al retirar", "Pagás en el local"]]
-    .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio") && (!carritoPreventa || k === "mp"));
+    .filter(([k]) => tienda.pagos[k] && !(k === "retiro" && datos.entrega === "envio") && (!carritoPreventa || k === "mp" || k === "transferencia"));
   const listoParaPedir = lid && datos.nombre && datos.telefono && datos.entrega && (pagoElegido || gcCubre) && (datos.entrega === "retiro" ? retiroAca.length > 0 : (zona && datos.direccion));
   const faltaDatos = !datos.nombre || !datos.telefono;
   const faltaEntrega = !lid || !datos.entrega || (datos.entrega === "retiro" && !retiroAca.length);
@@ -36693,7 +36693,7 @@ function TiendaPublica({ slug }) {
                     </>
                   )}
                   <div id="tw-ck-pago" className="tw-lbl tw-paso"><span className={"tw-paso-n" + (faltaPago ? "" : " ok")}>{faltaPago ? "3" : "✓"}</span>{gcOk && !gcCubre ? "¿Cómo pagás el resto (" + fmtTienda(totalPagar) + ")?" : "¿Cómo pagás?"}{intentoPedir && faltaPago && <span className="tw-falta-tag">Tocá una opción</span>}</div>
-                  {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago</b><span>{tienda.pagos.mp ? "Para reservar productos que todavía no llegaron, el pago es solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "Ahora no podemos cobrar con Mercado Pago: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
+                  {carritoPreventa && !gcCubre && <div className="tw-preventa-aviso chico" style={{ marginBottom: 8 }}><b>💳 La preventa se paga con Mercado Pago o transferencia</b><span>{tienda.pagos.mp || tienda.pagos.transferencia ? "Para reservar productos que todavía no llegaron, el pago es " + (tienda.pagos.mp && tienda.pagos.transferencia ? "con Mercado Pago (tarjeta, débito o dinero en cuenta) o con transferencia." : tienda.pagos.mp ? "solo con Mercado Pago (tarjeta, débito o dinero en cuenta)." : "solo con transferencia.") : "Ahora no podemos cobrar online: escribinos por WhatsApp para reservar tu preventa."}</span></div>}
                   {gcCubre ? <div className="tw-cupon" style={{ padding: "10px 12px", fontSize: 14 }}>✓ <b>Lo pagás todo con tu gift card.</b> No hace falta otra forma de pago.</div> : opcionesPago.map(([k, t, d]) => pagoNo(k) ? <button key={k} className="tw-op" disabled style={{ opacity: .55, cursor: "default" }}><b>{t}</b><div style={{ fontSize: 13, color: "#666" }}>{diaPagos && !diaPagos.includes(k) ? "La oferta del día se paga solo con " + diaPagos.map(x => ({ mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "transferencia", retiro: "pago al retirar" })[x] || x).join(" o ") : hwJunta ? "Juntando tus códigos de Halloween pagás con transferencia o en efectivo" : cuponContado ? "Tu cupón " + cuponOk.codigo + " vale sin cuotas" : k === "gocuotas" && gocOferta.length ? "No disponible para productos en oferta" + (tienda.cyber ? " del Cyber" : "") + " (" + gocOferta.slice(0, 2).join(", ") + (gocOferta.length > 2 ? " y " + (gocOferta.length - 2) + " más" : "") + ")" : <>Disponible en compras desde {fmtTienda(gocMin)} · te faltan {fmtTienda(gocFalta)}</>}</div></button> : <button key={k} className={"tw-op" + (pagoElegido === k ? " on" : "") + (intentoPedir && faltaPago ? " falta" : "")} onClick={() => setDatos(x => ({ ...x, pago: k }))}><b>{t}</b>{descPagos[k] > 0 && !hwJunta && algoSinOferta && <span className="tw-op-off">{String(descPagos[k]).replace(".", ",")}% OFF</span>}{descPagosKits[k] > 0 && montoKits > 0 && <span className="tw-op-off">Kits {String(descPagosKits[k]).replace(".", ",")}% OFF</span>}<div style={{ fontSize: 13, color: "#666" }}>{cuponContado && k === "mp" ? "En 1 pago (débito, crédito o dinero en cuenta), por tu cupón" : hwJunta && k === "retiro" ? "En efectivo en el local, por juntar tus códigos" : cuponContado && k === "retiro" ? "Efectivo, débito o crédito en 1 cuota, por tu cupón" : d}</div></button>)}
                   {!gcCubre && tienda.ayuda_pago && tienda.ayuda_pago.local && tienda.ayuda_pago.cuotas_local && <div className="tw-ap-hint">💳 ¿Preferís pagar con tarjeta de crédito? En nuestros locales: <b>{tienda.ayuda_pago.cuotas_local}</b>.</div>}
                   <div className="tw-lbl">🎁 ¿Tenés una gift card? Usala para pagar</div>
