@@ -34316,8 +34316,11 @@ function twArmarRegalo(cands0, presupuesto, gustos, piel, evitar = [], gustaFn, 
 // Pagina del sector de regalos
 function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades, lid, datos, setDatos, pedir, slug, modoRuta, onAgregar, onAbrir, onCompartir, copiado }) {
   const t = twTemaRegalo(r);
+  // Los diseños navideños se ofrecen con el tema Navidad y también en la temporada (del 15 de noviembre al 6 de enero)
+  const esNav = t === TW_TEMAS_REGALO.navidad, hoyAR = new Date(Date.now() - 3 * 3600e3);
+  const conDisenos = esNav || (hoyAR.getUTCMonth() === 10 && hoyAR.getUTCDate() >= 15) || hoyAR.getUTCMonth() === 11 || (hoyAR.getUTCMonth() === 0 && hoyAR.getUTCDate() <= 6);
   const pagos = [tienda.pagos.mp && ["mp", "Mercado Pago", "Tarjeta, débito o dinero en cuenta"], tienda.pagos.gocuotas && ["gocuotas", "GoCuotas", "Cuotas sin interés con débito"], tienda.pagos.transferencia && ["transferencia", "Transferencia", "Te pasamos los datos"]].filter(Boolean);
-  const [gc, setGc] = useState(() => ({ monto: r.montos[1] || r.montos[0] || "", otro: "", para: "", para_telefono: "", mensaje: "", diseno: "navidad-1", local_id: lid || (ciudades[0] && ciudades[0].id) || 1, pago: pagos[0] ? pagos[0][0] : "" }));
+  const [gc, setGc] = useState(() => ({ monto: r.montos[1] || r.montos[0] || "", otro: "", para: "", para_telefono: "", mensaje: "", diseno: esNav ? "navidad-1" : "", local_id: lid || (ciudades[0] && ciudades[0].id) || 1, pago: pagos[0] ? pagos[0][0] : "" }));
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
   const monto = gc.monto === "otro" ? Math.round(Number(gc.otro) || 0) : gc.monto;
@@ -34332,7 +34335,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
     setEnviando(true);
     try { localStorage.setItem("tienda_datos", JSON.stringify({ nombre: datos.nombre, telefono: datos.telefono, email: datos.email, direccion: datos.direccion })); } catch (e) {}
     try {
-      const x = await pedir("/giftcards", { method: "POST", body: JSON.stringify({ monto, para: gc.para, para_telefono: gc.para_telefono, mensaje: gc.mensaje, diseno: t === TW_TEMAS_REGALO.navidad ? gc.diseno : undefined, local_id: gc.local_id, pago: gc.pago, nombre: datos.nombre, telefono: datos.telefono, email: datos.email, volver_a: window.location.href }) });
+      const x = await pedir("/giftcards", { method: "POST", body: JSON.stringify({ monto, para: gc.para, para_telefono: gc.para_telefono, mensaje: gc.mensaje, diseno: conDisenos && gc.diseno ? gc.diseno : undefined, local_id: gc.local_id, pago: gc.pago, nombre: datos.nombre, telefono: datos.telefono, email: datos.email, volver_a: window.location.href }) });
       try { const k = "tw_pedidos_" + slug, l = JSON.parse(localStorage.getItem(k) || "[]"); localStorage.setItem(k, JSON.stringify([x.codigo, ...l.filter(c => c !== x.codigo)].slice(0, 5))); } catch (e) {}
       if (x.link_pago) { window.location.href = x.link_pago; return; }
       window.location.href = (modoRuta ? "/" : window.location.pathname) + "?tienda=" + encodeURIComponent(slug) + "&pedido=" + x.codigo;
@@ -34406,7 +34409,7 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
       {modo === "gift" && r.giftcards && (
         <section className="tw-rg-panel tw-rg-gift">
           <div className="tw-rg-gift-prev">
-            <TwGiftCard t={t} tienda={tienda} monto={monto} para={gc.para} de={String(datos.nombre || "").split(" ")[0]} mensaje={gc.mensaje} diseno={t === TW_TEMAS_REGALO.navidad ? gc.diseno : null} />
+            <TwGiftCard t={t} tienda={tienda} monto={monto} para={gc.para} de={String(datos.nombre || "").split(" ")[0]} mensaje={gc.mensaje} diseno={conDisenos ? gc.diseno : null} />
             <ul className="tw-rg-como">
               <li><span>💳</span>Pagás online y te mostramos el código al instante.</li>
               <li><span>📲</span>Se la mandás por WhatsApp como imagen, con tu mensaje.</li>
@@ -34414,9 +34417,10 @@ function TwRegalos({ r, tienda, modo, setModo, productos, dispo, foto, ciudades,
             </ul>
           </div>
           <div className="tw-rg-form">
-            {t === TW_TEMAS_REGALO.navidad && <>
+            {conDisenos && <>
               <div className="tw-rg-paso"><b>🎄</b> Elegí el diseño</div>
-              <div className="tw-gcd-elegir" role="radiogroup" aria-label="Diseño de la gift card">
+              <div className="tw-gcd-elegir" role="radiogroup" aria-label="Diseño de la gift card" style={!esNav ? { gridTemplateColumns: "repeat(4,1fr)" } : undefined}>
+                {!esNav && <button role="radio" aria-checked={!gc.diseno} className={"tw-gcd-op" + (!gc.diseno ? " on" : "")} style={{ background: "linear-gradient(135deg," + t.c1 + "," + t.c2 + ")", color: t.texto || "#fff" }} onClick={() => setGc(g => ({ ...g, diseno: "" }))}><span aria-hidden="true">{t.emoji}</span><b>Clásica</b></button>}
                 {Object.entries(TW_GC_DISENOS).map(([k, x]) => (
                   <button key={k} role="radio" aria-checked={gc.diseno === k} className={"tw-gcd-op tw-gcd-op-" + k.slice(-1) + (gc.diseno === k ? " on" : "")} style={{ background: "linear-gradient(135deg," + x.c1 + "," + x.c2 + ")", color: x.texto || "#fff" }} onClick={() => setGc(g => ({ ...g, diseno: k }))}>
                     <span aria-hidden="true">{x.emoji}</span><b>{x.nombre}</b>
