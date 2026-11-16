@@ -1081,19 +1081,37 @@ const getProductosVendidosDia = async (req, res) => {
     const localNum = local_id === '2' || local_id === 2 ? 2 : 1;
     const colStock = localNum === 2 ? 'stock_ush' : 'stock_rg';
 
-    const r = await pool.query(
-      `SELECT p.id AS producto_id, p.nombre, p.marca, p.${colStock} AS stock_actual,
-              SUM(vi.cantidad) AS cantidad_vendida,
-              SUM(${IMPORTE_VI}) AS total_facturado
+    const sqlVentas = `SELECT vi.producto_id, vi.cantidad, ${IMPORTE_VI} AS total
        FROM venta_items vi
        JOIN ventas v ON vi.venta_id = v.id
-       JOIN productos p ON vi.producto_id = p.id
        WHERE v.local_id = $1 AND DATE(v.creado_en) = $2
-         AND v.es_preventa = FALSE AND v.canal != 'prueba'
+         AND v.es_preventa = FALSE AND v.canal != 'prueba'`;
+    const DIA_AR = (col) => `((${col} AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')::date`;
+    const agrupar = (union) => `SELECT p.id AS producto_id, p.nombre, p.marca, p.${colStock} AS stock_actual,
+              SUM(x.cantidad) AS cantidad_vendida, SUM(x.total) AS total_facturado
+       FROM (${union}) x JOIN productos p ON x.producto_id = p.id
        GROUP BY p.id, p.nombre, p.marca, p.${colStock}
-       ORDER BY total_facturado DESC`,
-      [localNum, fecha]
-    );
+       ORDER BY total_facturado DESC`;
+    let r;
+    try {
+      // Las compras de la tienda web cobradas online (Mercado Pago, transferencia confirmada, GoCuotas) cuentan el dia en que se cobraron,
+      // aunque todavia no las hayan retirado: igual que en el total del cierre. La venta que se registra despues en la caja
+      // (cuando las retiran) no se vuelve a contar.
+      await require('../lib/tienda').asegurar();
+      r = await pool.query(agrupar(`
+        ${sqlVentas}
+          AND NOT EXISTS (SELECT 1 FROM tienda_pedidos tpw WHERE tpw.venta_id = v.id AND tpw.pagado_en IS NOT NULL
+            AND tpw.pago IN ('mp', 'transferencia', 'gocuotas'))
+        UNION ALL
+        SELECT ti.producto_id, ti.cantidad, ti.cantidad * ti.precio
+        FROM tienda_pedido_items ti JOIN tienda_pedidos tp ON tp.id = ti.pedido_id
+        WHERE tp.local_id = $1 AND tp.pago IN ('mp', 'transferencia', 'gocuotas') AND tp.pagado_en IS NOT NULL
+          AND ${DIA_AR('tp.pagado_en')} = $2::date AND tp.estado <> 'cancelado' AND COALESCE(tp.tipo, '') <> 'giftcard'
+          AND NOT COALESCE(ti.preventa, FALSE) AND ti.producto_id IS NOT NULL`), [localNum, fecha]);
+    } catch (e) {
+      // Negocio sin tienda online: solo las ventas del local
+      r = await pool.query(agrupar(sqlVentas), [localNum, fecha]);
+    }
     res.json(r.rows);
   } catch (error) {
     console.error(error);
