@@ -28775,9 +28775,10 @@ html:has(.tw){overflow-x:hidden}
 .tw-navbar .tw-nav button{color:#fff !important;opacity:.85;transition:opacity .2s}
 .tw-navbar .tw-nav button:hover,.tw-navbar .tw-nav button.on{opacity:1}
 .tw-navbar .tw-nav button::after{background:#fff}
-.tw-nav{max-width:1280px;margin:0 auto;display:flex;gap:26px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
+.tw-nav{max-width:1280px;margin:0 auto;display:flex;gap:30px;padding:0 20px;overflow-x:auto;scrollbar-width:none}
 .tw-nav::-webkit-scrollbar{display:none}
-.tw-nav button{background:none;border:none;padding:11px 0 12px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;cursor:pointer;position:relative}
+.tw-nav button{background:none;border:none;padding:13px 0 14px;font-size:15.5px;font-weight:500;letter-spacing:0;text-transform:none;white-space:nowrap;cursor:pointer;position:relative}
+.tw-nav button.tw-nav-ofertas{color:#ff6b6b!important;font-weight:700}
 .tw-nav button::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--n);transform:scaleX(0);transform-origin:left;transition:transform .3s cubic-bezier(.2,.7,.2,1)}
 .tw-nav button:hover::after,.tw-nav button.on::after{transform:scaleX(1)}
 .tw-main{max-width:1280px;margin:0 auto;padding:0 20px 60px}
@@ -32147,7 +32148,7 @@ function twSlugs(lista) {
 // Producto que pide la direccion: /nombre-del-producto (dominio propio) o ?producto=... (link de Lumiere)
 // Direccion de cada seccion: /preventa, /regalos, /videos, /favoritos, /todo, /nuevamente-en-stock y, con una
 // letra adelante para no chocar con los productos, /c/categoria, /s/sector, /m/marca (sin dominio: ?seccion=...)
-const TW_SECC_FIJAS = { halloween: "halloween", cyber: "cyber", preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock" };
+const TW_SECC_FIJAS = { halloween: "halloween", cyber: "cyber", preventa: "preventa", regalos: "regalos", rutina: "rutina", diagnostico: "diagnostico", videos: "videos", favoritos: "favoritos", "*": "todo", reingreso: "nuevamente-en-stock", ofertas: "ofertas", mini: "mini-size" };
 const TW_SECC_RUTAS = Object.fromEntries(Object.entries(TW_SECC_FIJAS).map(([k, v]) => [v, k]));
 const twSeccionDeUrl = () => {
   try {
@@ -35395,7 +35396,17 @@ function TiendaPublica({ slug }) {
   const reingreso = tienda.reingreso;
   const reingresados = reingreso ? visibles.map(p => ({ p, t: p.reingreso ? Math.max(0, ...(lid ? [p.reingreso[lid] || 0] : Object.values(p.reingreso))) : 0 }))
     .filter(x => x.t && Date.now() / 1000 - x.t < reingreso.dias * 86400).sort((a, b) => b.t - a.t).map(x => x.p) : [];
-  const cats = [...new Set(visibles.map(p => p.categoria).filter(Boolean))].sort();
+  // "Capilar" y "CAPILAR" son la misma categoría: el menú las junta (con el nombre que más se usa) y los productos de las dos aparecen juntos
+  const catKey = (c) => String(c || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const catUsos = {};
+  visibles.forEach(p => { if (p.categoria) { const k = catKey(p.categoria); catUsos[k] = catUsos[k] || {}; catUsos[k][p.categoria.trim()] = (catUsos[k][p.categoria.trim()] || 0) + 1; } });
+  const catNombre = (c) => { const m = catUsos[catKey(c)]; return m ? Object.entries(m).sort((a, b) => b[1] - a[1])[0][0] : c; };
+  const ORDEN_CATS = ["facial", "maquillaje", "perfume", "capilar", "corporal", "spa", "accesorio"];
+  const cats = [...new Set(visibles.map(p => p.categoria).filter(Boolean).map(catNombre))].sort((a, b) => { const ia = ORDEN_CATS.indexOf(catKey(a)), ib = ORDEN_CATS.indexOf(catKey(b)); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+  // Mini size: los productos chiquitos (mini, travel o de hasta 25 ml). Ofertas: los que tienen una promoción o un precio rebajado
+  const esMini = (p) => /\bmini\b|\btravel\b|\bviaje\b|\b(?:[1-9]|1[0-9]|2[0-5])\s?ml\b/i.test(p.nombre || "");
+  const miniLista = visibles.filter(esMini);
+  const ofertasLista = visibles.filter(p => twMejorPct(promosLid, p) > 0 || p.precio_antes);
   const preventas = tienda.preventa ? visibles.filter(esPreventa) : [];
   // Halloween: "Para tu disfraz" y "Después de la fiesta" (en el orden elegido en Lumiere)
   const hwDe = (ids) => (ids || []).map(id => visibles.find(p => p.id === id)).filter(Boolean);
@@ -35419,7 +35430,7 @@ function TiendaPublica({ slug }) {
   // Banner que lleva a varios productos: se muestran esos (en el orden elegido)
   const idsBanner = (bn) => String(bn.valor || "").split(",").map(Number).filter(Boolean);
   const bannerCat = cat.startsWith("b:") ? (tienda.banners_img || []).find(bn => bn.id === cat.slice(2) && bn.destino === "productos") : null;
-  if (productos !== null && ((cat === "cyber" && !tienda.cyber) || (cat === "halloween" && !tienda.halloween) || (cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && cat !== "cyber" && cat !== "halloween" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
+  if (productos !== null && ((cat === "cyber" && !tienda.cyber) || (cat === "halloween" && !tienda.halloween) || (cat.startsWith("b:") && (!bannerCat || !visibles.some(p => idsBanner(bannerCat).includes(p.id)))) || (cat === "preventa" && !preventas.length) || (cat.startsWith("s:") && !sector) || (cat === "reingreso" && !reingresados.length) || (cat === "ofertas" && !ofertasLista.length) || (cat === "mini" && !miniLista.length) || (cat === "videos" && !reels.length) || (cat === "regalos" && !tienda.regalos) || (cat === "diagnostico" && !tienda.diagnostico) || (cat.startsWith("pack:") && !packCat) || (cat && cat !== "*" && cat !== "cyber" && cat !== "halloween" && !cat.startsWith("s:") && !cat.startsWith("m:") && !cat.startsWith("pack:") && !cat.startsWith("b:") && cat !== "reingreso" && cat !== "ofertas" && cat !== "mini" && cat !== "videos" && cat !== "regalos" && cat !== "rutina" && cat !== "diagnostico" && cat !== "preventa" && cat !== "favoritos" && !cats.includes(cat)) || (cat.startsWith("m:") && !visibles.some(p => (p.marca || "") === cat.slice(2))))) { setTimeout(() => setCat(""), 0); }
   const enSector = (sc, p) => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria);
   const delSector = sector ? visibles.filter(p => enSector(sector, p)) : [];
   const catsSector = sector ? [...new Set(delSector.map(p => p.categoria).filter(Boolean))].sort() : [];
@@ -35431,7 +35442,7 @@ function TiendaPublica({ slug }) {
   const cyMarcas = tienda.cyber ? (tienda.cyber.marcas_primero || []).map(m => m.toLowerCase()) : [];
   const cyMarca = (p) => { const i = cyMarcas.indexOf(String((p && p.marca) || "").trim().toLowerCase()); return i < 0 ? 99 : i; };
   const combosOrden = (cs) => cyMarcas.length ? [...cs].sort((a, b) => Math.min(...a.productos.map(id => cyMarca(visibles.find(p => p.id === id)))) - Math.min(...b.productos.map(id => cyMarca(visibles.find(p => p.id === id))))) : cs;
-  const base1 = (cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : cat === "halloween" ? hwLook : cat === "cyber" ? visibles.filter(p => twMejorPct(promosLid, p) > 0).sort((a, b) => cyMarca(a) - cyMarca(b) || (a.rk || 1e9) - (b.rk || 1e9) || twMejorPct(promosLid, b) - twMejorPct(promosLid, a)) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || cat === "cyber" || cat === "halloween" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : p.categoria === cat)) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
+  const base1 = (cat === "ofertas" ? ofertasLista : cat === "mini" ? miniLista : cat === "reingreso" ? reingresados : cat === "preventa" ? preventas : cat === "favoritos" ? favLista : bannerCat ? idsBanner(bannerCat).map(id => visibles.find(p => p.id === id)).filter(Boolean) : cat === "halloween" ? hwLook : cat === "cyber" ? visibles.filter(p => twMejorPct(promosLid, p) > 0).sort((a, b) => cyMarca(a) - cyMarca(b) || (a.rk || 1e9) - (b.rk || 1e9) || twMejorPct(promosLid, b) - twMejorPct(promosLid, a)) : q && (!cat || cat === "*") ? lista0 : visibles).filter(p => (!cat || cat === "*" || cat === "ofertas" || cat === "mini" || cat === "reingreso" || cat === "preventa" || cat === "favoritos" || cat === "cyber" || cat === "halloween" || !!bannerCat || (sector ? enSector(sector, p) && (!subcat || p.categoria === subcat) : cat.startsWith("m:") ? (p.marca || "") === cat.slice(2) : cat.startsWith("pack:") ? !!packCat && twEnPack(packCat, p.id, p.marca) : catKey(p.categoria) === catKey(cat))) && (!q || (puntaje.set(p.id, twCoincide(p, q)), puntaje.get(p.id) > 0))
     // Lo agotado no se ve al navegar; si lo buscan por nombre aparece (al final), para poder pedir "Avisame cuando vuelva"
     && (!q || !agotado(p) || twEnNombre(p, q)));
   // Si hay productos que coinciden por nombre o tipo, no se mezclan los que solo lo mencionan en la descripcion
@@ -35450,7 +35461,7 @@ function TiendaPublica({ slug }) {
   const catSkin = cats.find(c => /facial|rostro/i.test(c)) || cats.find(esSkin) || null;
   // Como Sephora: tipo de piel y necesidad se muestran siempre completos (aunque los productos todavia no tengan descripcion);
   // el tipo de producto solo con lo que hay en la categoria
-  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || p.categoria === c); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => TW_TIPOS_FACIALES.includes(o[0]) && base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
+  const gruposMenu = (c) => { const base = visibles.filter(p => c === "*" || catKey(p.categoria) === catKey(c)); return ["tipo", "piel", "necesidad"].map(k => { const f = TW_FILTROS.find(x => x.k === k); return { k, op: k === "tipo" ? f.op.filter(o => TW_TIPOS_FACIALES.includes(o[0]) && base.some(p => p._et[k].includes(o[0]))) : f.op }; }).filter(g => g.op.length > 0); };
   const ofertaP = tienda.ofertas && tienda.ofertas.dia ? visibles.find(p => p.id === tienda.ofertas.dia.producto_id && p.precio_antes) || null : null;
   // Recomendados para su piel (perfil guardado con el test o en su cuenta)
   const misPieles = twPieles(perfilPiel);
@@ -36101,9 +36112,10 @@ function TiendaPublica({ slug }) {
             {!catSkin && hayMenuSkin && <button className={menuSkin ? "on" : ""} onClick={() => setMenuSkin("*")}>Skincare ▾</button>}
             {catSkin && <button className={(cat === catSkin && !q) || menuSkin === catSkin ? "on" : ""} onClick={() => hayMenuSkin ? setMenuSkin(catSkin) : irCat(catSkin)}>{catSkin}{hayMenuSkin ? " ▾" : ""}</button>}
             {favs.length > 0 && <button className={"tw-nav-fav" + (cat === "favoritos" && !q ? " on" : "")} onClick={() => irCat("favoritos")}>♥ Favoritos ({favs.length})</button>}
-            {reingresados.length > 0 && <button className={cat === "reingreso" && !q ? "on" : ""} onClick={() => irCat("reingreso")}>{reingreso.nombre}</button>}
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {cats.filter(c => c !== catSkin).map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
+            {miniLista.length > 0 && <button className={cat === "mini" && !q ? "on" : ""} onClick={() => irCat("mini")}>Mini size</button>}
+            {ofertasLista.length > 0 && <button className={"tw-nav-ofertas" + (cat === "ofertas" && !q ? " on" : "")} onClick={() => irCat("ofertas")}>Ofertas</button>}
             {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
             {tienda.diagnostico && <button className={cat === "diagnostico" && !q ? "on" : ""} onClick={() => irCat("diagnostico")}>🗓️ Turno de piel gratis</button>}
           </nav>
@@ -36132,9 +36144,9 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "halloween" ? "🎃 Tu look de Halloween" : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "halloween" ? "🎃 Tu look de Halloween" : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "ofertas" ? "Ofertas" : cat === "mini" ? "Mini size" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
-                {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
+                {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "ofertas" ? "Ofertas" : cat === "mini" ? "Mini size" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
             </div>
             {sector && !q && catsSector.length > 1 && (
@@ -36229,7 +36241,7 @@ function TiendaPublica({ slug }) {
             <TwFila titulo="Miralos en video" items={conStock.filter(p => p.video).slice(0, 12)} render={tarjeta} />
             {sectores.length ? sectores.map(sc => visibles.some(p => enSector(sc, p)) ? <TwFila key={sc.id} titulo={sc.nombre} items={visibles.filter(p => enSector(sc, p)).slice(0, 12)} onVerTodo={() => irCat("s:" + sc.id)} render={tarjeta} />
               : <TwCombos pagoKits={pagoKitsMejor} key={sc.id} titulo={sc.nombre} combos={combosSector(sc)} productos={visibles} foto={foto} dispo={dispo} onAgregar={agregarRegalo} onAbrir={abrir} />)
-              : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={visibles.filter(p => p.categoria === c).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
+              : cats.slice(0, 10).map(c => <TwFila key={c} titulo={c} items={visibles.filter(p => catKey(p.categoria) === catKey(c)).slice(0, 12)} onVerTodo={() => irCat(c)} render={tarjeta} />)}
             {!cats.length && <TwFila titulo="Nuestros productos" items={visibles} render={tarjeta} />}
           </>
         )}
@@ -37753,7 +37765,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
               {bn.destino === "productos" && (() => { const ids = String(bn.valor || "").split(",").map(Number).filter(Boolean); return (
                 <div style={{ marginTop: 6 }}>
                   {ids.map((id, k) => <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4, fontSize: 13 }}><span style={{ color: tp.textMuted }}>{k + 1}.</span><b style={{ flex: 1 }}>{(productos.find(p => p.id === id) || {}).nombre || "Producto"}</b><button className="chip-btn" aria-label="Sacar este producto" onClick={() => editar("banners_img", i, { valor: ids.filter(x => x !== id).join(",") })}>✕</button></div>)}
-                  {ids.length < 12 && <ElegirProductos productos={productos} ya={ids} temaPal={tp} placeholder={ids.length ? "Sumá otro producto…" : "Escribí el nombre del primer producto…"} onAgregar={id => editar("banners_img", i, { valor: [...ids.filter(x => x !== id), id].join(",") })} />}
+                  {ids.length < 200 && <ElegirProductos productos={productos} ya={ids} temaPal={tp} placeholder={ids.length ? "Sumá otro producto…" : "Escribí el nombre del primer producto…"} onAgregar={id => editar("banners_img", i, { valor: [...ids.filter(x => x !== id), id].join(",") })} />}
                   <div className="dec-ayuda">{ids.length < 2 ? "Elegí 2 o más: al tocar el banner se abre una página con esos productos." : "Al tocar el banner se abre una página con estos " + ids.length + " productos (el título del banner es el título de la página)."}</div>
                 </div>); })()}
               {bn.destino === "sector" && <select className="sel" style={{ width: "100%", marginTop: 6 }} aria-label="Sector" value={bn.valor || ""} onChange={e => editar("banners_img", i, { valor: e.target.value })}><option value="">Elegí el sector…</option>{d.sectores.filter(sc => sc.nombre).map(sc => <option key={sc.id} value={sc.id}>{sc.nombre}</option>)}</select>}

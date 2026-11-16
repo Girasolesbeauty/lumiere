@@ -191,7 +191,7 @@ router.put('/portada', async (req, res) => {
       titulo: texto(x.titulo, 80), texto: texto(x.texto, 160), boton: texto(x.boton, 30),
       destino: DESTINOS.includes(x.destino) ? x.destino : 'ninguno',
       // Varios productos: ids separados por coma (hasta 12)
-      valor: x.destino === 'productos' ? [...new Set(String(x.valor || '').split(',').map(n => parseInt(n)).filter(n => n > 0))].slice(0, 12).join(',') : texto(x.valor, 120),
+      valor: x.destino === 'productos' ? [...new Set(String(x.valor || '').split(',').map(n => parseInt(n)).filter(n => n > 0))].slice(0, 200).join(',') : texto(x.valor, 120),
     })).filter(x => x.imagen);
     if (filas.some(f => !f.productos.length)) return res.status(400).json({ error: 'Cada fila de la portada necesita al menos un producto' });
     if (sectores.some(s => !s.categorias.length && !s.productos.length && !s.combos.length)) return res.status(400).json({ error: 'Cada sector necesita al menos una categoría, un producto o un kit' });
