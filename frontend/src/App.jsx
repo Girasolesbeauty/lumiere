@@ -35424,6 +35424,10 @@ function TiendaPublica({ slug }) {
   // Kits y combos de un sector (los combos de Ofertas que tienen todos sus productos publicados)
   const combosSector = (sc) => ((tienda.ofertas && tienda.ofertas.combos) || []).filter(cb => (sc.combos || []).includes(cb.id) && cb.productos.every(id => visibles.some(p => p.id === id)));
   const sectores = (tienda.sectores || []).filter(sc => visibles.some(p => sc.productos.includes(p.id) || sc.categorias.includes(p.categoria)) || combosSector(sc).length > 0);
+  // Sectores que la dueña eligió mostrar en el menú (o uno llamado "Mini size", que va solo): ahí elige ella qué productos entran
+  const esSectorMini = (sc) => /^mini\s*size$/i.test(String(sc.nombre || "").trim());
+  const sectoresMenu = (tienda.sectores || []).filter(sc => (sc.en_menu || esSectorMini(sc)) && (visibles.some(p => (sc.productos || []).includes(p.id) || (sc.categorias || []).includes(p.categoria)) || combosSector(sc).length > 0));
+  const sectorMini = (tienda.sectores || []).find(esSectorMini) || null;
   const sector = cat.startsWith("s:") ? sectores.find(sc => "s:" + sc.id === cat) : null;
   // Si la seccion elegida quedo vacia (otra ciudad, se agoto todo), se vuelve al inicio
   const packCat = cat.startsWith("pack:") ? (tienda.packs || []).find(pk => pk.id === cat.slice(5)) : null;
@@ -36114,7 +36118,8 @@ function TiendaPublica({ slug }) {
             {favs.length > 0 && <button className={"tw-nav-fav" + (cat === "favoritos" && !q ? " on" : "")} onClick={() => irCat("favoritos")}>♥ Favoritos ({favs.length})</button>}
             {reels.length > 0 && <button className={cat === "videos" && !q ? "on" : ""} onClick={() => irCat("videos")}>{tienda.reels_titulo || "Videos"}</button>}
             {cats.filter(c => c !== catSkin).map(c => <button key={c} className={cat === c && !q ? "on" : ""} onClick={() => irCat(c)}>{c}</button>)}
-            {miniLista.length > 0 && <button className={cat === "mini" && !q ? "on" : ""} onClick={() => irCat("mini")}>Mini size</button>}
+            {sectoresMenu.map(sc => <button key={sc.id} className={cat === "s:" + sc.id && !q ? "on" : ""} onClick={() => irCat("s:" + sc.id)}>{sc.nombre}</button>)}
+            {!sectorMini && miniLista.length > 0 && <button className={cat === "mini" && !q ? "on" : ""} onClick={() => irCat("mini")}>Mini size</button>}
             {ofertasLista.length > 0 && <button className={"tw-nav-ofertas" + (cat === "ofertas" && !q ? " on" : "")} onClick={() => irCat("ofertas")}>Ofertas</button>}
             {preventas.length > 0 && <button className={"tw-nav-pre" + (cat === "preventa" && !q ? " on" : "")} onClick={() => irCat("preventa")}>⏳ {tienda.preventa.titulo}</button>}
             {tienda.diagnostico && <button className={cat === "diagnostico" && !q ? "on" : ""} onClick={() => irCat("diagnostico")}>🗓️ Turno de piel gratis</button>}
@@ -37821,6 +37826,7 @@ function PortadaTienda({ productos, temaPal, avisar, alGuardar }) {
           {d.sectores.map((sc, i) => (
             <div key={sc.id} style={{ ...tarjeta, marginBottom: 0 }}>
               {cab(<input className="inp" style={{ flex: 1, fontWeight: 700 }} placeholder="Nombre del sector (ej: Skincare)" value={sc.nombre} onChange={e => editar("sectores", i, { nombre: e.target.value })} aria-label="Nombre del sector" />, "sectores", i, d.sectores.length)}
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, margin: "4px 0 8px", cursor: "pointer" }}><input type="checkbox" checked={!!sc.en_menu} onChange={e => editar("sectores", i, { en_menu: e.target.checked })} /> Mostrar este sector como botón en el menú de arriba <span style={{ fontSize: 11.5, color: tp.textMuted }}>(un sector llamado "Mini size" aparece solo)</span></label>
               <div className="fl" style={{ marginTop: 4 }}>Categorías que incluye</div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
                 {cats.length === 0 ? <span style={{ fontSize: 12, color: tp.textMuted }}>No hay categorías en los productos publicados.</span> : cats.map(c => { const on = sc.categorias.includes(c); return <button key={c} className={"chip-btn" + (on ? " on" : "")} onClick={() => editar("sectores", i, { categorias: on ? sc.categorias.filter(x => x !== c) : [...sc.categorias, c] })}>{on ? "✓ " : ""}{c}</button>; })}

@@ -178,6 +178,7 @@ router.put('/portada', async (req, res) => {
     const filas = (Array.isArray(b.filas) ? b.filas : []).slice(0, 12).map(f => ({ id: idSeccion(f.id), titulo: texto(f.titulo, 60), productos: ids(f.productos, 40) })).filter(f => f.titulo);
     const sectores = (Array.isArray(b.sectores) ? b.sectores : []).slice(0, 12).map(s => ({
       id: idSeccion(s.id), nombre: texto(s.nombre, 40),
+      en_menu: !!s.en_menu, // se ve como botón en el menú de arriba de la tienda
       categorias: [...new Set((Array.isArray(s.categorias) ? s.categorias : []).map(x => texto(x, 80)).filter(Boolean))].slice(0, 40),
       productos: ids(s.productos, 300),
       // Kits y combos del sector (ids de los combos de Ofertas y combos)
