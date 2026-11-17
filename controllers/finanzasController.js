@@ -15,6 +15,7 @@ function normalizarLocalId(v) {
 // Las fechas se guardan sin zona horaria (en la de la base). Se pasan a hora argentina
 // antes de ver a que dia/mes pertenecen: si no, lo vendido despues de las 21 hs del
 // ultimo dia del mes caia en el mes siguiente.
+const crypto = require('crypto');
 const AR = (col) => `(((${col}) AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Argentina/Buenos_Aires')`;
 const EN_MES = (col, iMes, iAnio) => `EXTRACT(MONTH FROM ${AR(col)}) = $${iMes} AND EXTRACT(YEAR FROM ${AR(col)}) = $${iAnio}`;
 // Periodo de los calculos: un mes ({mes, anio}) o un rango de dias argentinos ({desde, hasta}, ambos incluidos).
@@ -1699,7 +1700,8 @@ const getReparto = async (req, res) => {
       const sepPorK = {}; (detalle || []).forEach(pt => { sepPorK[pt.k] = separadoDe(pt); });
       // Semana ya cerrada y anotada: se ve como quedó cuando se anotó. Si no, lo que corresponde hoy según lo que entró
       const usa = detalle && !enCurso ? detalle : partes.map(pt => ({ ...pt, monto: Math.round(base * pt.pct / 100) }));
-      const partesSemana = usa.map(pt => ({ ...pt, monto: Math.round(num(pt.monto)), separado: h ? r2(sepPorK[pt.k] !== undefined ? sepPorK[pt.k] : 0) : 0 }));
+      const apPorK = {}; (detalle || []).forEach(pt => { apPorK[pt.k] = Array.isArray(pt.aportes) ? pt.aportes : []; });
+      const partesSemana = usa.map(pt => ({ ...pt, monto: Math.round(num(pt.monto)), separado: h ? r2(sepPorK[pt.k] !== undefined ? sepPorK[pt.k] : 0) : 0, aportes: apPorK[pt.k] || [] }));
       const corresponde = partesSemana.reduce((t, x) => t + x.monto, 0), separado = r2(partesSemana.reduce((t, x) => t + x.separado, 0));
       const completa = !!h && separado >= corresponde * 0.995 - 0.005;
       lista.push({ desde, hasta, en_curso: enCurso, ventas, comisiones, base: h && !enCurso ? Math.round(num(h.base)) : base, base_hoy: base,
@@ -1749,10 +1751,69 @@ const postRepartoSemana = async (req, res) => {
     });
     const u = req.usuario || {};
     let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    // Los aportes (cada vez que se fue separando plata) se conservan si el total no cambió; si se corrigió el total a mano, queda un solo aporte con ese total
+    const previo = (await pool.query('SELECT detalle FROM reparto_semanas WHERE inicio = $1', [inicio])).rows[0];
+    const hoyAp = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d`)).rows[0].d;
+    partes.forEach(pt => {
+      const prev = previo && Array.isArray(previo.detalle) ? previo.detalle.find(x => x.k === pt.k) : null;
+      if (prev && Array.isArray(prev.aportes) && r2(separadoDe(prev)) === pt.separado) pt.aportes = prev.aportes;
+      else if (pt.separado > 0) pt.aportes = [{ id: crypto.randomBytes(4).toString('hex'), fecha: hoyAp, monto: pt.separado, nota: prev ? 'Total corregido a mano' : 'Lo separado', usuario: quien }];
+      else pt.aportes = [];
+    });
     await pool.query(`INSERT INTO reparto_semanas (inicio, base, detalle, usuario) VALUES ($1, $2, $3, $4)
       ON CONFLICT (inicio) DO UPDATE SET base = EXCLUDED.base, detalle = EXCLUDED.detalle, usuario = EXCLUDED.usuario, hecho_en = NOW()`, [inicio, base, JSON.stringify(partes), quien]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+};
+// Sumar plata separada a una cuenta de una semana (sin tener que hacer la cuenta a mano): cada vez que se separa algo se anota
+// como un "aporte" con su fecha, y el total de la cuenta es la suma de sus aportes
+const guardarAportes = async (inicio, k, cambio, quien, extra) => {
+  const fila = (await pool.query('SELECT base, detalle FROM reparto_semanas WHERE inicio = $1', [inicio])).rows[0];
+  let detalle = fila && Array.isArray(fila.detalle) ? fila.detalle : null;
+  let base = fila ? Math.round(num(fila.base)) : Math.max(0, Math.round(parseFloat(extra && extra.base) || 0));
+  if (!detalle) {
+    const monto = (v) => Math.max(0, Math.min(1e11, r2(v)));
+    detalle = limpiarPartes(extra && extra.partes).map((pt, i) => ({ ...pt, monto: monto(((extra && extra.partes) || [])[i] && extra.partes[i].monto), separado: 0, aportes: [] }));
+  }
+  const pt = detalle.find(x => x.k === k);
+  if (!pt) return null;
+  // Lo que ya estaba anotado como un total (antes de que existieran los aportes) pasa a ser el primer aporte
+  let aportes = Array.isArray(pt.aportes) ? pt.aportes.slice() : (separadoDe(pt) > 0 && fila ? [{ id: crypto.randomBytes(4).toString('hex'), fecha: null, monto: r2(separadoDe(pt)), nota: 'Lo que ya tenías anotado', usuario: null }] : []);
+  aportes = cambio(aportes);
+  pt.aportes = aportes;
+  pt.separado = r2(aportes.reduce((t, a) => t + num(a.monto), 0));
+  await pool.query(`INSERT INTO reparto_semanas (inicio, base, detalle, usuario) VALUES ($1, $2, $3, $4)
+    ON CONFLICT (inicio) DO UPDATE SET detalle = EXCLUDED.detalle, usuario = EXCLUDED.usuario, hecho_en = NOW()`, [inicio, base, JSON.stringify(detalle), quien]);
+  return pt;
+};
+const postRepartoAporte = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const b = req.body || {}, inicio = String(b.inicio || '');
+    const k = String(b.parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
+    const monto = r2(b.monto);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !k) return res.status(400).json({ error: 'Falta la semana o la cuenta' });
+    if (!(monto > 0) || monto > 1e11) return res.status(400).json({ error: 'Poné un monto mayor a cero' });
+    const u = req.usuario || {};
+    let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    const hoy = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d`)).rows[0].d;
+    const pt = await guardarAportes(inicio, k, (l) => [...l, { id: crypto.randomBytes(4).toString('hex'), fecha: hoy, monto, nota: String(b.nota || '').trim().slice(0, 80) || null, usuario: quien }].slice(-200), quien, b);
+    if (!pt) return res.status(404).json({ error: 'No encontré esa cuenta en la semana' });
+    res.json({ ok: true, separado: pt.separado, aportes: pt.aportes });
+  } catch (e) { console.error('[reparto aporte]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+};
+const postRepartoAporteBorrar = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const b = req.body || {}, inicio = String(b.inicio || '');
+    const k = String(b.parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
+    const id = String(b.id || '');
+    const u = req.usuario || {};
+    let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    const pt = await guardarAportes(inicio, k, (l) => l.filter(a => String(a.id) !== id), quien, null);
+    if (!pt) return res.status(404).json({ error: 'No encontré esa cuenta en la semana' });
+    res.json({ ok: true, separado: pt.separado, aportes: pt.aportes });
+  } catch (e) { console.error('[reparto aporte borrar]', e.message); res.status(500).json({ error: 'No se pudo borrar' }); }
 };
 // Anotar plata que se usó de una cuenta ("uso": ej. pagué a un proveedor) o que se sumó aparte ("extra")
 const postRepartoMovimiento = async (req, res) => {
@@ -1822,4 +1883,4 @@ const deleteRepartoMovimiento = async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
 };
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoAporte, postRepartoAporteBorrar, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

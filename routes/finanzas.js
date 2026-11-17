@@ -28,6 +28,8 @@ router.put('/reparto/config', controller.putRepartoConfig);
 router.post('/reparto/semana', controller.postRepartoSemana);
 router.post('/reparto/movimiento', controller.postRepartoMovimiento);
 router.post('/reparto/ajuste', controller.postRepartoAjuste);
+router.post('/reparto/aporte', controller.postRepartoAporte);
+router.post('/reparto/aporte/borrar', controller.postRepartoAporteBorrar);
 router.put('/reparto/movimiento/:id', controller.putRepartoMovimiento);
 router.delete('/reparto/movimiento/:id', controller.deleteRepartoMovimiento);
 router.get('/decisiones/base', controller.getBaseDecisiones);

@@ -11413,6 +11413,7 @@ function RepartoSemanal({ temaPal }) {
   const [edit, setEdit] = useState({}); // lo que se está escribiendo: { [desde de la semana]: { [parte]: "monto" } }
   const [mov, setMov] = useState(null); // { k, tipo: "uso" | "extra", monto, nota }: usé / sumé plata de una cuenta
   const [ajuste, setAjuste] = useState(null); // { k, valor, nota }: corregir el total que hay en una cuenta
+  const [suma, setSuma] = useState({}); // lo que se está por sumar en cada cuenta de cada semana: { [desde + parte]: "monto" }
   const [verMovs, setVerMovs] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const cargar = () => API.get("/finanzas/reparto").then(r => { setD(r.data); setErr(""); }).catch(e => setErr(e.response?.data?.error || "No se pudo cargar"));
@@ -11448,6 +11449,25 @@ function RepartoSemanal({ temaPal }) {
       setMsj({ ok: true, t: todo ? "✓ Anotado: separaste todo lo que correspondía" : "✓ Anotado lo que separaste" }); cargar();
     } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
     setGuardando(false);
+  };
+  // Suma plata a una cuenta de la semana: queda anotada con su fecha y el total se actualiza solo
+  const sumarAporte = async (s, pt) => {
+    const kk = s.desde + pt.k, monto = aNum(suma[kk]);
+    if (!monto) return setMsj({ ok: false, t: "Escribí cuánta plata separaste" });
+    setGuardando(true);
+    try {
+      const base = s.anotada && !s.en_curso ? s.base : s.base_hoy;
+      const r = await API.post("/finanzas/reparto/aporte", { inicio: s.desde, parte_k: pt.k, monto, base, partes: s.partes.map(x => ({ k: x.k, nombre: x.nombre, pct: x.pct, donde: x.donde, monto: x.monto })) });
+      setSuma(x => { const y = { ...x }; delete y[kk]; return y; });
+      setEdit(x => { const y = { ...x }; if (y[s.desde]) { y[s.desde] = { ...y[s.desde] }; delete y[s.desde][pt.k]; } return y; });
+      setMsj({ ok: true, t: "✓ Sumé " + $(monto) + " a " + pt.nombre + ": ya van " + $(r.data.separado) }); cargar();
+    } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+    setGuardando(false);
+  };
+  const sacarAporte = async (s, pt, a) => {
+    if (!window.confirm("¿Sacar los " + $(a.monto) + " que sumaste" + (a.fecha ? " el " + fechaC(a.fecha) : "") + "?")) return;
+    try { await API.post("/finanzas/reparto/aporte/borrar", { inicio: s.desde, parte_k: pt.k, id: a.id }); setEdit(x => { const y = { ...x }; if (y[s.desde]) { y[s.desde] = { ...y[s.desde] }; delete y[s.desde][pt.k]; } return y; }); cargar(); }
+    catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo sacar" }); }
   };
   const borrarSemana = async (s) => {
     if (!window.confirm("¿Borrar lo que anotaste de esta semana? Las cuentas vuelven a quedar como si no hubieras separado nada.")) return;
@@ -11588,7 +11608,7 @@ function RepartoSemanal({ temaPal }) {
                 <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>Ventas {$(s.ventas)} − cobran los medios de pago {$(s.comisiones)} = <b style={{ color: p.text }}>{$(s.base_hoy)}</b>{s.anotada && !s.en_curso && s.base !== s.base_hoy ? " (cuando lo anotaste eran " + $(s.base) + ")" : ""}</div>
                 <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 10 }}>{s.partes.map((pt, i) => <div key={pt.k} style={{ width: pt.pct + "%", background: colorDe(pt.k) }} title={pt.nombre} />)}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: "0 12px", alignItems: "center", fontSize: 11.5, color: p.textMuted, padding: "0 0 4px" }}>
-                  <span /><span style={{ textAlign: "right" }}>Corresponde</span><span style={{ textAlign: "right", minWidth: 130 }}>Separé</span>
+                  <span /><span style={{ textAlign: "right" }}>Corresponde</span><span style={{ textAlign: "right", minWidth: 130 }}>Total separado</span>
                 </div>
                 {s.partes.map(pt => { const v = aNum(valorCasillero(s, pt)), falta = Math.round((pt.monto - v) * 100) / 100; return (
                   <div key={pt.k} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: "0 12px", alignItems: "center", padding: "7px 0", borderTop: "1px solid " + p.border, fontSize: 13.5 }}>
@@ -11599,9 +11619,16 @@ function RepartoSemanal({ temaPal }) {
                         onChange={e => poner(s, pt.k, e.target.value)} onKeyDown={e => { if (e.key === "Enter") anotar(s, false); }} />
                       <span style={{ display: "block", fontSize: 11, color: falta > 0 ? p.warn : p.green }}>{v === 0 && !s.anotada ? "" : falta > 0 ? "faltan " + $(falta) : falta < 0 ? "de más " + $(-falta) : "✓ completo"}</span>
                     </span>
+                    <div style={{ gridColumn: "1 / -1", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                      <input className="inp" style={{ width: 150 }} inputMode="decimal" placeholder="+ Sumar $ (ej: 20.000)" aria-label={"Sumar plata separada en " + pt.nombre} value={suma[s.desde + pt.k] || ""}
+                        onChange={e => setSuma(x => ({ ...x, [s.desde + pt.k]: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") sumarAporte(s, pt); }} />
+                      <button className="btn btn-p btn-sm" disabled={guardando || !aNum(suma[s.desde + pt.k])} onClick={() => sumarAporte(s, pt)}>➕ Sumar</button>
+                      {(pt.aportes || []).map(a => <span key={a.id} className="mini-chip" style={{ display: "inline-flex", gap: 5, alignItems: "center" }} title={(a.nota ? a.nota + " · " : "") + (a.usuario || "")}>{a.fecha ? fechaC(a.fecha) + " " : ""}<b>+{$(a.monto)}</b>
+                        <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => sacarAporte(s, pt, a)} aria-label="Sacar este aporte">✕</button></span>)}
+                    </div>
                   </div>); })}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                  <button className="btn btn-p btn-sm" disabled={guardando} onClick={() => anotar(s, false)}>💾 Guardar lo que separé</button>
+                  <button className="btn btn-p btn-sm" disabled={guardando} onClick={() => anotar(s, false)}>💾 Guardar los totales que corregí</button>
                   <button className="btn btn-g btn-sm" disabled={guardando || s.corresponde <= 0} onClick={() => anotar(s, true)}>✓ Separé todo lo que correspondía</button>
                   {s.anotada && <button className="btn btn-g btn-sm" onClick={() => borrarSemana(s)}>Borrar lo anotado</button>}
                 </div>
