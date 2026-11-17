@@ -30,6 +30,8 @@ router.post('/reparto/movimiento', controller.postRepartoMovimiento);
 router.post('/reparto/ajuste', controller.postRepartoAjuste);
 router.post('/reparto/aporte', controller.postRepartoAporte);
 router.post('/reparto/aporte/borrar', controller.postRepartoAporteBorrar);
+router.post('/reparto/movimientos', controller.postRepartoMovimientos);
+router.post('/reparto/cuenta/reiniciar', controller.postRepartoCuentaReiniciar);
 router.put('/reparto/movimiento/:id', controller.putRepartoMovimiento);
 router.delete('/reparto/movimiento/:id', controller.deleteRepartoMovimiento);
 router.get('/decisiones/base', controller.getBaseDecisiones);

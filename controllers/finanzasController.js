@@ -1833,6 +1833,51 @@ const postRepartoMovimiento = async (req, res) => {
     res.json({ ok: true, id: r.rows[0].id });
   } catch (e) { console.error('[reparto movimiento]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
 };
+// Anotar varios pagos (o sumas) de una cuenta de una sola vez (se pegan uno por línea)
+const postRepartoMovimientos = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const b = req.body || {};
+    const k = String(b.parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
+    const tipo = b.tipo === 'extra' ? 'extra' : 'uso';
+    const items = (Array.isArray(b.items) ? b.items : []).slice(0, 60).map(x => ({ monto: r2(x && x.monto), nota: String((x && x.nota) || '').trim().slice(0, 120) || null, fecha: /^\d{4}-\d{2}-\d{2}$/.test(String((x && x.fecha) || '')) ? x.fecha : null })).filter(x => x.monto > 0 && x.monto < 1e11);
+    if (!k) return res.status(400).json({ error: 'Elegí la cuenta' });
+    if (!items.length) return res.status(400).json({ error: 'No encontré ningún monto para anotar' });
+    const u = req.usuario || {};
+    let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const x of items) await client.query(`INSERT INTO reparto_movimientos (parte_k, tipo, monto, fecha, nota, usuario) VALUES ($1, $2, $3, COALESCE($4::date, (${AR('NOW()')})::date), $5, $6)`, [k, tipo, x.monto, x.fecha, x.nota, quien]);
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); throw e; } finally { client.release(); }
+    res.json({ ok: true, cargados: items.length, total: r2(items.reduce((t, x) => t + x.monto, 0)) });
+  } catch (e) { console.error('[reparto movimientos]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
+};
+// Empezar una cuenta de cero: borra lo separado (en todas las semanas) y la plata usada o sumada a mano de esa cuenta. No se puede deshacer.
+const postRepartoCuentaReiniciar = async (req, res) => {
+  try {
+    await asegurarRepartoSemanal();
+    const k = String((req.body || {}).parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
+    if (!k) return res.status(400).json({ error: 'Elegí la cuenta' });
+    const client = await pool.connect();
+    let semanas = 0, movimientos = 0, antes = 0;
+    try {
+      await client.query('BEGIN');
+      const filas = (await client.query('SELECT inicio::text AS inicio, detalle FROM reparto_semanas FOR UPDATE')).rows;
+      for (const f of filas) {
+        if (!Array.isArray(f.detalle) || !f.detalle.some(pt => pt.k === k && (separadoDe(pt) > 0 || (pt.aportes || []).length))) continue;
+        const nuevo = f.detalle.map(pt => { if (pt.k !== k) return pt; antes += separadoDe(pt); return { ...pt, separado: 0, aportes: [] }; });
+        await client.query('UPDATE reparto_semanas SET detalle = $2 WHERE inicio = $1', [f.inicio, JSON.stringify(nuevo)]);
+        semanas++;
+      }
+      movimientos = (await client.query('DELETE FROM reparto_movimientos WHERE parte_k = $1', [k])).rowCount;
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); throw e; } finally { client.release(); }
+    console.log('[reparto] cuenta ' + k + ' reiniciada: ' + semanas + ' semanas, ' + movimientos + ' movimientos, separado antes ' + r2(antes));
+    res.json({ ok: true, semanas, movimientos, separado_antes: r2(antes) });
+  } catch (e) { console.error('[reparto reiniciar]', e.message); res.status(500).json({ error: 'No se pudo reiniciar la cuenta' }); }
+};
 // Corregir el total de una cuenta: se dice cuánta plata hay de verdad y Lumiere anota la diferencia como un movimiento
 // ("Ajuste de saldo"), así el historial queda y se puede ver qué se corrigió.
 const postRepartoAjuste = async (req, res) => {
@@ -1883,4 +1928,4 @@ const deleteRepartoMovimiento = async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
 };
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoAporte, postRepartoAporteBorrar, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoAporte, postRepartoAporteBorrar, postRepartoMovimientos, postRepartoCuentaReiniciar, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

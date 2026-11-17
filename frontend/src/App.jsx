@@ -11484,6 +11484,26 @@ function RepartoSemanal({ temaPal }) {
     catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
     setGuardando(false);
   };
+  // Pegar varios pagos: una línea por pago ("3.950.933,70 IDRAET"); el primer número de cada línea es el monto y lo demás, la nota
+  const leerVarios = (txt) => String(txt || "").split(/\n/).map(l => l.trim()).filter(Boolean).map(l => { const m = l.match(/[\d][\d.,]*/); if (!m) return null; const monto = aNum(m[0]); return monto > 0 ? { monto, nota: l.replace(m[0], "").replace(/^[\s\-–:·$]+|[\s\-–:·]+$/g, "").slice(0, 120) } : null; }).filter(Boolean);
+  const guardarVarios = async () => {
+    const items = leerVarios(mov.varios);
+    if (!items.length) return setMsj({ ok: false, t: "No encontré ningún monto: poné uno por línea" });
+    setGuardando(true);
+    try {
+      const r = await API.post("/finanzas/reparto/movimientos", { parte_k: mov.k, tipo: mov.tipo, items });
+      setMsj({ ok: true, t: "✓ Anoté " + r.data.cargados + " " + (mov.tipo === "uso" ? "pagos" : "sumas") + " por " + $(r.data.total) }); setMov(null); cargar();
+    } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+    setGuardando(false);
+  };
+  const reiniciarCuenta = async (c) => {
+    if (!window.confirm("¿Empezar \"" + c.nombre + "\" de cero?\n\nSe borra todo lo que anotaste como separado en las semanas y toda la plata usada o sumada a mano de esta cuenta (hoy figuran " + $(c.saldo) + ").\n\nNo se puede deshacer. Después volvés a anotar lo correcto.")) return;
+    try {
+      const r = await API.post("/finanzas/reparto/cuenta/reiniciar", { parte_k: c.k });
+      setMov(null); setAjuste(null); setEdit({}); setSuma({});
+      setMsj({ ok: true, t: "✓ " + c.nombre + " quedó en cero (se borró lo separado de " + r.data.semanas + " semana" + (r.data.semanas !== 1 ? "s" : "") + " y " + r.data.movimientos + " movimiento" + (r.data.movimientos !== 1 ? "s" : "") + "). Ya podés anotar lo correcto." }); cargar();
+    } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo reiniciar" }); }
+  };
   const guardarAjuste = async () => {
     if (!ajuste || String(ajuste.valor).trim() === "") return setMsj({ ok: false, t: "Escribí cuánta plata hay de verdad en la cuenta (si no hay nada, 0)" });
     setGuardando(true);
@@ -11556,6 +11576,7 @@ function RepartoSemanal({ temaPal }) {
                 <button className="chip-btn" onClick={() => { setAjuste(null); setMov({ k: c.k, tipo: "uso", monto: "", nota: "" }); }}>− Usé plata</button>
                 <button className="chip-btn" onClick={() => { setAjuste(null); setMov({ k: c.k, tipo: "extra", monto: "", nota: "" }); }}>+ Sumé plata</button>
                 <button className="chip-btn" title="Poné el total que hay de verdad en esta cuenta" onClick={() => { setMov(null); setAjuste({ k: c.k, valor: aTexto(c.saldo), nota: "" }); }}>✏️ Corregir total</button>
+                <button className="chip-btn" style={{ color: p.red }} title="Borra todo lo anotado en esta cuenta para volver a cargarlo bien" onClick={() => reiniciarCuenta(c)}>↺ Empezar de cero</button>
               </div>
             </div>
           ))}
@@ -11577,6 +11598,13 @@ function RepartoSemanal({ temaPal }) {
           <input className="inp" style={{ flex: "1 1 200px" }} maxLength={120} placeholder={mov.tipo === "uso" ? "¿En qué? (ej: pagué a IDRAET)" : "Nota (opcional)"} value={mov.nota} onChange={e => setMov(m => ({ ...m, nota: e.target.value }))} onKeyDown={e => { if (e.key === "Enter") guardarMov(); }} aria-label="Nota" />
           <button className="btn btn-g btn-sm" onClick={() => setMov(null)}>Cancelar</button>
           <button className="btn btn-p btn-sm" disabled={guardando} onClick={guardarMov}>{mov.id ? "Guardar cambio" : "Anotar"}</button>
+          {!mov.id && mov.varios === undefined && <button className="chip-btn" onClick={() => setMov(m => ({ ...m, varios: "" }))}>📋 Pegar varios de una vez</button>}
+          {!mov.id && mov.varios !== undefined && <div style={{ flex: "1 1 100%" }}>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 4 }}>Pegá un {mov.tipo === "uso" ? "pago" : "monto"} por línea (con una nota si querés, ej: <b>3.950.933,70 IDRAET</b>).</div>
+            <textarea className="inp" autoFocus rows={5} style={{ width: "100%" }} placeholder={"3.950.933,70 IDRAET\n1.826.406,35\n4.200.000 Skin1004"} value={mov.varios} onChange={e => setMov(m => ({ ...m, varios: e.target.value }))} aria-label="Montos para pegar, uno por línea" />
+            {(() => { const l = leerVarios(mov.varios); return <div style={{ fontSize: 12.5, marginTop: 4 }}>{l.length ? <>Encontré <b>{l.length}</b> {l.length === 1 ? "monto" : "montos"} por un total de <b>{$(Math.round(l.reduce((t, x) => t + x.monto, 0) * 100) / 100)}</b></> : <span style={{ color: p.textMuted }}>Todavía no hay montos</span>}</div>; })()}
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}><button className="btn btn-p btn-sm" disabled={guardando || !leerVarios(mov.varios).length} onClick={guardarVarios}>Anotar todos</button></div>
+          </div>}
         </div>}
         {d.movimientos.length > 0 && <div style={{ marginTop: 10 }}>
           <button className="chip-btn" onClick={() => setVerMovs(v => !v)} aria-expanded={verMovs}>{verMovs ? "▾" : "▸"} Plata usada o sumada a mano ({d.movimientos.length})</button>
