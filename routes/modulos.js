@@ -13,7 +13,7 @@ router.put('/', async (req, res) => {
     if (!req.usuario || !['jefe', 'admin'].includes(req.usuario.rol)) return res.status(403).json({ error: 'Solo el dueño puede cambiar los módulos' });
     const b = req.body || {};
     const cambios = {};
-    ['gastronomia', 'consultorio', 'imprimir_comanda'].forEach(k => { if (b[k] !== undefined) cambios[k] = !!b[k]; });
+    ['gastronomia', 'consultorio', 'constructora', 'imprimir_comanda'].forEach(k => { if (b[k] !== undefined) cambios[k] = !!b[k]; });
     res.json(await modulos.guardar(cambios));
   } catch (e) { res.status(500).json({ error: 'No se pudieron guardar los módulos' }); }
 });

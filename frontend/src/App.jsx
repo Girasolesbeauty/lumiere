@@ -168,11 +168,15 @@ let UN_SOLO_LOCAL = (() => { try { return localStorage.getItem("lumiere_un_local
 let GASTRO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_gastro") === "1"; } catch (e) { return false; } })();
 // Modulo Consultorio (Agenda, Pacientes, Recordatorios): suma su seccion y oculta lo que es de tienda
 let CONSULTORIO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_consultorio") === "1"; } catch (e) { return false; } })();
+// Modulo Constructora (Obras, Stock de obra, Compras): sin Punto de Venta ni lo que es de tienda
+let CONSTRUCTORA_ACTIVO = (() => { try { return localStorage.getItem("lumiere_constructora") === "1"; } catch (e) { return false; } })();
+const OCULTAS_EN_CONSTRUCTORA = new Set(["pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "reclamos-proveedores"]);
 const OCULTAS_EN_CONSULTORIO = new Set(["etiquetas", "kits", "listas-precios", "traspasos", "control-inv", "ventas-online", "cambio-devolucion", "buscar-precio", "fidelizacion", "cupones", "giftcards", "portal"]);
 const aplicarModulos = (m) => {
   GASTRO_ACTIVO = !!(m && m.gastronomia);
   CONSULTORIO_ACTIVO = !!(m && m.consultorio);
-  try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); localStorage.setItem("lumiere_consultorio", CONSULTORIO_ACTIVO ? "1" : "0"); } catch (e) {}
+  CONSTRUCTORA_ACTIVO = !!(m && m.constructora);
+  try { localStorage.setItem("lumiere_gastro", GASTRO_ACTIVO ? "1" : "0"); localStorage.setItem("lumiere_consultorio", CONSULTORIO_ACTIVO ? "1" : "0"); localStorage.setItem("lumiere_constructora", CONSTRUCTORA_ACTIVO ? "1" : "0"); } catch (e) {}
   window.dispatchEvent(new CustomEvent("lumiere-gastro"));
 };
 // Permisos de la persona que esta usando el sistema (los carga App al entrar). El jefe puede todo.
@@ -17072,6 +17076,13 @@ function ConfigGastro({ paletaActual }) {
           <div style={{ fontSize: 12, color: temaPal.textMuted }}>Suma <b>Agenda</b> de turnos, <b>Pacientes</b> (historia y fotos antes/después), <b>Recordatorios</b> por WhatsApp e <b>Indicadores</b>; y oculta del menú lo que es de tienda (etiquetas, kits, ventas online, cupones…).</div>
         </span>
       </label>
+      <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", marginTop: 12 }}>
+        <input type="checkbox" checked={!!g.constructora} onChange={e => guardar({ constructora: e.target.checked })} style={{ marginTop: 3 }} />
+        <span>
+          <b>🏗️ Constructora</b> (obras y proyectos)
+          <div style={{ fontSize: 12, color: temaPal.textMuted }}>Suma <b>Obras</b> (etapas, avance y presupuesto contra lo gastado), <b>Stock y salida rápida</b> en galpones y obras y <b>Compras</b> con factura; y oculta el Punto de Venta y lo que es de tienda.</div>
+        </span>
+      </label>
     </div>
   );
 }
@@ -28474,12 +28485,670 @@ function Promociones({ paletaActual }) {
 }
 
 
+// ===================== CONSTRUCTORA =====================
+// Obras (etapas, avance, presupuesto contra lo gastado), stock en galpones y obras (con "Salida rápida"
+// pensada para el celular) y compras con factura. Ver routes/constructora.js.
+const ESTADOS_OBRA_TXT = { planificada: ["Planificada", "#5d6d7e"], en_curso: ["En curso", "#2471a3"], pausada: ["Pausada", "#b7950b"], terminada: ["Terminada", "#2d7a4f"], cancelada: ["Cancelada", "#c0392b"] };
+const ESTADOS_ETAPA_TXT = { pendiente: "Pendiente", en_curso: "En curso", terminada: "Terminada" };
+const monedaCn = (v) => fmt(Math.round(Number(v) || 0)).replace(SIN_CEROS, "");
+const difCn = (v) => { const n = Math.round(Number(v) || 0); return (n > 0 ? "+" : n < 0 ? "−" : "") + monedaCn(Math.abs(n)); };
+const cantCn = (v) => { const n = Number(v) || 0; return Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000).replace(".", ","); };
+const fechaCn = (f) => { if (!f) return ""; const s = String(f).slice(0, 10).split("-"); return s.length === 3 ? s[2] + "/" + s[1] + "/" + s[0] : ""; };
+const errCn = (e, base) => (e && e.response && e.response.data && e.response.data.error) || base || "No se pudo completar";
+
+function BarraAvance({ pct, color, alto = 8 }) {
+  const p = Math.max(0, Math.min(100, Number(pct) || 0));
+  return <div style={{ background: "rgba(127,127,127,.2)", borderRadius: 99, height: alto, overflow: "hidden" }}><div style={{ width: p + "%", height: "100%", background: color || "#2471a3", borderRadius: 99, transition: "width .3s" }} /></div>;
+}
+const TabsCn = ({ tabs, valor, onCambio }) => (
+  <div className="tabs" role="tablist" style={{ marginBottom: 12, overflowX: "auto", flexWrap: "nowrap" }}>
+    {tabs.map(([id, txt]) => <button key={id} role="tab" aria-selected={valor === id} className={"tab " + (valor === id ? "on" : "")} style={{ whiteSpace: "nowrap" }} onClick={() => onCambio(id)}>{txt}</button>)}
+  </div>
+);
+
+// ---------- Obras ----------
+function ObrasConstructora({ usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const [obras, setObras] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [aviso, avisar] = usarAviso();
+  const esCel = useAncho() < 760;
+  const cargar = () => API.get("/constructora/obras").then(r => setObras(r.data || [])).catch(() => setObras([]));
+  useEffect(() => { cargar(); }, []);
+  const crear = async () => {
+    try { const r = await API.post("/constructora/obras", form); setForm(null); await cargar(); setSel(r.data.id); }
+    catch (e) { avisar(false, errCn(e)); }
+  };
+  if (sel) return <ObraDetalle id={sel} temaPal={temaPal} onVolver={() => { setSel(null); cargar(); }} />;
+  if (!obras) return <div className="skel" style={{ height: 120 }} />;
+  const activas = obras.filter(o => !["terminada", "cancelada"].includes(o.estado));
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Obras</div><div className="ps">{activas.length} {activas.length === 1 ? "obra activa" : "obras activas"} · {obras.length} en total</div></div>
+        <div className="dash-actions"><button className="btn btn-p" onClick={() => setForm({ nombre: "", cliente_nombre: "", direccion: "", responsable: "", fecha_inicio: "", fecha_fin_prevista: "", estado: "planificada" })}>+ Nueva obra</button></div>
+      </div>
+      {avisoCaja(temaPal, aviso)}
+      {form && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">Nueva obra</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+            <div style={{ gridColumn: "1 / -1" }}><div className="fl">Nombre de la obra</div><input className="inp" autoFocus placeholder="Ej: Edificio Alsina 1200" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
+            <div><div className="fl">Cliente</div><input className="inp" placeholder="Quién la contrata" value={form.cliente_nombre} onChange={e => setForm(f => ({ ...f, cliente_nombre: e.target.value }))} /></div>
+            <div><div className="fl">Responsable de obra</div><input className="inp" placeholder="Ej: Ing. Gómez" value={form.responsable} onChange={e => setForm(f => ({ ...f, responsable: e.target.value }))} /></div>
+            <div style={{ gridColumn: "1 / -1" }}><div className="fl">Dirección</div><input className="inp" value={form.direccion} onChange={e => setForm(f => ({ ...f, direccion: e.target.value }))} /></div>
+            <div><div className="fl">Inicio</div><input className="inp" type="date" value={form.fecha_inicio} onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))} /></div>
+            <div><div className="fl">Fin previsto</div><input className="inp" type="date" value={form.fecha_fin_prevista} onChange={e => setForm(f => ({ ...f, fecha_fin_prevista: e.target.value }))} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+            <button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button>
+            <button className="btn btn-p" onClick={crear}>Crear obra</button>
+          </div>
+        </div>
+      )}
+      {!obras.length && !form && <div className="card" style={{ textAlign: "center", padding: 28, color: temaPal.textMuted }}>Todavía no cargaste ninguna obra. Tocá <b>+ Nueva obra</b> para empezar: después le cargás las etapas, el presupuesto y el stock que va usando.</div>}
+      <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+        {obras.map(o => {
+          const [txtE, colE] = ESTADOS_OBRA_TXT[o.estado] || [o.estado, "#5d6d7e"];
+          const pasado = o.presupuesto > 0 && o.gastado > o.presupuesto;
+          return (
+            <button key={o.id} className="card" onClick={() => setSel(o.id)} style={{ textAlign: "left", cursor: "pointer", borderLeft: "4px solid " + colE, opacity: ["terminada", "cancelada"].includes(o.estado) ? 0.75 : 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{o.nombre}</div>
+                <span className="tag" style={{ background: colE + "22", color: colE, whiteSpace: "nowrap" }}>{txtE}</span>
+              </div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "2px 0 10px" }}>{[o.cliente_nombre, o.responsable && "Resp.: " + o.responsable].filter(Boolean).join(" · ") || "Sin cliente cargado"}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}><span>Avance</span><b>{cantCn(o.avance)}%</b></div>
+              <BarraAvance pct={o.avance} color={colE} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 10 }}>
+                <span style={{ color: temaPal.textMuted }}>Presupuesto <b style={{ color: temaPal.text }}>{o.presupuesto ? monedaCn(o.presupuesto) : "sin cargar"}</b></span>
+                <span style={{ color: temaPal.textMuted }}>Gastado <b style={{ color: pasado ? temaPal.red : temaPal.text }}>{monedaCn(o.gastado)}</b></span>
+              </div>
+              {pasado && <div style={{ fontSize: 11.5, color: temaPal.red, marginTop: 4, fontWeight: 600 }}>⚠️ Se pasó {monedaCn(o.desvio)} del presupuesto</div>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ObraDetalle({ id, temaPal, onVolver }) {
+  const [o, setO] = useState(null);
+  const [tab, setTab] = useState("resumen");
+  const [aviso, avisar] = usarAviso();
+  const [pres, setPres] = useState(null);
+  const [gasto, setGasto] = useState(null);
+  const [etapa, setEtapa] = useState(null);
+  const esCel = useAncho() < 760;
+  const cargar = () => API.get("/constructora/obras/" + id).then(r => { setO(r.data); setPres(null); }).catch(() => setO(false));
+  useEffect(() => { cargar(); }, [id]);
+  const accion = async (fn, ok) => { try { await fn(); if (ok) avisar(true, ok); await cargar(); } catch (e) { avisar(false, errCn(e)); } };
+  if (o === null) return <div className="skel" style={{ height: 120 }} />;
+  if (o === false) return <div className="card">No encontramos la obra. <button className="btn btn-g btn-sm" onClick={onVolver}>Volver</button></div>;
+  const [txtE, colE] = ESTADOS_OBRA_TXT[o.estado] || [o.estado, "#5d6d7e"];
+  const guardarPres = () => accion(() => API.put("/constructora/obras/" + id + "/presupuesto", { rubros: pres.map(r => ({ rubro: r.rubro, monto: r.presupuestado })) }), "✓ Presupuesto guardado");
+  const presTotal = (pres || o.rubros).reduce((a, r) => a + (Number(r.presupuestado) || 0), 0);
+  return (
+    <div className="fade" style={{ textAlign: "left", paddingBottom: esCel ? 70 : 0 }}>
+      <div className="dash-head">
+        <div>
+          <button className="btn btn-g btn-sm" onClick={onVolver} style={{ marginBottom: 6 }}>← Todas las obras</button>
+          <div className="pt">{o.nombre}</div>
+          <div className="ps">{[o.cliente_nombre, o.direccion, o.responsable && "Resp.: " + o.responsable].filter(Boolean).join(" · ")}</div>
+        </div>
+        <div className="dash-actions">
+          <select className="sel" value={o.estado} aria-label="Estado de la obra" onChange={e => accion(() => API.put("/constructora/obras/" + id, { estado: e.target.value }), "✓ Estado cambiado")} style={{ borderColor: colE, fontWeight: 600 }}>
+            {Object.entries(ESTADOS_OBRA_TXT).map(([k, v]) => <option key={k} value={k}>{v[0]}</option>)}
+          </select>
+        </div>
+      </div>
+      {avisoCaja(temaPal, aviso)}
+      <TabsCn valor={tab} onCambio={setTab} tabs={[["resumen", "Resumen"], ["etapas", "Etapas (" + o.etapas.length + ")"], ["presupuesto", "Presupuesto"], ["gastos", "Gastos"], ["materiales", "Materiales"]]} />
+
+      {tab === "resumen" && (
+        <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "1fr 1fr", gap: 12 }}>
+          <div className="card">
+            <div className="ct">Avance</div>
+            <div style={{ fontSize: 34, fontWeight: 800, color: colE }}>{cantCn(o.avance)}%</div>
+            <BarraAvance pct={o.avance} color={colE} alto={12} />
+            {!o.etapas.length && (
+              <div style={{ marginTop: 12 }}>
+                <div className="fl">Sin etapas cargadas: poné el avance a mano</div>
+                <input type="range" min="0" max="100" step="5" value={o.avance_manual} style={{ width: "100%" }} onChange={e => setO(x => ({ ...x, avance_manual: e.target.value, avance: Number(e.target.value) }))} onMouseUp={e => accion(() => API.put("/constructora/obras/" + id, { avance_manual: e.target.value }))} onTouchEnd={e => accion(() => API.put("/constructora/obras/" + id, { avance_manual: e.target.value }))} />
+              </div>
+            )}
+            <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 12, lineHeight: 1.7 }}>
+              {o.fecha_inicio && <div>📅 Inicio: <b>{fechaCn(o.fecha_inicio)}</b></div>}
+              {o.fecha_fin_prevista && <div>🏁 Fin previsto: <b>{fechaCn(o.fecha_fin_prevista)}</b></div>}
+              {o.fecha_fin_real && <div>✅ Terminada: <b>{fechaCn(o.fecha_fin_real)}</b></div>}
+            </div>
+          </div>
+          <div className="card">
+            <div className="ct">Presupuesto vs. gastado</div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}><span>Presupuestado</span><b>{o.presupuesto ? monedaCn(o.presupuesto) : "—"}</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, margin: "4px 0 8px" }}><span>Gastado hasta hoy</span><b>{monedaCn(o.gastado)}</b></div>
+            {o.presupuesto > 0 ? (
+              <>
+                <BarraAvance pct={o.gastado / o.presupuesto * 100} color={o.gastado > o.presupuesto ? temaPal.red : temaPal.green} alto={12} />
+                <div style={{ fontSize: 13, marginTop: 8, fontWeight: 600, color: o.desvio > 0 ? temaPal.red : temaPal.green }}>
+                  {o.desvio > 0 ? "⚠️ Te pasaste " + monedaCn(o.desvio) : "Te quedan " + monedaCn(-o.desvio) + " del presupuesto"} ({Math.round(o.gastado / o.presupuesto * 100)}% usado)
+                </div>
+                {o.avance > 0 && o.gastado / o.presupuesto * 100 > o.avance + 10 && <div style={{ fontSize: 12, color: temaPal.warn, marginTop: 6 }}>💡 Gastaste más de lo que avanzó la obra: el gasto va {Math.round(o.gastado / o.presupuesto * 100)}% y el avance {cantCn(o.avance)}%.</div>}
+              </>
+            ) : <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Cargá el presupuesto en la pestaña <b>Presupuesto</b> para ver cómo vas.</div>}
+          </div>
+        </div>
+      )}
+
+      {tab === "etapas" && (
+        <div>
+          {o.etapas.map(e => (
+            <div key={e.id} className="card" style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ fontWeight: 600 }}>{e.orden}. {e.nombre} <span style={{ fontSize: 11.5, color: temaPal.textMuted, fontWeight: 400 }}>· {ESTADOS_ETAPA_TXT[e.estado]}{e.responsable ? " · " + e.responsable : ""}{e.fecha_hasta ? " · hasta " + fechaCn(e.fecha_hasta) : ""}</span></div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input className="inp" type="number" min="0" max="100" style={{ width: 74 }} aria-label={"Avance de " + e.nombre} defaultValue={Number(e.avance)} key={e.id + "-" + e.avance} onBlur={ev => Number(ev.target.value) !== Number(e.avance) && accion(() => API.put("/constructora/etapas/" + e.id, { avance: ev.target.value }))} /><span>%</span>
+                  <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} aria-label="Quitar etapa" onClick={() => { if (confirm("¿Quitar la etapa " + e.nombre + "?")) accion(() => API.delete("/constructora/etapas/" + e.id)); }}>✕</button>
+                </div>
+              </div>
+              <div style={{ marginTop: 8 }}><BarraAvance pct={e.avance} color={e.estado === "terminada" ? temaPal.green : "#2471a3"} /></div>
+            </div>
+          ))}
+          {etapa ? (
+            <div className="card pop-in" style={{ borderTop: "3px solid " + temaPal.accent }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+                <div style={{ gridColumn: "1 / -1" }}><div className="fl">Nombre de la etapa</div><input className="inp" autoFocus placeholder="Ej: Cimientos, Estructura, Instalaciones, Terminaciones" value={etapa.nombre} onChange={e => setEtapa(x => ({ ...x, nombre: e.target.value }))} /></div>
+                <div><div className="fl">Responsable</div><input className="inp" value={etapa.responsable} onChange={e => setEtapa(x => ({ ...x, responsable: e.target.value }))} /></div>
+                <div><div className="fl">Hasta</div><input className="inp" type="date" value={etapa.fecha_hasta} onChange={e => setEtapa(x => ({ ...x, fecha_hasta: e.target.value }))} /></div>
+                <div><div className="fl">Peso en la obra (1 = normal)</div><input className="inp" type="number" min="1" value={etapa.peso} onChange={e => setEtapa(x => ({ ...x, peso: e.target.value }))} /></div>
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+                <button className="btn btn-g" onClick={() => setEtapa(null)}>Cancelar</button>
+                <button className="btn btn-p" onClick={() => accion(() => API.post("/constructora/obras/" + id + "/etapas", etapa).then(() => setEtapa(null)), "✓ Etapa agregada")}>Agregar</button>
+              </div>
+            </div>
+          ) : <button className="btn btn-p" onClick={() => setEtapa({ nombre: "", responsable: o.responsable || "", fecha_hasta: "", peso: 1 })}>+ Agregar etapa</button>}
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 10 }}>El avance de la obra se calcula con el avance de cada etapa. Si una etapa pesa más que otra (por ejemplo la estructura), subile el peso.</div>
+        </div>
+      )}
+
+      {tab === "presupuesto" && (
+        <div className="card">
+          <div className="ct">Presupuesto por rubro</div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="tbl" style={{ width: "100%", minWidth: 520 }}>
+              <thead><tr><th style={{ textAlign: "left" }}>Rubro</th><th style={{ textAlign: "right" }}>Presupuestado</th><th style={{ textAlign: "right" }}>Gastado</th><th style={{ textAlign: "right" }}>Diferencia</th><th style={{ width: 90 }}>Uso</th></tr></thead>
+              <tbody>
+                {(pres || o.rubros).map((r, i) => (
+                  <tr key={r.rubro}>
+                    <td>{r.rubro}{r.rubro === "Materiales" && <div style={{ fontSize: 10.5, color: temaPal.textMuted }}>sale solo del stock que llegó a la obra</div>}</td>
+                    <td style={{ textAlign: "right" }}><input className="inp" type="number" min="0" style={{ width: 130, textAlign: "right" }} aria-label={"Presupuesto de " + r.rubro} value={r.presupuestado || ""} placeholder="0" onChange={e => setPres((pres || o.rubros).map((x, j) => j === i ? { ...x, presupuestado: e.target.value } : x))} /></td>
+                    <td style={{ textAlign: "right" }}>{monedaCn(r.real)}</td>
+                    <td style={{ textAlign: "right", color: r.real > (Number(r.presupuestado) || 0) && r.real > 0 ? temaPal.red : temaPal.green, fontWeight: 600 }}>{(Number(r.presupuestado) || r.real) ? difCn(r.real - (Number(r.presupuestado) || 0)) : "—"}</td>
+                    <td>{Number(r.presupuestado) > 0 && <BarraAvance pct={r.real / r.presupuestado * 100} color={r.real > r.presupuestado ? temaPal.red : temaPal.green} />}</td>
+                  </tr>
+                ))}
+                <tr style={{ fontWeight: 700 }}><td>Total</td><td style={{ textAlign: "right" }}>{monedaCn(presTotal)}</td><td style={{ textAlign: "right" }}>{monedaCn(o.gastado)}</td><td style={{ textAlign: "right", color: o.gastado > presTotal && presTotal > 0 ? temaPal.red : temaPal.green }}>{presTotal ? difCn(o.gastado - presTotal) : "—"}</td><td /></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+            {pres && <button className="btn btn-g" onClick={() => setPres(null)}>Descartar cambios</button>}
+            <button className="btn btn-p" disabled={!pres} onClick={guardarPres}>Guardar presupuesto</button>
+          </div>
+        </div>
+      )}
+
+      {tab === "gastos" && (
+        <div>
+          {gasto ? (
+            <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+              <div className="ct">Cargar un gasto de la obra</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+                <div><div className="fl">Rubro</div><select className="sel" value={gasto.rubro} onChange={e => setGasto(g => ({ ...g, rubro: e.target.value }))}>{["Mano de obra", "Subcontratos", "Equipos y alquileres", "Fletes y combustible", "Gastos generales", "Otros", "Materiales"].map(r => <option key={r}>{r}</option>)}</select></div>
+                <div><div className="fl">Monto</div><input className="inp" type="number" min="0" autoFocus value={gasto.monto} onChange={e => setGasto(g => ({ ...g, monto: e.target.value }))} /></div>
+                <div><div className="fl">Fecha</div><input className="inp" type="date" value={gasto.fecha} onChange={e => setGasto(g => ({ ...g, fecha: e.target.value }))} /></div>
+                <div style={{ gridColumn: "1 / -1" }}><div className="fl">Detalle</div><input className="inp" placeholder="Ej: Quincena albañiles, alquiler de andamios" value={gasto.concepto} onChange={e => setGasto(g => ({ ...g, concepto: e.target.value }))} /></div>
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+                <button className="btn btn-g" onClick={() => setGasto(null)}>Cancelar</button>
+                <button className="btn btn-p" onClick={() => accion(() => API.post("/constructora/obras/" + id + "/gastos", gasto).then(() => setGasto(null)), "✓ Gasto cargado")}>Guardar gasto</button>
+              </div>
+            </div>
+          ) : <button className="btn btn-p" style={{ marginBottom: 12 }} onClick={() => setGasto({ rubro: "Mano de obra", monto: "", concepto: "", fecha: new Date().toISOString().slice(0, 10) })}>+ Cargar gasto</button>}
+          <div className="card">
+            <div className="ct">Gastos cargados a mano</div>
+            {!o.gastos.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Acá van la mano de obra, los subcontratos y los alquileres. Los materiales no hace falta cargarlos: se suman solos cuando llegan a la obra.</div>}
+            {o.gastos.map(g => (
+              <div key={g.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 0", borderBottom: "1px solid " + temaPal.border, fontSize: 13 }}>
+                <div><b>{g.rubro}</b> <span style={{ color: temaPal.textMuted }}>· {fechaCn(g.fecha)}{g.concepto ? " · " + g.concepto : ""}</span></div>
+                <div style={{ whiteSpace: "nowrap" }}><b>{monedaCn(g.monto)}</b> <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} aria-label="Borrar gasto" onClick={() => { if (confirm("¿Borrar este gasto?")) accion(() => API.delete("/constructora/gastos/" + g.id)); }}>✕</button></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "materiales" && (
+        <div className="card">
+          <div className="ct">Materiales que llegaron a esta obra</div>
+          {!o.materiales.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Todavía no llegó nada. Para mandar material a la obra usá <b>Salida rápida</b> en Stock.</div>}
+          {o.materiales.map(m => (
+            <div key={m.material_id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + temaPal.border, fontSize: 13 }}>
+              <span>{m.nombre}</span>
+              <span><b>{cantCn(m.stock)}</b> {m.unidad} en obra <span style={{ color: temaPal.textMuted }}>· llegaron {cantCn(m.llego)}</span></span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Stock en galpones y obras ----------
+function StockConstructora({ usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esCel = useAncho() < 760;
+  const [tab, setTab] = useState(() => tabInicialDe("stock-obras") || "salida");
+  const [ubs, setUbs] = useState([]);
+  const [mats, setMats] = useState(null);
+  const [aviso, avisar] = usarAviso();
+  const cargar = () => Promise.all([API.get("/constructora/ubicaciones"), API.get("/constructora/materiales")]).then(([u, m]) => { setUbs(u.data || []); setMats(m.data || []); }).catch(() => { setUbs([]); setMats([]); });
+  useEffect(() => { cargar(); }, []);
+  if (!mats) return <div className="skel" style={{ height: 120 }} />;
+  return (
+    <div className="fade" style={{ textAlign: "left", paddingBottom: esCel ? 70 : 0 }}>
+      <div className="dash-head"><div><div className="pt">Stock de obra</div><div className="ps">{ubs.filter(u => u.tipo === "galpon").length} galpones · {ubs.filter(u => u.tipo === "obra").length} obras · {mats.length} materiales</div></div></div>
+      {avisoCaja(temaPal, aviso)}
+      <TabsCn valor={tab} onCambio={setTab} tabs={[["salida", "📲 Salida rápida"], ["stock", "Stock"], ["movs", "Movimientos"], ["materiales", "Materiales"], ["galpones", "Galpones"]]} />
+      {tab === "salida" && <SalidaRapida ubs={ubs} mats={mats} temaPal={temaPal} avisar={avisar} onHecho={cargar} esCel={esCel} />}
+      {tab === "stock" && <TablaStock ubs={ubs} mats={mats} temaPal={temaPal} />}
+      {tab === "movs" && <MovimientosStock ubs={ubs} temaPal={temaPal} />}
+      {tab === "materiales" && <MaterialesCn mats={mats} temaPal={temaPal} avisar={avisar} onCambio={cargar} />}
+      {tab === "galpones" && <GalponesCn ubs={ubs} temaPal={temaPal} avisar={avisar} onCambio={cargar} />}
+    </div>
+  );
+}
+
+// Carga rapida (pensada para el celular): de donde sale, a donde va, que material y cuanto.
+function SalidaRapida({ ubs, mats, temaPal, avisar, onHecho, esCel }) {
+  const galpones = ubs.filter(u => u.tipo === "galpon");
+  const obrasAct = ubs.filter(u => u.tipo === "obra" && !["terminada", "cancelada"].includes(u.obra_estado));
+  const [modo, setModo] = useState("llevar"); // llevar | uso | ingreso
+  const [origen, setOrigen] = useState("");
+  const [destino, setDestino] = useState("");
+  const [lineas, setLineas] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [nota, setNota] = useState("");
+  const [nuevo, setNuevo] = useState(null);
+  const [envio, setEnvio] = useState(false);
+  const [hecho, setHecho] = useState(null);
+  // El galpon de origen que se propone es el que mas mercaderia tiene
+  useEffect(() => {
+    if (origen || !galpones.length) return;
+    const tot = (g) => mats.reduce((a, m) => a + Math.max(0, (m.por_ubicacion || {})[g.id] || 0), 0);
+    setOrigen(String([...galpones].sort((x, y) => tot(y) - tot(x))[0].id));
+  }, [ubs, mats]);
+  const stockEn = (m, uid) => (m.por_ubicacion || {})[uid] || 0;
+  const lugarOrigen = modo === "ingreso" ? null : origen;
+  const enc = busca.trim() ? mats.filter(m => m.nombre.toLowerCase().includes(busca.trim().toLowerCase()) && !lineas.some(l => l.id === m.id)).slice(0, 8) : [];
+  const agregar = (m) => { setLineas(l => [...l, { id: m.id, nombre: m.nombre, unidad: m.unidad, cantidad: "" }]); setBusca(""); };
+  const ponerCant = (id, v) => setLineas(l => l.map(x => x.id === id ? { ...x, cantidad: v } : x));
+  const sumar = (id, d) => setLineas(l => l.map(x => x.id === id ? { ...x, cantidad: String(Math.max(0, Math.round(((parseFloat(x.cantidad) || 0) + d) * 1000) / 1000)) } : x));
+  const crearMaterial = async () => {
+    try { const r = await API.post("/constructora/materiales", nuevo); await onHecho(); agregar(r.data); setNuevo(null); }
+    catch (e) { avisar(false, errCn(e)); }
+  };
+  const registrar = async () => {
+    const items = lineas.filter(l => parseFloat(l.cantidad) > 0).map(l => ({ material_id: l.id, cantidad: parseFloat(String(l.cantidad).replace(",", ".")) }));
+    if (!items.length) return avisar(false, "Poné cuánto salió de cada material");
+    const body = modo === "llevar" ? { tipo: "traspaso", origen_id: Number(origen), destino_id: Number(destino), items, nota }
+      : modo === "uso" ? { tipo: "salida", origen_id: Number(origen), motivo: "Se usó o se perdió", items, nota }
+      : { tipo: "entrada", destino_id: Number(destino), motivo: "Ingreso sin factura", items, nota };
+    if (modo === "llevar" && !destino) return avisar(false, "Elegí a dónde va");
+    if (modo === "ingreso" && !destino) return avisar(false, "Elegí dónde queda la mercadería");
+    setEnvio(true);
+    try {
+      await API.post("/constructora/movimientos", body);
+      const nomD = (ubs.find(u => String(u.id) === String(destino)) || {}).nombre;
+      setHecho({ n: items.length, texto: modo === "llevar" ? "a " + nomD : modo === "uso" ? "como usado o perdido" : "en " + nomD });
+      setLineas([]); setNota(""); setDestino(""); await onHecho();
+    } catch (e) { avisar(false, errCn(e)); }
+    setEnvio(false);
+  };
+  const Grande = ({ activo, onClick, children }) => <button type="button" onClick={onClick} className={"chip-btn" + (activo ? " on" : "")} style={{ padding: esCel ? "14px 12px" : "10px 12px", borderRadius: 10, fontSize: esCel ? 15 : 13, fontWeight: 600, textAlign: "left", whiteSpace: "normal" }}>{children}</button>;
+  return (
+    <div style={{ maxWidth: 640 }}>
+      {hecho && (
+        <div className="card pop-in" style={{ background: temaPal.greenDim, border: "1px solid " + temaPal.green, marginBottom: 12 }}>
+          <b>✓ Listo, quedó anotado:</b> {hecho.n} {hecho.n === 1 ? "material" : "materiales"} {hecho.texto}.
+          <div><button className="btn btn-g btn-sm" style={{ marginTop: 8 }} onClick={() => setHecho(null)}>Cargar otra salida</button></div>
+        </div>
+      )}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">¿Qué querés anotar?</div>
+        <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "1fr 1fr 1fr", gap: 8 }}>
+          <Grande activo={modo === "llevar"} onClick={() => { setModo("llevar"); setDestino(""); }}>🚚 Llevar a una obra u otro galpón</Grande>
+          <Grande activo={modo === "uso"} onClick={() => setModo("uso")}>🧱 Se usó o se perdió</Grande>
+          <Grande activo={modo === "ingreso"} onClick={() => { setModo("ingreso"); setDestino(""); }}>📥 Llegó sin factura</Grande>
+        </div>
+      </div>
+      {modo !== "ingreso" && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">¿De dónde sale?</div>
+          <select className="sel" style={{ fontSize: esCel ? 16 : 13, padding: esCel ? 12 : undefined }} value={origen} onChange={e => { setOrigen(e.target.value); setLineas([]); }} aria-label="De dónde sale">
+            {galpones.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+            {obrasAct.map(g => <option key={g.id} value={g.id}>Obra: {g.nombre}</option>)}
+          </select>
+        </div>
+      )}
+      {modo !== "uso" && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">{modo === "llevar" ? "¿A dónde va?" : "¿Dónde queda?"}</div>
+          <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "1fr 1fr", gap: 8 }}>
+            {obrasAct.filter(u => String(u.id) !== String(origen)).map(u => <Grande key={u.id} activo={String(destino) === String(u.id)} onClick={() => setDestino(String(u.id))}>🏗️ {u.nombre}</Grande>)}
+            {galpones.filter(u => String(u.id) !== String(origen) || modo === "ingreso").map(u => <Grande key={u.id} activo={String(destino) === String(u.id)} onClick={() => setDestino(String(u.id))}>🏭 {u.nombre}</Grande>)}
+          </div>
+          {!obrasAct.length && modo === "llevar" && <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 8 }}>No hay obras activas. Cargalas en <b>Obras</b>.</div>}
+        </div>
+      )}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">¿Qué material y cuánto?</div>
+        <div style={{ position: "relative" }}>
+          <input className="inp" style={{ fontSize: esCel ? 16 : 13, padding: esCel ? 12 : undefined }} placeholder="🔎 Escribí el material (cemento, hierro, ladrillo…)" value={busca} onChange={e => setBusca(e.target.value)} />
+          {busca.trim() && (
+            <div className="card" style={{ position: "absolute", zIndex: 5, left: 0, right: 0, padding: 4 }}>
+              {enc.map(m => <button key={m.id} className="chip-btn" style={{ display: "flex", justifyContent: "space-between", width: "100%", textAlign: "left", border: "none", borderRadius: 6, padding: esCel ? "12px 10px" : "8px 10px", whiteSpace: "normal" }} onClick={() => agregar(m)}><span>{m.nombre}</span>{modo !== "ingreso" && <span style={{ color: temaPal.textMuted, fontSize: 12 }}>hay {cantCn(stockEn(m, lugarOrigen))} {m.unidad}</span>}</button>)}
+              <button className="chip-btn" style={{ width: "100%", textAlign: "left", border: "none", borderRadius: 6, padding: esCel ? "12px 10px" : "8px 10px", color: temaPal.accentText }} onClick={() => { setNuevo({ nombre: busca.trim(), unidad: "u" }); setBusca(""); }}>➕ Material nuevo: “{busca.trim()}”</button>
+            </div>
+          )}
+        </div>
+        {nuevo && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
+            <input className="inp" style={{ flex: "2 1 160px" }} value={nuevo.nombre} onChange={e => setNuevo(n => ({ ...n, nombre: e.target.value }))} aria-label="Nombre del material nuevo" />
+            <select className="sel" style={{ flex: "1 1 90px" }} value={nuevo.unidad} onChange={e => setNuevo(n => ({ ...n, unidad: e.target.value }))} aria-label="Unidad">{["u", "kg", "m", "m2", "m3", "l", "bolsa", "tn", "rollo", "caja", "hs", "gl"].map(u => <option key={u}>{u}</option>)}</select>
+            <button className="btn btn-p" onClick={crearMaterial}>Crear y agregar</button>
+            <button className="btn btn-g" onClick={() => setNuevo(null)}>Cancelar</button>
+          </div>
+        )}
+        <div style={{ marginTop: 10 }}>
+          {lineas.map(l => {
+            const m = mats.find(x => x.id === l.id);
+            const hay = modo === "ingreso" ? null : stockEn(m || {}, lugarOrigen);
+            const mucho = hay !== null && parseFloat(l.cantidad) > hay;
+            return (
+              <div key={l.id} style={{ padding: "10px 0", borderBottom: "1px solid " + temaPal.border }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <b style={{ fontSize: esCel ? 15 : 13 }}>{l.nombre}</b>
+                  <button className="btn btn-g btn-sm" aria-label={"Sacar " + l.nombre} onClick={() => setLineas(x => x.filter(y => y.id !== l.id))}>✕</button>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+                  <button className="btn btn-g" style={{ width: esCel ? 52 : 38, height: esCel ? 48 : 36, fontSize: 20 }} aria-label="Menos" onClick={() => sumar(l.id, -1)}>−</button>
+                  <input className="inp" inputMode="decimal" style={{ textAlign: "center", fontSize: esCel ? 20 : 14, fontWeight: 700, width: esCel ? 100 : 80, height: esCel ? 48 : undefined }} placeholder="0" value={l.cantidad} aria-label={"Cantidad de " + l.nombre} onChange={e => ponerCant(l.id, e.target.value.replace(",", "."))} />
+                  <button className="btn btn-g" style={{ width: esCel ? 52 : 38, height: esCel ? 48 : 36, fontSize: 20 }} aria-label="Más" onClick={() => sumar(l.id, 1)}>+</button>
+                  <span style={{ fontSize: 13 }}>{l.unidad}</span>
+                </div>
+                {hay !== null && <div style={{ fontSize: 12, marginTop: 4, color: mucho ? temaPal.red : temaPal.textMuted }}>{mucho ? "⚠️ Solo hay " : "Hay "}{cantCn(hay)} {l.unidad} ahí</div>}
+              </div>
+            );
+          })}
+          {!lineas.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Buscá el material y tocalo para agregarlo. Podés agregar varios.</div>}
+        </div>
+        <div style={{ marginTop: 10 }}><input className="inp" placeholder="Nota (opcional): quién lo retiró, para qué…" value={nota} onChange={e => setNota(e.target.value)} /></div>
+      </div>
+      <button className="btn btn-p" disabled={envio || !lineas.length} onClick={registrar} style={{ width: "100%", padding: esCel ? "16px" : "12px", fontSize: esCel ? 17 : 14, fontWeight: 700 }}>
+        {envio ? "Guardando…" : modo === "llevar" ? "✓ Registrar salida" : modo === "uso" ? "✓ Registrar lo usado" : "✓ Registrar ingreso"}
+      </button>
+    </div>
+  );
+}
+
+function TablaStock({ ubs, mats, temaPal }) {
+  const [q, setQ] = useState("");
+  const conStock = ubs.filter(u => u.tipo === "galpon" || mats.some(m => Math.abs((m.por_ubicacion || {})[u.id] || 0) > 0));
+  const lista = mats.filter(m => !q.trim() || m.nombre.toLowerCase().includes(q.trim().toLowerCase()));
+  const valor = mats.reduce((a, m) => a + Math.max(0, m.total) * m.costo_promedio, 0);
+  return (
+    <div className="card">
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <input className="inp" style={{ maxWidth: 280 }} placeholder="Buscar material…" value={q} onChange={e => setQ(e.target.value)} />
+        <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Valor de todo lo que hay (a costo): <b style={{ color: temaPal.text }}>{monedaCn(valor)}</b></div>
+      </div>
+      {!mats.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Todavía no hay materiales. Se crean solos al cargar una compra, o desde la pestaña Materiales.</div>}
+      <div style={{ overflowX: "auto" }}>
+        <table className="tbl" style={{ width: "100%", minWidth: 480 }}>
+          <thead><tr><th style={{ textAlign: "left" }}>Material</th>{conStock.map(u => <th key={u.id} style={{ textAlign: "right" }}>{u.tipo === "obra" ? "🏗️ " : "🏭 "}{u.nombre}</th>)}<th style={{ textAlign: "right" }}>Total</th></tr></thead>
+          <tbody>
+            {lista.map(m => (
+              <tr key={m.id}>
+                <td>{m.nombre} <span style={{ color: temaPal.textMuted, fontSize: 11 }}>({m.unidad})</span>{m.bajo_minimo && <span className="tag" style={{ marginLeft: 6, background: temaPal.redDim, color: temaPal.red }}>poco stock</span>}</td>
+                {conStock.map(u => { const v = (m.por_ubicacion || {})[u.id] || 0; return <td key={u.id} style={{ textAlign: "right", color: v < 0 ? temaPal.red : v === 0 ? temaPal.textMuted : temaPal.text, fontWeight: v ? 600 : 400 }}>{cantCn(v)}</td>; })}
+                <td style={{ textAlign: "right", fontWeight: 700 }}>{cantCn(m.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MovimientosStock({ ubs, temaPal }) {
+  const [ub, setUb] = useState("");
+  const [lista, setLista] = useState(null);
+  useEffect(() => { setLista(null); API.get("/constructora/movimientos" + (ub ? "?ubicacion_id=" + ub : "")).then(r => setLista(r.data || [])).catch(() => setLista([])); }, [ub]);
+  return (
+    <div className="card">
+      <select className="sel" style={{ maxWidth: 300, marginBottom: 10 }} value={ub} onChange={e => setUb(e.target.value)} aria-label="Filtrar por lugar">
+        <option value="">Todos los lugares</option>
+        {ubs.map(u => <option key={u.id} value={u.id}>{u.tipo === "obra" ? "Obra: " : ""}{u.nombre}</option>)}
+      </select>
+      {!lista ? <div className="skel" style={{ height: 80 }} /> : !lista.length ? <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Todavía no hay movimientos.</div> : lista.map(x => (
+        <div key={x.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "8px 0", borderBottom: "1px solid " + temaPal.border, fontSize: 13 }}>
+          <div>
+            <b>{cantCn(x.cantidad)} {x.unidad}</b> de {x.material}
+            <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{x.tipo === "entrada" ? "Entró a " + x.destino : x.tipo === "salida" ? "Salió de " + x.origen : x.origen + " → " + x.destino}{x.motivo ? " · " + x.motivo : ""}{x.nota ? " · " + x.nota : ""}</div>
+          </div>
+          <div style={{ fontSize: 11.5, color: temaPal.textMuted, textAlign: "right", whiteSpace: "nowrap" }}>{fechaCn(x.fecha)}<div>{x.usuario || ""}</div></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MaterialesCn({ mats, temaPal, avisar, onCambio }) {
+  const [n, setN] = useState({ nombre: "", unidad: "u", stock_minimo: "" });
+  const crear = async () => { try { await API.post("/constructora/materiales", n); setN({ nombre: "", unidad: "u", stock_minimo: "" }); avisar(true, "✓ Material agregado"); onCambio(); } catch (e) { avisar(false, errCn(e)); } };
+  return (
+    <div className="card">
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <input className="inp" style={{ flex: "2 1 180px" }} placeholder="Material nuevo (ej: Cemento 50 kg)" value={n.nombre} onChange={e => setN(x => ({ ...x, nombre: e.target.value }))} />
+        <select className="sel" style={{ flex: "1 1 90px" }} value={n.unidad} onChange={e => setN(x => ({ ...x, unidad: e.target.value }))} aria-label="Unidad">{["u", "kg", "m", "m2", "m3", "l", "bolsa", "tn", "rollo", "caja", "hs", "gl"].map(u => <option key={u}>{u}</option>)}</select>
+        <input className="inp" type="number" min="0" style={{ flex: "1 1 110px" }} placeholder="Mínimo (aviso)" value={n.stock_minimo} onChange={e => setN(x => ({ ...x, stock_minimo: e.target.value }))} />
+        <button className="btn btn-p" disabled={!n.nombre.trim()} onClick={crear}>Agregar</button>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table className="tbl" style={{ width: "100%", minWidth: 460 }}>
+          <thead><tr><th style={{ textAlign: "left" }}>Material</th><th>Unidad</th><th style={{ textAlign: "right" }}>Costo promedio</th><th style={{ textAlign: "right" }}>Avisar si en galpones hay menos de</th></tr></thead>
+          <tbody>{mats.map(m => (
+            <tr key={m.id}><td>{m.nombre}</td><td style={{ textAlign: "center" }}>{m.unidad}</td><td style={{ textAlign: "right" }}>{m.costo_promedio ? monedaCn(m.costo_promedio) : "—"}</td>
+              <td style={{ textAlign: "right" }}><input className="inp" type="number" min="0" style={{ width: 100, textAlign: "right" }} aria-label={"Mínimo de " + m.nombre} defaultValue={m.stock_minimo || ""} placeholder="0" onBlur={e => Number(e.target.value || 0) !== m.stock_minimo && API.put("/constructora/materiales/" + m.id, { stock_minimo: e.target.value || 0 }).then(() => { avisar(true, "✓ Guardado"); onCambio(); }).catch(er => avisar(false, errCn(er)))} /></td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function GalponesCn({ ubs, temaPal, avisar, onCambio }) {
+  const [n, setN] = useState({ nombre: "", direccion: "" });
+  const crear = async () => { try { await API.post("/constructora/ubicaciones", n); setN({ nombre: "", direccion: "" }); avisar(true, "✓ Galpón agregado"); onCambio(); } catch (e) { avisar(false, errCn(e)); } };
+  const cerrar = async (u) => { if (!confirm("¿Cerrar el galpón " + u.nombre + "?")) return; try { await API.put("/constructora/ubicaciones/" + u.id, { activo: false }); onCambio(); } catch (e) { avisar(false, errCn(e)); } };
+  return (
+    <div className="card">
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <input className="inp" style={{ flex: "1 1 180px" }} placeholder="Nombre del galpón" value={n.nombre} onChange={e => setN(x => ({ ...x, nombre: e.target.value }))} />
+        <input className="inp" style={{ flex: "2 1 220px" }} placeholder="Dirección (opcional)" value={n.direccion} onChange={e => setN(x => ({ ...x, direccion: e.target.value }))} />
+        <button className="btn btn-p" disabled={!n.nombre.trim()} onClick={crear}>+ Galpón</button>
+      </div>
+      {ubs.filter(u => u.tipo === "galpon").map(u => (
+        <div key={u.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid " + temaPal.border, fontSize: 13 }}>
+          <span>🏭 <b>{u.nombre}</b> {u.direccion && <span style={{ color: temaPal.textMuted }}>· {u.direccion}</span>}</span>
+          <button className="btn btn-g btn-sm" onClick={() => cerrar(u)}>Cerrar</button>
+        </div>
+      ))}
+      <div style={{ fontSize: 12, color: temaPal.textMuted, marginTop: 10 }}>Las obras aparecen solas como lugares de stock cuando las creás en Obras.</div>
+    </div>
+  );
+}
+
+// ---------- Compras ----------
+function ComprasConstructora({ usuario, paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esCel = useAncho() < 760;
+  const [lista, setLista] = useState(null);
+  const [form, setForm] = useState(null);
+  const [ubs, setUbs] = useState([]);
+  const [provs, setProvs] = useState([]);
+  const [mats, setMats] = useState([]);
+  const [leyendo, setLeyendo] = useState(false);
+  const [ver, setVer] = useState(null);
+  const [aviso, avisar] = usarAviso();
+  const cargar = () => API.get("/constructora/compras").then(r => setLista(r.data || [])).catch(() => setLista([]));
+  useEffect(() => {
+    cargar();
+    API.get("/constructora/ubicaciones").then(r => setUbs(r.data || [])).catch(() => {});
+    API.get("/proveedores").then(r => setProvs(r.data || [])).catch(() => {});
+    API.get("/constructora/materiales").then(r => setMats(r.data || [])).catch(() => {});
+  }, []);
+  const vacia = () => ({ proveedor_id: "", proveedor_nombre: "", fecha: new Date().toISOString().slice(0, 10), numero: "", destino_id: String(([...ubs].filter(u => u.tipo === "galpon").sort((x, y) => x.id - y.id)[0] || {}).id || ""), estado: "pendiente", vence: "", items: [{ nombre: "", unidad: "u", cantidad: "", costo_unitario: "" }] });
+  const total = form ? form.items.reduce((a, i) => a + (parseFloat(i.cantidad) || 0) * (parseFloat(i.costo_unitario) || 0), 0) : 0;
+  const setItem = (idx, cambios) => setForm(f => ({ ...f, items: f.items.map((it, j) => {
+    if (j !== idx) return it;
+    const nuevo = { ...it, ...cambios };
+    if (cambios.nombre !== undefined) { const m = mats.find(x => x.nombre.toLowerCase() === String(cambios.nombre).trim().toLowerCase()); nuevo.material_id = m ? m.id : undefined; if (m) nuevo.unidad = m.unidad; }
+    return nuevo;
+  }) }));
+  const leerFactura = async (file) => {
+    if (!file) return;
+    setLeyendo(true);
+    try {
+      const fd = new FormData(); fd.append("archivo", file); if (form.proveedor_id) fd.append("proveedor_id", form.proveedor_id);
+      const r = await API.post("/constructora/compras/leer-factura", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const items = (r.data.items || []).map(i => {
+        // Si no lo reconoce seguro, propone el material mas parecido (marcado para revisar) o lo deja como material nuevo
+        const sug = !i.material_id && i.sugerencias && i.sugerencias[0];
+        const mid = i.material_id || (sug ? sug.id : undefined);
+        const mat = mats.find(m => m.id === mid);
+        return { material_id: mid, nombre: i.material || (sug ? sug.nombre : i.descripcion), unidad: (mat && mat.unidad) || i.unidad || "u", cantidad: String(i.cantidad || ""), costo_unitario: String(i.costo_unitario || ""), dudoso: i.dudoso || !i.material_id, factura: i.descripcion };
+      });
+      if (!items.length) avisar(false, "No encontramos renglones en esa factura. Cargalos a mano.");
+      else { setForm(f => ({ ...f, items })); avisar(true, "✓ Leímos " + items.length + " renglones. Revisalos antes de guardar (los marcados en amarillo son materiales nuevos o dudosos)."); }
+    } catch (e) { avisar(false, errCn(e, "No pudimos leer la factura")); }
+    setLeyendo(false);
+  };
+  const guardar = async () => {
+    try {
+      const items = form.items.filter(i => parseFloat(i.cantidad) > 0 && (i.material_id || String(i.nombre).trim())).map(i => ({ material_id: i.material_id, nombre: i.nombre, unidad: i.unidad, cantidad: parseFloat(i.cantidad), costo_unitario: parseFloat(i.costo_unitario) || 0 }));
+      await API.post("/constructora/compras", { ...form, items });
+      setForm(null); avisar(true, "✓ Compra guardada: la mercadería ya está en el stock"); cargar(); API.get("/constructora/materiales").then(r => setMats(r.data || [])).catch(() => {});
+    } catch (e) { avisar(false, errCn(e)); }
+  };
+  const nuevoProv = async () => {
+    const nombre = prompt("Nombre del proveedor nuevo:");
+    if (!nombre || !nombre.trim()) return;
+    try { const r = await API.post("/proveedores", { nombre: nombre.trim() }); setProvs(p => [...p, r.data]); setForm(f => ({ ...f, proveedor_id: String(r.data.id) })); } catch (e) { avisar(false, errCn(e, "No se pudo crear el proveedor")); }
+  };
+  const accion = async (fn, ok) => { try { await fn(); avisar(true, ok); cargar(); } catch (e) { avisar(false, errCn(e)); } };
+  const abrir = (id) => API.get("/constructora/compras/" + id).then(r => setVer(r.data)).catch(() => {});
+  return (
+    <div className="fade" style={{ textAlign: "left", paddingBottom: esCel ? 70 : 0 }}>
+      <datalist id="mats-cn">{mats.map(m => <option key={m.id} value={m.nombre} />)}</datalist>
+      <div className="dash-head">
+        <div><div className="pt">Compras</div><div className="ps">Cargá la factura del proveedor y la mercadería entra sola al galpón o a la obra</div></div>
+        <div className="dash-actions"><button className="btn btn-p" onClick={() => setForm(vacia())}>+ Nueva compra</button></div>
+      </div>
+      {avisoCaja(temaPal, aviso)}
+      {form && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">Nueva compra</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+            <div><div className="fl">Proveedor</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <select className="sel" style={{ flex: 1 }} value={form.proveedor_id} onChange={e => setForm(f => ({ ...f, proveedor_id: e.target.value }))}><option value="">Sin elegir</option>{provs.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select>
+                <button className="btn btn-g" onClick={nuevoProv} aria-label="Proveedor nuevo">+</button>
+              </div></div>
+            <div><div className="fl">N° de factura</div><input className="inp" value={form.numero} onChange={e => setForm(f => ({ ...f, numero: e.target.value }))} placeholder="A-0001-00001234" /></div>
+            <div><div className="fl">Fecha</div><input className="inp" type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} /></div>
+            <div><div className="fl">Entra a</div><select className="sel" value={form.destino_id} onChange={e => setForm(f => ({ ...f, destino_id: e.target.value }))}>{ubs.map(u => <option key={u.id} value={u.id}>{u.tipo === "obra" ? "Obra: " : "Galpón: "}{u.nombre}</option>)}</select></div>
+            <div><div className="fl">Pago</div><select className="sel" value={form.estado} onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}><option value="pendiente">Pendiente de pago</option><option value="pagada">Ya pagada</option></select></div>
+            {form.estado === "pendiente" && <div><div className="fl">Vence</div><input className="inp" type="date" value={form.vence} onChange={e => setForm(f => ({ ...f, vence: e.target.value }))} /></div>}
+          </div>
+          <div style={{ margin: "12px 0", padding: 10, borderRadius: 8, background: temaPal.accentDim, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label className="btn btn-g" style={{ cursor: "pointer" }}>{leyendo ? "Leyendo la factura…" : "📄 Leer factura (PDF, foto o Excel)"}<input type="file" accept=".pdf,.xlsx,.xls,image/*" style={{ display: "none" }} disabled={leyendo} onChange={e => { leerFactura(e.target.files[0]); e.target.value = ""; }} /></label>
+            <span style={{ fontSize: 12, color: temaPal.textMuted }}>Lumiere arma los renglones y vos los revisás. Si no se puede leer, cargalos a mano.</span>
+          </div>
+          {form.items.map((it, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: esCel ? "1fr 1fr" : "3fr 80px 100px 120px 36px", gap: 8, marginBottom: 8, padding: it.dudoso ? 6 : 0, borderRadius: 8, background: it.dudoso ? temaPal.warnDim : "transparent" }}>
+              <div style={{ gridColumn: esCel ? "1 / -1" : undefined }}>
+                <input className="inp" list="mats-cn" placeholder="Material" aria-label="Material" style={{ width: "100%" }} value={it.nombre} onChange={e => setItem(i, { nombre: e.target.value, dudoso: false })} />
+                {it.dudoso && it.factura && <div style={{ fontSize: 11, color: temaPal.warn, marginTop: 2 }}>La factura dice “{it.factura}”{it.material_id ? ": revisá que sea este material" : ": se va a crear como material nuevo"}</div>}
+              </div>
+              <select className="sel" aria-label="Unidad" value={it.unidad} disabled={!!it.material_id} onChange={e => setItem(i, { unidad: e.target.value })}>{["u", "kg", "m", "m2", "m3", "l", "bolsa", "tn", "rollo", "caja", "hs", "gl"].map(u => <option key={u}>{u}</option>)}</select>
+              <input className="inp" type="number" min="0" inputMode="decimal" placeholder="Cantidad" aria-label="Cantidad" value={it.cantidad} onChange={e => setItem(i, { cantidad: e.target.value })} />
+              <input className="inp" type="number" min="0" inputMode="decimal" placeholder="Precio unitario" aria-label="Precio unitario" value={it.costo_unitario} onChange={e => setItem(i, { costo_unitario: e.target.value })} />
+              <button className="btn btn-g" aria-label="Quitar renglón" onClick={() => setForm(f => ({ ...f, items: f.items.length > 1 ? f.items.filter((_, j) => j !== i) : f.items }))}>✕</button>
+            </div>
+          ))}
+          <button className="btn btn-g btn-sm" onClick={() => setForm(f => ({ ...f, items: [...f.items, { nombre: "", unidad: "u", cantidad: "", costo_unitario: "" }] }))}>+ Renglón</button>
+          <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 16 }}>Total: <b>{monedaCn(total)}</b></div>
+            <div style={{ display: "flex", gap: 8 }}><button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button><button className="btn btn-p" onClick={guardar}>Guardar y sumar al stock</button></div>
+          </div>
+        </div>
+      )}
+      {ver && (
+        <div className="card pop-in" style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}><div className="ct">Compra {ver.numero || "#" + ver.id} · {ver.proveedor_nombre || "sin proveedor"}</div><button className="btn btn-g btn-sm" onClick={() => setVer(null)}>Cerrar</button></div>
+          <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 8 }}>{fechaCn(ver.fecha)} · entró a {ver.destino}{ver.anulada ? " · ANULADA" : ""}</div>
+          {ver.items.map(i => <div key={i.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "4px 0" }}><span>{cantCn(i.cantidad)} {i.unidad} · {i.material}</span><span>{monedaCn(i.subtotal)}</span></div>)}
+          <div style={{ textAlign: "right", fontWeight: 700, marginTop: 6 }}>Total {monedaCn(ver.total)}</div>
+        </div>
+      )}
+      {!lista ? <div className="skel" style={{ height: 100 }} /> : !lista.length ? <div className="card" style={{ textAlign: "center", padding: 24, color: temaPal.textMuted }}>Todavía no cargaste compras.</div> : (
+        <div className="card">
+          <div className="ct">Facturas de compra{lista.some(c => c.estado === "pendiente" && !c.anulada) && <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 8, color: temaPal.textMuted }}>A pagar: <b>{monedaCn(lista.filter(c => c.estado === "pendiente" && !c.anulada).reduce((a, c) => a + c.total, 0))}</b></span>}</div>
+          {lista.map(c => (
+            <div key={c.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "10px 0", borderBottom: "1px solid " + temaPal.border, flexWrap: "wrap", opacity: c.anulada ? 0.5 : 1 }}>
+              <button style={{ background: "none", border: "none", textAlign: "left", cursor: "pointer", color: "inherit", padding: 0 }} onClick={() => abrir(c.id)}>
+                <div style={{ fontSize: 13.5 }}><b>{c.proveedor_nombre || "Sin proveedor"}</b> {c.numero && <span style={{ color: temaPal.textMuted }}>· {c.numero}</span>}</div>
+                <div style={{ fontSize: 11.5, color: temaPal.textMuted }}>{fechaCn(c.fecha)} · {c.renglones} {c.renglones === 1 ? "renglón" : "renglones"} · entró a {c.destino}{c.vence && c.estado === "pendiente" ? " · vence " + fechaCn(c.vence) : ""}</div>
+              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <b>{monedaCn(c.total)}</b>
+                {c.anulada ? <span className="tag">Anulada</span> : c.estado === "pagada" ? <span className="tag tag-ok">Pagada</span> : <button className="btn btn-g btn-sm" onClick={() => accion(() => API.put("/constructora/compras/" + c.id + "/pagar"), "✓ Marcada como pagada")}>Marcar pagada</button>}
+                {!c.anulada && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => { if (confirm("¿Anular esta compra? La mercadería sale del stock.")) accion(() => API.delete("/constructora/compras/" + c.id), "✓ Compra anulada"); }}>Anular</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Menu: 7 grupos. "k" = otras palabras con las que se encuentra en el buscador.
 // soloJefe = solo lo ve el dueno (como antes, cuando iban aparte en CONFIGURACION).
 const NAV_SECTIONS = [
   { section: "TU GERENTE", color: "#c9a84c", items: [
     { id: "gerente", icon: "✨", label: "Lumiere, tu gerente", k: "gerente salud analisis mejora continua preguntas logros medallas decisiones" },
     { id: "mejoras", icon: "💡", label: "Ideas y mejoras", k: "mejora continua ideas problemas quejas sugerencias equipo kaizen pendientes" }] },
+  { section: "OBRAS", color: "#d35400", items: [
+    { id: "obras", icon: "🏗️", label: "Obras", k: "obra obras proyectos etapas avance presupuesto responsable cliente constructora", soloConstructora: true },
+    { id: "stock-obras", icon: "📲", label: "Stock y salida rápida", k: "galpon galpones materiales salida rapida traspaso mercaderia obra stock movimientos", soloConstructora: true },
+    { id: "compras-obras", icon: "🧾", label: "Compras", k: "factura proveedor compra materiales cuentas a pagar ingreso", soloConstructora: true }] },
   { section: "CONSULTORIO", color: "#16a085", items: [
     { id: "agenda", icon: "📅", label: "Agenda", k: "turnos turno citas agenda pacientes consultorio", soloConsultorio: true },
     { id: "pacientes", icon: "🩺", label: "Pacientes", k: "historia clinica ficha fotos antes despues evolucion paciente", soloConsultorio: true },
@@ -41241,6 +41910,10 @@ const aplicarLetra = (id) => {
 try { aplicarLetra(localStorage.getItem("lumiere_letra") || "normal"); } catch (e) {}
 
 const BOTONES_PANEL = {
+  constructora: [
+    ["stock-obras", "📲", "Salida rápida", "#d35400"], ["obras", "🏗️", "Obras", "#2471a3"], ["compras-obras", "🧾", "Compras", "#8e44ad"],
+    ["finance", "💰", "Finanzas", "#2d7a4f"], ["caja", "💵", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+  ],
   consultorio: [
     ["agenda", "📅", "Agenda", "#16a085"], ["pacientes", "🩺", "Pacientes", "#2471a3"], ["recordatorios", "💬", "Recordatorios", "#8e44ad"],
     ["pos", "💵", "Cobrar", "#2d7a4f"], ["inventory", "📦", "Stock", "#a0522d"], ["cierre", "🔒", "Cierre de caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
@@ -41259,7 +41932,7 @@ function PanelCelular({ secciones, usuario, localId, avisos, setPage, onMenu, on
   const temaPal = paletaActual || PALETA_CLARA;
   const [letra, setLetra] = useState(() => { try { return localStorage.getItem("lumiere_letra") || "normal"; } catch (e) { return "normal"; } });
   const [hoy, setHoy] = useState(null);
-  const tipo = CONSULTORIO_ACTIVO ? "consultorio" : GASTRO_ACTIVO ? "gastronomia" : "comercio";
+  const tipo = CONSTRUCTORA_ACTIVO ? "constructora" : CONSULTORIO_ACTIVO ? "consultorio" : GASTRO_ACTIVO ? "gastronomia" : "comercio";
   const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)));
   useEffect(() => {
     if (tipo !== "consultorio") return;
@@ -41336,10 +42009,17 @@ const BARRA_CELU_CONS = [
   { ids: ["pacientes"], icon: "🩺", label: "Pacientes" },
   { ids: ["pos"], icon: "💵", label: "Cobrar" },
 ];
+// En una constructora la barra lleva a lo del dia a dia: salida rapida, obras y compras
+const BARRA_CELU_OBRAS = [
+  { ids: ["panel"], icon: "🏠", label: "Inicio" },
+  { ids: ["stock-obras"], icon: "📲", label: "Salida" },
+  { ids: ["obras"], icon: "🏗️", label: "Obras" },
+  { ids: ["compras-obras"], icon: "🧾", label: "Compras" },
+];
 function BarraCelular({ secciones, page, setPage, avisos, onMas }) {
   const permitidas = new Set(secciones.flatMap(s => s.items.map(i => i.id)).concat(["panel"]));
   const usadas = new Set();
-  const botones = (CONSULTORIO_ACTIVO ? BARRA_CELU_CONS : BARRA_CELU).map(b => {
+  const botones = (CONSTRUCTORA_ACTIVO ? BARRA_CELU_OBRAS : CONSULTORIO_ACTIVO ? BARRA_CELU_CONS : BARRA_CELU).map(b => {
     const id = b.ids.find(x => permitidas.has(x) && !usadas.has(x));
     if (!id) return null;
     usadas.add(id);
@@ -41578,13 +42258,22 @@ function armarPasosTutorial() {
     tutIrA("gerente", "TU GERENTE", "Tu gerente", "Y tu gerente ✨", "Tocá Lumiere, tu gerente.", "gerente"),
     info("gerente", "Te dice cómo viene el negocio", "Mirá la salud de tu negocio, qué conviene hacer y qué falta atender. Cuanto más lo uses, mejores consejos te da."),
   ];
+  const obrasT = [
+    tutIrA("obras", "OBRAS", "Obras", "Primero, tus obras 🏗️", "Tocá Obras.", "obras"),
+    info("obras", "Una ficha por obra", "Tocá + Nueva obra y poné nombre, cliente y responsable. Adentro cargás las etapas (con su avance), el presupuesto por rubro y los gastos: ves enseguida si te estás pasando."),
+    tutIrA("compras-obras", "OBRAS", "Obras", "Las compras 🧾", "Tocá Compras.", "compras-obras"),
+    info("compras-obras", "Cargá la factura y listo", "Podés subir la factura del proveedor (PDF, foto o Excel) y Lumiere arma los renglones. Al guardar, la mercadería entra sola al galpón o a la obra y queda anotado lo que hay que pagar."),
+    tutIrA("stock-obras", "OBRAS", "Obras", "Y el stock 📲", "Tocá Stock y salida rápida.", "stock-obras"),
+    info("stock-obras", "Salida rápida desde el celular", "Elegí de dónde sale, a qué obra va, buscá el material y poné cuánto. Queda anotado quién lo hizo y el costo se suma a esa obra."),
+  ];
+  if (CONSTRUCTORA_ACTIVO) return [bienvenida, ...obrasT, ...gerente, final];
   if (CONSULTORIO_ACTIVO) return [bienvenida, ...agenda, ...vender, ...caja, ...gerente, final];
   if (GASTRO_ACTIVO) return [bienvenida, ...vender, ...catalogo, ...mesas, ...productos, ...caja, ...clientes, ...gerente, final];
   return [bienvenida, ...vender, ...productos, ...caja, ...clientes, ...gerente, final];
 }
 
 function TutorialGuiado({ page, setPage, clave, onCerrar }) {
-  const PASOS = useMemo(armarPasosTutorial, [GASTRO_ACTIVO, CONSULTORIO_ACTIVO]);
+  const PASOS = useMemo(armarPasosTutorial, [GASTRO_ACTIVO, CONSULTORIO_ACTIVO, CONSTRUCTORA_ACTIVO]);
   const N = PASOS.length;
   const [i, setI] = useState(() => { try { const g = parseInt(localStorage.getItem(clave + "_paso"), 10); return g > 0 && g < N - 1 ? g : 0; } catch (e) { return 0; } });
   const paso = PASOS[Math.min(i, N - 1)];
@@ -42087,6 +42776,7 @@ const ACTIVIDADES_NEGOCIO = [
   ["comercio", "🛍️", "Comercio / tienda"],
   ["gastronomia", "🍽️", "Bar, café o restaurante"],
   ["consultorio", "🩺", "Consultorio (estética, odontología…)"],
+  ["constructora", "🏗️", "Constructora (obras y proyectos)"],
   ["servicios", "✂️", "Servicios (peluquería, talleres…)"],
   ["otro", "✨", "Otro"],
 ];
@@ -42167,6 +42857,7 @@ function Bienvenida({ usuario, onListo }) {
                   ))}
                 </div>
                 {d.actividad === "gastronomia" && <div className="lg-ayuda" style={{ textAlign: "left" }}>Te activamos <b>Mesas</b> y <b>Cocina</b>: cuentas por mesa, comandas y cuenta dividida.</div>}
+                {d.actividad === "constructora" && <div className="lg-ayuda" style={{ textAlign: "left" }}>Te activamos <b>Obras</b> (etapas, avance y presupuesto), el <b>stock en galpones y obras</b> con salida rápida desde el celular, y las <b>compras</b> con factura. Sin Punto de Venta.</div>}
                 {d.actividad === "consultorio" && <div className="lg-ayuda" style={{ textAlign: "left" }}>Te activamos <b>Agenda</b>, <b>Pacientes</b> (historia y fotos antes/después) y <b>Recordatorios</b> de turnos.</div>}
               </div>
               <div className="lg-campo"><label htmlFor="bv-mon">Moneda con la que vendés</label>
@@ -42336,7 +43027,8 @@ function PanelPlataforma({ paletaActual }) {
                   <span className="tag tag-neutral">{nombreActividad(n.modulos?.actividad)}</span>
                   {n.modulos?.gastronomia && <span className="tag tag-ok">🍽️ Mesas y Cocina</span>}
                   {n.modulos?.consultorio && <span className="tag tag-ok">🩺 Consultorio</span>}
-                  <button className="btn btn-g btn-sm" onClick={() => setMods({ negocio: n, actividad: n.modulos?.actividad || "", gastronomia: !!n.modulos?.gastronomia, consultorio: !!n.modulos?.consultorio })}>🧩 Módulos</button>
+                  {n.modulos?.constructora && <span className="tag tag-ok">🏗️ Constructora</span>}
+                  <button className="btn btn-g btn-sm" onClick={() => setMods({ negocio: n, actividad: n.modulos?.actividad || "", gastronomia: !!n.modulos?.gastronomia, consultorio: !!n.modulos?.consultorio, constructora: !!n.modulos?.constructora })}>🧩 Módulos</button>
                 </div>
                 {n.notas && <div className="cli-tip" style={{ margin: 0 }}>📝 {n.notas}</div>}
                 {!n.original && (
@@ -42432,7 +43124,7 @@ function PanelPlataforma({ paletaActual }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
               {ACTIVIDADES_NEGOCIO.map(([id, ic, txt]) => (
                 <button key={id} className={"chip-btn" + (mods.actividad === id ? " on" : "")} style={{ borderRadius: 8, padding: "9px 10px", textAlign: "left", whiteSpace: "normal" }}
-                  onClick={() => setMods(m => ({ ...m, actividad: id, gastronomia: id === "gastronomia" ? true : id === "otro" ? m.gastronomia : false, consultorio: id === "consultorio" ? true : id === "otro" || id === "servicios" ? m.consultorio : false }))}>{ic} {txt}</button>
+                  onClick={() => setMods(m => ({ ...m, actividad: id, gastronomia: id === "gastronomia" ? true : id === "otro" ? m.gastronomia : false, consultorio: id === "consultorio" ? true : id === "otro" || id === "servicios" ? m.consultorio : false, constructora: id === "constructora" ? true : id === "otro" ? m.constructora : false }))}>{ic} {txt}</button>
               ))}
             </div>
             <div className="fl">Módulos</div>
@@ -42444,12 +43136,16 @@ function PanelPlataforma({ paletaActual }) {
               <input type="checkbox" checked={mods.consultorio} onChange={e => setMods(m => ({ ...m, consultorio: e.target.checked }))} style={{ marginTop: 3 }} />
               <span><b>🩺 Consultorio</b>: Agenda de turnos, Pacientes (historia y fotos antes/después), Recordatorios; oculta herramientas de tienda</span>
             </label>
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, cursor: "pointer", marginTop: 8 }}>
+              <input type="checkbox" checked={!!mods.constructora} onChange={e => setMods(m => ({ ...m, constructora: e.target.checked }))} style={{ marginTop: 3 }} />
+              <span><b>🏗️ Constructora</b>: Obras (etapas, avance, presupuesto), stock en galpones y obras, compras con factura; sin Punto de Venta</span>
+            </label>
             <div style={{ fontSize: 11, color: p.textMuted, marginTop: 8 }}>Los cambios se ven la próxima vez que entren (o al recargar la página).</div>
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               <button className="btn btn-g" style={{ flex: 1 }} onClick={() => setMods(null)}>Cancelar</button>
               <button className="btn btn-p" style={{ flex: 2 }} onClick={async () => {
                 try {
-                  await API.put("/plataforma/negocios/" + mods.negocio.id + "/modulos", { actividad: mods.actividad || undefined, gastronomia: mods.gastronomia, consultorio: mods.consultorio });
+                  await API.put("/plataforma/negocios/" + mods.negocio.id + "/modulos", { actividad: mods.actividad || undefined, gastronomia: mods.gastronomia, consultorio: mods.consultorio, constructora: mods.constructora });
                   avisar("Módulos de " + mods.negocio.nombre + " guardados"); setMods(null); cargar();
                 } catch (e) { avisar("Error: " + (e.response?.data?.error || "no se pudo guardar")); }
               }}>Guardar</button>
@@ -43882,7 +44578,7 @@ function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "obras": "inventario.ver", "stock-obras": "inventario.ver", "compras-obras": "compras.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -43895,7 +44591,7 @@ function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "obras": "inventario.ver", "stock-obras": "inventario.ver", "compras-obras": "compras.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "valorizacion.ver", "historial-ajustes": "historial_ajustes.ver", "salud-stock": "salud_stock.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
@@ -44016,6 +44712,9 @@ function AppWrapper() {
     if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
     if (id === "tienda-online") return <TiendaOnline localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "mesas") return <Mesas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "obras") return <ObrasConstructora usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "stock-obras") return <StockConstructora usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "compras-obras") return <ComprasConstructora usuario={usuario} paletaActual={paletaActual} />;
     if (id === "agenda") return <AgendaConsultorio localId={local.id} paletaActual={paletaActual} />;
     if (id === "pacientes") return <PacientesConsultorio usuario={usuario} paletaActual={paletaActual} />;
     if (id === "recordatorios") return <RecordatoriosConsultorio localId={local.id} paletaActual={paletaActual} />;
@@ -44046,7 +44745,7 @@ function AppWrapper() {
   };
   const NAV_CON_PERMISOS = ordenarMenu(NAV_SECTIONS.map(sec => ({
     ...sec,
-    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO) && !(it.soloOriginal && !ES_NEGOCIO_ORIGINAL) && !(it.soloConsultorio && !CONSULTORIO_ACTIVO) && !(CONSULTORIO_ACTIVO && OCULTAS_EN_CONSULTORIO.has(it.id)))
+    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO) && !(it.soloOriginal && !ES_NEGOCIO_ORIGINAL) && !(it.soloConsultorio && !CONSULTORIO_ACTIVO) && !(it.soloConstructora && !CONSTRUCTORA_ACTIVO) && !(CONSULTORIO_ACTIVO && OCULTAS_EN_CONSULTORIO.has(it.id)) && !(CONSTRUCTORA_ACTIVO && OCULTAS_EN_CONSTRUCTORA.has(it.id)))
   })).filter(sec => sec.items.length > 0))
     // Solo para quien administra Lumiere
     .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);
