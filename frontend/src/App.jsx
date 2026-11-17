@@ -28493,7 +28493,7 @@ const NAV_SECTIONS = [
     { id: "cocina", icon: "👨‍🍳", label: "Cocina", k: "comandas cocina pedidos gastronomia", soloGastro: true },
     { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
     { id: "tienda-online", icon: "🛍️", label: "Tienda online", k: "tienda web online pedidos carrito ecommerce publicar catalogo" },
-    { id: "cyber", icon: "⚡", label: "Cyber Monday", k: "ofertas liquidacion black friday productos quietos lentos parados cuotas promociones" },
+    { id: "cyber", icon: "⚡", label: "Cyber Monday", k: "ofertas liquidacion black friday productos quietos lentos parados cuotas promociones", soloOriginal: true },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
     { id: "cambio-devolucion", icon: "🔄", label: "Cambio / Devolución", k: "cambio devolucion" }] },
@@ -42668,7 +42668,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
       ["Postventa WA", [["postventa.ver", "Mensajes de postventa"]]],
       ["Cupones", [["cupones.ver", "Ver y crear cupones"]]],
       ["Promociones", [["promociones.ver", "Ver y crear promociones"]]],
-      ["Cyber Monday", [["cyber.ver", "Ver y armar las ofertas del Cyber Monday"]]] ] },
+      ...(ES_NEGOCIO_ORIGINAL ? [["Cyber Monday", [["cyber.ver", "Ver y armar las ofertas del Cyber Monday"]]]] : []) ] },
     { grupo: "EQUIPO", secciones: [
       ["Tareas", [["tareas.ver", "Ver sus tareas"]]],
       ["Comisiones", [["comisiones.propias", "Ver comisiones"]]],
@@ -43997,7 +43997,7 @@ function AppWrapper() {
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
-    if (id === "cyber") return <PaginaCyber paletaActual={paletaActual} />;
+    if (id === "cyber") return ES_NEGOCIO_ORIGINAL ? <PaginaCyber paletaActual={paletaActual} /> : <SinPermiso />;
     if (id === "club-wa") return <PaginaClubWa paletaActual={paletaActual} />;
     if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;
     if (id === "tareas") return <Tareas usuario={usuario} localId={local.id} paletaActual={paletaActual} />;
@@ -44046,7 +44046,7 @@ function AppWrapper() {
   };
   const NAV_CON_PERMISOS = ordenarMenu(NAV_SECTIONS.map(sec => ({
     ...sec,
-    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO) && !(it.soloConsultorio && !CONSULTORIO_ACTIVO) && !(CONSULTORIO_ACTIVO && OCULTAS_EN_CONSULTORIO.has(it.id)))
+    items: sec.items.filter(it => (!it.soloJefe || esJefeMenu) && puedeVer(it.id) && !(it.multiLocal && UN_SOLO_LOCAL) && !(it.soloGastro && !GASTRO_ACTIVO) && !(it.soloOriginal && !ES_NEGOCIO_ORIGINAL) && !(it.soloConsultorio && !CONSULTORIO_ACTIVO) && !(CONSULTORIO_ACTIVO && OCULTAS_EN_CONSULTORIO.has(it.id)))
   })).filter(sec => sec.items.length > 0))
     // Solo para quien administra Lumiere
     .concat(adminPlataforma ? [{ section: "LUMIERE", color: "#f5b400", items: [{ id: "plataforma", icon: "🛠️", label: "Panel de Lumiere", k: "negocios clientes desarrollador plataforma activar prueba" }] }] : []);

@@ -68,6 +68,8 @@ async function asegurarPlan() {
 // Modo Cyber de la tienda online (lo ven y editan quienes entran a Cyber Monday)
 router.get('/cyber-tienda', async (req, res) => {
   try {
+    // El Cyber Monday es solo del negocio original (Girasoles): los demás negocios no lo usan
+    if (Number((req.negocio && req.negocio.id) || 1) !== 1) return res.status(403).json({ error: 'El Cyber Monday no está disponible en este negocio' });
     const tienda = require('../lib/tienda');
     const c = await tienda.leerConfig();
     const k = tienda.cyberDe(c);
@@ -76,6 +78,8 @@ router.get('/cyber-tienda', async (req, res) => {
 });
 router.put('/cyber-tienda', async (req, res) => {
   try {
+    // El Cyber Monday es solo del negocio original (Girasoles): los demás negocios no lo usan
+    if (Number((req.negocio && req.negocio.id) || 1) !== 1) return res.status(403).json({ error: 'El Cyber Monday no está disponible en este negocio' });
     const tienda = require('../lib/tienda');
     const c = await tienda.leerConfig();
     const ant = tienda.cyberDe(c), b = req.body || {};
