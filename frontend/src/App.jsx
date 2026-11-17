@@ -28660,7 +28660,7 @@ function ObraDetalle({ id, temaPal, onVolver }) {
         </div>
       </div>
       {avisoCaja(temaPal, aviso)}
-      <TabsCn valor={tab} onCambio={setTab} tabs={[["resumen", "Resumen"], ["etapas", "Etapas (" + o.etapas.length + ")"], ["presupuesto", "Presupuesto"], ["gastos", "Gastos"], ["materiales", "Materiales"]]} />
+      <TabsCn valor={tab} onCambio={setTab} tabs={[["resumen", "Resumen"], ["plan", "Plan de trabajo"], ["etapas", "Etapas (" + o.etapas.length + ")"], ["presupuesto", "Presupuesto"], ["gastos", "Gastos"], ["materiales", "Materiales"]]} />
 
       {tab === "resumen" && (
         <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "1fr 1fr", gap: 12 }}>
@@ -28696,6 +28696,8 @@ function ObraDetalle({ id, temaPal, onVolver }) {
           </div>
         </div>
       )}
+
+      {tab === "plan" && <PlanObra obraId={id} etapas={o.etapas} temaPal={temaPal} avisar={avisar} onCambio={cargar} />}
 
       {tab === "etapas" && (
         <div>
@@ -29194,6 +29196,144 @@ function ComprasConstructora({ usuario, paletaActual }) {
   );
 }
 
+// ---------- Plan de trabajo de la obra (project manager) ----------
+const ESTADOS_TAREA_TXT = { pendiente: ["Pendiente", "#5d6d7e"], en_curso: ["En curso", "#2471a3"], bloqueada: ["Bloqueada", "#c0392b"], hecha: ["Hecha", "#2d7a4f"] };
+const diaCn = (f) => (f ? String(f).slice(0, 10) : "");
+const aDiasCn = (f) => Math.round(new Date(diaCn(f) + "T12:00:00").getTime() / 86400000);
+
+function PlanObra({ obraId, etapas, temaPal, onCambio, avisar }) {
+  const esCel = useAncho() < 760;
+  const [tareas, setTareas] = useState(null);
+  const [vista, setVista] = useState("lista");
+  const [f, setF] = useState(null);
+  const [quien, setQuien] = useState("");
+  const [soloAtr, setSoloAtr] = useState(false);
+  const hoy = new Date().toISOString().slice(0, 10);
+  const cargar = () => API.get("/constructora/obras/" + obraId + "/tareas").then(r => setTareas(r.data || [])).catch(() => setTareas([]));
+  useEffect(() => { cargar(); }, [obraId]);
+  const accion = async (fn, ok) => { try { await fn(); if (ok) avisar(true, ok); await cargar(); onCambio && onCambio(); } catch (e) { avisar(false, errCn(e)); } };
+  if (!tareas) return <div className="skel" style={{ height: 100 }} />;
+  const atrasada = (t) => t.estado !== "hecha" && t.fecha_hasta && diaCn(t.fecha_hasta) < hoy;
+  const responsables = [...new Set(tareas.map(t => t.responsable).filter(Boolean))];
+  const vistas = tareas.filter(t => (!quien || t.responsable === quien) && (!soloAtr || atrasada(t)));
+  const hechas = tareas.filter(t => t.estado === "hecha").length;
+  const cambiarEstado = (t, estado) => accion(() => API.put("/constructora/tareas/" + t.id, { estado }));
+  const guardar = () => accion(async () => {
+    const body = { nombre: f.nombre, etapa_id: f.etapa_id || null, responsable: f.responsable, fecha_desde: f.fecha_desde, fecha_hasta: f.fecha_hasta, prioridad: f.prioridad, notas: f.notas };
+    if (f.id) await API.put("/constructora/tareas/" + f.id, body); else await API.post("/constructora/obras/" + obraId + "/tareas", body);
+    setF(null);
+  }, f && f.id ? "✓ Tarea guardada" : "✓ Tarea agregada");
+  const vacia = () => ({ nombre: "", etapa_id: "", responsable: "", fecha_desde: "", fecha_hasta: "", prioridad: "normal", notas: "" });
+  const fila = (t) => {
+    const [, col] = ESTADOS_TAREA_TXT[t.estado];
+    const atr = atrasada(t);
+    return (
+      <div key={t.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "9px 0", borderBottom: "1px solid " + temaPal.border, flexWrap: esCel ? "wrap" : "nowrap" }}>
+        <input type="checkbox" checked={t.estado === "hecha"} aria-label={"Marcar hecha: " + t.nombre} style={{ width: 20, height: 20, flexShrink: 0 }} onChange={e => cambiarEstado(t, e.target.checked ? "hecha" : "pendiente")} />
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <button style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", textAlign: "left", font: "inherit", fontWeight: 600, textDecoration: t.estado === "hecha" ? "line-through" : "none", opacity: t.estado === "hecha" ? 0.6 : 1 }} onClick={() => setF({ ...t, etapa_id: t.etapa_id || "", responsable: t.responsable || "", fecha_desde: diaCn(t.fecha_desde), fecha_hasta: diaCn(t.fecha_hasta), notas: t.notas || "" })}>{t.prioridad === "alta" ? "🔺 " : ""}{t.nombre}</button>
+          <div style={{ fontSize: 11.5, color: atr ? temaPal.red : temaPal.textMuted, fontWeight: atr ? 700 : 400 }}>{[t.responsable && "👤 " + t.responsable, (t.fecha_desde || t.fecha_hasta) && fechaCn(t.fecha_desde) + (t.fecha_hasta ? " → " + fechaCn(t.fecha_hasta) : ""), atr && "⚠️ atrasada"].filter(Boolean).join(" · ")}</div>
+        </div>
+        <select className="sel" value={t.estado} aria-label="Estado" style={{ width: 125, borderColor: col, fontSize: 12 }} onChange={e => cambiarEstado(t, e.target.value)}>{Object.entries(ESTADOS_TAREA_TXT).map(([k, v]) => <option key={k} value={k}>{v[0]}</option>)}</select>
+        <button className="btn btn-g btn-sm" aria-label="Borrar tarea" style={{ color: temaPal.red }} onClick={() => { if (confirm("¿Borrar la tarea " + t.nombre + "?")) accion(() => API.delete("/constructora/tareas/" + t.id)); }}>✕</button>
+      </div>
+    );
+  };
+  // Cronograma: una barra por tarea sobre un eje de fechas
+  const conFecha = vistas.filter(t => t.fecha_desde || t.fecha_hasta);
+  let cron = null;
+  if (vista === "cronograma") {
+    if (!conFecha.length) cron = <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Ponele fechas a las tareas para verlas en el cronograma.</div>;
+    else {
+      const ini = Math.min(...conFecha.map(t => aDiasCn(t.fecha_desde || t.fecha_hasta)), aDiasCn(hoy));
+      const fin = Math.max(...conFecha.map(t => aDiasCn(t.fecha_hasta || t.fecha_desde)), aDiasCn(hoy));
+      const total = Math.max(1, fin - ini + 1);
+      const pos = (d) => ((d - ini) / total * 100);
+      const marcas = []; for (let i = 0; i < 5; i++) { const d = ini + Math.round(total * i / 4); marcas.push([d, new Date(d * 86400000 + 43200000).toISOString().slice(0, 10)]); }
+      cron = (
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 560, position: "relative" }}>
+            <div style={{ display: "flex", marginLeft: esCel ? 110 : 190, position: "relative", height: 18, fontSize: 10.5, color: temaPal.textMuted }}>{marcas.map(([d, iso]) => <span key={d} style={{ position: "absolute", left: pos(d) + "%", transform: "translateX(-20%)" }}>{fechaCn(iso).slice(0, 5)}</span>)}</div>
+            {conFecha.map(t => {
+              const d0 = aDiasCn(t.fecha_desde || t.fecha_hasta), d1 = aDiasCn(t.fecha_hasta || t.fecha_desde);
+              const [, col] = ESTADOS_TAREA_TXT[t.estado];
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", height: 30, borderTop: "1px solid " + temaPal.border }}>
+                  <div style={{ width: esCel ? 110 : 190, flexShrink: 0, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 6 }} title={t.nombre}>{t.nombre}</div>
+                  <div style={{ flex: 1, position: "relative", height: "100%" }}>
+                    <div style={{ position: "absolute", left: pos(aDiasCn(hoy)) + "%", top: 0, bottom: 0, width: 2, background: temaPal.accent, opacity: 0.8 }} />
+                    <div title={fechaCn(t.fecha_desde) + " → " + fechaCn(t.fecha_hasta)} style={{ position: "absolute", left: pos(d0) + "%", width: Math.max(1.5, (d1 - d0 + 1) / total * 100) + "%", top: 7, height: 16, borderRadius: 5, background: atrasada(t) ? temaPal.red : col, opacity: t.estado === "hecha" ? 0.55 : 1 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 11, color: temaPal.textMuted, marginTop: 6 }}>La línea dorada es hoy. En rojo, lo atrasado.</div>
+        </div>
+      );
+    }
+  }
+  const grupos = [...etapas.map(e => ({ id: e.id, nombre: e.nombre })), { id: null, nombre: "Sin etapa" }];
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div><b>{hechas} de {tareas.length}</b> tareas hechas {tareas.some(atrasada) && <span style={{ color: temaPal.red, fontWeight: 700 }}> · {tareas.filter(atrasada).length} atrasadas</span>}</div>
+          <button className="btn btn-p" onClick={() => setF(vacia())}>+ Tarea</button>
+        </div>
+        {tareas.length > 0 && <div style={{ marginTop: 8 }}><BarraAvance pct={hechas / tareas.length * 100} color="#2d7a4f" /></div>}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
+          {[["lista", "☰ Lista"], ["tablero", "▦ Tablero"], ["cronograma", "📅 Cronograma"]].map(([k, t]) => <button key={k} className={"chip-btn" + (vista === k ? " on" : "")} style={{ borderRadius: 8, padding: "6px 12px" }} onClick={() => setVista(k)}>{t}</button>)}
+          {responsables.length > 0 && <select className="sel" style={{ width: 160 }} aria-label="Responsable" value={quien} onChange={e => setQuien(e.target.value)}><option value="">Todos los responsables</option>{responsables.map(r => <option key={r}>{r}</option>)}</select>}
+          <label style={{ fontSize: 12.5, display: "flex", gap: 5, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={soloAtr} onChange={e => setSoloAtr(e.target.checked)} />Solo atrasadas</label>
+        </div>
+      </div>
+      {f && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">{f.id ? "Editar tarea" : "Nueva tarea"}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+            <div style={{ gridColumn: "1 / -1" }}><div className="fl">¿Qué hay que hacer?</div><input className="inp" autoFocus placeholder="Ej: Hormigonar losa del 2º piso" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} /></div>
+            <div><div className="fl">Etapa</div><select className="sel" value={f.etapa_id} onChange={e => setF(x => ({ ...x, etapa_id: e.target.value }))}><option value="">Sin etapa</option>{etapas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}</select></div>
+            <div><div className="fl">Responsable</div><input className="inp" list="resp-cn" value={f.responsable} onChange={e => setF(x => ({ ...x, responsable: e.target.value }))} /><datalist id="resp-cn">{responsables.map(r => <option key={r} value={r} />)}</datalist></div>
+            <div><div className="fl">Desde</div><input className="inp" type="date" value={f.fecha_desde} onChange={e => setF(x => ({ ...x, fecha_desde: e.target.value }))} /></div>
+            <div><div className="fl">Hasta</div><input className="inp" type="date" value={f.fecha_hasta} onChange={e => setF(x => ({ ...x, fecha_hasta: e.target.value }))} /></div>
+            <div><div className="fl">Prioridad</div><select className="sel" value={f.prioridad} onChange={e => setF(x => ({ ...x, prioridad: e.target.value }))}><option value="baja">Baja</option><option value="normal">Normal</option><option value="alta">Alta</option></select></div>
+            <div style={{ gridColumn: "1 / -1" }}><div className="fl">Notas</div><input className="inp" value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-g" onClick={() => setF(null)}>Cancelar</button><button className="btn btn-p" disabled={!f.nombre.trim()} onClick={guardar}>Guardar</button></div>
+        </div>
+      )}
+      {!tareas.length && !f && <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 24 }}>Todavía no hay tareas. Armá el plan de trabajo: tareas con responsable y fechas. El avance de cada etapa se calcula solo con las tareas hechas.</div>}
+      {vista === "lista" && tareas.length > 0 && grupos.map(g => {
+        const ts = vistas.filter(t => (t.etapa_id || null) === g.id);
+        if (!ts.length) return null;
+        const ok = ts.filter(t => t.estado === "hecha").length;
+        return <div key={String(g.id)} className="card" style={{ marginBottom: 10 }}><div className="ct">{g.nombre} <span style={{ fontWeight: 400, fontSize: 12, color: temaPal.textMuted }}>· {ok} de {ts.length}</span></div>{ts.map(fila)}</div>;
+      })}
+      {vista === "tablero" && (
+        <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "repeat(4, 1fr)", gap: 10, alignItems: "start" }}>
+          {Object.entries(ESTADOS_TAREA_TXT).map(([est, [nom, col]], i, arr) => (
+            <div key={est} style={{ background: temaPal.accentDim, borderRadius: 10, padding: 8, borderTop: "3px solid " + col }}>
+              <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>{nom} <span style={{ color: temaPal.textMuted, fontWeight: 400 }}>({vistas.filter(t => t.estado === est).length})</span></div>
+              {vistas.filter(t => t.estado === est).map(t => (
+                <div key={t.id} className="card" style={{ padding: 8, marginBottom: 6 }}>
+                  <button style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", textAlign: "left", font: "inherit", fontWeight: 600, fontSize: 13 }} onClick={() => setF({ ...t, etapa_id: t.etapa_id || "", responsable: t.responsable || "", fecha_desde: diaCn(t.fecha_desde), fecha_hasta: diaCn(t.fecha_hasta), notas: t.notas || "" })}>{t.nombre}</button>
+                  <div style={{ fontSize: 11, color: atrasada(t) ? temaPal.red : temaPal.textMuted }}>{[t.responsable, t.fecha_hasta && "hasta " + fechaCn(t.fecha_hasta), atrasada(t) && "⚠️ atrasada"].filter(Boolean).join(" · ")}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                    <button className="btn btn-g btn-sm" disabled={i === 0} aria-label="Mover hacia atrás" onClick={() => cambiarEstado(t, arr[i - 1][0])}>◀</button>
+                    <button className="btn btn-g btn-sm" disabled={i === arr.length - 1} aria-label="Mover hacia adelante" onClick={() => cambiarEstado(t, arr[i + 1][0])}>▶</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+      {vista === "cronograma" && <div className="card">{cron}</div>}
+    </div>
+  );
+}
+
 // ---------- Panel de obras (inicio de una constructora) ----------
 function PanelObras({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
@@ -29207,7 +29347,7 @@ function PanelObras({ paletaActual }) {
       <div style={{ fontSize: 26, fontWeight: 800, color }}>{n}</div><div style={{ fontSize: 12.5, color: temaPal.textMuted }}>{t}</div>
     </button>
   );
-  const hay = (d.alertas_obras || []).length + (d.compras_por_vencer || []).length + (d.bajo_minimo || []).length + (d.hitos_por_vencer || []).length;
+  const hay = (d.tareas_atrasadas || []).length + (d.alertas_obras || []).length + (d.compras_por_vencer || []).length + (d.bajo_minimo || []).length + (d.hitos_por_vencer || []).length;
   return (
     <div className="fade" style={{ textAlign: "left" }}>
       <div className="dash-head"><div><div className="pt">Panel de obras</div><div className="ps">Lo que necesita tu atención hoy</div></div></div>
@@ -29218,6 +29358,12 @@ function PanelObras({ paletaActual }) {
         <Dato n={d.materiales_bajo_minimo || 0} t="materiales con poco stock" color={d.materiales_bajo_minimo ? temaPal.red : "#2d7a4f"} ir="stock-obras:materiales" />
       </div>
       {!hay && <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 24 }}>✓ Todo en orden: no hay obras pasadas de presupuesto, ni pagos ni vencimientos de licitaciones esta semana.</div>}
+      {(d.tareas_atrasadas || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">⏰ Tareas atrasadas</div>
+          {d.tareas_atrasadas.map(t => <div key={t.id} style={{ padding: "6px 0", fontSize: 13 }}><b>{t.nombre}</b> <span style={{ color: temaPal.textMuted }}>· {t.obra}{t.responsable ? " · " + t.responsable : ""} · debía terminar el {fechaCn(t.fecha_hasta)}</span></div>)}
+        </div>
+      )}
       {(d.alertas_obras || []).length > 0 && (
         <div className="card" style={{ marginBottom: 12 }}>
           <div className="ct">⚠️ Obras para mirar</div>
@@ -42503,7 +42649,7 @@ function armarPasosTutorial() {
   ];
   const obrasT = [
     tutIrA("obras", "OBRAS", "Obras", "Primero, tus obras 🏗️", "Tocá Obras.", "obras"),
-    info("obras", "Una ficha por obra", "Tocá + Nueva obra y poné nombre, cliente y responsable. Adentro cargás las etapas (con su avance), el presupuesto por rubro y los gastos: ves enseguida si te estás pasando."),
+    info("obras", "Una ficha por obra", "Tocá + Nueva obra y poné nombre, cliente y responsable. Adentro armás el Plan de trabajo (tareas con responsable y fechas, en lista, tablero o cronograma), las etapas, el presupuesto por rubro y los gastos: ves enseguida si te estás pasando."),
     tutIrA("compras-obras", "OBRAS", "Obras", "Las compras 🧾", "Tocá Compras.", "compras-obras"),
     info("compras-obras", "Cargá la factura y listo", "Podés subir la factura del proveedor (PDF, foto o Excel) y Lumiere arma los renglones. Al guardar, la mercadería entra sola al galpón o a la obra y queda anotado lo que hay que pagar."),
     tutIrA("licitaciones", "OBRAS", "Obras", "Las licitaciones 📋", "Tocá Licitaciones.", "licitaciones"),

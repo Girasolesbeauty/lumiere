@@ -136,6 +136,21 @@ async function asegurar() {
   await pool.query('CREATE INDEX IF NOT EXISTS cn_mov_material ON cn_movimientos (material_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS cn_mov_origen ON cn_movimientos (origen_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS cn_mov_destino ON cn_movimientos (destino_id)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS cn_tareas (
+    id SERIAL PRIMARY KEY,
+    obra_id INT NOT NULL,
+    etapa_id INT,
+    nombre TEXT NOT NULL,
+    responsable TEXT,
+    fecha_desde DATE,
+    fecha_hasta DATE,
+    estado TEXT NOT NULL DEFAULT 'pendiente',
+    prioridad TEXT NOT NULL DEFAULT 'normal',
+    notas TEXT,
+    hecha_en DATE,
+    orden INT NOT NULL DEFAULT 0,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await pool.query('CREATE INDEX IF NOT EXISTS cn_tareas_obra ON cn_tareas (obra_id)');
   await pool.query(`CREATE TABLE IF NOT EXISTS cn_licitaciones (
     id SERIAL PRIMARY KEY,
     nombre TEXT NOT NULL,
@@ -236,6 +251,8 @@ router.get('/resumen', async (req, res) => {
       pool.query(`SELECT h.id, h.nombre, h.vence, l.nombre AS licitacion, l.id AS licitacion_id FROM cn_lic_hitos h JOIN cn_licitaciones l ON l.id = h.licitacion_id
         WHERE NOT h.cumplido AND h.vence IS NOT NULL AND h.vence <= CURRENT_DATE + 7 AND l.estado NOT IN ('perdida', 'desistida') ORDER BY h.vence LIMIT 10`),
     ]);
+    const atrasadas = (await pool.query(`SELECT t.id, t.nombre, t.responsable, t.fecha_hasta, t.obra_id, o.nombre AS obra FROM cn_tareas t JOIN cn_obras o ON o.id = t.obra_id
+      WHERE t.estado <> 'hecha' AND t.fecha_hasta < CURRENT_DATE AND o.estado IN ('en_curso', 'pausada', 'planificada') ORDER BY t.fecha_hasta LIMIT 10`)).rows;
     const porEstado = {}; ob.rows.forEach(r => { porEstado[r.estado] = r.n; });
     const bajos = bajo.rows.filter(m => num(m.stock) < num(m.stock_minimo)).map(m => ({ id: m.id, nombre: m.nombre, unidad: m.unidad, stock: num(m.stock), minimo: num(m.stock_minimo) }));
     // Obras que se pasaron del presupuesto o gastan mas rapido de lo que avanzan
@@ -251,7 +268,7 @@ router.get('/resumen', async (req, res) => {
     res.json({
       obras: porEstado, compras_pendientes: comp.rows[0].n, a_pagar: num(comp.rows[0].total), materiales_bajo_minimo: bajos.length,
       bajo_minimo: bajos.slice(0, 8), compras_por_vencer: venc.rows.map(c => ({ ...c, total: num(c.total) })), alertas_obras: alertas,
-      licitaciones_abiertas: lic.rows, hitos_por_vencer: hitos.rows,
+      licitaciones_abiertas: lic.rows, hitos_por_vencer: hitos.rows, tareas_atrasadas: atrasadas,
     });
   } catch (e) { falla(res, e, 'resumen'); }
 });
@@ -377,6 +394,83 @@ router.put('/etapas/:id', async (req, res) => {
 router.delete('/etapas/:id', async (req, res) => {
   try { await pool.query('DELETE FROM cn_etapas WHERE id = $1', [Number(req.params.id)]); res.json({ ok: true }); }
   catch (e) { falla(res, e, 'borrar etapa'); }
+});
+
+// ---------- plan de trabajo (project manager de la obra) ----------
+// Las tareas cuelgan de una etapa. Cuando una etapa tiene tareas, su avance sale de cuantas estan hechas.
+const ESTADOS_TAREA = ['pendiente', 'en_curso', 'bloqueada', 'hecha'];
+async function recalcularEtapa(db, etapaId) {
+  if (!etapaId) return;
+  const r = (await db.query("SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE estado = 'hecha')::int AS ok, COUNT(*) FILTER (WHERE estado = 'en_curso')::int AS en FROM cn_tareas WHERE etapa_id = $1", [etapaId])).rows[0];
+  if (!r.n) return;
+  const av = Math.round(r.ok / r.n * 1000) / 10;
+  await db.query('UPDATE cn_etapas SET avance = $1, estado = $2 WHERE id = $3', [av, av >= 100 ? 'terminada' : (av > 0 || r.en > 0) ? 'en_curso' : 'pendiente', etapaId]);
+}
+router.get('/obras/:id/tareas', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM cn_tareas WHERE obra_id = $1 ORDER BY orden, fecha_desde NULLS LAST, id', [Number(req.params.id)]);
+    res.json(r.rows);
+  } catch (e) { falla(res, e, 'tareas'); }
+});
+router.post('/obras/:id/tareas', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const b = req.body || {};
+    if (!txt(b.nombre)) throw err(400, 'Escribí qué hay que hacer');
+    const desde = fechaOk(b.fecha_desde), hasta = fechaOk(b.fecha_hasta);
+    if (desde && hasta && hasta < desde) throw err(400, 'La fecha de fin es anterior a la de inicio');
+    await client.query('BEGIN');
+    const ord = (await client.query('SELECT COALESCE(MAX(orden), 0) + 1 AS n FROM cn_tareas WHERE obra_id = $1', [Number(req.params.id)])).rows[0].n;
+    const r = await client.query(
+      `INSERT INTO cn_tareas (obra_id, etapa_id, nombre, responsable, fecha_desde, fecha_hasta, estado, prioridad, notas, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [Number(req.params.id), b.etapa_id || null, txt(b.nombre), txt(b.responsable), desde, hasta, ESTADOS_TAREA.includes(b.estado) ? b.estado : 'pendiente', ['baja', 'normal', 'alta'].includes(b.prioridad) ? b.prioridad : 'normal', txt(b.notas), ord]);
+    await recalcularEtapa(client, r.rows[0].etapa_id);
+    await client.query('COMMIT');
+    res.json(r.rows[0]);
+  } catch (e) { try { await client.query('ROLLBACK'); } catch (x) {} falla(res, e, 'nueva tarea'); }
+  finally { client.release(); }
+});
+router.put('/tareas/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const b = req.body || {};
+    await client.query('BEGIN');
+    const t = (await client.query('SELECT * FROM cn_tareas WHERE id = $1 FOR UPDATE', [Number(req.params.id)])).rows[0];
+    if (!t) throw err(404, 'No encontramos esa tarea');
+    const sets = [], p = [];
+    const poner = (col, val) => { p.push(val); sets.push(col + ' = $' + p.length); };
+    if (b.nombre !== undefined && txt(b.nombre)) poner('nombre', txt(b.nombre));
+    if (b.responsable !== undefined) poner('responsable', txt(b.responsable));
+    if (b.etapa_id !== undefined) poner('etapa_id', b.etapa_id || null);
+    if (b.fecha_desde !== undefined) poner('fecha_desde', fechaOk(b.fecha_desde));
+    if (b.fecha_hasta !== undefined) poner('fecha_hasta', fechaOk(b.fecha_hasta));
+    if (b.notas !== undefined) poner('notas', txt(b.notas));
+    if (b.prioridad !== undefined && ['baja', 'normal', 'alta'].includes(b.prioridad)) poner('prioridad', b.prioridad);
+    if (b.estado !== undefined) {
+      if (!ESTADOS_TAREA.includes(b.estado)) throw err(400, 'Estado no válido');
+      poner('estado', b.estado);
+      poner('hecha_en', b.estado === 'hecha' ? new Date().toISOString().slice(0, 10) : null);
+    }
+    if (sets.length) { p.push(t.id); await client.query('UPDATE cn_tareas SET ' + sets.join(', ') + ' WHERE id = $' + p.length, p); }
+    const n = (await client.query('SELECT * FROM cn_tareas WHERE id = $1', [t.id])).rows[0];
+    if (n.fecha_desde && n.fecha_hasta && n.fecha_hasta < n.fecha_desde) throw err(400, 'La fecha de fin es anterior a la de inicio');
+    await recalcularEtapa(client, n.etapa_id);
+    if (t.etapa_id && t.etapa_id !== n.etapa_id) await recalcularEtapa(client, t.etapa_id);
+    await client.query('COMMIT');
+    res.json(n);
+  } catch (e) { try { await client.query('ROLLBACK'); } catch (x) {} falla(res, e, 'editar tarea'); }
+  finally { client.release(); }
+});
+router.delete('/tareas/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const t = (await client.query('DELETE FROM cn_tareas WHERE id = $1 RETURNING etapa_id', [Number(req.params.id)])).rows[0];
+    if (t) await recalcularEtapa(client, t.etapa_id);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) { try { await client.query('ROLLBACK'); } catch (x) {} falla(res, e, 'borrar tarea'); }
+  finally { client.release(); }
 });
 
 // ---------- presupuesto y gastos ----------
