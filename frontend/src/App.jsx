@@ -11400,7 +11400,7 @@ function InformeMes({ mes, anio, local, nombreLocalTxt }) {
   );
 }
 
-// ===== Finanzas › Reparto semanal =====
+// ===== Finanzas › Reparto mensual =====
 // Asignación de ingresos por porcentajes (método "Profit First"): cada sábado o domingo se separa lo que entró en la
 // semana (ventas menos lo que cobran los medios de pago) en sus cuentas: mercadería, costos, impuestos/colchón y ganancia.
 function RepartoSemanal({ temaPal }) {
@@ -11413,11 +11413,13 @@ function RepartoSemanal({ temaPal }) {
   const [edit, setEdit] = useState({}); // lo que se está escribiendo: { [desde de la semana]: { [parte]: "monto" } }
   const [mov, setMov] = useState(null); // { k, tipo: "uso" | "extra", monto, nota }: usé / sumé plata de una cuenta
   const [ajuste, setAjuste] = useState(null); // { k, valor, nota }: corregir el total que hay en una cuenta
-  const [suma, setSuma] = useState({}); // lo que se está por sumar en cada cuenta de cada semana: { [desde + parte]: "monto" }
+  const [suma, setSuma] = useState({}); // lo que se está por sumar en cada cuenta de cada semana: { [desde + parte]: "monto" } (y del mes: { ["mes" + parte]: "monto" })
   const [verMovs, setVerMovs] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const cargar = () => API.get("/finanzas/reparto").then(r => { setD(r.data); setErr(""); }).catch(e => setErr(e.response?.data?.error || "No se pudo cargar"));
-  useEffect(() => { cargar(); }, []);
+  const [mesSel, setMesSel] = useState(null); // "2026-11" (null = el mes de hoy)
+  const [diaSep, setDiaSep] = useState(""); // el día en que se separó la plata ("" = hoy)
+  const cargar = () => API.get("/finanzas/reparto" + (mesSel ? "?mes=" + mesSel : "")).then(r => { setD(r.data); setErr(""); }).catch(e => setErr(e.response?.data?.error || "No se pudo cargar"));
+  useEffect(() => { cargar(); }, [mesSel]);
   const fechaC = (f) => new Date(f + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" });
   const COL = ["#2471a3", "#b9770e", "#7d3c98", "#2d7a4f", "#c0392b", "#16a085", "#34495e", "#d35400"];
   // "15.000" o "15000" o "15000,50"
@@ -11451,8 +11453,8 @@ function RepartoSemanal({ temaPal }) {
     setGuardando(false);
   };
   // Suma plata a una cuenta de la semana: queda anotada con su fecha y el total se actualiza solo
-  const sumarAporte = async (s, pt) => {
-    const kk = s.desde + pt.k, monto = aNum(suma[kk]);
+  const sumarAporte = async (s, pt, clave) => {
+    const kk = clave || (s.desde + pt.k), monto = aNum(suma[kk]);
     if (!monto) return setMsj({ ok: false, t: "Escribí cuánta plata separaste" });
     setGuardando(true);
     try {
@@ -11460,9 +11462,26 @@ function RepartoSemanal({ temaPal }) {
       const r = await API.post("/finanzas/reparto/aporte", { inicio: s.desde, parte_k: pt.k, monto, base, partes: s.partes.map(x => ({ k: x.k, nombre: x.nombre, pct: x.pct, donde: x.donde, monto: x.monto })) });
       setSuma(x => { const y = { ...x }; delete y[kk]; return y; });
       setEdit(x => { const y = { ...x }; if (y[s.desde]) { y[s.desde] = { ...y[s.desde] }; delete y[s.desde][pt.k]; } return y; });
-      setMsj({ ok: true, t: "✓ Sumé " + $(monto) + " a " + pt.nombre + ": ya van " + $(r.data.separado) }); cargar();
+      setMsj({ ok: true, t: "✓ Sumé " + $(monto) + " a " + pt.nombre + (clave ? " (va a la semana de hoy)" : "") + ": " + (clave ? "esa semana ya lleva " : "ya van ") + $(r.data.separado) }); cargar();
     } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
     setGuardando(false);
+  };
+  // Reparto mensual: se suma plata separada a una cuenta (el día que se separó) y el total del mes se arma solo
+  const sumarMes = async (x) => {
+    const kk = "mes" + x.k, monto = aNum(suma[kk]);
+    if (!monto) return setMsj({ ok: false, t: "Escribí cuánta plata separaste" });
+    setGuardando(true);
+    try {
+      await API.post("/finanzas/reparto/aporte", { parte_k: x.k, monto, fecha: diaSep || undefined });
+      setSuma(z => { const y = { ...z }; delete y[kk]; return y; });
+      setMsj({ ok: true, t: "✓ Sumé " + $(monto) + " a " + x.nombre + (diaSep ? " (" + fechaC(diaSep) + ")" : "") }); cargar();
+    } catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo guardar" }); }
+    setGuardando(false);
+  };
+  const sacarAporteMes = async (x, a) => {
+    if (!window.confirm("¿Sacar los " + $(a.monto) + " que separaste el " + fechaC(a.fecha) + "?")) return;
+    try { await API.post("/finanzas/reparto/aporte/borrar", { inicio: a.semana, parte_k: x.k, id: a.id }); cargar(); }
+    catch (e) { setMsj({ ok: false, t: e.response?.data?.error || "No se pudo sacar" }); }
   };
   const sacarAporte = async (s, pt, a) => {
     if (!window.confirm("¿Sacar los " + $(a.monto) + " que sumaste" + (a.fecha ? " el " + fechaC(a.fecha) : "") + "?")) return;
@@ -11524,10 +11543,10 @@ function RepartoSemanal({ temaPal }) {
   return (
     <div className="fade">
       <div className="card" style={{ marginBottom: 14 }}>
-        <div className="ct" style={{ marginBottom: 4 }}>💰 Reparto semanal de ingresos</div>
+        <div className="ct" style={{ marginBottom: 4 }}>💰 Reparto mensual de ingresos</div>
         <div style={{ fontSize: 12.5, color: p.textMuted, lineHeight: 1.55 }}>
-          Es la <b>asignación de ingresos por porcentajes</b> (método <i>Profit First</i>, "primero la ganancia"): cada fin de semana separás lo que entró en distintas cuentas, así la plata de la mercadería, de los gastos y tu ganancia no se mezclan.
-          La semana va de <b>domingo a sábado</b>. Lo que entró = ventas de los dos locales y la tienda online, menos lo que cobran los medios de pago (tarjetas, Mercado Pago, etc.).
+          Es la <b>asignación de ingresos por porcentajes</b> (método <i>Profit First</i>, "primero la ganancia"): cada mes separás lo que entró en distintas cuentas, así la plata de la mercadería, de los gastos y tu ganancia no se mezclan. Podés ir separando cuando quieras (por ejemplo todos los sábados) y el total del mes se va armando solo.
+          Lo que entró en el mes = ventas de los dos locales y la tienda online, menos lo que cobran los medios de pago (tarjetas, Mercado Pago, etc.).
           <b> Anotá cuánto separaste de verdad en cada cuenta</b> y Lumiere te dice cuánto tenés en cada una y cuánto te falta separar.
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
@@ -11618,54 +11637,57 @@ function RepartoSemanal({ temaPal }) {
         </div>}
       </div>
 
-      {pendiente && <div className="cli-tip" style={{ marginBottom: 14, borderColor: p.warn }}>⏰ {pendiente.anotada ? "A la semana del" : "Te falta separar la semana del"} <b>{fechaC(pendiente.desde)} al {fechaC(pendiente.hasta)}</b> {pendiente.anotada ? "le faltan " + $(pendiente.falta) + " por separar." : "(entraron " + $(pendiente.base_hoy) + "). Abajo te dice cuánto va a cada cuenta."}</div>}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {d.semanas.map(s => {
-          const ab = abierta === s.desde || (abierta === null && s === (pendiente || d.semanas[0]));
-          const estado = s.hecho ? "✓ Separada" + (s.usuario ? " por " + s.usuario : "") + (s.hecho_en ? " el " + new Date(s.hecho_en).toLocaleDateString("es-AR") : "") : s.anotada ? "Separaste " + $(s.separado) + " de " + $(s.corresponde) + " · faltan " + $(s.falta) : s.en_curso ? "En curso · hasta hoy" : "Para separar";
-          return (
-            <div key={s.desde} className="card" style={{ padding: 0, overflow: "hidden", borderLeft: "4px solid " + (s.hecho ? p.green : s.anotada ? p.warn : s.en_curso ? p.border : p.warn) }}>
-              <button type="button" onClick={() => setAbierta(ab ? "" : s.desde)} style={{ all: "unset", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", width: "100%", boxSizing: "border-box", padding: "12px 14px" }}>
-                <span style={{ flex: 1 }}><b style={{ fontSize: 14 }}>Semana del {fechaC(s.desde)} al {fechaC(s.hasta)}</b>
-                  <span style={{ display: "block", fontSize: 12, color: p.textMuted }}>{estado}</span></span>
-                <span style={{ textAlign: "right" }}><b style={{ fontSize: 16 }}>{$(s.corresponde)}</b><span style={{ display: "block", fontSize: 11, color: p.textMuted }}>para repartir</span></span>
-                <span aria-hidden="true" style={{ fontSize: 16, opacity: .6 }}>{ab ? "▾" : "▸"}</span>
-              </button>
-              {ab && <div style={{ padding: "0 14px 14px" }}>
-                <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>Ventas {$(s.ventas)} − cobran los medios de pago {$(s.comisiones)} = <b style={{ color: p.text }}>{$(s.base_hoy)}</b>{s.anotada && !s.en_curso && s.base !== s.base_hoy ? " (cuando lo anotaste eran " + $(s.base) + ")" : ""}</div>
-                <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 10 }}>{s.partes.map((pt, i) => <div key={pt.k} style={{ width: pt.pct + "%", background: colorDe(pt.k) }} title={pt.nombre} />)}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: "0 12px", alignItems: "center", fontSize: 11.5, color: p.textMuted, padding: "0 0 4px" }}>
-                  <span /><span style={{ textAlign: "right" }}>Corresponde</span><span style={{ textAlign: "right", minWidth: 130 }}>Total separado</span>
-                </div>
-                {s.partes.map(pt => { const v = aNum(valorCasillero(s, pt)), falta = Math.round((pt.monto - v) * 100) / 100; return (
-                  <div key={pt.k} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto auto", gap: "0 12px", alignItems: "center", padding: "7px 0", borderTop: "1px solid " + p.border, fontSize: 13.5 }}>
-                    <span><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: colorDe(pt.k), marginRight: 6 }} />{pt.nombre} <span style={{ color: p.textMuted, fontSize: 12 }}>{pt.pct}%{pt.donde ? " → " + pt.donde : ""}</span></span>
-                    <b style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{$(pt.monto)}</b>
-                    <span style={{ minWidth: 130, textAlign: "right" }}>
-                      <input className="inp" style={{ width: 140, textAlign: "right" }} inputMode="decimal" placeholder="$ 0,00" aria-label={"Separé en " + pt.nombre} value={valorCasillero(s, pt)}
-                        onChange={e => poner(s, pt.k, e.target.value)} onKeyDown={e => { if (e.key === "Enter") anotar(s, false); }} />
-                      <span style={{ display: "block", fontSize: 11, color: falta > 0 ? p.warn : p.green }}>{v === 0 && !s.anotada ? "" : falta > 0 ? "faltan " + $(falta) : falta < 0 ? "de más " + $(-falta) : "✓ completo"}</span>
-                    </span>
-                    <div style={{ gridColumn: "1 / -1", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
-                      <input className="inp" style={{ width: 150 }} inputMode="decimal" placeholder="+ Sumar $ (ej: 20.000)" aria-label={"Sumar plata separada en " + pt.nombre} value={suma[s.desde + pt.k] || ""}
-                        onChange={e => setSuma(x => ({ ...x, [s.desde + pt.k]: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") sumarAporte(s, pt); }} />
-                      <button className="btn btn-p btn-sm" disabled={guardando || !aNum(suma[s.desde + pt.k])} onClick={() => sumarAporte(s, pt)}>➕ Sumar</button>
-                      {(pt.aportes || []).map(a => <span key={a.id} className="mini-chip" style={{ display: "inline-flex", gap: 5, alignItems: "center" }} title={(a.nota ? a.nota + " · " : "") + (a.usuario || "")}>{a.fecha ? fechaC(a.fecha) + " " : ""}<b>+{$(a.monto)}</b>
-                        <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => sacarAporte(s, pt, a)} aria-label="Sacar este aporte">✕</button></span>)}
-                    </div>
-                  </div>); })}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                  <button className="btn btn-p btn-sm" disabled={guardando} onClick={() => anotar(s, false)}>💾 Guardar los totales que corregí</button>
-                  <button className="btn btn-g btn-sm" disabled={guardando || s.corresponde <= 0} onClick={() => anotar(s, true)}>✓ Separé todo lo que correspondía</button>
-                  {s.anotada && <button className="btn btn-g btn-sm" onClick={() => borrarSemana(s)}>Borrar lo anotado</button>}
-                </div>
-                {s.en_curso && s.hasta !== d.hoy && <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>La semana todavía no terminó: podés ir anotando lo que separás, pero lo que corresponde va a subir con las ventas que falten.</div>}
-                {s.en_curso && s.hasta === d.hoy && !s.hecho && <div style={{ fontSize: 12, color: p.textMuted, marginTop: 8 }}>Hoy es sábado: si ya cerraron los locales, este es el total de la semana.</div>}
-              </div>}
-            </div>);
-        })}
-      </div>
+      {d.mes && (() => {
+        const m = d.mes, esActual = m.mes === d.hoy.slice(0, 7);
+        const etiqueta = new Date(m.desde + "T12:00:00").toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+        const mover = (n) => { const [aa, mm] = m.mes.split("-").map(Number); const f = new Date(aa, mm - 1 + n, 1); setMesSel(f.getFullYear() + "-" + String(f.getMonth() + 1).padStart(2, "0")); };
+        const tot = (f) => Math.round(m.partes.reduce((t, x) => t + (x[f] || 0), 0) * 100) / 100;
+        const celda = (t, c, v) => <div style={{ minWidth: 100 }}><div style={{ fontSize: 10.5, color: p.textMuted }}>{t}</div><b style={{ fontSize: 14, color: c || p.text, fontVariantNumeric: "tabular-nums" }}>{v}</b></div>;
+        return (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button className="icon-btn" onClick={() => mover(-1)} aria-label="Mes anterior">◀</button>
+                <div className="ct" style={{ margin: 0, textTransform: "capitalize" }}>📅 {etiqueta}</div>
+                <button className="icon-btn" disabled={esActual} onClick={() => mover(1)} aria-label="Mes siguiente" style={{ opacity: esActual ? .3 : 1 }}>▶</button>
+              </div>
+              {!esActual && <button className="chip-btn" onClick={() => setMesSel(null)}>Ir a este mes</button>}
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>Ventas {$(m.ventas)} − cobran los medios de pago {$(m.comisiones)} = <b style={{ color: p.text }}>{$(m.base)}</b> para repartir{esActual ? " (hasta hoy: sube con las ventas que falten)" : ""}</div>
+            <div style={{ display: "flex", height: 12, borderRadius: 6, overflow: "hidden", marginBottom: 12 }}>{m.partes.map(x => <div key={x.k} style={{ width: (x.pct || 0) + "%", background: colorDe(x.k) }} title={x.nombre} />)}</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6, fontSize: 12.5 }}>
+              <label htmlFor="dia-sep" style={{ color: p.textMuted }}>¿Qué día separaste la plata?</label>
+              <input id="dia-sep" type="date" className="inp" style={{ width: 150 }} max={d.hoy} value={diaSep} onChange={e => setDiaSep(e.target.value)} />
+              <span style={{ color: p.textMuted }}>{diaSep ? "" : "(si no elegís, es hoy)"}</span>
+            </div>
+            {m.partes.map(x => {
+              const pct = x.corresponde > 0 ? Math.min(100, Math.round(x.separado / x.corresponde * 100)) : 0;
+              return (
+                <div key={x.k} style={{ padding: "10px 0", borderTop: "1px solid " + p.border }}>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 170px", fontWeight: 800, fontSize: 13.5 }}><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: colorDe(x.k), marginRight: 6 }} />{x.nombre} <span style={{ color: p.textMuted, fontWeight: 500, fontSize: 12 }}>{x.pct}%{x.donde ? " → " + x.donde : ""}</span></div>
+                    {celda("Corresponde en el mes", null, $(x.corresponde))}
+                    {celda("Separé", p.green, $(x.separado))}
+                    {celda("Usé", p.red, $(x.usado))}
+                    {x.falta > 0 ? celda("Falta separar", p.warn, $(x.falta)) : x.de_mas > 0 ? celda("Separé de más", p.green, $(x.de_mas)) : celda("Falta separar", p.green, x.corresponde > 0 ? "✓ completo" : "—")}
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: p.border, margin: "8px 0", overflow: "hidden" }}><div style={{ width: pct + "%", height: "100%", background: pct >= 100 ? p.green : colorDe(x.k) }} /></div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <input className="inp" style={{ width: 160 }} inputMode="decimal" placeholder="+ Sumar $ (ej: 20.000)" aria-label={"Sumar plata separada en " + x.nombre} value={suma["mes" + x.k] || ""}
+                      onChange={e => setSuma(z => ({ ...z, ["mes" + x.k]: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") sumarMes(x); }} />
+                    <button className="btn btn-p btn-sm" disabled={guardando || !aNum(suma["mes" + x.k])} onClick={() => sumarMes(x)}>➕ Sumar</button>
+                    {x.aportes.map(a => <span key={a.semana + a.id} className="mini-chip" style={{ display: "inline-flex", gap: 5, alignItems: "center" }} title={(a.nota ? a.nota + " · " : "") + (a.usuario || "")}>{fechaC(a.fecha)} <b>+{$(a.monto)}</b>
+                      <button style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }} onClick={() => sacarAporteMes(x, a)} aria-label="Sacar este aporte">✕</button></span>)}
+                  </div>
+                </div>);
+            })}
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "10px 0 0", borderTop: "2px solid " + p.border }}>
+              <div style={{ flex: "1 1 170px", fontWeight: 900, fontSize: 13.5 }}>Total del mes</div>
+              {celda("Corresponde en el mes", null, $(tot("corresponde")))}{celda("Separé", p.green, $(tot("separado")))}{celda("Usé", p.red, $(tot("usado")))}{celda("Falta separar", p.warn, $(tot("falta")))}
+            </div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>Cada vez que separes plata (por ejemplo los sábados), sumala en su cuenta: queda anotada con el día y el total del mes se arma solo. Para lo que pagaste usá <b>− Usé plata</b> arriba.</div>
+          </div>);
+      })()}
     </div>
   );
 }
@@ -12181,7 +12203,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
-    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["reparto", "💰 Reparto semanal"], ["gastos", "🧾 Gastos cargados"],
+    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["reparto", "💰 Reparto mensual"], ["gastos", "🧾 Gastos cargados"],
   ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && ((k !== "informe" && k !== "reparto") || esJefe));
 
   return (

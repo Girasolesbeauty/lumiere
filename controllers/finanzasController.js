@@ -1682,44 +1682,41 @@ const getReparto = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
     const partes = await partesReparto();
-    // Solo se muestran la semana pasada y la actual (lo anterior ya no aparece; el saldo de cada cuenta igual lo cuenta)
-    const semanas = Math.min(26, Math.max(1, parseInt(req.query.semanas) || 2));
-    // Semanas de domingo a sábado (hora de Argentina): la actual y las anteriores
-    const hoy = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d, EXTRACT(DOW FROM ${AR('NOW()')})::int AS dow`)).rows[0];
-    const d0 = new Date(hoy.d + 'T12:00:00Z'); d0.setUTCDate(d0.getUTCDate() - hoy.dow);
-    const iso = (d) => d.toISOString().slice(0, 10);
-    const hechas = new Map((await pool.query(`SELECT inicio::text AS inicio, hecho_en, base, detalle, usuario FROM reparto_semanas`)).rows.map(x => [x.inicio, x]));
-    const lista = [];
-    for (let i = 0; i < semanas; i++) {
-      const a = new Date(d0); a.setUTCDate(a.getUTCDate() - 7 * i); const b = new Date(a); b.setUTCDate(b.getUTCDate() + 6);
-      const desde = iso(a), hasta = iso(b);
-      const c = await calcularComisionesMedios(null, null, null, { desde, hasta: hasta < hoy.d ? hasta : hoy.d });
-      const ventas = Math.round(num(c.total_ventas)), comisiones = Math.round(num(c.total_comisiones)), base = Math.max(0, ventas - comisiones);
-      const h = hechas.get(desde), enCurso = hasta >= hoy.d;
-      const detalle = h && Array.isArray(h.detalle) ? h.detalle : null;
-      const sepPorK = {}; (detalle || []).forEach(pt => { sepPorK[pt.k] = separadoDe(pt); });
-      // Semana ya cerrada y anotada: se ve como quedó cuando se anotó. Si no, lo que corresponde hoy según lo que entró
-      const usa = detalle && !enCurso ? detalle : partes.map(pt => ({ ...pt, monto: Math.round(base * pt.pct / 100) }));
-      const apPorK = {}; (detalle || []).forEach(pt => { apPorK[pt.k] = Array.isArray(pt.aportes) ? pt.aportes : []; });
-      const partesSemana = usa.map(pt => ({ ...pt, monto: Math.round(num(pt.monto)), separado: h ? r2(sepPorK[pt.k] !== undefined ? sepPorK[pt.k] : 0) : 0, aportes: apPorK[pt.k] || [] }));
-      const corresponde = partesSemana.reduce((t, x) => t + x.monto, 0), separado = r2(partesSemana.reduce((t, x) => t + x.separado, 0));
-      const completa = !!h && separado >= corresponde * 0.995 - 0.005;
-      lista.push({ desde, hasta, en_curso: enCurso, ventas, comisiones, base: h && !enCurso ? Math.round(num(h.base)) : base, base_hoy: base,
-        partes: partesSemana, anotada: !!h, hecho: completa, corresponde, separado, falta: r2(Math.max(0, corresponde - separado)),
-        hecho_en: h ? h.hecho_en : null, usuario: h ? h.usuario : null });
-    }
-    // Cuentas: lo que tenés ahora en cada una = lo separado cada semana + lo que sumaste aparte - lo que usaste
+    const hoy = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d`)).rows[0].d;
+    const mesAct = hoy.slice(0, 7);
+    // El reparto es mensual: se ve un mes entero (por defecto el de hoy; ?mes=2026-10 para uno anterior)
+    const pedido = String(req.query.mes || '');
+    const mesSel = /^\d{4}-(0[1-9]|1[0-2])$/.test(pedido) && pedido <= mesAct ? pedido : mesAct;
+    const desde = mesSel + '-01';
+    const ultimo = new Date(Date.UTC(parseInt(mesSel.slice(0, 4)), parseInt(mesSel.slice(5, 7)), 0)).toISOString().slice(0, 10);
+    const hasta = ultimo < hoy ? ultimo : hoy;
+    const c = await calcularComisionesMedios(null, null, null, { desde, hasta });
+    const ventas = Math.round(num(c.total_ventas)), comisiones = Math.round(num(c.total_comisiones)), base = Math.max(0, ventas - comisiones);
+    const hechas = (await pool.query(`SELECT inicio::text AS inicio, detalle, usuario FROM reparto_semanas`)).rows;
+    // Cada vez que se separó plata (un aporte), con el día en que se hizo. Lo anotado antes de que existieran los aportes cuenta como uno solo
+    const aportes = [];
+    for (const h of hechas) (Array.isArray(h.detalle) ? h.detalle : []).forEach(pt => {
+      if (Array.isArray(pt.aportes)) pt.aportes.forEach(x => aportes.push({ k: pt.k, nombre: pt.nombre, fecha: x.fecha || h.inicio, monto: num(x.monto), id: x.id, nota: x.nota || null, usuario: x.usuario || null, semana: h.inicio }));
+      else if (separadoDe(pt) > 0) aportes.push({ k: pt.k, nombre: pt.nombre, fecha: h.inicio, monto: r2(separadoDe(pt)), id: 'legacy', nota: 'Lo que ya tenías anotado', usuario: h.usuario || null, semana: h.inicio });
+    });
     const movs = (await pool.query(`SELECT id, parte_k, tipo, monto, fecha::text AS fecha, nota, usuario FROM reparto_movimientos ORDER BY fecha DESC, id DESC`)).rows;
-    const mesIni = hoy.d.slice(0, 8) + '01';
     const cuentas = {};
     const cta = (k, nombre, pct, donde) => (cuentas[k] = cuentas[k] || { k, nombre: nombre || k, pct: pct || 0, donde: donde || '', separado_mes: 0, separado_total: 0, extra: 0, uso: 0, uso_mes: 0, falta: 0 });
     partes.forEach(pt => cta(pt.k, pt.nombre, pt.pct, pt.donde));
-    for (const h of hechas.values()) (h.detalle || []).forEach(pt => { const x = cta(pt.k, pt.nombre, pt.pct, pt.donde), m = separadoDe(pt); x.separado_total += m; if (h.inicio >= mesIni) x.separado_mes += m; });
-    movs.forEach(m => { const x = cta(m.parte_k); const v = num(m.monto); if (m.tipo === 'uso') { x.uso += v; if (m.fecha >= mesIni) x.uso_mes += v; } else x.extra += v; });
-    // Lo que todavía falta separar de las semanas ya terminadas (y de la de hoy si es sábado)
-    lista.filter(s2 => !s2.en_curso || s2.hasta === hoy.d).forEach(s2 => s2.partes.forEach(pt => { const x = cta(pt.k, pt.nombre, pt.pct, pt.donde); x.falta += Math.max(0, pt.monto - pt.separado); }));
-    const cuentasLista = Object.values(cuentas).map(x => ({ ...x, separado_mes: r2(x.separado_mes), separado_total: r2(x.separado_total), uso_mes: r2(x.uso_mes), saldo: r2(x.separado_total + x.extra - x.uso), falta: r2(x.falta) }));
-    res.json({ partes, semanas: lista, cuentas: cuentasLista, movimientos: movs.slice(0, 40).map(m => ({ ...m, monto: num(m.monto) })), hoy: hoy.d,
+    aportes.forEach(x => { const q = cta(x.k, x.nombre); q.separado_total += x.monto; if (String(x.fecha).slice(0, 7) === mesAct) q.separado_mes += x.monto; });
+    movs.forEach(m => { const q = cta(m.parte_k); const v = num(m.monto); if (m.tipo === 'uso') { q.uso += v; if (m.fecha.slice(0, 7) === mesAct) q.uso_mes += v; } else q.extra += v; });
+    const cuentasLista = Object.values(cuentas).map(x => ({ ...x, separado_mes: r2(x.separado_mes), separado_total: r2(x.separado_total), uso_mes: r2(x.uso_mes), saldo: r2(x.separado_total + x.extra - x.uso), falta: 0 }));
+    // El mes que se mira: lo que corresponde, lo separado (con cada aporte) y lo usado, por cuenta
+    const mesPartes = cuentasLista.map(q => {
+      const corresponde = Math.round(base * (q.pct || 0) / 100);
+      const aps = aportes.filter(x => x.k === q.k && String(x.fecha).slice(0, 7) === mesSel).sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+      const separado = r2(aps.reduce((t, x) => t + x.monto, 0));
+      const usado = r2(movs.filter(m => m.parte_k === q.k && m.tipo === 'uso' && m.fecha.slice(0, 7) === mesSel).reduce((t, m) => t + num(m.monto), 0));
+      return { k: q.k, nombre: q.nombre, pct: q.pct, donde: q.donde, corresponde, separado, usado, falta: r2(Math.max(0, corresponde - separado)), de_mas: r2(Math.max(0, separado - corresponde)),
+        aportes: aps.map(x => ({ id: x.id, fecha: x.fecha, monto: x.monto, nota: x.nota, usuario: x.usuario, semana: x.semana })) };
+    });
+    res.json({ partes, mes: { mes: mesSel, desde, hasta, ventas, comisiones, base, partes: mesPartes }, semanas: [], cuentas: cuentasLista,
+      movimientos: movs.slice(0, 40).map(m => ({ ...m, monto: num(m.monto) })), hoy,
       acumulado: cuentasLista.map(x => ({ k: x.k, nombre: x.nombre, mes: x.separado_mes, total: x.separado_total })) });
   } catch (e) { console.error('[reparto]', e.message); res.status(500).json({ error: 'No se pudo calcular el reparto: ' + e.message }); }
 };
@@ -1772,13 +1769,13 @@ const guardarAportes = async (inicio, k, cambio, quien, extra) => {
   let detalle = fila && Array.isArray(fila.detalle) ? fila.detalle : null;
   let base = fila ? Math.round(num(fila.base)) : Math.max(0, Math.round(parseFloat(extra && extra.base) || 0));
   if (!detalle) {
-    const monto = (v) => Math.max(0, Math.min(1e11, r2(v)));
-    detalle = limpiarPartes(extra && extra.partes).map((pt, i) => ({ ...pt, monto: monto(((extra && extra.partes) || [])[i] && extra.partes[i].monto), separado: 0, aportes: [] }));
+    // Semana nueva: se crea con las cuentas de hoy (el reparto es mensual, lo que corresponde se calcula por mes)
+    detalle = limpiarPartes(await partesReparto()).map(pt => ({ ...pt, monto: 0, separado: 0, aportes: [] }));
   }
   const pt = detalle.find(x => x.k === k);
   if (!pt) return null;
   // Lo que ya estaba anotado como un total (antes de que existieran los aportes) pasa a ser el primer aporte
-  let aportes = Array.isArray(pt.aportes) ? pt.aportes.slice() : (separadoDe(pt) > 0 && fila ? [{ id: crypto.randomBytes(4).toString('hex'), fecha: null, monto: r2(separadoDe(pt)), nota: 'Lo que ya tenías anotado', usuario: null }] : []);
+  let aportes = Array.isArray(pt.aportes) ? pt.aportes.slice() : (separadoDe(pt) > 0 && fila ? [{ id: 'legacy', fecha: inicio, monto: r2(separadoDe(pt)), nota: 'Lo que ya tenías anotado', usuario: null }] : []);
   aportes = cambio(aportes);
   pt.aportes = aportes;
   pt.separado = r2(aportes.reduce((t, a) => t + num(a.monto), 0));
@@ -1789,15 +1786,19 @@ const guardarAportes = async (inicio, k, cambio, quien, extra) => {
 const postRepartoAporte = async (req, res) => {
   try {
     await asegurarRepartoSemanal();
-    const b = req.body || {}, inicio = String(b.inicio || '');
+    const b = req.body || {};
     const k = String(b.parte_k || '').replace(/[^a-z0-9_]/gi, '').slice(0, 20);
     const monto = r2(b.monto);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !k) return res.status(400).json({ error: 'Falta la semana o la cuenta' });
+    const hoyAp = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d`)).rows[0].d;
+    // El día en que se separó la plata (por defecto hoy; no puede ser futuro). Se anota en la semana que lo contiene
+    const fechaAp = /^\d{4}-\d{2}-\d{2}$/.test(String(b.fecha || '')) && b.fecha <= hoyAp ? b.fecha : hoyAp;
+    const dAp = new Date(fechaAp + 'T12:00:00Z'); dAp.setUTCDate(dAp.getUTCDate() - dAp.getUTCDay());
+    const inicio = /^\d{4}-\d{2}-\d{2}$/.test(String(b.inicio || '')) ? String(b.inicio) : dAp.toISOString().slice(0, 10);
+    if (!k) return res.status(400).json({ error: 'Falta la cuenta' });
     if (!(monto > 0) || monto > 1e11) return res.status(400).json({ error: 'Poné un monto mayor a cero' });
     const u = req.usuario || {};
     let quien = null; try { quien = (await pool.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
-    const hoy = (await pool.query(`SELECT (${AR('NOW()')})::date::text AS d`)).rows[0].d;
-    const pt = await guardarAportes(inicio, k, (l) => [...l, { id: crypto.randomBytes(4).toString('hex'), fecha: hoy, monto, nota: String(b.nota || '').trim().slice(0, 80) || null, usuario: quien }].slice(-200), quien, b);
+    const pt = await guardarAportes(inicio, k, (l) => [...l, { id: crypto.randomBytes(4).toString('hex'), fecha: fechaAp, monto, nota: String(b.nota || '').trim().slice(0, 80) || null, usuario: quien }].slice(-200), quien, b);
     if (!pt) return res.status(404).json({ error: 'No encontré esa cuenta en la semana' });
     res.json({ ok: true, separado: pt.separado, aportes: pt.aportes });
   } catch (e) { console.error('[reparto aporte]', e.message); res.status(500).json({ error: 'No se pudo guardar' }); }
