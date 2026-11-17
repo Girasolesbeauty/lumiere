@@ -170,7 +170,7 @@ let GASTRO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_gastro")
 let CONSULTORIO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_consultorio") === "1"; } catch (e) { return false; } })();
 // Modulo Constructora (Obras, Stock de obra, Compras): sin Punto de Venta ni lo que es de tienda
 let CONSTRUCTORA_ACTIVO = (() => { try { return localStorage.getItem("lumiere_constructora") === "1"; } catch (e) { return false; } })();
-const OCULTAS_EN_CONSTRUCTORA = new Set(["pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "reclamos-proveedores"]);
+const OCULTAS_EN_CONSTRUCTORA = new Set(["dashboard", "pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "reclamos-proveedores"]);
 const OCULTAS_EN_CONSULTORIO = new Set(["etiquetas", "kits", "listas-precios", "traspasos", "control-inv", "ventas-online", "cambio-devolucion", "buscar-precio", "fidelizacion", "cupones", "giftcards", "portal"]);
 const aplicarModulos = (m) => {
   GASTRO_ACTIVO = !!(m && m.gastronomia);
@@ -29139,6 +29139,192 @@ function ComprasConstructora({ usuario, paletaActual }) {
   );
 }
 
+// ---------- Panel de obras (inicio de una constructora) ----------
+function PanelObras({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esCel = useAncho() < 760;
+  const [d, setD] = useState(null);
+  useEffect(() => { API.get("/constructora/resumen").then(r => setD(r.data)).catch(() => setD({})); }, []);
+  if (!d) return <div className="skel" style={{ height: 120 }} />;
+  const activas = (d.obras?.en_curso || 0) + (d.obras?.pausada || 0);
+  const Dato = ({ n, t, color, ir }) => (
+    <button className="card" onClick={() => ir && irASeccion(ir)} style={{ textAlign: "left", cursor: ir ? "pointer" : "default", borderLeft: "4px solid " + color }}>
+      <div style={{ fontSize: 26, fontWeight: 800, color }}>{n}</div><div style={{ fontSize: 12.5, color: temaPal.textMuted }}>{t}</div>
+    </button>
+  );
+  const hay = (d.alertas_obras || []).length + (d.compras_por_vencer || []).length + (d.bajo_minimo || []).length + (d.hitos_por_vencer || []).length;
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head"><div><div className="pt">Panel de obras</div><div className="ps">Lo que necesita tu atención hoy</div></div></div>
+      <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
+        <Dato n={activas} t={activas === 1 ? "obra en curso" : "obras en curso"} color="#2471a3" ir="obras" />
+        <Dato n={(d.licitaciones_abiertas || []).length} t="licitaciones abiertas" color="#8e44ad" ir="licitaciones" />
+        <Dato n={monedaCn(d.a_pagar || 0)} t={"a pagar a proveedores (" + (d.compras_pendientes || 0) + ")"} color="#d35400" ir="compras-obras" />
+        <Dato n={d.materiales_bajo_minimo || 0} t="materiales con poco stock" color={d.materiales_bajo_minimo ? temaPal.red : "#2d7a4f"} ir="stock-obras:materiales" />
+      </div>
+      {!hay && <div className="card" style={{ textAlign: "center", color: temaPal.textMuted, padding: 24 }}>✓ Todo en orden: no hay obras pasadas de presupuesto, ni pagos ni vencimientos de licitaciones esta semana.</div>}
+      {(d.alertas_obras || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">⚠️ Obras para mirar</div>
+          {d.alertas_obras.map(a => <div key={a.obra_id + a.tipo} style={{ padding: "6px 0", fontSize: 13 }}><b>{a.obra}</b>: {a.tipo === "pasada" ? "se pasó " + monedaCn(a.monto) + " del presupuesto" : a.texto}</div>)}
+        </div>
+      )}
+      {(d.hitos_por_vencer || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">📋 Licitaciones: lo que vence esta semana</div>
+          {d.hitos_por_vencer.map(h => <div key={h.id} style={{ padding: "6px 0", fontSize: 13 }}><b>{fechaCn(h.vence)}</b> · {h.nombre} <span style={{ color: temaPal.textMuted }}>({h.licitacion})</span></div>)}
+        </div>
+      )}
+      {(d.compras_por_vencer || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">🧾 Facturas por vencer</div>
+          {d.compras_por_vencer.map(c => <div key={c.id} style={{ padding: "6px 0", fontSize: 13, display: "flex", justifyContent: "space-between" }}><span><b>{fechaCn(c.vence)}</b> · {c.proveedor_nombre || "Sin proveedor"} {c.numero || ""}</span><b>{monedaCn(c.total)}</b></div>)}
+        </div>
+      )}
+      {(d.bajo_minimo || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="ct">📦 Hay que reponer</div>
+          {d.bajo_minimo.map(m => <div key={m.id} style={{ padding: "6px 0", fontSize: 13 }}><b>{m.nombre}</b>: quedan {cantCn(m.stock)} {m.unidad} en galpones (mínimo {cantCn(m.minimo)})</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Licitaciones ----------
+const ESTADOS_LIC_TXT = { en_estudio: ["En estudio", "#5d6d7e"], presentada: ["Presentada", "#2471a3"], adjudicada: ["Adjudicada", "#2d7a4f"], perdida: ["Perdida", "#c0392b"], desistida: ["Desistida", "#b7950b"] };
+function LicitacionesConstructora({ paletaActual }) {
+  const temaPal = paletaActual || PALETA_CLARA;
+  const esCel = useAncho() < 760;
+  const [lista, setLista] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [aviso, avisar] = usarAviso();
+  const cargar = () => API.get("/constructora/licitaciones").then(r => setLista(r.data || [])).catch(() => setLista([]));
+  useEffect(() => { cargar(); }, []);
+  const crear = async () => { try { const r = await API.post("/constructora/licitaciones", form); setForm(null); await cargar(); setSel(r.data.id); } catch (e) { avisar(false, errCn(e)); } };
+  if (sel) return <LicitacionDetalle id={sel} temaPal={temaPal} onVolver={() => { setSel(null); cargar(); }} />;
+  if (!lista) return <div className="skel" style={{ height: 120 }} />;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const abiertas = lista.filter(l => ["en_estudio", "presentada"].includes(l.estado));
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div className="dash-head">
+        <div><div className="pt">Licitaciones</div><div className="ps">{abiertas.length} abiertas · {lista.filter(l => l.estado === "adjudicada").length} ganadas · {lista.length} en total</div></div>
+        <div className="dash-actions"><button className="btn btn-p" onClick={() => setForm({ nombre: "", organismo: "", numero: "", fecha_presentacion: "", presupuesto_oficial: "", monto_ofertado: "" })}>+ Nueva licitación</button></div>
+      </div>
+      {avisoCaja(temaPal, aviso)}
+      {form && (
+        <div className="card pop-in" style={{ marginBottom: 12, borderTop: "3px solid " + temaPal.accent }}>
+          <div className="ct">Nueva licitación</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+            <div style={{ gridColumn: "1 / -1" }}><div className="fl">Nombre</div><input className="inp" autoFocus placeholder="Ej: Ampliación escuela N° 12" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} /></div>
+            <div><div className="fl">Organismo o cliente</div><input className="inp" value={form.organismo} onChange={e => setForm(f => ({ ...f, organismo: e.target.value }))} /></div>
+            <div><div className="fl">N° de licitación</div><input className="inp" value={form.numero} onChange={e => setForm(f => ({ ...f, numero: e.target.value }))} /></div>
+            <div><div className="fl">Se presenta el</div><input className="inp" type="date" value={form.fecha_presentacion} onChange={e => setForm(f => ({ ...f, fecha_presentacion: e.target.value }))} /></div>
+            <div><div className="fl">Presupuesto oficial</div><input className="inp" type="number" min="0" value={form.presupuesto_oficial} onChange={e => setForm(f => ({ ...f, presupuesto_oficial: e.target.value }))} /></div>
+            <div><div className="fl">Nuestra oferta</div><input className="inp" type="number" min="0" value={form.monto_ofertado} onChange={e => setForm(f => ({ ...f, monto_ofertado: e.target.value }))} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-g" onClick={() => setForm(null)}>Cancelar</button><button className="btn btn-p" onClick={crear}>Crear</button></div>
+        </div>
+      )}
+      {!lista.length && !form && <div className="card" style={{ textAlign: "center", padding: 28, color: temaPal.textMuted }}>Todavía no cargaste licitaciones. Cargá la primera y andá marcando lo que hay que presentar y cumplir.</div>}
+      <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+        {lista.map(l => {
+          const [txtE, colE] = ESTADOS_LIC_TXT[l.estado] || [l.estado, "#5d6d7e"];
+          const vencida = l.fecha_presentacion && String(l.fecha_presentacion).slice(0, 10) < hoy && ["en_estudio"].includes(l.estado);
+          return (
+            <button key={l.id} className="card" onClick={() => setSel(l.id)} style={{ textAlign: "left", cursor: "pointer", borderLeft: "4px solid " + colE, opacity: ["perdida", "desistida"].includes(l.estado) ? 0.7 : 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b>{l.nombre}</b><span className="tag" style={{ background: colE + "22", color: colE, whiteSpace: "nowrap" }}>{txtE}</span></div>
+              <div style={{ fontSize: 12, color: temaPal.textMuted, margin: "2px 0 8px" }}>{[l.organismo, l.numero && "N° " + l.numero].filter(Boolean).join(" · ") || "Sin organismo"}</div>
+              <div style={{ fontSize: 12.5 }}>{l.monto_ofertado > 0 && <span>Oferta <b>{monedaCn(l.monto_ofertado)}</b></span>}{l.fecha_presentacion && <span style={{ marginLeft: 10, color: vencida ? temaPal.red : temaPal.textMuted }}>{vencida ? "⚠️ " : ""}Presentación {fechaCn(l.fecha_presentacion)}</span>}</div>
+              {l.hitos > 0 && <div style={{ marginTop: 8 }}><div style={{ fontSize: 11.5, color: temaPal.textMuted, marginBottom: 3 }}>Cumplido {l.hitos_ok} de {l.hitos}</div><BarraAvance pct={l.hitos_ok / l.hitos * 100} color={colE} /></div>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function LicitacionDetalle({ id, temaPal, onVolver }) {
+  const [l, setL] = useState(null);
+  const [nuevo, setNuevo] = useState({ nombre: "", vence: "" });
+  const [aviso, avisar] = usarAviso();
+  const esCel = useAncho() < 760;
+  const cargar = () => API.get("/constructora/licitaciones/" + id).then(r => setL(r.data)).catch(() => setL(false));
+  useEffect(() => { cargar(); }, [id]);
+  const accion = async (fn, ok) => { try { const r = await fn(); if (ok) avisar(true, ok); await cargar(); return r; } catch (e) { avisar(false, errCn(e)); } };
+  if (l === null) return <div className="skel" style={{ height: 120 }} />;
+  if (l === false) return <div className="card">No encontramos la licitación. <button className="btn btn-g btn-sm" onClick={onVolver}>Volver</button></div>;
+  const [, colE] = ESTADOS_LIC_TXT[l.estado] || ["", "#5d6d7e"];
+  const guardarCampo = (k, v) => accion(() => API.put("/constructora/licitaciones/" + id, { [k]: v }));
+  const hoy = new Date().toISOString().slice(0, 10);
+  const monto = l.monto_adjudicado || l.monto_ofertado;
+  return (
+    <div className="fade" style={{ textAlign: "left", paddingBottom: esCel ? 70 : 0 }}>
+      <div className="dash-head">
+        <div><button className="btn btn-g btn-sm" onClick={onVolver} style={{ marginBottom: 6 }}>← Todas las licitaciones</button><div className="pt">{l.nombre}</div><div className="ps">{[l.organismo, l.numero && "N° " + l.numero].filter(Boolean).join(" · ")}</div></div>
+        <div className="dash-actions">
+          <select className="sel" value={l.estado} aria-label="Estado" style={{ borderColor: colE, fontWeight: 600 }} onChange={e => guardarCampo("estado", e.target.value)}>{Object.entries(ESTADOS_LIC_TXT).map(([k, v]) => <option key={k} value={k}>{v[0]}</option>)}</select>
+        </div>
+      </div>
+      {avisoCaja(temaPal, aviso)}
+      <div style={{ display: "grid", gridTemplateColumns: esCel ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <div className="card">
+          <div className="ct">Montos y fechas</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[["presupuesto_oficial", "Presupuesto oficial"], ["monto_ofertado", "Nuestra oferta"], ["monto_adjudicado", "Monto adjudicado"], ["garantia_monto", "Garantía (monto)"]].map(([k, t]) => (
+              <div key={k}><div className="fl">{t}</div><input className="inp" type="number" min="0" defaultValue={l[k] || ""} placeholder="0" key={k + l[k]} onBlur={e => Number(e.target.value || 0) !== l[k] && guardarCampo(k, e.target.value || 0)} /></div>
+            ))}
+            {[["fecha_apertura", "Apertura"], ["fecha_presentacion", "Presentación"], ["garantia_vence", "Vence la garantía"]].map(([k, t]) => (
+              <div key={k}><div className="fl">{t}</div><input className="inp" type="date" defaultValue={l[k] ? String(l[k]).slice(0, 10) : ""} key={k + l[k]} onBlur={e => e.target.value !== (l[k] ? String(l[k]).slice(0, 10) : "") && guardarCampo(k, e.target.value)} /></div>
+            ))}
+          </div>
+          {l.presupuesto_oficial > 0 && l.monto_ofertado > 0 && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginTop: 10 }}>La oferta es el <b>{Math.round(l.monto_ofertado / l.presupuesto_oficial * 100)}%</b> del presupuesto oficial.</div>}
+        </div>
+        <div className="card">
+          <div className="ct">Cumplimiento</div>
+          {l.obra ? (
+            <>
+              <div style={{ fontSize: 13, marginBottom: 6 }}>Obra: <b>{l.obra.nombre}</b> <button className="btn btn-g btn-sm" onClick={() => irASeccion("obras")}>Ver obras</button></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}><span>Avance</span><b>{cantCn(l.obra.avance)}%</b></div><BarraAvance pct={l.obra.avance} color="#2d7a4f" />
+              {monto > 0 && <>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginTop: 10 }}><span>Gastado vs. monto del contrato</span><b>{monedaCn(l.obra.gastado)} / {monedaCn(monto)}</b></div>
+                <BarraAvance pct={l.obra.gastado / monto * 100} color={l.obra.gastado > monto ? temaPal.red : "#2471a3"} />
+                <div style={{ fontSize: 12.5, marginTop: 8, fontWeight: 600, color: monto - l.obra.gastado < 0 ? temaPal.red : temaPal.green }}>{monto - l.obra.gastado < 0 ? "⚠️ Ya gastaste " + monedaCn(l.obra.gastado - monto) + " más que el contrato" : "Margen hasta hoy: " + monedaCn(monto - l.obra.gastado)}</div>
+              </>}
+            </>
+          ) : l.estado === "adjudicada" || l.estado === "presentada" ? (
+            <div style={{ fontSize: 12.5 }}>Si la ganaron, pasala a obra: se crea la obra con este nombre y desde ahí controlás avance, presupuesto y stock.<div style={{ marginTop: 8 }}><button className="btn btn-p" onClick={() => { if (confirm("¿Crear la obra de esta licitación?")) accion(() => API.post("/constructora/licitaciones/" + id + "/pasar-a-obra"), "✓ Obra creada"); }}>🏗️ Pasar a obra</button></div></div>
+          ) : <div style={{ fontSize: 12.5, color: temaPal.textMuted }}>Cuando la licitación esté presentada o adjudicada vas a poder pasarla a obra.</div>}
+        </div>
+      </div>
+      <div className="card">
+        <div className="ct">Lo que hay que presentar y cumplir{l.hitos.length > 0 && <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 8, color: temaPal.textMuted }}>{l.hitos.filter(h => h.cumplido).length} de {l.hitos.length}</span>}</div>
+        {!l.hitos.length && <div style={{ fontSize: 12.5, color: temaPal.textMuted, marginBottom: 8 }}>Ej: pliego firmado, garantía de oferta, certificado fiscal, visita a obra, plan de trabajo.</div>}
+        {l.hitos.map(h => {
+          const venc = !h.cumplido && h.vence && String(h.vence).slice(0, 10) < hoy;
+          return (
+            <div key={h.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + temaPal.border }}>
+              <input type="checkbox" checked={h.cumplido} aria-label={h.nombre} style={{ width: 20, height: 20 }} onChange={e => accion(() => API.put("/constructora/hitos/" + h.id, { cumplido: e.target.checked }))} />
+              <div style={{ flex: 1, textDecoration: h.cumplido ? "line-through" : "none", color: h.cumplido ? temaPal.textMuted : temaPal.text, fontSize: 13.5 }}>{h.nombre}</div>
+              {h.vence && <span style={{ fontSize: 12, color: venc ? temaPal.red : temaPal.textMuted, fontWeight: venc ? 700 : 400 }}>{venc ? "⚠️ " : ""}{fechaCn(h.vence)}</span>}
+              <button className="btn btn-g btn-sm" aria-label="Quitar" onClick={() => accion(() => API.delete("/constructora/hitos/" + h.id))}>✕</button>
+            </div>
+          );
+        })}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+          <input className="inp" style={{ flex: "2 1 200px" }} placeholder="Agregar un requisito o hito" value={nuevo.nombre} onChange={e => setNuevo(n => ({ ...n, nombre: e.target.value }))} />
+          <input className="inp" type="date" style={{ flex: "1 1 140px" }} aria-label="Vence" value={nuevo.vence} onChange={e => setNuevo(n => ({ ...n, vence: e.target.value }))} />
+          <button className="btn btn-p" disabled={!nuevo.nombre.trim()} onClick={() => accion(() => API.post("/constructora/licitaciones/" + id + "/hitos", nuevo).then(() => setNuevo({ nombre: "", vence: "" })))}>Agregar</button>
+        </div>
+      </div>
+      <div style={{ marginTop: 12 }}><button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => { if (confirm("¿Borrar esta licitación?")) API.delete("/constructora/licitaciones/" + id).then(onVolver); }}>Borrar licitación</button></div>
+    </div>
+  );
+}
+
 // Menu: 7 grupos. "k" = otras palabras con las que se encuentra en el buscador.
 // soloJefe = solo lo ve el dueno (como antes, cuando iban aparte en CONFIGURACION).
 const NAV_SECTIONS = [
@@ -29146,7 +29332,9 @@ const NAV_SECTIONS = [
     { id: "gerente", icon: "✨", label: "Lumiere, tu gerente", k: "gerente salud analisis mejora continua preguntas logros medallas decisiones" },
     { id: "mejoras", icon: "💡", label: "Ideas y mejoras", k: "mejora continua ideas problemas quejas sugerencias equipo kaizen pendientes" }] },
   { section: "OBRAS", color: "#d35400", items: [
+    { id: "resumen-obras", icon: "📊", label: "Panel de obras", k: "inicio resumen alertas pendientes vencimientos tablero constructora", soloConstructora: true },
     { id: "obras", icon: "🏗️", label: "Obras", k: "obra obras proyectos etapas avance presupuesto responsable cliente constructora", soloConstructora: true },
+    { id: "licitaciones", icon: "📋", label: "Licitaciones", k: "licitacion licitaciones pliego oferta adjudicada garantia presentar cumplimiento obra publica", soloConstructora: true },
     { id: "stock-obras", icon: "📲", label: "Stock y salida rápida", k: "galpon galpones materiales salida rapida traspaso mercaderia obra stock movimientos", soloConstructora: true },
     { id: "compras-obras", icon: "🧾", label: "Compras", k: "factura proveedor compra materiales cuentas a pagar ingreso", soloConstructora: true }] },
   { section: "CONSULTORIO", color: "#16a085", items: [
@@ -41912,7 +42100,7 @@ try { aplicarLetra(localStorage.getItem("lumiere_letra") || "normal"); } catch (
 const BOTONES_PANEL = {
   constructora: [
     ["stock-obras", "📲", "Salida rápida", "#d35400"], ["obras", "🏗️", "Obras", "#2471a3"], ["compras-obras", "🧾", "Compras", "#8e44ad"],
-    ["finance", "💰", "Finanzas", "#2d7a4f"], ["caja", "💵", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
+    ["licitaciones", "📋", "Licitaciones", "#16a085"], ["resumen-obras", "📊", "Panel", "#2d7a4f"], ["caja", "💵", "Caja", "#b7950b"], ["gerente", "✨", "Mi gerente", "#c9a84c"],
   ],
   consultorio: [
     ["agenda", "📅", "Agenda", "#16a085"], ["pacientes", "🩺", "Pacientes", "#2471a3"], ["recordatorios", "💬", "Recordatorios", "#8e44ad"],
@@ -42263,6 +42451,8 @@ function armarPasosTutorial() {
     info("obras", "Una ficha por obra", "Tocá + Nueva obra y poné nombre, cliente y responsable. Adentro cargás las etapas (con su avance), el presupuesto por rubro y los gastos: ves enseguida si te estás pasando."),
     tutIrA("compras-obras", "OBRAS", "Obras", "Las compras 🧾", "Tocá Compras.", "compras-obras"),
     info("compras-obras", "Cargá la factura y listo", "Podés subir la factura del proveedor (PDF, foto o Excel) y Lumiere arma los renglones. Al guardar, la mercadería entra sola al galpón o a la obra y queda anotado lo que hay que pagar."),
+    tutIrA("licitaciones", "OBRAS", "Obras", "Las licitaciones 📋", "Tocá Licitaciones.", "licitaciones"),
+    info("licitaciones", "Seguí cada licitación", "Cargá lo que hay que presentar y cumplir, con su fecha. Si la ganan, la pasás a obra con un toque y controlás avance, gastos y stock."),
     tutIrA("stock-obras", "OBRAS", "Obras", "Y el stock 📲", "Tocá Stock y salida rápida.", "stock-obras"),
     info("stock-obras", "Salida rápida desde el celular", "Elegí de dónde sale, a qué obra va, buscá el material y poné cuánto. Queda anotado quién lo hizo y el costo se suma a esa obra."),
   ];
@@ -44347,7 +44537,7 @@ function AppWrapper() {
     const u = paginaDeUrl();
     if (u) { if (u.pestana) { try { sessionStorage.setItem("lumiere_tab_" + u.id, u.pestana); } catch (e) {} } return u.id; }
     try { const g = sessionStorage.getItem("lumiere_pagina"); if (g) return g; } catch (e) {}
-    return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : "dashboard";
+    return typeof window !== "undefined" && window.innerWidth < 760 ? "panel" : CONSTRUCTORA_ACTIVO ? "resumen-obras" : "dashboard";
   });
   // Cuantas veces abre cada grupo del menu este usuario (para ordenar el menu de los vendedores).
   // Se lee una vez al entrar, asi el menu no se mueve mientras lo usa; las visitas se van sumando para la proxima vez.
@@ -44578,7 +44768,7 @@ function AppWrapper() {
       if (!esJefe && !permisos.includes("dashboard.ver")) {
         const ordenPrioridad = ["pos", "ventas-online", "clients", "inventory", "caja"];
         const mapaModulos2 = {
-          "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "obras": "inventario.ver", "stock-obras": "inventario.ver", "compras-obras": "compras.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
+          "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "obras": "inventario.ver", "resumen-obras": "inventario.ver", "licitaciones": "inventario.ver", "stock-obras": "inventario.ver", "compras-obras": "compras.ver", "ventas-online": "ventas_online.ver", "inventory": "inventario.ver",
           "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "caja": "caja.ver"
         };
         const disponible = ordenPrioridad.find(id => !mapaModulos2[id] || permisos.includes(mapaModulos2[id]));
@@ -44591,7 +44781,7 @@ function AppWrapper() {
     if (!usuario) return false;
     if (usuario.rol === "jefe" || usuario.rol_id === 1) return true;
  const mapaModulos = {
-      "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "obras": "inventario.ver", "stock-obras": "inventario.ver", "compras-obras": "compras.ver", "dashboard": "dashboard.ver",
+      "pos": "pos.ver", "tienda-online": "tienda.ver", "presupuestos": "pos.ver", "mesas": "pos.ver", "cocina": "pos.ver", "agenda": "pos.ver", "pacientes": "pos.ver", "recordatorios": "pos.ver", "obras": "inventario.ver", "resumen-obras": "inventario.ver", "licitaciones": "inventario.ver", "stock-obras": "inventario.ver", "compras-obras": "compras.ver", "dashboard": "dashboard.ver",
       "ventas-online": "ventas_online.ver", "buscar-precio": "buscar_precio.ver", "cambio-devolucion": "cambios.ver",
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "valorizacion.ver", "historial-ajustes": "historial_ajustes.ver", "salud-stock": "salud_stock.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
@@ -44712,6 +44902,8 @@ function AppWrapper() {
     if (id === "listas-precios") return <ListasPrecios paletaActual={paletaActual} />;
     if (id === "tienda-online") return <TiendaOnline localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "mesas") return <Mesas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "resumen-obras") return <PanelObras paletaActual={paletaActual} />;
+    if (id === "licitaciones") return <LicitacionesConstructora paletaActual={paletaActual} />;
     if (id === "obras") return <ObrasConstructora usuario={usuario} paletaActual={paletaActual} />;
     if (id === "stock-obras") return <StockConstructora usuario={usuario} paletaActual={paletaActual} />;
     if (id === "compras-obras") return <ComprasConstructora usuario={usuario} paletaActual={paletaActual} />;

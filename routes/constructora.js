@@ -136,6 +136,29 @@ async function asegurar() {
   await pool.query('CREATE INDEX IF NOT EXISTS cn_mov_material ON cn_movimientos (material_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS cn_mov_origen ON cn_movimientos (origen_id)');
   await pool.query('CREATE INDEX IF NOT EXISTS cn_mov_destino ON cn_movimientos (destino_id)');
+  await pool.query(`CREATE TABLE IF NOT EXISTS cn_licitaciones (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    organismo TEXT,
+    numero TEXT,
+    estado TEXT NOT NULL DEFAULT 'en_estudio',
+    fecha_apertura DATE,
+    fecha_presentacion DATE,
+    presupuesto_oficial NUMERIC(16,2) NOT NULL DEFAULT 0,
+    monto_ofertado NUMERIC(16,2) NOT NULL DEFAULT 0,
+    monto_adjudicado NUMERIC(16,2) NOT NULL DEFAULT 0,
+    garantia_monto NUMERIC(16,2) NOT NULL DEFAULT 0,
+    garantia_vence DATE,
+    obra_id INT,
+    notas TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS cn_lic_hitos (
+    id SERIAL PRIMARY KEY,
+    licitacion_id INT NOT NULL,
+    nombre TEXT NOT NULL,
+    vence DATE,
+    cumplido BOOLEAN NOT NULL DEFAULT FALSE,
+    cumplido_en DATE)`);
   // Siempre hay un galpon para empezar
   const g = await pool.query("SELECT 1 FROM cn_ubicaciones WHERE tipo = 'galpon' LIMIT 1");
   if (!g.rows.length) await pool.query("INSERT INTO cn_ubicaciones (nombre, tipo) VALUES ('Galpón principal', 'galpon')");
@@ -201,15 +224,35 @@ function avanceDe(obra, etapas) {
 // ---------- panel ----------
 router.get('/resumen', async (req, res) => {
   try {
-    const [ob, comp, bajo] = await Promise.all([
+    const [ob, comp, bajo, venc, lic, hitos] = await Promise.all([
       pool.query("SELECT estado, COUNT(*)::int AS n FROM cn_obras GROUP BY estado"),
       pool.query("SELECT COUNT(*)::int AS n, COALESCE(SUM(total), 0) AS total FROM cn_compras WHERE estado = 'pendiente' AND NOT anulada"),
-      pool.query(`SELECT COUNT(*)::int AS n FROM (SELECT m.id FROM cn_materiales m
-        WHERE m.activo AND m.stock_minimo > 0 AND (SELECT COALESCE(SUM(CASE WHEN x.destino_id IN (SELECT id FROM cn_ubicaciones WHERE tipo = 'galpon') THEN x.cantidad ELSE 0 END) - SUM(CASE WHEN x.origen_id IN (SELECT id FROM cn_ubicaciones WHERE tipo = 'galpon') THEN x.cantidad ELSE 0 END), 0)
-          FROM cn_movimientos x WHERE x.material_id = m.id) < m.stock_minimo) q`)
+      pool.query(`SELECT m.id, m.nombre, m.unidad, m.stock_minimo,
+          (SELECT COALESCE(SUM(CASE WHEN x.destino_id IN (SELECT id FROM cn_ubicaciones WHERE tipo = 'galpon') THEN x.cantidad ELSE 0 END) - SUM(CASE WHEN x.origen_id IN (SELECT id FROM cn_ubicaciones WHERE tipo = 'galpon') THEN x.cantidad ELSE 0 END), 0)
+           FROM cn_movimientos x WHERE x.material_id = m.id) AS stock
+        FROM cn_materiales m WHERE m.activo AND m.stock_minimo > 0`),
+      pool.query("SELECT id, proveedor_nombre, numero, total, vence FROM cn_compras WHERE estado = 'pendiente' AND NOT anulada AND vence IS NOT NULL AND vence <= CURRENT_DATE + 7 ORDER BY vence LIMIT 8"),
+      pool.query("SELECT id, nombre, estado, fecha_presentacion, garantia_vence FROM cn_licitaciones WHERE estado IN ('en_estudio', 'presentada') ORDER BY COALESCE(fecha_presentacion, fecha_apertura) NULLS LAST LIMIT 20"),
+      pool.query(`SELECT h.id, h.nombre, h.vence, l.nombre AS licitacion, l.id AS licitacion_id FROM cn_lic_hitos h JOIN cn_licitaciones l ON l.id = h.licitacion_id
+        WHERE NOT h.cumplido AND h.vence IS NOT NULL AND h.vence <= CURRENT_DATE + 7 AND l.estado NOT IN ('perdida', 'desistida') ORDER BY h.vence LIMIT 10`),
     ]);
     const porEstado = {}; ob.rows.forEach(r => { porEstado[r.estado] = r.n; });
-    res.json({ obras: porEstado, compras_pendientes: comp.rows[0].n, a_pagar: num(comp.rows[0].total), materiales_bajo_minimo: bajo.rows[0].n });
+    const bajos = bajo.rows.filter(m => num(m.stock) < num(m.stock_minimo)).map(m => ({ id: m.id, nombre: m.nombre, unidad: m.unidad, stock: num(m.stock), minimo: num(m.stock_minimo) }));
+    // Obras que se pasaron del presupuesto o gastan mas rapido de lo que avanzan
+    const obras = (await pool.query("SELECT * FROM cn_obras WHERE estado IN ('en_curso', 'pausada', 'planificada')")).rows;
+    const etapas = (await pool.query('SELECT * FROM cn_etapas')).rows;
+    const costos = await costosPorObra();
+    const alertas = [];
+    obras.forEach(o => {
+      const c = costos.de(o.id), pre = suma(c.presup), real = suma(c.real), av = avanceDe(o, etapas.filter(e => e.obra_id === o.id));
+      if (pre > 0 && real > pre) alertas.push({ obra_id: o.id, obra: o.nombre, tipo: 'pasada', texto: 'Se pasó ' + Math.round(real - pre) + ' del presupuesto', monto: real - pre });
+      else if (pre > 0 && real / pre * 100 > av + 15 && real > 0) alertas.push({ obra_id: o.id, obra: o.nombre, tipo: 'rapido', texto: 'Gastó el ' + Math.round(real / pre * 100) + '% del presupuesto y avanzó el ' + av + '%' });
+    });
+    res.json({
+      obras: porEstado, compras_pendientes: comp.rows[0].n, a_pagar: num(comp.rows[0].total), materiales_bajo_minimo: bajos.length,
+      bajo_minimo: bajos.slice(0, 8), compras_por_vencer: venc.rows.map(c => ({ ...c, total: num(c.total) })), alertas_obras: alertas,
+      licitaciones_abiertas: lic.rows, hitos_por_vencer: hitos.rows,
+    });
   } catch (e) { falla(res, e, 'resumen'); }
 });
 
@@ -638,6 +681,116 @@ router.post('/compras/leer-factura', upload.single('archivo'), async (req, res) 
     console.error('[constructora] leer factura:', e && e.message);
     res.status(500).json({ error: 'No pudimos leer esa factura. Probá con otro archivo o cargala a mano.' });
   }
+});
+
+// ---------- licitaciones ----------
+// Estados: en_estudio -> presentada -> adjudicada (-> se pasa a obra) / perdida / desistida
+const ESTADOS_LIC = ['en_estudio', 'presentada', 'adjudicada', 'perdida', 'desistida'];
+router.get('/licitaciones', async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT l.*, (SELECT COUNT(*)::int FROM cn_lic_hitos h WHERE h.licitacion_id = l.id) AS hitos,
+        (SELECT COUNT(*)::int FROM cn_lic_hitos h WHERE h.licitacion_id = l.id AND h.cumplido) AS hitos_ok, o.nombre AS obra
+      FROM cn_licitaciones l LEFT JOIN cn_obras o ON o.id = l.obra_id
+      ORDER BY (l.estado IN ('perdida', 'desistida')), COALESCE(l.fecha_presentacion, l.fecha_apertura) NULLS LAST, l.id DESC`);
+    res.json(r.rows.map(l => ({ ...l, presupuesto_oficial: num(l.presupuesto_oficial), monto_ofertado: num(l.monto_ofertado), monto_adjudicado: num(l.monto_adjudicado), garantia_monto: num(l.garantia_monto) })));
+  } catch (e) { falla(res, e, 'licitaciones'); }
+});
+router.post('/licitaciones', async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!txt(b.nombre)) throw err(400, 'Ponele un nombre a la licitación');
+    const r = await pool.query(
+      `INSERT INTO cn_licitaciones (nombre, organismo, numero, estado, fecha_apertura, fecha_presentacion, presupuesto_oficial, monto_ofertado, garantia_monto, garantia_vence, notas)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [txt(b.nombre), txt(b.organismo), txt(b.numero), ESTADOS_LIC.includes(b.estado) ? b.estado : 'en_estudio', fechaOk(b.fecha_apertura), fechaOk(b.fecha_presentacion),
+        Math.max(0, num(b.presupuesto_oficial)), Math.max(0, num(b.monto_ofertado)), Math.max(0, num(b.garantia_monto)), fechaOk(b.garantia_vence), txt(b.notas)]);
+    res.json(r.rows[0]);
+  } catch (e) { falla(res, e, 'nueva licitacion'); }
+});
+router.get('/licitaciones/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const l = (await pool.query('SELECT * FROM cn_licitaciones WHERE id = $1', [id])).rows[0];
+    if (!l) return res.status(404).json({ error: 'No encontramos esa licitación' });
+    const hitos = (await pool.query('SELECT * FROM cn_lic_hitos WHERE licitacion_id = $1 ORDER BY cumplido, vence NULLS LAST, id', [id])).rows;
+    let obra = null;
+    if (l.obra_id) {
+      const o = (await pool.query('SELECT * FROM cn_obras WHERE id = $1', [l.obra_id])).rows[0];
+      if (o) {
+        const etapas = (await pool.query('SELECT * FROM cn_etapas WHERE obra_id = $1', [o.id])).rows;
+        const c = (await costosPorObra()).de(o.id);
+        obra = { id: o.id, nombre: o.nombre, estado: o.estado, avance: avanceDe(o, etapas), gastado: suma(c.real), presupuesto: suma(c.presup), fecha_fin_prevista: o.fecha_fin_prevista };
+      }
+    }
+    res.json({ ...l, presupuesto_oficial: num(l.presupuesto_oficial), monto_ofertado: num(l.monto_ofertado), monto_adjudicado: num(l.monto_adjudicado), garantia_monto: num(l.garantia_monto), hitos, obra });
+  } catch (e) { falla(res, e, 'licitacion'); }
+});
+router.put('/licitaciones/:id', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const sets = [], p = [];
+    const poner = (col, val) => { p.push(val); sets.push(col + ' = $' + p.length); };
+    if (b.nombre !== undefined) { if (!txt(b.nombre)) throw err(400, 'Falta el nombre'); poner('nombre', txt(b.nombre)); }
+    ['organismo', 'numero', 'notas'].forEach(k => { if (b[k] !== undefined) poner(k, txt(b[k])); });
+    ['fecha_apertura', 'fecha_presentacion', 'garantia_vence'].forEach(k => { if (b[k] !== undefined) poner(k, fechaOk(b[k])); });
+    ['presupuesto_oficial', 'monto_ofertado', 'monto_adjudicado', 'garantia_monto'].forEach(k => { if (b[k] !== undefined) poner(k, Math.max(0, num(b[k]))); });
+    if (b.estado !== undefined) { if (!ESTADOS_LIC.includes(b.estado)) throw err(400, 'Estado no válido'); poner('estado', b.estado); }
+    if (!sets.length) return res.json({ ok: true });
+    p.push(Number(req.params.id));
+    const r = await pool.query('UPDATE cn_licitaciones SET ' + sets.join(', ') + ' WHERE id = $' + p.length + ' RETURNING *', p);
+    res.json(r.rows[0] || {});
+  } catch (e) { falla(res, e, 'editar licitacion'); }
+});
+router.delete('/licitaciones/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = Number(req.params.id);
+    await client.query('BEGIN');
+    await client.query('DELETE FROM cn_lic_hitos WHERE licitacion_id = $1', [id]);
+    await client.query('DELETE FROM cn_licitaciones WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) { try { await client.query('ROLLBACK'); } catch (x) {} falla(res, e, 'borrar licitacion'); }
+  finally { client.release(); }
+});
+router.post('/licitaciones/:id/hitos', async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!txt(b.nombre)) throw err(400, 'Escribí qué hay que cumplir');
+    const r = await pool.query('INSERT INTO cn_lic_hitos (licitacion_id, nombre, vence) VALUES ($1,$2,$3) RETURNING *', [Number(req.params.id), txt(b.nombre), fechaOk(b.vence)]);
+    res.json(r.rows[0]);
+  } catch (e) { falla(res, e, 'nuevo hito'); }
+});
+router.put('/hitos/:id', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const r = await pool.query(`UPDATE cn_lic_hitos SET cumplido = COALESCE($1, cumplido), cumplido_en = CASE WHEN $1 IS TRUE THEN CURRENT_DATE WHEN $1 IS FALSE THEN NULL ELSE cumplido_en END,
+      vence = CASE WHEN $3 THEN $2 ELSE vence END WHERE id = $4 RETURNING *`,
+      [typeof b.cumplido === 'boolean' ? b.cumplido : null, fechaOk(b.vence), b.vence !== undefined, Number(req.params.id)]);
+    res.json(r.rows[0] || {});
+  } catch (e) { falla(res, e, 'editar hito'); }
+});
+router.delete('/hitos/:id', async (req, res) => {
+  try { await pool.query('DELETE FROM cn_lic_hitos WHERE id = $1', [Number(req.params.id)]); res.json({ ok: true }); }
+  catch (e) { falla(res, e, 'borrar hito'); }
+});
+// Una licitacion ganada pasa a ser una obra (con el mismo nombre, el organismo como cliente y el monto adjudicado de referencia)
+router.post('/licitaciones/:id/pasar-a-obra', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = Number(req.params.id);
+    await client.query('BEGIN');
+    const l = (await client.query('SELECT * FROM cn_licitaciones WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!l) throw err(404, 'No encontramos esa licitación');
+    if (l.obra_id) throw err(400, 'Esta licitación ya tiene su obra');
+    const o = (await client.query(`INSERT INTO cn_obras (nombre, cliente_nombre, estado, notas) VALUES ($1,$2,'planificada',$3) RETURNING *`,
+      [l.nombre, l.organismo, 'Viene de la licitación' + (l.numero ? ' ' + l.numero : '')])).rows[0];
+    await client.query("INSERT INTO cn_ubicaciones (nombre, tipo, obra_id) VALUES ($1, 'obra', $2)", [o.nombre, o.id]);
+    await client.query("UPDATE cn_licitaciones SET obra_id = $1, estado = 'adjudicada', monto_adjudicado = CASE WHEN monto_adjudicado > 0 THEN monto_adjudicado ELSE monto_ofertado END WHERE id = $2", [o.id, id]);
+    await client.query('COMMIT');
+    res.json({ obra_id: o.id });
+  } catch (e) { try { await client.query('ROLLBACK'); } catch (x) {} falla(res, e, 'pasar a obra'); }
+  finally { client.release(); }
 });
 
 router.get('/rubros', (req, res) => res.json({ rubros: RUBROS, unidades: UNIDADES, estados_obra: ESTADOS_OBRA }));
