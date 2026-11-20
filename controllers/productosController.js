@@ -679,6 +679,12 @@ const getSugerenciaCompra = async (req, res) => {
     const diasSeguridad = Math.min(90, Math.max(0, parseInt(req.query.dias_seguridad ?? 7) || 0));
     const leadOverride = req.query.lead_time !== undefined && req.query.lead_time !== '' ? Math.max(0, parseInt(req.query.lead_time) || 0) : null;
 
+    // Lo que está "en camino" se vuelve a calcular desde las órdenes de ingreso (y los traspasos) antes de armar el pedido:
+    // así no depende de un número guardado que pudo quedar desactualizado
+    try {
+      const idsP = (await pool.query(`SELECT p.id FROM productos p WHERE ${filtroP} AND p.activo = TRUE`, [valorP])).rows.map(x => x.id);
+      if (idsP.length) await require('../lib/transito').recalcularTransito(pool, idsP);
+    } catch (e) { console.error('[qué pedir] no se pudo recalcular lo que está en camino:', e.message); }
     const hayVariantes = !!(await pool.query(`SELECT to_regclass('producto_variantes') AS t`)).rows[0].t;
     const [provRes, prodRes, ventasRes, varRes, anioRes, liqRes, evs] = await Promise.all([
       proveedor_id ? pool.query('SELECT id, nombre, whatsapp, telefono, email FROM proveedores WHERE id = $1', [proveedor_id]) : { rows: [] },
