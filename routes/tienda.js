@@ -1145,7 +1145,7 @@ router.put('/diagnostico', async (req, res) => {
 });
 const ESTADOS_TURNO = ['reservado', 'confirmado', 'atendido', 'ausente', 'cancelado'];
 const PIELES_T = ['grasa', 'seca', 'mixta', 'sensible', 'normal'];
-const NEC_T = ['acne', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
+const NEC_T = ['acne', 'puntos', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
 const SQL_TURNOS = `SELECT t.id, t.cliente_id, t.nombre, t.telefono, t.local_id, l.nombre AS local, to_char(t.fecha, 'YYYY-MM-DD') AS fecha, t.hora, t.piel, t.nec, t.nota,
   t.estado, t.atendido_por, t.resultado, t.confirmado_en, t.creado_en, c.perfil_piel FROM tienda_turnos t LEFT JOIN locales l ON l.id = t.local_id LEFT JOIN clientes c ON c.id = t.cliente_id`;
 // Agenda: desde hace una semana (para anotar lo que quedo pendiente) hasta lo que viene
