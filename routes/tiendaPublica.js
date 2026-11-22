@@ -1272,7 +1272,7 @@ async function turnosDeClienta(clienteId) {
     FROM tienda_turnos t LEFT JOIN locales l ON l.id = t.local_id WHERE t.cliente_id = $1 AND t.estado <> 'cancelado' ORDER BY t.fecha DESC, t.hora DESC LIMIT 10`, [clienteId]).catch(() => ({ rows: [] }))).rows;
 }
 const PIELES = ['grasa', 'seca', 'mixta', 'sensible', 'normal'];
-const NECESIDADES = ['acne', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
+const NECESIDADES = ['acne', 'puntos', 'manchas', 'antiedad', 'rojeces', 'hidratacion', 'poros', 'ojeras'];
 router.put('/:slug/cuenta/perfil', conCuenta, async (req, res) => {
   try {
     const b = req.body || {};

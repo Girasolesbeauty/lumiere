@@ -32559,6 +32559,7 @@ const TW_ICONOS_PIEL = {
   antiedad: ["#9b5de5", <><path d="M16 8h16M16 40h16" /><path d="M18 8c0 9 12 9 12 16S18 31 18 40M30 8c0 9-12 9-12 16s12 7 12 16" /></>],
   rojeces: ["#e0607a", <><path d="M24 40c-9-6-14-11-14-18a7 7 0 0 1 14-3 7 7 0 0 1 14 3c0 7-5 12-14 18Z" /><path d="M18 22c1-2 3-3 5-2" /></>],
   hidratacion: ["#2fa4c9", <><path d="M20 10s-8 10-8 16a8 8 0 0 0 16 0c0-6-8-16-8-16Z" /><path d="M33 22s-5 6-5 9a5 5 0 0 0 10 0c0-3-5-9-5-9Z" /></>],
+  puntos: ["#4a8a8c", <><path d="M24 8c-3 8-6 14-6 22a6 6 0 0 0 12 0c0-8-3-14-6-22Z" /><circle cx="22" cy="28" r="1.4" fill="currentColor" /><circle cx="26.5" cy="31" r="1.4" fill="currentColor" /><circle cx="24" cy="34.5" r="1.1" fill="currentColor" /><circle cx="14" cy="34" r="1.6" fill="currentColor" /><circle cx="34" cy="34" r="1.6" fill="currentColor" /></>],
   poros: ["#5a7ec2", <><circle cx="21" cy="21" r="11" /><path d="M29 29l9 9" /><circle cx="18" cy="19" r="1" fill="currentColor" /><circle cx="24" cy="22" r="1" fill="currentColor" /><circle cx="19" cy="25" r="1" fill="currentColor" /></>],
   ojeras: ["#7a6bc4", <><path d="M6 24s7-10 18-10 18 10 18 10-7 10-18 10S6 24 6 24Z" /><circle cx="24" cy="24" r="5" /><path d="M14 36c6 3 14 3 20 0" /></>],
 };
@@ -32887,6 +32888,7 @@ const TW_FILTROS = [
   ] },
   { k: "necesidad", titulo: "Necesidad", en: "t", lineas: ["facial", "corporal"], op: [
     ["acne", "Acné e imperfecciones", /acne|acneica|granitos?|imperfecciones|espinillas|puntos negros|comedon|brotes|blemish|anti-?imperfec/],
+    ["puntos", "Puntos negros y comedones", /puntos? negros?|comedon|blackhead|whitehead|espinillas|poros (obstruidos|tapados|congestionados)|desobstru|salicilic|\bbha\b|nose ?strip|tiras? (nasal|para (la )?nariz)/],
     ["manchas", "Manchas y tono", /mancha|hiperpigment|despigment|tono (desparejo|irregular|uniforme)|unifica el tono|dark spot|melasma|aclara/],
     ["antiedad", "Arrugas y antiedad", /arruga|anti-?edad|anti-?age|anti-?aging|lineas de expresion|lineas finas|firmeza|flacidez|retinol|colageno|rejuvenec/],
     ["rojeces", "Rojeces y sensibilidad", /rosacea|rojez|enrojecim|irritaci|calma|calmante|cica\b|centella|alivia/],
@@ -33035,7 +33037,10 @@ function twEtiquetas(p) {
   const m = p.etiquetas || {};
   const e = twEtiquetasAuto(p, Array.isArray(m.linea) ? m.linea : undefined);
   const lin = e.linea;
+  const autoPuntos = (e.necesidad || []).includes("puntos");
   TW_FILTROS.forEach(f => { const v = twManual(m, f, lin); if (v) e[f.k] = v.filter(x => x !== "todo"); if (f.k === "piel" && v) e.todoTipo = v.includes("todo"); });
+  // "Puntos negros" es nuevo: a los que ya tenían la necesidad elegida a mano (acné o poros) y hablan de puntos negros se les suma sola
+  if (autoPuntos && Array.isArray(m.necesidad) && !m.necesidad.includes("puntos") && m.necesidad.some(x => x === "acne" || x === "poros")) e.necesidad = [...e.necesidad, "puntos"];
   return e;
 }
 // Para elegir a mano: "Todo tipo de piel" es una opcion mas
