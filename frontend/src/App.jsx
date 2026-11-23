@@ -11925,6 +11925,271 @@ function GastosCargados({ p, categoriasCosto, usuario }) {
   );
 }
 
+// ===================== Balance anual =====================
+// Los 12 meses del año: ventas, gastos por grupo y ganancia, por local y en total, comparado con el año anterior.
+// Los meses de antes de usar Lumiere se cargan de las planillas (Excel de flujo de efectivo) o a mano.
+const BAL_MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const BAL_GASTOS = [["mercaderia", "Mercadería y gastos variables", "#c0392b"], ["sueldos", "Sueldos y comisiones", "#8e44ad"], ["impuestos", "Impuestos y cargas (931, IIBB…)", "#d35400"],
+  ["fijos", "Gastos fijos (alquiler, servicios)", "#2471a3"], ["admin", "Administrativos y marketing", "#16a085"], ["comisiones", "Comisiones de tarjetas y apps", "#b7950b"], ["otros", "Otros gastos", "#7f8c8d"]];
+const BAL_COLORES_LOCAL = ["#c9a84c", "#2471a3", "#8e44ad", "#16a085"];
+function BalanceAnual({ p }) {
+  const hoy = new Date();
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [d, setD] = useState(null);
+  const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [editMes, setEditMes] = useState(null); // { mes, valores: { local_id: {campo: "valor"} }, nota }
+  const [imp, setImp] = useState(null); // importar planilla: { leyendo, datos, local, meses: [], compartidos: {} }
+  const [ref, setRef] = useState(null); // año anterior: { ventas, ganancia, inflacion }
+  const [guardando, setGuardando] = useState(false);
+  const cargar = () => { setD(null); setError(""); API.get("/finanzas/balance-anual?anio=" + anio).then(r => setD(r.data)).catch(e => setError(e.response?.data?.error || "No se pudo cargar el balance")); };
+  useEffect(cargar, [anio]);
+  const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(""), 6000); };
+  if (error) return <div className="card"><div style={{ color: p.red }}>{error}</div></div>;
+  if (!d) return <div className="skel" style={{ height: 420 }} />;
+
+  const locales = d.locales;
+  const gastosDe = (o) => BAL_GASTOS.reduce((t, [k]) => t + (o[k] || 0), 0);
+  const totalMes = (m) => { const o = { ventas: 0 }; BAL_GASTOS.forEach(([k]) => { o[k] = 0; }); Object.values(m.locales || {}).forEach(x => { Object.keys(o).forEach(k => { o[k] += x.total[k] || 0; }); }); o.egresos = gastosDe(o); o.ganancia = o.ventas - o.egresos; return o; };
+  const meses = d.meses.map(m => ({ ...m, t: m.futuro ? null : totalMes(m) }));
+  const activos = meses.filter(m => !m.futuro);
+  const conVentas = activos.filter(m => m.t.ventas > 0);
+  const sum = (f) => activos.reduce((a, m) => a + f(m), 0);
+  const ventasAnio = sum(m => m.t.ventas), egresosAnio = sum(m => m.t.egresos), gananciaAnio = ventasAnio - egresosAnio;
+  const margen = ventasAnio > 0 ? gananciaAnio / ventasAnio * 100 : null;
+  const esActual = anio === hoy.getFullYear();
+  // Proyección al cierre: lo vendido en los meses completos + el promedio de los últimos 3 meses completos por los meses que faltan
+  const completos = esActual ? activos.filter(m => m.mes < d.hasta_mes) : activos;
+  const ult3 = completos.slice(-3), prom3 = ult3.length ? ult3.reduce((a, m) => a + m.t.ventas, 0) / ult3.length : 0;
+  const proy = esActual && d.hasta_mes <= 12 ? completos.reduce((a, m) => a + m.t.ventas, 0) + prom3 * (12 - completos.length) : ventasAnio;
+  const promGan3 = ult3.length ? ult3.reduce((a, m) => a + m.t.ganancia, 0) / ult3.length : 0;
+  const proyGan = esActual ? completos.reduce((a, m) => a + m.t.ganancia, 0) + promGan3 * (12 - completos.length) : gananciaAnio;
+  const ant = d.anterior.ventas_referencia !== null ? d.anterior.ventas_referencia : d.anterior.ventas_sistema;
+  const crec = ant > 0 ? ((esActual ? proy : ventasAnio) / ant - 1) * 100 : null;
+  const crecReal = crec !== null && d.inflacion_pct !== null ? ((1 + crec / 100) / (1 + d.inflacion_pct / 100) - 1) * 100 : null;
+  const mejor = conVentas.length ? conVentas.reduce((a, m) => (m.t.ventas > a.t.ventas ? m : a)) : null;
+  const peor = conVentas.length ? conVentas.filter(m => !esActual || m.mes < d.hasta_mes).reduce((a, m) => (!a || m.t.ventas < a.t.ventas ? m : a), null) : null;
+  const masGanancia = conVentas.length ? conVentas.reduce((a, m) => (m.t.ganancia > a.t.ganancia ? m : a)) : null;
+  const porLocal = locales.map((l, i) => ({ ...l, c: BAL_COLORES_LOCAL[i % 4], ventas: activos.reduce((a, m) => a + ((m.locales[l.id] || {}).total?.ventas || 0), 0), ganancia: activos.reduce((a, m) => { const t = (m.locales[l.id] || {}).total; return a + (t ? t.ventas - gastosDe(t) : 0); }, 0) }));
+  const origen = (m) => { const xs = Object.values(m.locales || {}); const man = xs.some(x => x.manual), lum = xs.some(x => x.lumiere.ventas > 0 || gastosDe(x.lumiere) > 0); return man && lum ? "ambos" : man ? "planilla" : lum ? "lumiere" : "vacio"; };
+  // Cosas para mirar
+  const notas = [];
+  activos.forEach(m => { if (m.t.ventas > 0 && m.t.ganancia < 0) notas.push(["🔻", BAL_MESES[m.mes - 1] + " dio pérdida: " + fmt(m.t.ganancia) + ". Revisá si ese mes se compró mucha mercadería (es plata que se recupera cuando se vende)."]); });
+  locales.forEach(l => { const ms = activos.filter(m => (!esActual || m.mes < d.hasta_mes) && (() => { const t = (m.locales[l.id] || {}).total; return t && t.ventas > 0 && t.sueldos === 0 && t.impuestos === 0 && t.fijos === 0; })()).map(m => BAL_MESES[m.mes - 1]);
+    if (ms.length) notas.push(["⚠️", l.nombre + ": " + ms.join(", ") + (ms.length === 1 ? " no tiene" : " no tienen") + " sueldos, impuestos ni gastos fijos cargados. Si esos gastos se anotaron en el otro local está bien; si no, la ganancia de " + (ms.length === 1 ? "ese mes" : "esos meses") + " puede estar inflada."]); });
+  if (ventasAnio > 0) { const merc = sum(m => m.t.mercaderia) / ventasAnio * 100; notas.push(["📦", "La mercadería fue el " + merc.toFixed(0) + "% de lo vendido en el año."]); }
+  if (esActual && d.hasta_mes <= 12) notas.push(["🗓️", BAL_MESES[d.hasta_mes - 1] + " todavía está en curso: sus números van a seguir subiendo."]);
+  // Gráfico
+  const maxV = Math.max(1, ...activos.map(m => m.t.ventas));
+  const W = 760, H = 230, bw = W / 12;
+
+  const abrirEdit = (m) => setEditMes({ mes: m.mes, valores: Object.fromEntries(locales.map(l => { const x = (m.locales || {})[l.id] || {}; const man = x.manual || {}; return [l.id, Object.fromEntries(["ventas", ...BAL_GASTOS.map(g => g[0])].map(k => [k, man[k] ? String(man[k]) : ""]))]; })), nota: Object.values(m.locales || {}).map(x => x.manual_nota).find(Boolean) || "" });
+  const guardarEdit = async () => {
+    setGuardando(true);
+    try {
+      const filas = locales.map(l => { const v = editMes.valores[l.id]; const vacio = Object.values(v).every(x => !String(x).trim() || parseFloat(x) === 0); return vacio ? { mes: editMes.mes, local_id: l.id, borrar: true } : { mes: editMes.mes, local_id: l.id, ...Object.fromEntries(Object.entries(v).map(([k, x]) => [k, parseFloat(String(x).replace(/\./g, "").replace(",", ".")) || 0])), nota: editMes.nota, origen: "a mano" }; });
+      await API.put("/finanzas/balance-anual/manual", { anio, filas });
+      setEditMes(null); avisar("✓ " + BAL_MESES[editMes.mes - 1] + " guardado"); cargar();
+    } catch (e) { alert(e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const leerArchivo = (f) => {
+    if (!f) return;
+    const rd = new FileReader();
+    setImp(x => ({ ...(x || {}), leyendo: true, datos: null }));
+    rd.onload = async () => {
+      try {
+        const r = await API.post("/finanzas/balance-anual/leer-planilla", { archivo: rd.result });
+        // Meses a cargar: los que ese local no tiene en Lumiere (los de antes de empezar a usarlo)
+        const loc = locales.find(l => new RegExp(l.nombre.split(" ")[0], "i").test(f.name)) || locales.find(l => /ush/i.test(f.name) && /ushu/i.test(l.nombre)) || locales.find(l => /\brg\b|_rg|rg\./i.test(f.name) && /r[ií]o grande/i.test(l.nombre)) || locales[0];
+        const sinLumiere = (lid) => meses.filter(m => !m.futuro && !((m.locales[lid] || {}).lumiere?.ventas > 0) && r.data.meses[m.mes - 1].ventas > 0).map(m => m.mes);
+        setImp({ leyendo: false, archivo: f.name, datos: r.data, local: loc.id, meses: sinLumiere(loc.id), compartidos: {} });
+      } catch (e) { setImp(null); alert(e.response?.data?.error || "No se pudo leer el archivo"); }
+    };
+    rd.readAsDataURL(f);
+  };
+  // Gastos iguales a los de otro local en el mismo mes (renglón por renglón: seguramente se copiaron en las dos planillas)
+  const repetidos = imp && imp.datos ? imp.meses.flatMap(mes => imp.datos.renglones.flatMap((r, i) => { const v = r.valores[mes - 1]; if (r.grupo === "ventas" || !(v > 0)) return [];
+    const otro = locales.filter(l => l.id !== imp.local).find(l => { const x = (meses[mes - 1].locales || {})[l.id] || {}; return (x.manual_detalle || []).some(z => z.grupo === r.grupo && !z.compartido && Math.abs(z.valor - v) < 1); });
+    return otro ? [{ key: mes + "|" + i, mes, n: r.concepto, v, otro: otro.nombre }] : []; })) : [];
+  const valorImp = (mes, k) => imp.datos.renglones.reduce((t, r, i) => t + (r.grupo === k && !imp.compartidos[mes + "|" + i] ? r.valores[mes - 1] || 0 : 0), 0);
+  const tachado = (mes, k) => imp.datos.renglones.some((r, i) => r.grupo === k && imp.compartidos[mes + "|" + i] && r.valores[mes - 1]);
+  const guardarImp = async () => {
+    setGuardando(true);
+    try {
+      const filas = imp.meses.map(mes => ({ mes, local_id: imp.local, ventas: valorImp(mes, "ventas"), ...Object.fromEntries(BAL_GASTOS.map(([k]) => [k, valorImp(mes, k)])), nota: "De la planilla " + imp.archivo, origen: "planilla",
+        detalle: imp.datos.renglones.map((r, i) => ({ concepto: r.concepto, grupo: r.grupo, valor: r.valores[mes - 1] || 0, compartido: !!imp.compartidos[mes + "|" + i] })).filter(x => x.valor) }));
+      await API.put("/finanzas/balance-anual/manual", { anio, filas });
+      setImp(null); avisar("✓ Planilla cargada: " + filas.length + " meses de " + (locales.find(l => l.id === imp.local) || {}).nombre); cargar();
+    } catch (e) { alert(e.response?.data?.error || "No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const guardarRef = async () => {
+    setGuardando(true);
+    const n = (x) => { const t = String(x || "").replace(/\./g, "").replace(",", ".").trim(); return t === "" ? null : parseFloat(t); };
+    try {
+      await API.put("/finanzas/balance-anual/referencia", { anio: anio - 1, ventas: n(ref.ventas), ganancia: n(ref.ganancia) });
+      if (ref.inflacion !== "") await API.put("/finanzas/balance-anual/referencia", { anio, inflacion_pct: n(ref.inflacion) });
+      setRef(null); avisar("✓ Guardado"); cargar();
+    } catch (e) { alert("No se pudo guardar"); }
+    setGuardando(false);
+  };
+  const descargar = async () => {
+    try { const r = await API.get("/finanzas/balance-anual/excel?anio=" + anio, { responseType: "blob" }); const u = URL.createObjectURL(r.data); const a = document.createElement("a"); a.href = u; a.download = "balance-anual-" + anio + ".xlsx"; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000); }
+    catch (e) { alert("No se pudo descargar"); }
+  };
+  const M = (x) => (Math.abs(x) >= 1e6 ? (x < 0 ? "-" : "") + "$" + (Math.abs(x) / 1e6).toLocaleString("es-AR", { maximumFractionDigits: 1 }) + " M" : Math.abs(x) >= 1e3 ? (x < 0 ? "-" : "") + "$" + Math.round(Math.abs(x) / 1e3).toLocaleString("es-AR") + " mil" : x ? fmt(x) : "$0");
+  const kpi = (t, v, sub, c) => <div className="kpi" style={{ borderTop: "3px solid " + c }}><div className="kpi-label">{t}</div><div className="kpi-val" style={{ color: c, fontSize: 24 }}>{v}</div><div className="kpi-sub">{sub}</div></div>;
+  const celda = { textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", padding: "6px 8px" };
+
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <div className="seg" role="group" aria-label="Año">
+          {[hoy.getFullYear() - 1, hoy.getFullYear()].map(a => <button key={a} className={anio === a ? "on" : ""} onClick={() => setAnio(a)}>{a}</button>)}
+        </div>
+        <div style={{ flex: 1 }} />
+        <button className="btn btn-g btn-sm" onClick={() => setImp({ leyendo: false, datos: null })}>📥 Cargar planilla (Excel)</button>
+        <button className="btn btn-g btn-sm" onClick={() => setRef({ ventas: d.anterior.ventas_referencia !== null ? String(d.anterior.ventas_referencia) : "", ganancia: d.anterior.ganancia_referencia !== null ? String(d.anterior.ganancia_referencia) : "", inflacion: d.inflacion_pct !== null ? String(d.inflacion_pct) : "" })}>📅 Datos de {anio - 1}</button>
+        <button className="btn btn-p btn-sm" onClick={descargar}>⬇ Descargar Excel</button>
+      </div>
+      {aviso && <div className="cc-aviso ok" style={{ marginBottom: 10 }}>{aviso}</div>}
+
+      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10, marginBottom: 12 }}>
+        {kpi("Vendido en " + anio, M(ventasAnio), esActual ? "hasta hoy · proyección al cierre: " + M(proy) : conVentas.length + " meses con ventas", "#2d7a4f")}
+        {kpi("Ganancia del año", M(gananciaAnio), (margen !== null ? "margen " + margen.toFixed(1) + "%" : "") + (esActual ? " · proyectada: " + M(proyGan) : ""), gananciaAnio >= 0 ? "#2471a3" : "#c0392b")}
+        {kpi("Crecimiento vs " + (anio - 1), crec !== null ? (crec >= 0 ? "+" : "") + crec.toFixed(0) + "%" : "—", ant > 0 ? (esActual ? "proyectado · " : "") + (anio - 1) + ": " + M(ant) + (crecReal !== null ? " · real (sin inflación): " + (crecReal >= 0 ? "+" : "") + crecReal.toFixed(0) + "%" : " · cargá la inflación para ver el real") : "cargá lo vendido en " + (anio - 1) + " en «Datos de " + (anio - 1) + "»", crec === null ? p.textMuted : crec >= 0 ? "#2d7a4f" : "#c0392b")}
+        {kpi("Promedio por mes", M(conVentas.length ? ventasAnio / conVentas.length : 0), mejor ? "mejor mes: " + BAL_MESES[mejor.mes - 1] + " (" + M(mejor.t.ventas) + ")" : "", "#8e44ad")}
+      </div>
+      {ant > 0 && esActual && <div className="card" style={{ marginBottom: 12, padding: "12px 16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}><span>Ya vendiste el <b>{(ventasAnio / ant * 100).toFixed(0)}%</b> de todo lo que vendiste en {anio - 1}</span><span style={{ color: p.textMuted }}>{M(ventasAnio)} de {M(ant)}</span></div>
+        <div style={{ height: 12, borderRadius: 99, background: p.bg, overflow: "hidden" }}><div style={{ width: Math.min(100, ventasAnio / ant * 100) + "%", height: "100%", borderRadius: 99, background: "linear-gradient(90deg,#c9a84c,#2d7a4f)" }} /></div>
+      </div>}
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">Ventas y ganancia mes a mes</div>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: p.textMuted, marginBottom: 6 }}>
+          {porLocal.map(l => <span key={l.id}><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: l.c, marginRight: 5 }} />{l.nombre}</span>)}
+          <span><i style={{ display: "inline-block", width: 14, height: 3, background: "#2d7a4f", marginRight: 5, verticalAlign: 3 }} />Ganancia</span>
+          {d.anterior.ventas_por_mes.some(x => x > 0) && <span><i style={{ display: "inline-block", width: 14, height: 0, borderTop: "2px dashed " + p.textMuted, marginRight: 5, verticalAlign: 3 }} />{anio - 1}</span>}
+        </div>
+        <svg viewBox={"0 0 " + W + " " + (H + 26)} style={{ width: "100%", height: "auto" }} role="img" aria-label="Ventas por mes">
+          {meses.map((m, i) => { if (m.futuro) return <text key={i} x={i * bw + bw / 2} y={H + 18} textAnchor="middle" fontSize="11" fill={p.textMuted} opacity=".5">{BAL_MESES[i]}</text>; let y0 = H; return (
+            <g key={i} style={{ cursor: "pointer" }} onClick={() => abrirEdit(m)}>
+              {locales.map((l, j) => { const v = ((m.locales[l.id] || {}).total || {}).ventas || 0; const h = v / maxV * (H - 20); y0 -= h; return <rect key={l.id} x={i * bw + bw * .18} y={y0} width={bw * .64} height={h} rx="3" fill={BAL_COLORES_LOCAL[j % 4]}><title>{BAL_MESES[i] + " · " + l.nombre + ": " + fmt(v)}</title></rect>; })}
+              <text x={i * bw + bw / 2} y={H + 18} textAnchor="middle" fontSize="11" fill={p.text}>{BAL_MESES[i]}</text>
+              {origen(m) !== "lumiere" && origen(m) !== "vacio" && <text x={i * bw + bw / 2} y={H + 2 - (m.t.ventas / maxV * (H - 20)) - 4} textAnchor="middle" fontSize="10">📄</text>}
+            </g>); })}
+          <polyline fill="none" stroke="#2d7a4f" strokeWidth="2.5" points={activos.map(m => ((m.mes - 1) * bw + bw / 2) + "," + (H - Math.max(0, m.t.ganancia) / maxV * (H - 20))).join(" ")} />
+          {activos.map(m => <circle key={m.mes} cx={(m.mes - 1) * bw + bw / 2} cy={H - Math.max(0, m.t.ganancia) / maxV * (H - 20)} r="4" fill={m.t.ganancia >= 0 ? "#2d7a4f" : "#c0392b"}><title>{"Ganancia " + BAL_MESES[m.mes - 1] + ": " + fmt(m.t.ganancia)}</title></circle>)}
+          {d.anterior.ventas_por_mes.some(x => x > 0) && <polyline fill="none" stroke={p.textMuted} strokeDasharray="5 4" strokeWidth="1.5" points={d.anterior.ventas_por_mes.map((v, i) => (i * bw + bw / 2) + "," + (H - v / maxV * (H - 20))).join(" ")} />}
+        </svg>
+        <div style={{ fontSize: 11.5, color: p.textMuted }}>📄 = mes cargado de planilla. Tocá un mes para ver o corregir lo cargado a mano.</div>
+      </div>
+
+      {locales.length > 1 && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
+        {porLocal.map(l => <div key={l.id} className="card" style={{ borderLeft: "5px solid " + l.c, padding: "12px 16px" }}>
+          <div style={{ fontWeight: 800 }}>📍 {l.nombre}</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: l.c }}>{M(l.ventas)}</div>
+          <div style={{ fontSize: 12, color: p.textMuted }}>{ventasAnio > 0 ? (l.ventas / ventasAnio * 100).toFixed(0) + "% de lo vendido" : ""} · ganancia {M(l.ganancia)}</div>
+        </div>)}
+      </div>}
+
+      <div className="card" style={{ marginBottom: 12, overflowX: "auto" }}>
+        <div className="ct">Mes a mes</div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, minWidth: 1100 }}>
+          <thead><tr style={{ borderBottom: "2px solid " + p.border }}>
+            <th style={{ textAlign: "left", padding: "6px 8px" }}></th>
+            {meses.map(m => <th key={m.mes} style={{ ...celda, textAlign: "center", opacity: m.futuro ? .4 : 1, cursor: m.futuro ? "default" : "pointer" }} onClick={() => !m.futuro && abrirEdit(m)} title={m.futuro ? "" : "Ver o corregir " + BAL_MESES[m.mes - 1]}>{BAL_MESES[m.mes - 1]}{!m.futuro && origen(m) !== "lumiere" && origen(m) !== "vacio" ? " 📄" : ""}</th>)}
+            <th style={{ ...celda, fontWeight: 900 }}>Total</th>
+          </tr></thead>
+          <tbody>
+            {(locales.length > 1 ? locales : []).map(l => <tr key={"v" + l.id}><td style={{ padding: "6px 8px", color: p.textMuted, whiteSpace: "nowrap" }}>Ventas {l.nombre}</td>{meses.map(m => <td key={m.mes} style={{ ...celda, color: p.textMuted }}>{m.futuro ? "" : M(((m.locales[l.id] || {}).total || {}).ventas || 0)}</td>)}<td style={{ ...celda, color: p.textMuted }}>{M(porLocal.find(x => x.id === l.id).ventas)}</td></tr>)}
+            <tr style={{ fontWeight: 800, background: "#2d7a4f12" }}><td style={{ padding: "6px 8px" }}>Total vendido</td>{meses.map(m => <td key={m.mes} style={celda}>{m.futuro ? "" : M(m.t.ventas)}</td>)}<td style={{ ...celda, fontWeight: 900 }}>{M(ventasAnio)}</td></tr>
+            {BAL_GASTOS.map(([k, n, c]) => { const tot = sum(m => m.t[k]); if (!tot) return null; return <tr key={k}><td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}><i style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: c, marginRight: 6 }} />{n}</td>{meses.map(m => <td key={m.mes} style={celda}>{m.futuro ? "" : m.t[k] ? M(m.t[k]) : "—"}</td>)}<td style={{ ...celda, fontWeight: 700 }}>{M(tot)}</td></tr>; })}
+            <tr style={{ fontWeight: 800, borderTop: "1.5px solid " + p.border }}><td style={{ padding: "6px 8px" }}>Total egresos</td>{meses.map(m => <td key={m.mes} style={celda}>{m.futuro ? "" : M(m.t.egresos)}</td>)}<td style={{ ...celda, fontWeight: 900 }}>{M(egresosAnio)}</td></tr>
+            <tr style={{ fontWeight: 900, background: "#2471a312" }}><td style={{ padding: "6px 8px" }}>Ganancia</td>{meses.map(m => <td key={m.mes} style={{ ...celda, color: m.futuro ? undefined : m.t.ganancia >= 0 ? "#2d7a4f" : "#c0392b" }}>{m.futuro ? "" : M(m.t.ganancia)}</td>)}<td style={{ ...celda, color: gananciaAnio >= 0 ? "#2d7a4f" : "#c0392b" }}>{M(gananciaAnio)}</td></tr>
+            <tr style={{ color: p.textMuted }}><td style={{ padding: "6px 8px" }}>Margen</td>{meses.map(m => <td key={m.mes} style={celda}>{m.futuro || !m.t.ventas ? "" : (m.t.ganancia / m.t.ventas * 100).toFixed(0) + "%"}</td>)}<td style={celda}>{margen !== null ? margen.toFixed(0) + "%" : ""}</td></tr>
+            {d.anterior.ventas_por_mes.some(x => x > 0) && <tr style={{ color: p.textMuted }}><td style={{ padding: "6px 8px" }}>Vendido en {anio - 1}</td>{d.anterior.ventas_por_mes.map((v, i) => <td key={i} style={celda}>{v ? M(v) : ""}</td>)}<td style={celda}>{M(d.anterior.ventas_sistema)}</td></tr>}
+          </tbody>
+        </table>
+        <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 6 }}>Ganancia = lo que entró menos lo que salió (como el Flujo de efectivo): la compra de mercadería cuenta el mes en que se pagó.</div>
+      </div>
+
+      {notas.length > 0 && <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ct">Para tener en cuenta</div>
+        {notas.map(([ic, t], i) => <div key={i} style={{ fontSize: 13, padding: "5px 0", display: "flex", gap: 8 }}><span>{ic}</span><span>{t}</span></div>)}
+        {masGanancia && <div style={{ fontSize: 13, padding: "5px 0", display: "flex", gap: 8 }}><span>🏆</span><span>El mes que más ganaste fue {BAL_MESES[masGanancia.mes - 1]} ({M(masGanancia.t.ganancia)}){peor ? "; el de menos ventas, " + BAL_MESES[peor.mes - 1] + " (" + M(peor.t.ventas) + ")" : ""}.</span></div>}
+      </div>}
+
+      {editMes && (() => { const m = meses[editMes.mes - 1]; return (
+        <div className="pos-overlay" onClick={() => !guardando && setEditMes(null)}>
+          <div className="card pop-in" role="dialog" aria-label={"Editar " + BAL_MESES[editMes.mes - 1]} style={{ width: 760, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center" }}><div className="ct" style={{ flex: 1, margin: 0 }}>{MESES_NOMBRE[editMes.mes - 1]} {anio}</div><button className="icon-btn" onClick={() => setEditMes(null)} aria-label="Cerrar">✕</button></div>
+            <div style={{ fontSize: 12.5, color: p.textMuted, margin: "4px 0 10px" }}>Lo de Lumiere se calcula solo. En "cargado a mano" van los números de las planillas (de antes de usar Lumiere): se suman a lo de Lumiere. Dejalo vacío si ese mes ya está todo en Lumiere.</div>
+            <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead><tr><th style={{ textAlign: "left" }}></th>{locales.map(l => <th key={l.id} colSpan={2} style={{ textAlign: "center", padding: 4 }}>{l.nombre}</th>)}</tr>
+                <tr style={{ color: p.textMuted, fontSize: 11 }}><th></th>{locales.map(l => <Fragment key={l.id}><th style={{ padding: 4 }}>Lumiere</th><th style={{ padding: 4 }}>Cargado a mano</th></Fragment>)}</tr></thead>
+              <tbody>{[["ventas", "Ventas"], ...BAL_GASTOS].map(([k, n]) => <tr key={k} style={{ borderTop: "1px solid " + p.border }}>
+                <td style={{ padding: "4px 6px" }}>{n}</td>
+                {locales.map(l => <Fragment key={l.id}><td style={{ ...celda, color: p.textMuted }}>{fmt(((m.locales[l.id] || {}).lumiere || {})[k] || 0)}</td>
+                  <td style={{ padding: 3 }}><input className="inp" inputMode="decimal" style={{ width: 130, textAlign: "right", padding: "4px 8px" }} value={editMes.valores[l.id][k]} onChange={e => { const v = e.target.value; setEditMes(x => ({ ...x, valores: { ...x.valores, [l.id]: { ...x.valores[l.id], [k]: v } } })); }} aria-label={n + " " + l.nombre} /></td></Fragment>)}
+              </tr>)}</tbody>
+            </table></div>
+            <input className="inp" style={{ marginTop: 10 }} placeholder="Nota (opcional): de dónde salen estos números" value={editMes.nota} onChange={e => setEditMes(x => ({ ...x, nota: e.target.value }))} />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-g" onClick={() => setEditMes(null)} disabled={guardando}>Cancelar</button><button className="btn btn-p" onClick={guardarEdit} disabled={guardando}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+          </div>
+        </div>); })()}
+
+      {imp && (
+        <div className="pos-overlay" onClick={() => !guardando && setImp(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Cargar planilla" style={{ width: 900, maxWidth: "96vw", maxHeight: "92vh", overflowY: "auto", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center" }}><div className="ct" style={{ flex: 1, margin: 0 }}>📥 Cargar meses desde una planilla</div><button className="icon-btn" onClick={() => setImp(null)} aria-label="Cerrar">✕</button></div>
+            <div style={{ fontSize: 12.5, color: p.textMuted, margin: "4px 0 10px" }}>Para los meses de antes de usar Lumiere. Subí el Excel de flujo de efectivo de un local (columnas Ene…Dic, con INGRESOS y EGRESOS): se suma todo lo de ingresos y cada gasto va a su grupo. Revisás y recién ahí se guarda. Subí una planilla por local.</div>
+            <input type="file" accept=".xlsx,.xls" onChange={e => leerArchivo(e.target.files[0])} />
+            {imp.leyendo && <div className="skel" style={{ height: 120, marginTop: 10 }} />}
+            {imp.datos && <>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "12px 0 8px" }}>
+                <span style={{ fontSize: 13 }}>Es la planilla de:</span>
+                <select className="inp" style={{ width: "auto" }} value={imp.local} onChange={e => setImp(x => ({ ...x, local: parseInt(e.target.value), compartidos: {} }))}>{locales.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}</select>
+                <span style={{ fontSize: 12, color: p.textMuted }}>Hoja leída: {imp.datos.hoja}</span>
+              </div>
+              <div style={{ fontSize: 13, marginBottom: 6 }}>Meses a cargar <small style={{ color: p.textMuted }}>(destildá los que ya están en Lumiere, para no contarlos dos veces)</small>:</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>{BAL_MESES.map((n, i) => { const tiene = imp.datos.meses[i].ventas > 0 || gastosDe(imp.datos.meses[i]) > 0; if (!tiene) return null; const on = imp.meses.includes(i + 1); return <button key={i} className={"chip-btn" + (on ? " on" : "")} onClick={() => setImp(x => ({ ...x, meses: on ? x.meses.filter(z => z !== i + 1) : [...x.meses, i + 1].sort((a, b) => a - b) }))}>{on ? "✓ " : ""}{n}{((meses[i] || {}).locales?.[imp.local]?.lumiere?.ventas > 0) ? " · ya en Lumiere" : ""}</button>; })}</div>
+              {repetidos.length > 0 && <div className="cc-aviso" style={{ background: "#fff4d6", border: "1px solid #e0b84a", color: "#5a4300", marginBottom: 10 }}>
+                <b>⚠️ Estos gastos son idénticos a los de otro local en el mismo mes.</b> Si es un gasto compartido que se anotó en las dos planillas, tildalo para contarlo una sola vez (queda solo en el otro local):
+                <div style={{ display: "flex", gap: 6, margin: "6px 0 2px" }}><button className="chip-btn" style={{ fontSize: 11 }} onClick={() => setImp(x => ({ ...x, compartidos: Object.fromEntries(repetidos.map(r => [r.key, true])) }))}>Tildar todos</button><button className="chip-btn" style={{ fontSize: 11 }} onClick={() => setImp(x => ({ ...x, compartidos: {} }))}>Destildar todos</button></div>
+                {repetidos.map(r => <label key={r.key} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, fontSize: 12.5 }}><input type="checkbox" checked={!!imp.compartidos[r.key]} onChange={e => setImp(x => ({ ...x, compartidos: { ...x.compartidos, [r.key]: e.target.checked } }))} />{BAL_MESES[r.mes - 1]} · {r.n}: {fmt(r.v)} (igual que en {r.otro})</label>)}
+              </div>}
+              <div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead><tr style={{ borderBottom: "2px solid " + p.border }}><th style={{ textAlign: "left", padding: 4 }}></th>{imp.meses.map(mes => <th key={mes} style={{ ...celda, textAlign: "center" }}>{BAL_MESES[mes - 1]}</th>)}<th style={celda}>Total</th></tr></thead>
+                <tbody>{[["ventas", "Ventas"], ...BAL_GASTOS].map(([k, n]) => { const vs = imp.meses.map(mes => valorImp(mes, k)); if (!vs.some(Boolean)) return null; return <tr key={k} style={{ borderTop: "1px solid " + p.border, fontWeight: k === "ventas" ? 800 : 400 }}><td style={{ padding: "4px 6px" }}>{n}</td>{vs.map((v, i) => <td key={i} style={{ ...celda, color: tachado(imp.meses[i], k) ? "#b7791f" : undefined }} title={tachado(imp.meses[i], k) ? "Sin el gasto compartido" : ""}>{v ? M(v) : "—"}{tachado(imp.meses[i], k) ? " *" : ""}</td>)}<td style={{ ...celda, fontWeight: 800 }}>{M(vs.reduce((a, b) => a + b, 0))}</td></tr>; })}
+                  <tr style={{ borderTop: "2px solid " + p.border, fontWeight: 900 }}><td style={{ padding: "4px 6px" }}>Ganancia</td>{imp.meses.map(mes => { const g = valorImp(mes, "ventas") - BAL_GASTOS.reduce((t, [k]) => t + valorImp(mes, k), 0); return <td key={mes} style={{ ...celda, color: g >= 0 ? "#2d7a4f" : "#c0392b" }}>{M(g)}</td>; })}<td /></tr></tbody>
+              </table></div>
+              <details style={{ marginTop: 8, fontSize: 12 }}><summary style={{ cursor: "pointer", color: p.textMuted }}>Ver cómo se agrupó cada renglón de la planilla</summary>
+                {imp.datos.renglones.map((r, i) => <div key={i} style={{ padding: "2px 0" }}>{r.concepto} → <b>{r.grupo === "ventas" ? "Ventas" : (BAL_GASTOS.find(g => g[0] === r.grupo) || [0, r.grupo])[1]}</b></div>)}
+              </details>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-g" onClick={() => setImp(null)} disabled={guardando}>Cancelar</button><button className="btn btn-p" onClick={guardarImp} disabled={guardando || !imp.meses.length}>{guardando ? "Guardando…" : "Guardar " + imp.meses.length + " meses de " + (locales.find(l => l.id === imp.local) || {}).nombre}</button></div>
+            </>}
+          </div>
+        </div>
+      )}
+
+      {ref && (
+        <div className="pos-overlay" onClick={() => !guardando && setRef(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Datos del año anterior" style={{ width: 460, maxWidth: "96vw", background: p.card, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">📅 Para comparar con {anio - 1}</div>
+            <label style={{ fontSize: 13, display: "block", marginTop: 8 }}>Total vendido en {anio - 1}<input className="inp" inputMode="decimal" placeholder="Ej: 300000000" value={ref.ventas} onChange={e => setRef(x => ({ ...x, ventas: e.target.value }))} /></label>
+            <label style={{ fontSize: 13, display: "block", marginTop: 8 }}>Ganancia de {anio - 1} <small style={{ color: p.textMuted }}>(opcional)</small><input className="inp" inputMode="decimal" value={ref.ganancia} onChange={e => setRef(x => ({ ...x, ganancia: e.target.value }))} /></label>
+            <label style={{ fontSize: 13, display: "block", marginTop: 8 }}>Inflación de {anio} en % <small style={{ color: p.textMuted }}>(opcional: para saber cuánto creciste de verdad, descontando la suba de precios)</small><input className="inp" inputMode="decimal" placeholder="Ej: 30" value={ref.inflacion} onChange={e => setRef(x => ({ ...x, inflacion: e.target.value }))} /></label>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}><button className="btn btn-g" onClick={() => setRef(null)} disabled={guardando}>Cancelar</button><button className="btn btn-p" onClick={guardarRef} disabled={guardando}>{guardando ? "Guardando…" : "Guardar"}</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Finanzas({ localId, usuario, paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
@@ -12205,8 +12470,8 @@ function Finanzas({ localId, usuario, paletaActual }) {
 
   const tabs = [
     ["resumen", "Resumen"], ["movimientos", "Movimientos"], ["resultados", "Estado de resultados"],
-    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["reparto", "💰 Reparto mensual"], ["gastos", "🧾 Gastos cargados"],
-  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && ((k !== "informe" && k !== "reparto") || esJefe));
+    ["comparar", "Comparar"], ["porlocal", "Costos por local"], ["equilibrio", "Punto de equilibrio"], ["informe", "📊 Informe del mes"], ["anual", "📅 Balance anual"], ["reparto", "💰 Reparto mensual"], ["gastos", "🧾 Gastos cargados"],
+  ].filter(([k]) => !(UN_SOLO_LOCAL && k === "porlocal") && ((k !== "informe" && k !== "reparto" && k !== "anual") || esJefe));
 
   return (
     <div className="fade">
@@ -12795,6 +13060,7 @@ function Finanzas({ localId, usuario, paletaActual }) {
       )}
 
       {/* ============ PUNTO DE EQUILIBRIO ============ */}
+      {tab === "anual" && <BalanceAnual p={p} />}
       {tab === "reparto" && <RepartoSemanal temaPal={p} />}
       {tab === "gastos" && <GastosCargados p={p} categoriasCosto={categoriasCosto} usuario={usuario} />}
       {tab === "equilibrio" && (
