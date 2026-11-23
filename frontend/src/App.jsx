@@ -11663,17 +11663,20 @@ function RepartoSemanal({ temaPal }) {
               <span style={{ color: p.textMuted }}>{diaSep ? "" : "(si no elegís, es hoy)"}</span>
             </div>
             {m.partes.map(x => {
-              const pct = x.corresponde > 0 ? Math.min(100, Math.round(x.separado / x.corresponde * 100)) : 0;
+              const pct = x.corresponde > 0 ? Math.min(100, Math.round(((x.separado || 0) + (x.pagado || 0)) / x.corresponde * 100)) : 0;
               return (
                 <div key={x.k} style={{ padding: "10px 0", borderTop: "1px solid " + p.border }}>
                   <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
                     <div style={{ flex: "1 1 170px", fontWeight: 800, fontSize: 13.5 }}><i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: colorDe(x.k), marginRight: 6 }} />{x.nombre} <span style={{ color: p.textMuted, fontWeight: 500, fontSize: 12 }}>{x.pct}%{x.donde ? " → " + x.donde : ""}</span></div>
                     {celda("Corresponde en el mes", null, $(x.corresponde))}
                     {celda("Separé", p.green, $(x.separado))}
+                    {(x.grupos || []).length > 0 && <div style={{ minWidth: 100 }} title={(x.pagado_detalle || []).map(z => z.nombre + ": " + $(z.monto)).join("\n") || "Nada cargado este mes"}><div style={{ fontSize: 10.5, color: p.textMuted }}>Pagado (cargado en Finanzas)</div><b style={{ fontSize: 14, color: "#2471a3", fontVariantNumeric: "tabular-nums" }}>{$(x.pagado || 0)}</b></div>}
                     {celda("Usé", p.red, $(x.usado))}
-                    {x.falta > 0 ? celda("Falta separar", p.warn, $(x.falta)) : x.de_mas > 0 ? celda("Separé de más", p.green, $(x.de_mas)) : celda("Falta separar", p.green, x.corresponde > 0 ? "✓ completo" : "—")}
+                    {x.falta > 0 ? celda("Falta separar", p.warn, $(x.falta)) : x.de_mas > 0 ? celda(x.pagado > 0 ? "Cubierto de más" : "Separé de más", p.green, $(x.de_mas)) : celda("Falta separar", p.green, x.corresponde > 0 ? "✓ completo" : "—")}
                   </div>
                   <div style={{ height: 6, borderRadius: 3, background: p.border, margin: "8px 0", overflow: "hidden" }}><div style={{ width: pct + "%", height: "100%", background: pct >= 100 ? p.green : colorDe(x.k) }} /></div>
+                  {(x.pagado_detalle || []).length > 0 && <details style={{ fontSize: 12, margin: "0 0 6px" }}><summary style={{ cursor: "pointer", color: "#2471a3" }}>Ver lo pagado este mes que ya cubre esta cuenta ({$(x.pagado)})</summary>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>{x.pagado_detalle.map(z => <span key={z.nombre} className="mini-chip">{z.nombre} <b>{$(z.monto)}</b></span>)}</div></details>}
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <input className="inp" style={{ width: 160 }} inputMode="decimal" placeholder="+ Sumar $ (ej: 20.000)" aria-label={"Sumar plata separada en " + x.nombre} value={suma["mes" + x.k] || ""}
                       onChange={e => setSuma(z => ({ ...z, ["mes" + x.k]: e.target.value.replace(/[^\d.,]/g, "") }))} onKeyDown={e => { if (e.key === "Enter") sumarMes(x); }} />
@@ -11685,9 +11688,9 @@ function RepartoSemanal({ temaPal }) {
             })}
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "10px 0 0", borderTop: "2px solid " + p.border }}>
               <div style={{ flex: "1 1 170px", fontWeight: 900, fontSize: 13.5 }}>Total del mes</div>
-              {celda("Corresponde en el mes", null, $(tot("corresponde")))}{celda("Separé", p.green, $(tot("separado")))}{celda("Usé", p.red, $(tot("usado")))}{celda("Falta separar", p.warn, $(tot("falta")))}
+              {celda("Corresponde en el mes", null, $(tot("corresponde")))}{celda("Separé", p.green, $(tot("separado")))}{celda("Pagado (Finanzas)", "#2471a3", $(tot("pagado")))}{celda("Usé", p.red, $(tot("usado")))}{celda("Falta separar", p.warn, $(tot("falta")))}
             </div>
-            <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>Cada vez que separes plata (por ejemplo los sábados), sumala en su cuenta: queda anotada con el día y el total del mes se arma solo. Para lo que pagaste usá <b>− Usé plata</b> arriba.</div>
+            <div style={{ fontSize: 12, color: p.textMuted, marginTop: 10 }}>Cada vez que separes plata (por ejemplo los sábados), sumala en su cuenta: queda anotada con el día y el total del mes se arma solo. Lo que pagaste y cargaste como gasto en <b>Finanzas</b> (alquiler, sueldos, proveedores, impuestos…) ya cuenta solo en su cuenta: no hace falta separarlo ni anotarlo de nuevo.</div>
           </div>);
       })()}
     </div>
