@@ -12190,10 +12190,10 @@ function BalanceAnual({ p }) {
   );
 }
 
-function Finanzas({ localId, usuario, paletaActual }) {
+function Finanzas({ localId, usuario, paletaActual, tabInicial }) {
   const p = paletaActual || PALETA_CLARA;
   const hoy = new Date();
-  const [tab, setTab] = useState("resumen");
+  const [tab, setTab] = useState(() => tabInicial || tabInicialDe("finance") || "resumen");
   const [tabLocal, setTabLocal] = useState("consolidado");
   const [mesFiltro, setMesFiltro] = useState(hoy.getMonth() + 1);
   const [anioFiltro, setAnioFiltro] = useState(hoy.getFullYear());
@@ -29889,6 +29889,7 @@ const NAV_SECTIONS = [
     { id: "productividad", icon: "🏆", label: "Productividad", k: "ranking vendedores vendedores equipo" }] },
   { section: "FINANZAS", color: "#1f6f8b", items: [
     { id: "finance", icon: "💰", label: "Finanzas", k: "gastos egresos salud equilibrio medallas" },
+    { id: "balance-anual", icon: "📅", label: "Balance anual", k: "cierre anual año anual balance total del año ganancia anual crecimiento comparar año anterior planillas" },
     { id: "calculadoras", icon: "🧮", label: "Calculadoras", k: "margen precio cuotas" }] },
   { section: "NEGOCIO", color: "#8e44ad", items: [
     { id: "config-negocio", icon: "⚙️", label: "Configuración del Negocio", k: "ajustes datos logo arca" },
@@ -45296,7 +45297,7 @@ function AppWrapper() {
       "inventory": "inventario.ver", "rotacion": "rotacion.ver", "ordenes": "ordenes.ver", "inconsistencias": "inconsistencias.ver", "kits": "kits.ver", "etiquetas": "inventario.ver", "listas-precios": "inventario.ver", "stock-alertas": "inventario.ver", "traspasos": "inventario.ver", "valorizacion": "valorizacion.ver", "historial-ajustes": "historial_ajustes.ver", "salud-stock": "salud_stock.ver", "vencimientos": "inventario.ver", "insumos": "insumos.ver", "control-inv": "control_inv.ver", "config-insumos": "inventario.ver", "config-ticket": "inventario.ver",
       "compras": "compras.ver", "reclamos-proveedores": "compras.ver",
       "clients": "clientes.ver", "cuenta-corriente": "clientes.ver", "pedidos": "pedidos.ver", "fidelizacion": "fidelizacion.ver", "tareas": "tareas.ver",
-      "finance": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
+      "finance": "finanzas.flujo", "balance-anual": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
       "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "postventa": "postventa.ver", "club-wa": "postventa.ver", "portal": "portal.ver",
@@ -45382,6 +45383,7 @@ function AppWrapper() {
     if (id === "cuenta-corriente") return <CuentaCorriente paletaActual={paletaActual} localId={local.id} usuario={usuario} />;
     if (id === "pedidos") return <Pedidos localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "finance") return <Finanzas localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
+    if (id === "balance-anual") return <Finanzas key="balance-anual" localId={local.id} usuario={usuario} paletaActual={paletaActual} tabInicial="anual" />;
     if (id === "decisiones") return <TuGerente localId={local.id} usuario={usuario} paletaActual={paletaActual} tabInicial="decisiones" />;
     if (id === "gerente") return <TuGerente localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "rotacion") return <Rotacion localId={local.id} paletaActual={paletaActual} />;
