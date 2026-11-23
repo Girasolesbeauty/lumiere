@@ -1263,6 +1263,8 @@ body:has(.pos-overlay) .ayuda-fab { display: none !important; }
 .ped-bloque { border: 1.5px solid; border-radius: 16px; overflow: clip; }
 .ped-atn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; white-space: nowrap; }
 .ped-atn.ok { background: #1e9e57; color: #fff; }
+.ped-card.ped-resaltado { animation: pedResalta 1.2s ease-in-out 3; scroll-margin-top: 90px; }
+@keyframes pedResalta { 0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); } 50% { box-shadow: 0 0 0 6px rgba(201,168,76,.75); } }
 .ped-atn.tranqui { background: transparent; color: #1e7a46; border: 1.5px solid #1e9e5788; }
 @media (max-width: 640px) {
   .ped-bloque .ped-bloque-cab small { display: none; }
@@ -21801,8 +21803,9 @@ function CierreCaja({ localId, usuario, paletaActual }) {
             <div className="dash-alert" style={{ marginTop: 12, marginBottom: 0, display: "block" }}>
               <div>🛍️ <b>{l.length === 1 ? "1 pedido de la tienda web" : l.length + " pedidos de la tienda web"} sin pagar todavía</b> ({fmt(suma)}). <b>No suman</b> a este cierre hasta que los cobres en el Punto de Venta (botón "Cobrar en caja" en Tienda online) o se acredite el pago online.</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
-                {l.slice(0, 8).map(x => <span key={x.id} className="tag" style={{ fontWeight: 700 }}>N° {nroPedido(x)} · {x.nombre} · {fmt(x.total)}{x.pago === "retiro" ? " · paga al retirar" : " · esperando pago"}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
-                <button className="btn btn-p btn-sm" onClick={() => irASeccion("tienda-online")}>Ir a Tienda online</button>
+                {l.slice(0, 8).map(x => <span key={x.id} className="tag" role="button" tabIndex={0} title="Ver este pedido" style={{ fontWeight: 700, cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => irAPedidoTienda(x.id)}>N° {nroPedido(x)} · {x.nombre} · {fmt(x.total)}{x.pago === "retiro" ? " · paga al retirar" : " · esperando pago"}{x.dia && String(x.dia).slice(0, 10) !== fecha ? " · del " + new Date(String(x.dia).slice(0, 10) + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>)}
+                {l.length === 1 ? <button className="btn btn-p btn-sm" onClick={() => irAPedidoTienda(l[0].id)}>Ver el pedido N° {nroPedido(l[0])}</button>
+                  : <button className="btn btn-p btn-sm" onClick={() => irASeccion("tienda-online")}>Ir a Tienda online</button>}
               </div>
             </div>
           ); })()}
@@ -39045,6 +39048,8 @@ const armarMsjWa = (plantilla, vars) => {
   }
   return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 };
+// Abrir un pedido puntual de la tienda desde otra pantalla (ej: el aviso del cierre de caja)
+const irAPedidoTienda = (id) => { try { sessionStorage.setItem("lumiere_tienda_ver_pedido", String(id)); sessionStorage.setItem("lumiere_tienda_tab", "pedidos"); } catch (e) {} irASeccion("tienda-online"); };
 const PAGO_TIENDA = { mp: "Mercado Pago", gocuotas: "GoCuotas", transferencia: "Transferencia", retiro: "Paga al retirar", giftcard: "Gift card" };
 
 // ---- Lumiere: clientes de la tienda web (avisos de reposicion, carritos sin terminar, analisis de favoritos) ----
@@ -40968,6 +40973,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   const claveLocalPed = "lumiere_ped_local_" + (usuario?.id || 0);
   const [localPed, setLocalPedS] = useState(() => { try { return parseInt(localStorage.getItem(claveLocalPed)) || 0; } catch (e) { return 0; } });
   const setLocalPed = (v) => { setLocalPedS(v); try { localStorage.setItem(claveLocalPed, String(v)); } catch (e) {} };
+  const [pedResaltado, setPedResaltado] = useState(null);
+  useEffect(() => {
+    if (!pedidos) return;
+    let id = null; try { id = parseInt(sessionStorage.getItem("lumiere_tienda_ver_pedido")); sessionStorage.removeItem("lumiere_tienda_ver_pedido"); } catch (e) {}
+    if (!id) return;
+    const p = pedidos.find(x => Number(x.id) === id);
+    if (!p) return;
+    setTab("pedidos"); setFiltro("todos"); setLocalPed(0); setBuscaPed(String(nroPedido(p))); setPedAbiertos([p.id]); setPedResaltado(p.id);
+    setTimeout(() => { const el = document.getElementById("ped-" + p.id); el && el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 400);
+    setTimeout(() => setPedResaltado(null), 4000);
+  }, [pedidos]); // eslint-disable-line react-hooks/exhaustive-deps
   const guardarNotaPed = async () => {
     if (!notaPed || !notaPed.texto.trim()) return;
     try { const r = await API.post("/tienda/pedidos/" + notaPed.id + "/notas", { texto: notaPed.texto }); setPedidos(l => l.map(x => x.id === notaPed.id ? { ...x, notas_local: r.data.notas_local } : x)); setNotaPed(null); }
@@ -41578,7 +41594,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
                 const tit = (t) => <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: temaPal.textMuted, marginBottom: 6 }}>{t}</div>;
                 return (
-                  <div key={p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "") + ((grupoPed(p) === "cancelado" || (!grupoPed(p) && p.estado === "cancelado")) && atendidoPed(p) ? " ped-inactivo" : "") + (necesitaAtencion(p) ? (atendidoPed(p) ? " ped-atendido" : " ped-falta") : "")} style={{ "--pc": colorPed(p), background: "linear-gradient(90deg, " + colorPed(p) + "14, transparent 55%), " + temaPal.card, borderLeft: "6px solid " + (procesoDemorado(p) && !p.contactado_en ? "#c0392b" : colorPed(p)), padding: 0, overflow: "hidden" }}>
+                  <div key={p.id} id={"ped-" + p.id} className={"card ped-card" + (abierto ? " abierto" : "") + (pedResaltado === p.id ? " ped-resaltado" : "") + (procesoDemorado(p) && !p.contactado_en ? " ped-urge" : "") + ((grupoPed(p) === "cancelado" || (!grupoPed(p) && p.estado === "cancelado")) && atendidoPed(p) ? " ped-inactivo" : "") + (necesitaAtencion(p) ? (atendidoPed(p) ? " ped-atendido" : " ped-falta") : "")} style={{ "--pc": colorPed(p), background: "linear-gradient(90deg, " + colorPed(p) + "14, transparent 55%), " + temaPal.card, borderLeft: "6px solid " + (procesoDemorado(p) && !p.contactado_en ? "#c0392b" : colorPed(p)), padding: 0, overflow: "hidden" }}>
                     {/* Fila: lo esencial y el proximo paso. Tocandola se abre el detalle */}
                     <div className="ped-fila" role="button" tabIndex={0} aria-expanded={abierto} onClick={() => setPedAbiertos(l => l.includes(p.id) ? l.filter(x => x !== p.id) : [...l, p.id])} onKeyDown={ev => { if (ev.key === "Enter") ev.currentTarget.click(); }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
