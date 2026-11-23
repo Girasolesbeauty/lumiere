@@ -27,7 +27,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
-app.use('/api/productos/importar', express.json({ limit: '9mb' })); // el Excel de productos viaja en el pedido
+app.use('/api/productos/importar', express.json({ limit: '9mb' }));
+app.use('/api/finanzas/balance-anual/leer-planilla', express.json({ limit: '12mb' })); // la planilla de Excel viaja en el pedido // el Excel de productos viaja en el pedido
 app.use(express.json({ limit: '1mb' })); // 1mb: el logo del negocio viaja como imagen chica en el pedido
 
 // Que version del codigo esta corriendo (Railway pone el commit): Lumiere la compara con la de las pantallas

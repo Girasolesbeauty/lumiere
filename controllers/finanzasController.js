@@ -1929,4 +1929,232 @@ const deleteRepartoMovimiento = async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo borrar' }); }
 };
 
-module.exports = { getReparto, putRepartoConfig, postRepartoSemana, postRepartoAporte, postRepartoAporteBorrar, postRepartoMovimientos, postRepartoCuentaReiniciar, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };
+// ===================== Balance anual =====================
+// Los 12 meses del año: lo vendido, los gastos por grupo y la ganancia, por local y en total.
+// Cada mes suma lo que registró Lumiere y lo cargado a mano (de las planillas de antes de usar Lumiere).
+// Grupos: mercadería, sueldos, impuestos y cargas (ej: 931), gastos fijos (alquiler, servicios), administrativos y
+// marketing, comisiones de tarjetas y apps, y otros. Ganancia = ingresos - egresos (como el Flujo de efectivo).
+const CAMPOS_BALANCE = ['ventas', 'mercaderia', 'sueldos', 'impuestos', 'fijos', 'admin', 'comisiones', 'otros'];
+const GASTOS_BALANCE = CAMPOS_BALANCE.slice(1);
+const balanceListo = porNegocio(false);
+async function asegurarBalance() {
+  if (balanceListo.get()) return;
+  await pool.query(`CREATE TABLE IF NOT EXISTS balance_manual (id SERIAL PRIMARY KEY, anio INT NOT NULL, mes INT NOT NULL, local_id INT NOT NULL,
+    ventas NUMERIC(16,2) NOT NULL DEFAULT 0, mercaderia NUMERIC(16,2) NOT NULL DEFAULT 0, sueldos NUMERIC(16,2) NOT NULL DEFAULT 0,
+    impuestos NUMERIC(16,2) NOT NULL DEFAULT 0, fijos NUMERIC(16,2) NOT NULL DEFAULT 0, admin NUMERIC(16,2) NOT NULL DEFAULT 0,
+    comisiones NUMERIC(16,2) NOT NULL DEFAULT 0, otros NUMERIC(16,2) NOT NULL DEFAULT 0, nota TEXT, origen TEXT,
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(), actualizado_por TEXT, UNIQUE (anio, mes, local_id))`);
+  // Renglones de la planilla de ese mes ([{ concepto, grupo, valor }]): para mostrar de dónde sale cada número y detectar gastos repetidos entre locales
+  await pool.query('ALTER TABLE balance_manual ADD COLUMN IF NOT EXISTS detalle JSONB');
+  await pool.query(`CREATE TABLE IF NOT EXISTS balance_referencia (anio INT PRIMARY KEY, ventas NUMERIC(16,2), ganancia NUMERIC(16,2), inflacion_pct NUMERIC(8,2),
+    actualizado_en TIMESTAMP NOT NULL DEFAULT NOW())`);
+  balanceListo.set(true);
+}
+async function puedeVerBalance(u) {
+  if (u.rol === 'jefe' || u.rol === 'admin' || Number(u.rol_id) === 1) return true;
+  try { return (await pool.query(`SELECT 1 FROM permisos_usuario WHERE usuario_id = $1 AND permiso = 'finanzas.flujo'`, [u.id])).rows.length > 0; } catch (e) { return false; }
+}
+async function localesBalance() {
+  try {
+    const r = await pool.query('SELECT id, nombre FROM locales WHERE COALESCE(activo, TRUE) ORDER BY id');
+    if (r.rows.length) return r.rows.map(x => ({ id: Number(x.id), nombre: x.nombre }));
+  } catch (e) {}
+  return [{ id: 1, nombre: 'Local 1' }];
+}
+const vacioBalance = () => Object.fromEntries(CAMPOS_BALANCE.map(k => [k, 0]));
+// Un año: por mes y por local, lo de Lumiere y lo cargado a mano (por separado y sumado)
+async function calcularBalanceAnio(anio, locales, hastaMes) {
+  const manual = (await pool.query('SELECT * FROM balance_manual WHERE anio = $1', [anio])).rows;
+  const meses = [];
+  for (let mes = 1; mes <= 12; mes++) {
+    if (mes > hastaMes) { meses.push({ mes, futuro: true, locales: {} }); continue; }
+    const porLocal = {};
+    await Promise.all(locales.map(async (l) => {
+      const est = await calcularFlujoEstructurado(mes, anio, l.id);
+      const lum = { ventas: num(est.ingresos.total), mercaderia: num(est.variables.total), sueldos: num(est.sueldos.total), impuestos: num(est.impuestos.total),
+        fijos: num(est.fijos.total), admin: num(est.admin.total), comisiones: num(est.comisiones_medios_pago.total), otros: 0 };
+      const m = manual.find(x => Number(x.mes) === mes && Number(x.local_id) === l.id);
+      const man = m ? Object.fromEntries(CAMPOS_BALANCE.map(k => [k, num(m[k])])) : null;
+      const tot = Object.fromEntries(CAMPOS_BALANCE.map(k => [k, Math.round((lum[k] + (man ? man[k] : 0)) * 100) / 100]));
+      porLocal[l.id] = { lumiere: lum, manual: man, manual_nota: m ? m.nota : null, manual_origen: m ? m.origen : null, manual_detalle: m && Array.isArray(m.detalle) ? m.detalle : null, total: tot };
+    }));
+    meses.push({ mes, locales: porLocal });
+  }
+  return meses;
+}
+const sumaGastos = (o) => GASTOS_BALANCE.reduce((t, k) => t + num(o[k]), 0);
+const getBalanceAnual = async (req, res) => {
+  try {
+    if (!(await puedeVerBalance(req.usuario || {}))) return res.status(403).json({ error: 'No tenés permiso para ver el balance anual' });
+    await asegurarBalance();
+    const hoy = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const anio = parseInt(req.query.anio) || hoy.getFullYear();
+    if (anio < 2000 || anio > hoy.getFullYear()) return res.status(400).json({ error: 'Elegí un año válido' });
+    const hastaMes = anio < hoy.getFullYear() ? 12 : hoy.getMonth() + 1;
+    const locales = await localesBalance();
+    const meses = await calcularBalanceAnio(anio, locales, hastaMes);
+    // Año anterior: lo que haya en el sistema (Lumiere + cargado a mano) y, si se cargó, el total de referencia
+    const ref = (await pool.query('SELECT * FROM balance_referencia WHERE anio IN ($1, $2)', [anio, anio - 1])).rows;
+    const refAnt = ref.find(r => Number(r.anio) === anio - 1) || null, refEste = ref.find(r => Number(r.anio) === anio) || null;
+    const manualAnt = (await pool.query('SELECT mes, SUM(ventas) AS ventas FROM balance_manual WHERE anio = $1 GROUP BY mes', [anio - 1])).rows;
+    let ventasAntMes = Array(12).fill(0);
+    manualAnt.forEach(r => { ventasAntMes[Number(r.mes) - 1] += num(r.ventas); });
+    const lumAnt = (await pool.query(`SELECT EXTRACT(MONTH FROM ${AR('v.creado_en')})::int AS mes, SUM(v.total) AS t FROM ventas v
+      WHERE ${VENTA_VALIDA('v')} AND EXTRACT(YEAR FROM ${AR('v.creado_en')}) = $1 GROUP BY 1`, [anio - 1]).catch(() => ({ rows: [] }))).rows;
+    lumAnt.forEach(r => { ventasAntMes[Number(r.mes) - 1] += num(r.t); });
+    ventasAntMes = ventasAntMes.map(x => Math.round(x * 100) / 100);
+    res.json({ anio, hasta_mes: hastaMes, campos: CAMPOS_BALANCE, locales, meses,
+      anterior: { anio: anio - 1, ventas_por_mes: ventasAntMes, ventas_sistema: ventasAntMes.reduce((a, b) => a + b, 0),
+        ventas_referencia: refAnt && refAnt.ventas !== null ? num(refAnt.ventas) : null, ganancia_referencia: refAnt && refAnt.ganancia !== null ? num(refAnt.ganancia) : null },
+      inflacion_pct: refEste && refEste.inflacion_pct !== null ? num(refEste.inflacion_pct) : null });
+  } catch (e) { console.error('[balance anual]', e); res.status(500).json({ error: 'No se pudo armar el balance: ' + e.message }); }
+};
+// Guardar meses cargados a mano (de las planillas). filas: [{ mes, local_id, ventas, mercaderia, ... , nota }]. Con borrar: true se quita ese mes.
+const putBalanceManual = async (req, res) => {
+  const u = req.usuario || {};
+  if (!(await puedeVerBalance(u))) return res.status(403).json({ error: 'No tenés permiso' });
+  const b = req.body || {}, anio = parseInt(b.anio);
+  if (!anio || anio < 2000 || anio > 2100) return res.status(400).json({ error: 'Elegí el año' });
+  const filas = Array.isArray(b.filas) ? b.filas.slice(0, 60) : [];
+  if (!filas.length) return res.status(400).json({ error: 'No hay nada para guardar' });
+  const client = await pool.connect();
+  try {
+    await asegurarBalance();
+    let quien = null; try { quien = (await client.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id])).rows[0]?.nombre || null; } catch (e) {}
+    await client.query('BEGIN');
+    for (const f of filas) {
+      const mes = parseInt(f.mes), local = parseInt(f.local_id);
+      if (!(mes >= 1 && mes <= 12) || !local) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Revisá el mes y el local de cada fila' }); }
+      if (f.borrar) { await client.query('DELETE FROM balance_manual WHERE anio = $1 AND mes = $2 AND local_id = $3', [anio, mes, local]); continue; }
+      const v = CAMPOS_BALANCE.map(k => { const n = Math.round((parseFloat(f[k]) || 0) * 100) / 100; return Math.abs(n) > 1e13 ? 0 : n; });
+      const det = Array.isArray(f.detalle) ? f.detalle.slice(0, 80).map(x => ({ concepto: String(x.concepto || '').slice(0, 80), grupo: CAMPOS_BALANCE.includes(x.grupo) ? x.grupo : 'otros', valor: Math.round((parseFloat(x.valor) || 0) * 100) / 100, compartido: !!x.compartido })) : null;
+      await client.query(`INSERT INTO balance_manual (anio, mes, local_id, ${CAMPOS_BALANCE.join(', ')}, nota, origen, actualizado_en, actualizado_por, detalle)
+        VALUES ($1, $2, $3, ${CAMPOS_BALANCE.map((_, i) => '$' + (i + 4)).join(', ')}, $12, $13, NOW(), $14, $15)
+        ON CONFLICT (anio, mes, local_id) DO UPDATE SET ${CAMPOS_BALANCE.map(k => k + ' = EXCLUDED.' + k).join(', ')}, nota = EXCLUDED.nota, origen = EXCLUDED.origen,
+          actualizado_en = NOW(), actualizado_por = EXCLUDED.actualizado_por, detalle = EXCLUDED.detalle`,
+        [anio, mes, local, ...v, String(f.nota || '').slice(0, 300) || null, String(f.origen || 'a mano').slice(0, 60), quien, det ? JSON.stringify(det) : null]);
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[balance manual]', e.message); res.status(500).json({ error: 'No se pudo guardar. No se cambió nada.' });
+  } finally { client.release(); }
+};
+// Total de un año anterior (ej: lo facturado en 2025) e inflación del año, para comparar
+const putBalanceReferencia = async (req, res) => {
+  try {
+    if (!(await puedeVerBalance(req.usuario || {}))) return res.status(403).json({ error: 'No tenés permiso' });
+    await asegurarBalance();
+    const b = req.body || {}, anio = parseInt(b.anio);
+    if (!anio || anio < 2000 || anio > 2100) return res.status(400).json({ error: 'Elegí el año' });
+    const n = (x) => (x === '' || x === null || x === undefined || isNaN(parseFloat(x)) ? null : Math.round(parseFloat(x) * 100) / 100);
+    await pool.query(`INSERT INTO balance_referencia (anio, ventas, ganancia, inflacion_pct, actualizado_en) VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (anio) DO UPDATE SET ventas = COALESCE(EXCLUDED.ventas, balance_referencia.ventas), ganancia = COALESCE(EXCLUDED.ganancia, balance_referencia.ganancia),
+        inflacion_pct = COALESCE(EXCLUDED.inflacion_pct, balance_referencia.inflacion_pct), actualizado_en = NOW()`, [anio, n(b.ventas), n(b.ganancia), n(b.inflacion_pct)]);
+    if (b.borrar_ventas) await pool.query('UPDATE balance_referencia SET ventas = NULL, ganancia = NULL WHERE anio = $1', [anio]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar' }); }
+};
+// Leer una planilla de "Flujo de efectivo" (Excel): columnas Ene..Dic, una sección de INGRESOS y otra de EGRESOS.
+// Devuelve lo que entiende, mes por mes y por grupo, para revisarlo antes de guardarlo. No guarda nada.
+const numPlanilla = (v) => {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  let t = String(v).replace(/[^0-9,.-]/g, '');
+  if (!t) return 0;
+  if (t.includes(',') && t.lastIndexOf(',') > t.lastIndexOf('.')) t = t.replace(/\./g, '').replace(',', '.'); else t = t.replace(/,/g, '');
+  const n = parseFloat(t); return isFinite(n) ? n : 0;
+};
+const grupoPlanilla = (txt) => {
+  const t = String(txt || '').toLowerCase();
+  if (/^\s*931\s*$|931|cargas? social|aportes|arca|afip|impuesto|iibb|ingresos brutos|monotributo|tasa/.test(t)) return 'impuestos';
+  if (/mercader|proveedor|compra/.test(t)) return 'mercaderia';
+  if (/sueldo|comisiones? vend|empleado|personal|aguinaldo/.test(t)) return 'sueldos';
+  if (/comisi|cuotas|mercado ?pago|posnet|tarjeta|gocuotas|pagonube/.test(t)) return 'comisiones';
+  if (/alquiler|servicio|\bluz\b|\bagua\b|\bgas\b|internet|telefon|expensa|seguro/.test(t)) return 'fijos';
+  if (/publicidad|marketing|redes|anuncio|contador|honorario|sistema|software/.test(t)) return 'admin';
+  return 'otros';
+};
+const postLeerPlanillaBalance = async (req, res) => {
+  try {
+    if (!(await puedeVerBalance(req.usuario || {}))) return res.status(403).json({ error: 'No tenés permiso' });
+    const b64 = String((req.body || {}).archivo || '').replace(/^data:[^,]*,/, '');
+    if (!b64) return res.status(400).json({ error: 'Elegí el archivo' });
+    const XLSX = require('xlsx');
+    const wb = XLSX.read(Buffer.from(b64, 'base64'), { type: 'buffer', cellDates: false });
+    const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const esMes = (v) => { const t = String(v || '').trim().toLowerCase().slice(0, 3); const i = MES.indexOf(t); return i; };
+    let mejor = null;
+    for (const nombre of wb.SheetNames) {
+      const filas = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, raw: true, defval: null });
+      for (let r = 0; r < Math.min(filas.length, 40); r++) {
+        const cols = {}; (filas[r] || []).forEach((v, c) => { const i = esMes(v); if (i >= 0 && !(i in cols)) cols[i] = c; });
+        if (Object.keys(cols).length >= 6) {
+          const ing = filas.findIndex((f, k) => k > r && (f || []).some(v => /^\s*[▼►]?\s*ingresos\s*$/i.test(String(v || '').trim())));
+          const eg = filas.findIndex((f, k) => k > r && (f || []).some(v => /^\s*[▼►]?\s*egresos\s*$/i.test(String(v || '').trim())));
+          if (ing > 0 && eg > ing) { mejor = { nombre, filas, cab: r, cols, ing, eg }; break; }
+        }
+      }
+      if (mejor && /flujo/i.test(nombre)) break;
+    }
+    if (!mejor) return res.status(400).json({ error: 'No encontré la hoja con los meses (Ene, Feb…) y las secciones INGRESOS y EGRESOS' });
+    const { filas, cols, ing, eg } = mejor;
+    const etiqueta = (f) => { const v = (f || [])[0]; return v === null || v === undefined ? '' : String(v).trim(); };
+    const esTotal = (t) => /^total/i.test(t);
+    const meses = Array.from({ length: 12 }, () => vacioBalance());
+    const renglones = [];
+    const finEg = (() => { for (let k = eg + 1; k < filas.length; k++) { const t = etiqueta(filas[k]); if (/^total egresos/i.test(t) || /resultado/i.test(t)) return k; } return filas.length; })();
+    for (let k = ing + 1; k < finEg; k++) {
+      if (k === eg) continue;
+      const t = etiqueta(filas[k]);
+      if (!t || esTotal(t) || /^\s*[▼►]/.test(t) || /saldo/i.test(t)) continue;
+      const enIngresos = k < eg;
+      const grupo = enIngresos ? 'ventas' : grupoPlanilla(t);
+      const valores = Array(12).fill(0);
+      for (let m = 0; m < 12; m++) if (m in cols) valores[m] = Math.round(numPlanilla((filas[k] || [])[cols[m]]) * 100) / 100;
+      if (!valores.some(x => x)) continue;
+      valores.forEach((x, m) => { meses[m][grupo] += x; });
+      renglones.push({ concepto: /^\d+(\.0+)?$/.test(t) ? t.replace(/\.0+$/, '') + ' (cargas sociales)' : t, grupo, valores });
+    }
+    meses.forEach(m => CAMPOS_BALANCE.forEach(k => { m[k] = Math.round(m[k] * 100) / 100; }));
+    res.json({ hoja: mejor.nombre, meses, renglones });
+  } catch (e) { console.error('[leer planilla]', e.message); res.status(400).json({ error: 'No pude leer el archivo. ¿Es un Excel (.xlsx)?' }); }
+};
+// Descargar el balance del año en Excel
+const getBalanceExcel = async (req, res) => {
+  try {
+    if (!(await puedeVerBalance(req.usuario || {}))) return res.status(403).json({ error: 'No tenés permiso' });
+    await asegurarBalance();
+    const XLSX = require('xlsx');
+    const hoy = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const anio = parseInt(req.query.anio) || hoy.getFullYear();
+    const hastaMes = anio < hoy.getFullYear() ? 12 : hoy.getMonth() + 1;
+    const locales = await localesBalance();
+    const meses = await calcularBalanceAnio(anio, locales, hastaMes);
+    const NOMBRES = { ventas: 'Ventas', mercaderia: 'Mercadería y gastos variables', sueldos: 'Sueldos y comisiones', impuestos: 'Impuestos y cargas (931, IIBB…)',
+      fijos: 'Gastos fijos (alquiler, servicios)', admin: 'Administrativos y marketing', comisiones: 'Comisiones de tarjetas y apps', otros: 'Otros gastos' };
+    const MESN = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const r2 = (x) => Math.round(x * 100) / 100;
+    const hoja = (titulo, val) => {
+      const filas = [[titulo + ' · ' + anio], [], ['Concepto', ...MESN, 'Total año']];
+      const fila = (nombre, f) => { const vs = meses.map(m => (m.futuro ? '' : r2(f(m)))); filas.push([nombre, ...vs, r2(vs.reduce((a, b) => a + (b || 0), 0))]); };
+      fila('Ventas', m => val(m).ventas);
+      GASTOS_BALANCE.forEach(k => fila(NOMBRES[k], m => val(m)[k]));
+      fila('Total egresos', m => sumaGastos(val(m)));
+      fila('Ganancia', m => val(m).ventas - sumaGastos(val(m)));
+      filas.push(['Origen', ...meses.map(m => m.futuro ? '' : Object.values(m.locales).some(x => x.manual) ? (Object.values(m.locales).some(x => x.lumiere.ventas > 0) ? 'Planilla + Lumiere' : 'Planilla') : 'Lumiere'), '']);
+      return filas;
+    };
+    const total = (m) => { const o = vacioBalance(); Object.values(m.locales).forEach(x => CAMPOS_BALANCE.forEach(k => { o[k] += x.total[k]; })); return o; };
+    const wb = XLSX.utils.book_new();
+    const hojas = [['Total', hoja('Balance anual · todos los locales', total)], ...(locales.length > 1 ? locales.map(l => [String(l.nombre).slice(0, 28), hoja('Balance anual · ' + l.nombre, m => (m.locales[l.id] ? m.locales[l.id].total : vacioBalance()))]) : [])];
+    hojas.forEach(([nombre, filas]) => { const ws = XLSX.utils.aoa_to_sheet(filas); ws['!cols'] = [{ wch: 34 }, ...Array(13).fill({ wch: 14 })]; XLSX.utils.book_append_sheet(wb, ws, nombre); });
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="balance-anual-' + anio + '.xlsx"');
+    res.send(buf);
+  } catch (e) { console.error('[balance excel]', e); res.status(500).json({ error: 'No se pudo armar el Excel' }); }
+};
+
+module.exports = { getBalanceAnual, putBalanceManual, putBalanceReferencia, postLeerPlanillaBalance, getBalanceExcel, getReparto, putRepartoConfig, postRepartoSemana, postRepartoAporte, postRepartoAporteBorrar, postRepartoMovimientos, postRepartoCuentaReiniciar, postRepartoMovimiento, postRepartoAjuste, putRepartoMovimiento, deleteRepartoMovimiento, getExportarMes, getInformeMes, getBaseDecisiones, getMedallas, getRepartoSugerido, getFlujo, getFlujoEstructurado, agregarEgreso, getMiUltimoEgreso, getGastosCargados, getPuntoEquilibrio, getResumen, getComisiones, getCMV, guardarFacturacionExterna, getFacturacionExterna, getMovimientosDetalle, updateMovimiento, recategorizarMovimientos, deleteMovimiento, getAnalisisFinanciero, getComparativaMeses };

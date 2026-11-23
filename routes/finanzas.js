@@ -3,6 +3,11 @@ const router = express.Router();
 const controller = require('../controllers/finanzasController');
 
 router.get('/flujo', controller.getFlujo);
+router.get('/balance-anual', controller.getBalanceAnual);
+router.get('/balance-anual/excel', controller.getBalanceExcel);
+router.put('/balance-anual/manual', controller.putBalanceManual);
+router.put('/balance-anual/referencia', controller.putBalanceReferencia);
+router.post('/balance-anual/leer-planilla', controller.postLeerPlanillaBalance);
 router.post('/egreso', controller.agregarEgreso);
 router.get('/mi-ultimo-egreso', controller.getMiUltimoEgreso);
 router.get('/gastos-cargados', controller.getGastosCargados);
