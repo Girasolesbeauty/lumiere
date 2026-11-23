@@ -1668,7 +1668,29 @@ const limpiarPartes = (l) => (Array.isArray(l) ? l : []).slice(0, 8).map((x, i) 
   nombre: String((x && x.nombre) || '').trim().slice(0, 50) || 'Parte ' + (i + 1),
   pct: Math.round(Math.min(100, Math.max(0, parseFloat(x && x.pct) || 0)) * 10) / 10,
   donde: String((x && x.donde) || '').trim().slice(0, 60),
+  // Qué gastos cargados en Finanzas cubren esta cuenta (si no se eligió, se deduce del nombre: ver gruposDeParte)
+  ...(Array.isArray(x && x.vincula) ? { vincula: x.vincula.filter(g => GRUPOS_REPARTO.includes(g)) } : {}),
 }));
+// Los gastos de Finanzas se agrupan así para descontarlos de las cuentas del reparto
+const GRUPOS_REPARTO = ['mercaderia', 'variables', 'fijos', 'sueldos', 'admin', 'impuestos'];
+const gruposDeParte = (pt) => {
+  if (Array.isArray(pt.vincula)) return pt.vincula;
+  const t = (pt.k + ' ' + pt.nombre).toLowerCase();
+  if (/ganancia|ahorro|due[nñ]|retiro/.test(t)) return [];
+  if (/mercader|proveedor|stock/.test(t)) return ['mercaderia'];
+  if (/impuesto|colch|arca|afip|iibb/.test(t)) return ['impuestos'];
+  if (/costo|gasto|sueldo|fijo|operativ/.test(t)) return ['variables', 'fijos', 'sueldos', 'admin'];
+  return [];
+};
+// Lo que se pagó en el periodo según lo cargado en Finanzas (egresos), por grupo y con el detalle por categoría
+async function pagadoPorGrupo(desde, hasta) {
+  const est = await calcularFlujoEstructurado(null, null, null, { desde, hasta });
+  const g = Object.fromEntries(GRUPOS_REPARTO.map(k => [k, { total: 0, detalle: {} }]));
+  const sumar = (k, nombre, v) => { if (!(v > 0)) return; g[k].total += v; g[k].detalle[nombre] = (g[k].detalle[nombre] || 0) + v; };
+  Object.entries(est.variables.detalle || {}).forEach(([n, v]) => sumar(/mercader|proveedor|compra de merc/i.test(n) ? 'mercaderia' : 'variables', n, num(v)));
+  [['fijos', 'fijos'], ['sueldos', 'sueldos'], ['admin', 'admin'], ['impuestos', 'impuestos']].forEach(([a, k]) => Object.entries((est[a] || {}).detalle || {}).forEach(([n, v]) => sumar(k, n, num(v))));
+  return g;
+}
 async function partesReparto() {
   const r = (await pool.query('SELECT partes FROM reparto_config WHERE id = 1')).rows[0];
   const l = r ? limpiarPartes(r.partes) : [];
@@ -1707,12 +1729,23 @@ const getReparto = async (req, res) => {
     movs.forEach(m => { const q = cta(m.parte_k); const v = num(m.monto); if (m.tipo === 'uso') { q.uso += v; if (m.fecha.slice(0, 7) === mesAct) q.uso_mes += v; } else q.extra += v; });
     const cuentasLista = Object.values(cuentas).map(x => ({ ...x, separado_mes: r2(x.separado_mes), separado_total: r2(x.separado_total), uso_mes: r2(x.uso_mes), saldo: r2(x.separado_total + x.extra - x.uso), falta: 0 }));
     // El mes que se mira: lo que corresponde, lo separado (con cada aporte) y lo usado, por cuenta
+    // Lo pagado en el mes y cargado en Finanzas cuenta como cubierto en la cuenta que corresponde (no hace falta separarlo aparte)
+    let pagados = null;
+    try { pagados = await pagadoPorGrupo(desde, hasta); } catch (e) { console.error('[reparto] pagado en finanzas:', e.message); }
     const mesPartes = cuentasLista.map(q => {
       const corresponde = Math.round(base * (q.pct || 0) / 100);
       const aps = aportes.filter(x => x.k === q.k && String(x.fecha).slice(0, 7) === mesSel).sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
       const separado = r2(aps.reduce((t, x) => t + x.monto, 0));
       const usado = r2(movs.filter(m => m.parte_k === q.k && m.tipo === 'uso' && m.fecha.slice(0, 7) === mesSel).reduce((t, m) => t + num(m.monto), 0));
-      return { k: q.k, nombre: q.nombre, pct: q.pct, donde: q.donde, corresponde, separado, usado, falta: r2(Math.max(0, corresponde - separado)), de_mas: r2(Math.max(0, separado - corresponde)),
+      const parte = partes.find(x => x.k === q.k) || q;
+      const grupos = pagados ? gruposDeParte(parte) : [];
+      const detPag = {};
+      grupos.forEach(k => Object.entries(pagados[k].detalle).forEach(([n, v]) => { detPag[n] = (detPag[n] || 0) + v; }));
+      const pagado = r2(Object.values(detPag).reduce((t, v) => t + v, 0));
+      const cubierto = separado + pagado;
+      return { k: q.k, nombre: q.nombre, pct: q.pct, donde: q.donde, corresponde, separado, usado, pagado, grupos,
+        pagado_detalle: Object.entries(detPag).map(([nombre, monto]) => ({ nombre, monto: r2(monto) })).sort((a, b) => b.monto - a.monto),
+        falta: r2(Math.max(0, corresponde - cubierto)), de_mas: r2(Math.max(0, cubierto - corresponde)),
         aportes: aps.map(x => ({ id: x.id, fecha: x.fecha, monto: x.monto, nota: x.nota, usuario: x.usuario, semana: x.semana })) };
     });
     res.json({ partes, mes: { mes: mesSel, desde, hasta, ventas, comisiones, base, partes: mesPartes }, semanas: [], cuentas: cuentasLista,
