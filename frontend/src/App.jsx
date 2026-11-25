@@ -34343,6 +34343,8 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
   useEffect(() => { if (cuenta.logueada && vigente && cuenta.pedir) cuenta.pedir("/adviento/mio").then(setMio).catch(() => {}); else setMio(null); }, [cuenta.logueada]); // eslint-disable-line react-hooks/exhaustive-deps
   const marcar = (dia) => setAbiertas(l => { if (l.includes(dia)) return l; const n = [...l, dia]; try { almacen().setItem(clave, JSON.stringify(n)); } catch (e) {} return n; });
   const elegirDiaPrueba = (n) => { setDiaPrueba(n); try { sessionStorage.setItem("tienda_adv_prueba_" + slug, String(n)); } catch (e) {} };
+  // El cartel fijo de la vista previa también deja elegir el día (así no hay que buscar la barra de arriba del edificio)
+  useEffect(() => { const f = (e) => { const n = parseInt(e.detail); if (n >= 1 && n <= 25) setDiaPrueba(n); }; window.addEventListener("tw-adv-dia", f); return () => window.removeEventListener("tw-adv-dia", f); }, []);
   const cerrarTodas = () => { setAbiertas([]); try { almacen().removeItem(clave); } catch (e) {} };
   const abrir = (d) => {
     twAdvSon.campanita(); pedirMovimiento();
@@ -36628,7 +36630,7 @@ function TiendaPublica({ slug }) {
   const cabecera = (
     <>
       {tienda.cyber ? <TwCyberBarra cy={tienda.cyber} /> : tienda.halloween ? <TwHwBarra hw={tienda.halloween} /> : anuncios.length > 0 && <TwCinta frases={anuncios} />}
-      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. Arriba del edificio elegí qué día de diciembre querés probar: ese día queda destacado y los siguientes, cerrados.</div>}
+      {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. <span style={{ display: "block", marginTop: 6 }}>🧪 Probar como si fuera el <select aria-label="Día a simular (cartel)" defaultValue={advDiaPrueba(slug)} onChange={e => { const n = parseInt(e.target.value); try { sessionStorage.setItem("tienda_adv_prueba_" + slug, String(n)); } catch (x) {} window.dispatchEvent(new CustomEvent("tw-adv-dia", { detail: n })); }} style={{ font: "inherit", fontWeight: 700, borderRadius: 999, border: 0, padding: "4px 8px", background: "#fff", color: "#2a1c00" }}>{Array.from({ length: 25 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} de diciembre</option>)}</select></span><span style={{ display: "block", marginTop: 4 }}>Ese día se enciende y los siguientes quedan cerrados.</span></div>}
       {tienda.adviento && <TwAdvIntro adv={tienda.adviento} slug={slug} />}
       {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Los clientes todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
       {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Los clientes todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
