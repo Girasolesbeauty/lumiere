@@ -41613,6 +41613,17 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
   };
   // Mensajes de WhatsApp: el texto que guardó el negocio o el original, con los datos del pedido
   const [editWa, setEditWa] = useState(null); // { textos: {k: texto}, guardando, ver }
+  // Reactivar un pedido vencido o cancelado porque el cliente pagó después
+  const [reactivar, setReactivar] = useState(null); // { p, forzar, error, guardando }
+  const confirmarReactivar = async (pago) => {
+    const r = reactivar;
+    setReactivar(x => ({ ...x, guardando: true, error: "" }));
+    try {
+      await API.post("/tienda/pedidos/" + r.p.id + "/reactivar", { pago, forzar: r.forzar });
+      setReactivar(null); cargarPedidos();
+      avisar(true, "✓ Pedido N° " + nroPedido(r.p) + " reactivado" + (pago === "retiro" ? ": queda para pagar al retirar" : ": quedó pagado y pasa a «Para armar»"));
+    } catch (e) { setReactivar(x => ({ ...x, guardando: false, error: e.response?.data?.error || "No se pudo reactivar", sinStock: e.response?.status === 409 })); }
+  };
   const [nombreNegWa, setNombreNegWa] = useState("");
   useEffect(() => { API.get("/configuracion").then(r => setNombreNegWa(r.data?.nombre_negocio || "")).catch(() => {}); }, []);
   const plantillaWa = (k) => ((cfg && cfg.mensajes_wa) || {})[k] || (WA_PEDIDOS.find(x => x[0] === k) || [])[2] || "";
@@ -41826,6 +41837,23 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
       </div>
       {/* Aviso flotante: se ve aunque la pantalla esté bajada (en el celular, abajo, arriba de la barra de menú) */}
       {aviso && <div className="pop-in" role={aviso.ok ? "status" : "alert"} onClick={() => setAviso(null)} style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(92px + env(safe-area-inset-bottom))", zIndex: 9999, width: "max-content", maxWidth: "min(560px, 92vw)", background: temaPal.card, color: temaPal.text, border: "1px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderLeft: "5px solid " + (aviso.ok ? temaPal.green : temaPal.red), borderRadius: 10, padding: "10px 14px", fontSize: 13.5, fontWeight: 600, lineHeight: 1.45, boxShadow: "0 10px 30px rgba(0,0,0,.35)", cursor: "pointer" }}>{aviso.ok ? "" : "⚠️ "}{aviso.texto}</div>}
+      {reactivar && (
+        <div className="pos-overlay" style={{ zIndex: 300 }} onClick={() => !reactivar.guardando && setReactivar(null)}>
+          <div className="card pop-in" role="dialog" aria-label="Reactivar pedido" style={{ width: 440, maxWidth: "94vw", textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div className="ct">💵 Reactivar el pedido N° {nroPedido(reactivar.p)}</div>
+            <div style={{ fontSize: 13, color: temaPal.textMuted, marginBottom: 12 }}>{reactivar.p.nombre} · {fmt(reactivar.p.total)}. Estaba {String(reactivar.p.motivo || "cancelado").toLowerCase()}. Al reactivarlo se vuelve a apartar el stock{reactivar.p.cupon ? ", el cupón cuenta como usado" : ""}{Number(reactivar.p.gc_usado_monto) > 0 ? " y se descuenta de nuevo lo que pagó con gift card" : ""}. ¿Cómo pagó?</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="btn btn-p" disabled={reactivar.guardando} onClick={() => confirmarReactivar("transferencia")}>🏦 Pagó por transferencia</button>
+              <button className="btn btn-p" disabled={reactivar.guardando} onClick={() => confirmarReactivar("mp")}>💳 Pagó por Mercado Pago</button>
+              {cfg?.pago_gocuotas && <button className="btn btn-g" disabled={reactivar.guardando} onClick={() => confirmarReactivar("gocuotas")}>Pagó por GoCuotas</button>}
+              {reactivar.p.entrega === "retiro" && <button className="btn btn-g" disabled={reactivar.guardando} onClick={() => confirmarReactivar("retiro")}>🏪 Todavía no pagó: paga al retirar</button>}
+            </div>
+            {reactivar.error && <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, background: "#c0392b12", border: "1px solid #c0392b", color: "#c0392b", fontSize: 12.5 }}>{reactivar.error}
+              {reactivar.sinStock && <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, color: temaPal.text }}><input type="checkbox" checked={reactivar.forzar} onChange={e => setReactivar(x => ({ ...x, forzar: e.target.checked }))} />Reactivarlo igual (el stock puede quedar en negativo hasta que repongas)</label>}</div>}
+            <button className="btn btn-g btn-sm" style={{ width: "100%", marginTop: 10 }} disabled={reactivar.guardando} onClick={() => setReactivar(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
       {editWa && (() => {
         const ej = { nombre: "Lucía Gómez", local_id: (locsPed[0] && locsPed[0].id) || 1, pago: "mp", entrega: editWa.ver === "envio" ? "envio" : "retiro", numero: 1234, codigo: "AB12", total: 45700, vence_en: new Date(Date.now() + 2 * 864e5).toISOString() };
         const sinHor = !((((cfg && cfg.links && cfg.links.locales) || {})[ej.local_id] || {}).horarios || "").length;
@@ -42195,6 +42223,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                           </>}
                           {p.telefono && <a className="btn btn-g btn-sm" style={{ textDecoration: "none" }} href={linkWaPed(p)} target="_blank" rel="noopener" title={"Abre WhatsApp con el mensaje de «" + (WA_PEDIDOS.find(x => x[0] === claveWa(p)) || [])[1] + "» listo para mandar"} onClick={() => { if ((esRechazado(p) || procesoDemorado(p)) && !p.contactado_en) marcarContactado(p, true); }}>💬 WhatsApp{claveWa(p) !== "general" ? " · " + (WA_PEDIDOS.find(x => x[0] === claveWa(p)) || [])[1].replace(/^\S+\s/, "") : ""}</a>}
                           {!cerrado && p.entrega === "envio" && p.tipo !== "giftcard" && <><button className="btn btn-g btn-sm" onClick={() => imprimirEtiquetas([p])}>🏷️ Etiqueta</button><button className="btn btn-g btn-sm" onClick={() => mandarCadete(p)}>🛵 Cadete</button></>}
+                          {p.estado === "cancelado" && <button className="btn btn-p btn-sm" style={{ marginLeft: "auto" }} title="El cliente pagó después de que se venció o canceló: vuelve a quedar activo y se aparta el stock" onClick={() => setReactivar({ p, forzar: false, error: "" })}>💵 Pagó después: reactivar</button>}
                           {!cerrado && <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {p.tipo !== "giftcard" && !preventa && p.estado !== "pendiente_pago" && <button className="btn btn-g btn-sm" title="Si ya lo cobraste en la caja sin cargar este pedido" onClick={cobradoAparte}>✓ Ya lo cobré en la caja</button>}
                             {p.estado !== "en_caja" && <button className="btn btn-g btn-sm" style={{ color: temaPal.red }} onClick={() => estado(p, "cancelado")}>Cancelar pedido</button>}
