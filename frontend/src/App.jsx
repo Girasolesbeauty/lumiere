@@ -40908,7 +40908,15 @@ function AdvientoTienda({ temaPal, productos }) {
               {x.tipo === "descuento" && <div>
                 <label style={lbl}>¿En qué categorías? <span style={{ fontWeight: 400, color: p.textMuted }}>(todo lo de esa categoría)</span></label>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                  {[...new Set((productos || []).map(y => y.categoria).filter(Boolean))].sort().map(c => { const on = (x.categorias || []).includes(c); return <button key={c} className={"chip-btn" + (on ? " on" : "")} onClick={() => setDia(x.dia, "categorias", on ? x.categorias.filter(z => z !== c) : [...(x.categorias || []), c])}>{c}</button>; })}
+                  {(() => {
+                    // Las categorías de Lumiere (las de tus productos), juntando las que solo cambian en mayúsculas o espacios ("Facial" y "FACIAL")
+                    const grupos = {};
+                    (productos || []).forEach(y => { const c = String(y.categoria || "").trim(); if (!c) return; const k = normTxt(c); const g = grupos[k] = grupos[k] || { vars: {}, n: 0 }; g.vars[c] = (g.vars[c] || 0) + 1; g.n++; });
+                    const lista = Object.values(grupos).map(g => ({ label: Object.entries(g.vars).sort((u, v) => v[1] - u[1])[0][0], vars: Object.keys(g.vars), n: g.n })).sort((u, v) => u.label.localeCompare(v.label));
+                    if (!lista.length) return <span style={{ fontSize: 12, color: p.textMuted }}>Todavía no hay categorías en tus productos.</span>;
+                    return lista.map(g => { const on = g.vars.some(v => (x.categorias || []).includes(v)); return <button key={g.label} className={"chip-btn" + (on ? " on" : "")} title={g.n + " producto" + (g.n !== 1 ? "s" : "")}
+                      onClick={() => setDia(x.dia, "categorias", on ? (x.categorias || []).filter(z => !g.vars.includes(z)) : [...new Set([...(x.categorias || []), ...g.vars])])}>{g.label} <span style={{ opacity: .6, fontSize: 11 }}>({g.n})</span></button>; });
+                  })()}
                 </div>
                 <label style={{ ...lbl, marginTop: 8 }}>¿De qué proveedores? <span style={{ fontWeight: 400, color: p.textMuted }}>(todos sus productos)</span></label>
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
