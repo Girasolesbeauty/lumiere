@@ -688,6 +688,60 @@ router.put('/pedidos/:id/estado', async (req, res) => {
   }
 });
 
+// Reactivar un pedido vencido o cancelado porque el cliente pagó después (o va a pagar al retirar).
+// Vuelve todo lo que la cancelación había liberado: el stock (o la reserva de preventa), el envase de la muestra,
+// el uso del cupón y lo pagado con gift card. Si ya no hay stock de algo, avisa (y se puede forzar).
+router.post('/pedidos/:id/reactivar', async (req, res) => {
+  const b = req.body || {};
+  const pago = ['transferencia', 'mp', 'gocuotas', 'retiro', 'efectivo'].includes(b.pago) ? b.pago : null;
+  if (!pago) return res.status(400).json({ error: 'Elegí cómo pagó' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const p = (await client.query('SELECT * FROM tienda_pedidos WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!p) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'No se encontró el pedido' }); }
+    if (p.estado !== 'cancelado') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Ese pedido no está cancelado ni vencido' }); }
+    if (pago === 'retiro' && p.entrega !== 'retiro') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Es con envío: elegí con qué pagó' }); }
+    // ¿Sigue habiendo stock de lo que pidió? (lo de preventa va sobre lo que viene en camino)
+    const col = tienda.colLocal(p.local_id);
+    const falta = (await client.query(`SELECT i.nombre, i.cantidad, COALESCE(v.${col}, pr.${col}, 0) AS hay FROM tienda_pedido_items i
+      LEFT JOIN productos pr ON pr.id = i.producto_id LEFT JOIN producto_variantes v ON v.id = i.variante_id
+      WHERE i.pedido_id = $1 AND NOT i.preventa AND COALESCE(v.${col}, pr.${col}, 0) < i.cantidad`, [p.id])).rows;
+    if (falta.length && !b.forzar) { await client.query('ROLLBACK'); return res.status(409).json({ error: 'Ya no hay stock suficiente de: ' + falta.map(x => x.nombre + ' (hay ' + Math.max(0, num(x.hay)) + ', pidió ' + x.cantidad + ')').join(', '), sin_stock: falta.map(x => x.nombre) }); }
+    // Lo pagado con gift card se vuelve a descontar (al cancelarse había vuelto al saldo)
+    if (num(p.gc_usado_monto) > 0 && p.gc_usado_id) {
+      const g = (await client.query('UPDATE gift_cards SET saldo = saldo - $1 WHERE id = $2 AND saldo >= $1 RETURNING saldo', [num(p.gc_usado_monto), p.gc_usado_id])).rows[0];
+      if (!g) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'La gift card que usó ya no tiene saldo suficiente: no se puede reactivar así. Hacé un pedido nuevo.' }); }
+      await client.query(`INSERT INTO gift_card_movimientos (gift_card_id, tipo, importe, saldo_resultante) VALUES ($1, 'canje', $2, $3)`, [p.gc_usado_id, -num(p.gc_usado_monto), g.saldo]);
+      await client.query(`UPDATE gift_cards SET estado = CASE WHEN saldo <= 0 THEN 'usada' ELSE estado END WHERE id = $1`, [p.gc_usado_id]).catch(() => {});
+    }
+    if (p.tipo !== 'giftcard') {
+      await tienda.moverStock(client, p, -1);
+      await tienda.reservarPreventa(client, p, +1);
+      if (p.muestra) await tienda.moverEnvase(client, p.local_id, -1);
+    }
+    if (p.cupon) await client.query('UPDATE cupones SET usos = COALESCE(usos, 0) + 1 WHERE codigo = $1 OR codigo = ANY($2::text[])', [p.cupon, p.cupones_extra || []]);
+    const u = req.usuario || {};
+    const quien = u.nombre || (u.id ? ((await client.query('SELECT nombre FROM usuarios WHERE id = $1', [u.id]).catch(() => ({ rows: [] }))).rows[0] || {}).nombre : null) || 'Local';
+    const PAGO_TXT = { transferencia: 'transferencia', mp: 'Mercado Pago', gocuotas: 'GoCuotas', retiro: 'paga al retirar', efectivo: 'efectivo' };
+    const nota = { id: require('crypto').randomBytes(4).toString('hex'), texto: 'Se reactivó (estaba ' + (p.motivo || 'cancelado').toLowerCase() + '): ' + (pago === 'retiro' ? 'va a pagar al retirar' : 'pagó después por ' + PAGO_TXT[pago]), por: quien, usuario_id: u.id || null, en: new Date().toISOString() };
+    const horas = Math.min(168, Math.max(1, parseInt((await tienda.leerConfig(client)).horas_reserva) || 24));
+    await client.query(`UPDATE tienda_pedidos SET estado = 'confirmado', stock_apartado = $2, motivo = NULL, cancelado_por = NULL, pago_rechazo = NULL,
+        pagado = $3, pagado_en = CASE WHEN $3 THEN COALESCE(pagado_en, NOW()) ELSE pagado_en END, pago = CASE WHEN $4 IN ('efectivo') THEN pago ELSE $4 END,
+        vence_en = CASE WHEN $3 THEN NULL ELSE NOW() + make_interval(hours => $5) END, revisado_en = NOW(), revisado_por = $6,
+        notas_local = COALESCE(notas_local, '[]'::jsonb) || $7::jsonb, actualizado_en = NOW() WHERE id = $1`,
+      [p.id, p.tipo !== 'giftcard', pago !== 'retiro', pago, horas, quien, JSON.stringify([nota])]);
+    await client.query('COMMIT');
+    // Gift card pagada: se emite como cuando entra el pago
+    if (p.tipo === 'giftcard' && pago !== 'retiro') { try { await tienda.emitirGiftCard(p.id); } catch (e) { console.error('[tienda] reactivar gift card:', e.message); } }
+    res.json(await pedidoCompleto(p.id));
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (x) {}
+    console.error('[tienda] reactivar:', e.message);
+    res.status(500).json({ error: 'No se pudo reactivar el pedido' });
+  } finally { client.release(); }
+});
+
 // Pasar a caja: se devuelve el stock apartado (la venta del Punto de Venta lo descuenta) y se carga el pedido en la caja
 router.post('/pedidos/:id/a-caja', async (req, res) => {
   const client = await pool.connect();
