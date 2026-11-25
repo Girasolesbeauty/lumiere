@@ -40570,27 +40570,31 @@ function flyDibujar(ctx, W, H, t, d) {
 // Halloween en la tienda online: fechas, textos, juego "¿Dulce o truco?" (premios) y sector "Tu look de Halloween"
 // ── Calendario de Adviento: carga de los 25 días y video de la ventana del día encendiéndose (para Instagram) ──
 const ADV_VID = 10;
-const ADV_FUENTES = [["TwPF", "url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2)", { style: "italic", weight: "500" }], ["TwJS", "url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2)", { weight: "400 700" }]];
+const ADV_FUENTES = [["TwPF", "url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2)", { style: "italic", weight: "500" }], ["TwJS", "url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2)", { weight: "400 700" }], ["TwDM", "url(https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2G_Bx0g.woff2)", {}], ["TwMS", "url(https://fonts.gstatic.com/s/montserrat/v31/JTUSjIg1_i6t8kCHKm459Wlhyw.woff2)", { weight: "400 800" }]];
 const advFont = (peso, px) => peso + " " + Math.round(px) + "px TwJS, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 const advSerif = (px) => "italic 500 " + Math.round(px) + "px TwPF, Georgia, serif";
+// Las mismas tipografías de la tarjeta de la tienda: DM Serif para los títulos y Montserrat para el resto
+const advDM = (px) => "400 " + Math.round(px) + "px TwDM, Georgia, serif";
+const advMS = (peso, px) => peso + " " + Math.round(px) + "px TwMS, 'Helvetica Neue', Arial, sans-serif";
 // Brillo dorado redondo
 function advGlowCanvas(ctx, x, y, r, a) {
   if (a <= 0) return;
   const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, "rgba(255,248,225," + a + ")"); g.addColorStop(.35, "rgba(255,217,138," + a * .8 + ")"); g.addColorStop(1, "rgba(255,184,77,0)");
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
 }
-// Una ventana del edificio: prendida de 0 a 1; pulso = brillo de "hoy"
+// Una ventana del edificio: prendida de 0 a 1; pulso = brillo de "hoy". El 25 es el ático (arriba redondeado, como en la tienda)
 function advVentanaCanvas(ctx, x, y, w, h, n, prendida, opts) {
   const { pulso = 0, icono = "", alfa = 1, k = 1 } = opts || {};
+  const trazo = () => { ctx.beginPath(); if (n === 25) { const r = w * .28; ctx.moveTo(x, y + h); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h); ctx.closePath(); } else ctx.rect(x, y, w, h); };
   ctx.save(); ctx.globalAlpha *= alfa;
-  if (prendida > 0 || pulso > 0) { ctx.save(); ctx.shadowColor = "rgba(255,200,110," + Math.max(prendida * .8, pulso) + ")"; ctx.shadowBlur = w * (.6 + pulso * .5); ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, h); ctx.restore(); }
-  const go = ctx.createLinearGradient(0, y, 0, y + h); go.addColorStop(0, "#3a2a5c"); go.addColorStop(1, "#211a3d"); ctx.fillStyle = go; ctx.fillRect(x, y, w, h);
-  if (prendida > 0) { ctx.save(); ctx.globalAlpha *= prendida; const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "#fff3cf"); g.addColorStop(.7, "#f5c065"); g.addColorStop(1, "#e7a440"); ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore(); }
-  ctx.strokeStyle = prendida > .5 ? "#ffe2a0" : pulso > 0 ? "rgba(255,243,207," + (.6 + pulso * .4) + ")" : "rgba(201,164,90,.75)"; ctx.lineWidth = Math.max(1, k * (pulso > 0 ? 2 : 1)); ctx.strokeRect(x, y, w, h);
-  ctx.strokeStyle = prendida > .5 ? "rgba(140,80,0,.25)" : "rgba(201,164,90,.35)"; ctx.lineWidth = Math.max(1, k * .8); ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); ctx.stroke();
+  if (prendida > 0 || pulso > 0) { ctx.save(); ctx.shadowColor = "rgba(255,200,110," + Math.max(prendida * .8, pulso) + ")"; ctx.shadowBlur = w * (.6 + pulso * .5); ctx.fillStyle = "#000"; trazo(); ctx.fill(); ctx.restore(); }
+  const go = ctx.createLinearGradient(0, y, 0, y + h); go.addColorStop(0, n === 25 ? "#5b3f8f" : "#3a2a5c"); go.addColorStop(1, n === 25 ? "#2b2050" : "#211a3d"); ctx.fillStyle = go; trazo(); ctx.fill();
+  if (prendida > 0) { ctx.save(); ctx.globalAlpha *= prendida; const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "#fff3cf"); g.addColorStop(.7, "#f5c065"); g.addColorStop(1, "#e7a440"); ctx.fillStyle = g; trazo(); ctx.fill(); ctx.restore(); }
+  ctx.strokeStyle = prendida > .5 ? "#ffe2a0" : pulso > 0 ? "rgba(255,243,207," + (.6 + pulso * .4) + ")" : "rgba(255,224,138,.55)"; ctx.lineWidth = Math.max(1, k * (pulso > 0 ? 2 : 1)); trazo(); ctx.stroke();
+  ctx.strokeStyle = prendida > .5 ? "rgba(140,80,0,.25)" : "rgba(255,224,138,.35)"; ctx.lineWidth = Math.max(1, k * .8); ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); ctx.moveTo(x, y + h * .38); ctx.lineTo(x + w, y + h * .38); ctx.stroke();
   ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-  if (prendida >= 1 && icono) { advIconoCanvas(ctx, icono, x + w / 2, y + h * .44, h * .74); ctx.font = advFont(600, h * .22); ctx.font = advFont(600, h * .18); ctx.fillStyle = "rgba(106,61,0,.75)"; ctx.textAlign = "right"; ctx.fillText(String(n), x + w - w * .06, y + h - h * .06); ctx.textAlign = "center"; }
-  else { ctx.font = advFont(600, h * .34); ctx.fillStyle = prendida > .5 ? "#6a3d00" : pulso > 0 ? "#fff" : "#d9bf7f"; ctx.fillText(String(n), x + w / 2, y + h - h * .12); }
+  if (prendida >= 1 && icono) { advIconoCanvas(ctx, icono, x + w / 2, y + h * .44, h * .74); ctx.font = advFont(600, h * .18); ctx.fillStyle = "rgba(106,61,0,.75)"; ctx.textAlign = "right"; ctx.fillText(String(n), x + w - w * .06, y + h - h * .06); ctx.textAlign = "center"; }
+  else { ctx.font = advFont(700, h * .34); ctx.fillStyle = prendida > .5 ? "#6a3d00" : pulso > 0 ? "#fff" : "#ffe7a8"; ctx.fillText(String(n), x + w / 2, y + h - h * .12); }
   ctx.restore();
 }
 // La fachada como imagen para el lienzo (se carga una vez)
@@ -40632,20 +40636,174 @@ function advIconoCanvas(ctx, icono, cx, cy, tam) {
   if (im && im.complete && im.naturalWidth) ctx.drawImage(im, cx - tam / 2, cy - tam / 2, tam, tam);
   else if (!k) { ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = flyFont(400, tam * .8); ctx.fillText(icono || "🎁", cx, cy); ctx.restore(); }
 }
-// La ventana de hoy de cerca (x, y, w, h): luz, persiana con el número que sube (sube de 0 a 1) y la escena del día (aparece de 0 a 1)
+// Foto que cubre todo el rectángulo (como background-size: cover); py = qué parte de la altura queda a la vista (0 arriba, 1 abajo)
+function advCubrir(ctx, im, x, y, w, h, py, zoom) {
+  const k = Math.max(w / im.naturalWidth, h / im.naturalHeight) * (zoom || 1), iw = im.naturalWidth * k, ih = im.naturalHeight * k;
+  ctx.drawImage(im, x + (w - iw) / 2, y + (h - ih) * (py == null ? .5 : py), iw, ih);
+}
+// Moño y acebo del borde de la tarjeta (los mismos dibujos de la tienda)
+let ADV_ADORNOS = null;
+const advAdornos = () => ADV_ADORNOS || (ADV_ADORNOS = {
+  moño: [["M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z", "#c8102e", 1], ["M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z", "#c8102e", 1], ["M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z", "#8e0c20", .55], ["M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z", "#a50e26", 1]].map(([d, c, a]) => [new Path2D(d), c, a]),
+  acebo: [["M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z", "#1f6b3f"], ["M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z", "#185c35"]].map(([d, c]) => [new Path2D(d), c]),
+  bayas: [[30, 22, 4, "#d01c33"], [36, 25, 3.6, "#b5122a"], [26, 27, 3.4, "#e02740"]],
+});
+function advMonoCanvas(ctx, cx, y, w) {
+  const A = advAdornos(), s = w / 120;
+  ctx.save(); ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = w * .06; ctx.shadowOffsetY = w * .03; ctx.translate(cx - w / 2, y); ctx.scale(s, s);
+  A.moño.forEach(([p, c, a]) => { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.fill(p); }); ctx.globalAlpha = 1; ctx.shadowColor = "transparent";
+  ctx.fillStyle = "#e0b54f"; ctx.beginPath(); ctx.arc(60, 30, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#fff3c4"; ctx.beginPath(); ctx.arc(58, 28, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function advAceboCanvas(ctx, x, y, w, espejo) {
+  const A = advAdornos(), s = w / 60, h = w * 40 / 60;
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); if (espejo) ctx.scale(-1, 1); ctx.rotate(-.314); ctx.translate(-w / 2, -h / 2); ctx.scale(s, s);
+  A.acebo.forEach(([p, c]) => { ctx.fillStyle = c; ctx.fill(p); });
+  A.bayas.forEach(([bx, by, r, c]) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill(); });
+  ctx.restore();
+}
+// La ventana de hoy de cerca (x, y, w, h), como en la tienda: dos hojas con vidrios que se prenden y se abren (abre de 0 a 1),
+// el sello dorado con el número (sello de 0 a 1: se agranda y desaparece), la rendija de luz y la escena del día (aparece de 0 a 1)
 function advVentanaGrandeCanvas(ctx, x, y, w, h, o) {
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
   const g = ctx.createRadialGradient(x + w / 2, y + h * .45, 0, x + w / 2, y + h / 2, w * .75); g.addColorStop(0, "#fffbe8"); g.addColorStop(.45, "#ffe3a6"); g.addColorStop(1, "#f0b04e"); ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
   if (o.aparece > 0) { ctx.save(); ctx.globalAlpha *= Math.min(1, o.aparece); const e = .6 + .4 * o.aparece, tam = Math.min(w * .76, h * .84) * e; advIconoCanvas(ctx, o.icono, x + w / 2, y + h / 2, tam); ctx.restore(); }
-  if (o.sube < 1) {
-    const py = y - h * 1.04 * o.sube;
-    const gs = ctx.createLinearGradient(0, py, 0, py + h); gs.addColorStop(0, "#fff2d2"); gs.addColorStop(1, "#f4c678"); ctx.fillStyle = gs; ctx.fillRect(x, py, w, h);
-    ctx.strokeStyle = "rgba(217,166,80,.3)"; ctx.lineWidth = Math.max(1, w / 300); for (let i = 1; i < 14; i++) { ctx.beginPath(); ctx.moveTo(x, py + i * h / 14); ctx.lineTo(x + w, py + i * h / 14); ctx.stroke(); }
-    ctx.fillStyle = "#c9a45a"; ctx.fillRect(x, py + h - w * .027, w, w * .027);
-    ctx.textAlign = "center"; ctx.fillStyle = "rgba(12,22,48,.85)"; ctx.font = advSerif(h * .3); ctx.fillText(String(o.dia), x + w / 2, py + h * .6);
+  const ang = Math.min(1, o.abre) * 1.88, hw = w / 2 * Math.max(0, Math.cos(ang)), bo = Math.max(2, w * .01);
+  if (o.abre < 1 && hw > 1) for (let l = 0; l < 2; l++) {
+    const hx = l ? x + w - hw : x;
+    const gh = ctx.createLinearGradient(0, y, 0, y + h); gh.addColorStop(0, "#2a3a66"); gh.addColorStop(1, "#162447"); ctx.fillStyle = gh; ctx.fillRect(hx, y, hw, h);
+    const ph = h * .7 / 3;
+    for (let i = 0; i < 3; i++) {
+      const py = y + h * .09 + i * (ph + h * .06), px = hx + hw * .12, pw = hw * .76;
+      ctx.save(); if (o.luz) { ctx.shadowColor = "rgba(255,200,110,.7)"; ctx.shadowBlur = w * .04; }
+      ctx.fillStyle = o.luz ? "#ffe3a6" : "#0b142b"; ctx.fillRect(px, py, pw, ph); ctx.restore();
+      ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = bo * .7; ctx.strokeRect(px, py, pw, ph);
+    }
+    const mx = l ? hx + w * .027 : hx + hw - w * .027 - w * .023, gm = ctx.createLinearGradient(0, y + h / 2 - h * .03, 0, y + h / 2 + h * .03); gm.addColorStop(0, "#ffe9a8"); gm.addColorStop(1, "#b8892e"); ctx.fillStyle = gm; flyRect(ctx, mx, y + h / 2 - h * .03, w * .023, h * .057, w * .01); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0," + (o.abre * .45) + ")"; ctx.fillRect(hx, y, hw, h);
+    ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = bo; ctx.strokeRect(hx + bo / 2, y + bo / 2, hw - bo, h - bo);
   }
-  if (!o.luz) { ctx.fillStyle = "#0f1a31"; ctx.fillRect(x, y, w, h); }
+  if (o.rendija > 0 && o.rendija < 1) { const rw = w * (.02 + o.rendija * .95); ctx.save(); ctx.globalAlpha = Math.min(1, Math.sin(Math.PI * o.rendija) * 1.4); ctx.shadowColor = "rgba(255,214,140,.9)"; ctx.shadowBlur = w * .1; ctx.fillStyle = "#fff8e1"; ctx.fillRect(x + w / 2 - rw / 2, y, rw, h); ctx.restore(); }
+  if (o.sello < 1) {
+    const sl = o.sello, r = w * .14 * (1 + sl * .7);
+    ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(sl * .44); ctx.globalAlpha = 1 - sl;
+    ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = w * .05; ctx.shadowOffsetY = w * .027;
+    const gs = ctx.createRadialGradient(-r * .3, -r * .4, 0, 0, 0, r); gs.addColorStop(0, "#fff3c4"); gs.addColorStop(.45, "#e9c46a"); gs.addColorStop(1, "#a8761f"); ctx.fillStyle = gs; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = "transparent"; ctx.strokeStyle = "rgba(168,118,31,.55)"; ctx.lineWidth = r * .1; ctx.beginPath(); ctx.arc(0, 0, r + r * .05, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#3a2600"; ctx.font = advSerif(r * 1.05); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(o.dia), 0, r * .06);
+    ctx.restore();
+  }
   ctx.restore();
+}
+// La tarjeta de la sorpresa, igual que la de la tienda: moño y acebo, cinta roja con el día, el ícono con su halo, el título, el premio verde y los productos.
+// Si el día tiene foto de escena, la tarjeta va sobre esa foto con el velo de noche y las letras claras
+function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
+  const foto = d.foto && d.foto.complete && d.foto.naturalWidth ? d.foto : null, di = d.di || {}, info = advInfo(di, d.dia, true);
+  const cw = W - 140 * u, cx = 70 * u, mx = W / 2, tin = foto ? "#fff" : "#8e0c20", txt = foto ? "#fff" : "#4a3a22";
+  const sombra = (on) => { ctx.shadowColor = on ? "rgba(0,0,0,.8)" : "transparent"; ctx.shadowBlur = on ? 8 * u : 0; ctx.shadowOffsetY = on ? 2 * u : 0; };
+  const B = [];
+  // cinta del día
+  ctx.font = advMS(800, 27 * u); ctx.letterSpacing = (8 * u) + "px"; const rt = "DÍA " + d.dia, rw = ctx.measureText(rt).width + 120 * u; ctx.letterSpacing = "0px";
+  B.push({ h: 94 * u, f: (yy) => {
+    const rh = 64 * u, x0 = mx - rw / 2;
+    ctx.save(); ctx.shadowColor = "rgba(142,12,32,.4)"; ctx.shadowBlur = 22 * u; ctx.shadowOffsetY = 6 * u;
+    const gr = ctx.createLinearGradient(0, yy, 0, yy + rh); gr.addColorStop(0, "#d0142f"); gr.addColorStop(1, "#8e0c20"); ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x0 + rw, yy); ctx.lineTo(x0 + rw * .96, yy + rh / 2); ctx.lineTo(x0 + rw, yy + rh); ctx.lineTo(x0, yy + rh); ctx.lineTo(x0 + rw * .04, yy + rh / 2); ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.font = advMS(800, 27 * u); ctx.letterSpacing = (8 * u) + "px"; ctx.fillStyle = "#ffe7a8"; ctx.textAlign = "center"; ctx.fillText(rt, mx + 4 * u, yy + rh * .66); ctx.restore();
+  } });
+  // ícono con halo
+  B.push({ h: 210 * u, f: (yy) => {
+    const Rr = 82 * u, pop = flyEase((t - 5.4) / .6), sc = .3 + .7 * pop + Math.sin(pop * Math.PI) * .12;
+    ctx.save(); ctx.translate(mx, yy + 105 * u); ctx.scale(sc, sc); ctx.globalAlpha *= pop;
+    ctx.save(); ctx.rotate(t * .45); const gh = ctx.createRadialGradient(0, 0, Rr * .9, 0, 0, Rr * 1.55); gh.addColorStop(0, "rgba(224,181,79,0)"); gh.addColorStop(.2, "rgba(224,181,79,.55)"); gh.addColorStop(1, "rgba(224,181,79,0)"); ctx.fillStyle = gh;
+    for (let i = 0; i < 18; i++) { const a = i * Math.PI * 2 / 18; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, Rr * 1.55, a, a + .14); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    ctx.shadowColor = "rgba(160,110,20,.35)"; ctx.shadowBlur = 24 * u; ctx.shadowOffsetY = 8 * u; ctx.fillStyle = "#fff3d6"; ctx.beginPath(); ctx.arc(0, 0, Rr, 0, Math.PI * 2); ctx.fill(); sombra(false);
+    ctx.fillStyle = "#f6dfa6"; ctx.beginPath(); ctx.arc(0, 0, Rr * .96, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.arc(0, 0, Rr * .9, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#e0b54f"; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.arc(0, 0, Rr + 2 * u, 0, Math.PI * 2); ctx.stroke();
+    advIconoCanvas(ctx, d.icono, 0, 0, Rr * 1.62);
+    ctx.restore();
+  } });
+  // título y detalle
+  ctx.font = advDM(72 * u); const lT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 120 * u, 3);
+  B.push({ h: lT.length * 80 * u + 18 * u, f: (yy) => { ctx.save(); ctx.font = advDM(72 * u); ctx.fillStyle = tin; ctx.textAlign = "center"; sombra(foto); if (foto) { ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 12 * u; } lT.forEach((l, i) => ctx.fillText(l, mx, yy + 66 * u + i * 80 * u)); ctx.restore(); } });
+  ctx.font = advMS(500, 33 * u); const lD = d.detalle ? flyLineas(ctx, d.detalle, cw - 150 * u, 4) : [];
+  if (lD.length) B.push({ h: lD.length * 48 * u + 22 * u, f: (yy) => { ctx.save(); ctx.font = advMS(500, 33 * u); ctx.fillStyle = txt; ctx.textAlign = "center"; sombra(foto); lD.forEach((l, i) => ctx.fillText(l, mx, yy + 36 * u + i * 48 * u)); ctx.restore(); } });
+  // premio verde
+  if (info) {
+    const pw = Math.min(cw - 120 * u, 800 * u), iw = pw - 80 * u;
+    ctx.font = advDM(56 * u); const lb = flyLineas(ctx, info.dest, iw, 2);
+    ctx.font = advMS(600, 27 * u); const le = info.nota ? flyLineas(ctx, info.nota, iw, 3) : [];
+    const ph = 30 * u + 32 * u + lb.length * 62 * u + (le.length ? 12 * u + le.length * 36 * u : 0) + 26 * u;
+    B.push({ h: ph + 30 * u, f: (yy) => {
+      const x0 = mx - pw / 2;
+      ctx.save(); flyRect(ctx, x0, yy, pw, ph, 42 * u); ctx.shadowColor = "rgba(18,63,38,.4)"; ctx.shadowBlur = 26 * u; ctx.shadowOffsetY = 8 * u;
+      const gp = ctx.createLinearGradient(x0, yy, x0 + pw, yy + ph); gp.addColorStop(0, "#1f6b3f"); gp.addColorStop(1, "#123f26"); ctx.fillStyle = gp; ctx.fill(); sombra(false);
+      ctx.strokeStyle = "#e0b54f"; ctx.lineWidth = 4 * u; ctx.stroke(); ctx.clip();
+      const a = x0 - pw * .5 + ((t * .3) % 1) * pw * 2, g2 = ctx.createLinearGradient(a, yy, a + pw * .5, yy + ph * .4); g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(.5, "rgba(255,255,255,.26)"); g2.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g2; ctx.fillRect(x0, yy, pw, ph);
+      ctx.textAlign = "center"; let y2 = yy + 28 * u + 24 * u;
+      ctx.font = advMS(700, 24 * u); ctx.letterSpacing = (3.4 * u) + "px"; ctx.fillStyle = "#f3d68a"; ctx.fillText(String(info.et).toUpperCase(), mx + 2 * u, y2); ctx.letterSpacing = "0px"; y2 += 8 * u;
+      ctx.font = advDM(56 * u); ctx.fillStyle = "#fff8e6"; lb.forEach((l, i) => ctx.fillText(l, mx, y2 + 52 * u + i * 62 * u)); y2 += lb.length * 62 * u + 12 * u;
+      if (le.length) { ctx.font = advMS(600, 27 * u); ctx.fillStyle = "rgba(255,255,255,.86)"; le.forEach((l, i) => ctx.fillText(l, mx, y2 + 24 * u + i * 36 * u)); }
+      ctx.restore();
+    } });
+  }
+  // a qué productos vale el descuento
+  const alc = di.tipo === "descuento" ? (d.alcance || []).join(" · ") : "";
+  if (alc) { ctx.font = advMS(500, 29 * u); const lA = flyLineas(ctx, "Vale en todo: " + alc, cw - 140 * u, 2); B.push({ h: lA.length * 40 * u + 20 * u, f: (yy) => { ctx.save(); ctx.font = advMS(600, 29 * u); ctx.fillStyle = foto ? "#ffe39a" : "#8e0c20"; ctx.textAlign = "center"; sombra(foto); lA.forEach((l, i) => ctx.fillText(l, mx, yy + 30 * u + i * 40 * u)); ctx.restore(); } }); }
+  // código
+  if (d.codigo && di.tipo === "codigo") B.push({ h: 120 * u, f: (yy) => {
+    ctx.save(); ctx.font = advMS(800, 48 * u); ctx.letterSpacing = (8 * u) + "px"; const cwid = ctx.measureText(d.codigo).width + 90 * u;
+    ctx.fillStyle = "#0c1630"; flyRect(ctx, mx - cwid / 2, yy + 4 * u, cwid, 84 * u, 18 * u); ctx.fill(); ctx.strokeStyle = "rgba(224,181,79,.8)"; ctx.lineWidth = 3 * u; ctx.stroke();
+    ctx.fillStyle = "#ffd98a"; ctx.textAlign = "center"; ctx.fillText(d.codigo, mx + 4 * u, yy + 63 * u); ctx.restore();
+  } });
+  // productos
+  const nF = Math.min(3, (di.productos || []).length);
+  if (nF) {
+    const gap = 28 * u, fs = Math.min(250 * u, (cw - 120 * u - (nF - 1) * gap) / nF), mas = (di.productos || []).length - nF;
+    ctx.font = advMS(600, 26 * u); const nombres = (d.prodsInfo || []).slice(0, nF).map(p => flyLineas(ctx, p.nombre || "", fs + 24 * u, 2)); while (nombres.length < nF) nombres.push([]);
+    const hn = Math.max(0, ...nombres.map(l => l.length)) * 33 * u;
+    B.push({ h: fs + 20 * u + hn + (mas > 0 ? 50 * u : 0) + 24 * u, f: (yy) => {
+      for (let i = 0; i < nF; i++) {
+        const fx = mx - (nF * fs + (nF - 1) * gap) / 2 + i * (fs + gap), a = flyEase((t - 5.6 - i * .15) / .5), fy = yy + (1 - a) * 60 * u, im = (d.fotos || [])[i];
+        ctx.save(); ctx.globalAlpha *= a;
+        ctx.save(); ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = 18 * u; ctx.shadowOffsetY = 6 * u; ctx.fillStyle = "#fff"; flyRect(ctx, fx, fy, fs, fs, 26 * u); ctx.fill(); sombra(false);
+        ctx.strokeStyle = "rgba(224,181,79,.9)"; ctx.lineWidth = 3 * u; ctx.stroke(); ctx.clip();
+        if (im) { const k = Math.min(fs / im.width, fs / im.height) * .88; ctx.drawImage(im, fx + fs / 2 - im.width * k / 2, fy + fs / 2 - im.height * k / 2, im.width * k, im.height * k); }
+        else { ctx.fillStyle = "#d9bf7f"; ctx.font = advDM(fs * .4); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("✿", fx + fs / 2, fy + fs / 2); }
+        ctx.restore();
+        if (di.tipo === "descuento" && di.pct > 0) { ctx.font = advMS(800, 26 * u); const tx = "-" + di.pct + "%", bw = ctx.measureText(tx).width + 28 * u; ctx.fillStyle = "#c8102e"; flyRect(ctx, fx + fs - bw + 10 * u, fy - 12 * u, bw, 44 * u, 22 * u); ctx.fill(); ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(tx, fx + fs - bw / 2 + 10 * u, fy + 10 * u); ctx.textBaseline = "alphabetic"; }
+        ctx.font = advMS(600, 26 * u); ctx.fillStyle = txt; ctx.textAlign = "center"; sombra(foto); nombres[i].forEach((l, j) => ctx.fillText(l, fx + fs / 2, fy + fs + 38 * u + j * 33 * u));
+        ctx.restore();
+      }
+      if (mas > 0) { ctx.save(); ctx.font = advMS(600, 28 * u); ctx.fillStyle = foto ? "#ffe39a" : "#8e0c20"; ctx.textAlign = "center"; sombra(foto); ctx.globalAlpha *= flyEase((t - 6.1) / .5); ctx.fillText("y " + mas + (mas === 1 ? " producto más" : " productos más"), mx, yy + fs + 20 * u + hn + 34 * u); ctx.restore(); }
+    } });
+  }
+  const alto = 78 * u + B.reduce((a, b) => a + b.h, 0) + 56 * u;
+  const libre = H - 600 * u, esc = Math.min(1, libre / (alto + 70 * u)), top = 330 * u + (libre - (alto + 70 * u) * esc) / 2 + 70 * u * esc + (1 - tarjeta) * 260 * u;
+  ctx.save(); ctx.globalAlpha = tarjeta; ctx.translate(mx, top); ctx.scale(esc, esc); ctx.translate(-mx, 0);
+  // fondo: crema, o la foto del día con el velo de noche
+  flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.shadowColor = "rgba(255,214,140,.38)"; ctx.shadowBlur = 90 * u;
+  if (foto) ctx.fillStyle = "#1d1446"; else { const gc = ctx.createLinearGradient(0, 0, 0, alto); gc.addColorStop(0, "#fffdf6"); gc.addColorStop(1, "#fbefd9"); ctx.fillStyle = gc; }
+  ctx.fill(); sombra(false);
+  if (foto) {
+    ctx.save(); flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.clip(); advCubrir(ctx, foto, cx, 0, cw, alto, .2);
+    const gv = ctx.createLinearGradient(0, 0, 0, alto); [[0, "rgba(14,22,60,.5)"], [.3, "rgba(24,18,66,.42)"], [.52, "rgba(24,18,66,.72)"], [.75, "rgba(40,14,56,.9)"], [1, "rgba(58,15,54,.95)"]].forEach(([p, c]) => gv.addColorStop(p, c)); ctx.fillStyle = gv; ctx.fillRect(cx, 0, cw, alto);
+    ctx.fillStyle = "rgba(255,236,170,.8)"; for (let i = 0; i < 26; i++) { ctx.beginPath(); ctx.arc(cx + ((i * 197) % 1000) / 1000 * cw, ((i * 311) % 1000) / 1000 * alto * .8, (1.4 + (i % 3)) * u, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.strokeStyle = "rgba(217,178,95,.28)"; ctx.lineWidth = 14 * u; flyRect(ctx, cx - 9 * u, -9 * u, cw + 18 * u, alto + 18 * u, 65 * u); ctx.stroke();
+  ctx.strokeStyle = "#d9b25f"; ctx.lineWidth = 5 * u; flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.stroke();
+  ctx.save(); ctx.setLineDash([13 * u, 9 * u]); ctx.strokeStyle = "rgba(201,164,90,.6)"; ctx.lineWidth = 3 * u; flyRect(ctx, cx + 22 * u, 22 * u, cw - 44 * u, alto - 44 * u, 44 * u); ctx.stroke(); ctx.restore();
+  // nieve que cae dentro de la tarjeta
+  ctx.save(); flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.clip(); ctx.fillStyle = foto ? "rgba(255,255,255,.55)" : "rgba(230,220,203,.85)";
+  for (let i = 0; i < 12; i++) { const sx = cx + ((i * 173 + 40) % 1000) / 1000 * cw, sy = ((i * 97 + t * (60 + (i % 4) * 14) * 1.2) % 1000) / 1000 * alto; ctx.beginPath(); ctx.arc(sx, sy, (3 + (i % 3)) * u, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  advAceboCanvas(ctx, cx + 14 * u, 24 * u, 134 * u, false); advAceboCanvas(ctx, cx + cw - 14 * u - 134 * u, 24 * u, 134 * u, true);
+  advMonoCanvas(ctx, mx, -70 * u, 230 * u);
+  let yy = 78 * u; B.forEach(b => { b.f(yy); yy += b.h; });
+  ctx.restore();
+  return alto * esc;
 }
 function advDibujarVideo(ctx, W, H, t, d) {
   const u = W / 1080, dia = d.dia;
@@ -40670,67 +40828,53 @@ function advDibujarVideo(ctx, W, H, t, d) {
   for (let n = 1; n <= 25; n++) { if (n === dia) continue; const v = ADV_VENT[n]; advVentanaCanvas(ctx, ox + v.x * s, oy + v.y * s, v.w * s, v.h * s, n, prendeV(n), { icono: d.iconos && d.iconos[n - 1], k: s }); }
   const vh = ADV_VENT[dia], pul = t > 1.4 && t < 2.6 ? (.5 + .5 * Math.sin((t - 1.4) * 9)) : 0;
   if (zoom <= 0) advVentanaCanvas(ctx, ox + vh.x * s, oy + vh.y * s, vh.w * s, vh.h * s, dia, 0, { pulso: pul, k: s });
-  // se oscurece la ciudad y la ventana de hoy viene al centro: se prende la luz, pasa Papá Noel (su sombra en la persiana),
-  // deja el regalo y se va; sube la persiana y aparece el regalo del día
+  // la noche tapa la ciudad (el violeta de la tienda y la foto de la escena del día) y la ventana de hoy viene al centro:
+  // se prende la luz, se pone el sello, se abren las dos hojas y aparece la sorpresa
   if (zoom > 0) {
-    ctx.fillStyle = "rgba(4,7,15," + (zoom * .72) + ")"; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.globalAlpha = zoom;
+    const gv = ctx.createRadialGradient(W / 2, H * .35, 0, W / 2, H * .35, H * .75); gv.addColorStop(0, "rgba(74,39,104,.97)"); gv.addColorStop(1, "rgba(15,12,46,.98)"); ctx.fillStyle = gv; ctx.fillRect(0, 0, W, H);
+    if (d.foto && d.foto.complete && d.foto.naturalWidth) {
+      ctx.save(); ctx.globalAlpha *= flyEase((t - 2.2) / 1.2); try { if ("filter" in ctx) ctx.filter = "blur(" + Math.round(5 * u) + "px) saturate(1.1)"; } catch (e) {}
+      advCubrir(ctx, d.foto, -20 * u, -20 * u, W + 40 * u, H + 40 * u, .5, 1 + .12 * (1 - flyEase((t - 2.2) / 5))); ctx.restore();
+      const gf = ctx.createRadialGradient(W / 2, H * .4, 0, W / 2, H * .4, H * .8); gf.addColorStop(0, "rgba(30,16,60,.25)"); gf.addColorStop(.8, "rgba(12,8,36,.7)"); gf.addColorStop(1, "rgba(12,8,36,.7)"); ctx.fillStyle = gf; ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
     const bw = 840 * u, bh = 784 * u, bx = W / 2 - bw / 2, by = H * .42 - bh / 2 - tarjeta * 380 * u;
     const x = ox + vh.x * s + (bx - ox - vh.x * s) * zoom, y = oy + vh.y * s + (by - oy - vh.y * s) * zoom, w = vh.w * s + (bw - vh.w * s) * zoom, h = vh.h * s + (bh - vh.h * s) * zoom;
-    const sube = flyEaseInOut((t - 3.7) / .6), rayo = flyEase((t - 4.2) / .6), aparece = flyEase((t - 4.0) / .5);
+    const sello = flyEase((t - 3.3) / .5), abre = flyEaseInOut((t - 3.8) / .9), rendija = Math.min(1, Math.max(0, (t - 3.8) / .9)), rayo = flyEase((t - 4.4) / .6), aparece = flyEase((t - 4.2) / .5), brillo = flyEase((t - 3.3) / .8);
     ctx.save(); ctx.globalAlpha = 1 - tarjeta;
     if (rayo > 0) { ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(t * .35); ctx.globalAlpha *= rayo * .9;
       for (let i = 0; i < 18; i++) { ctx.rotate(Math.PI * 2 / 18); const gr = ctx.createLinearGradient(0, 0, 0, -980 * u); gr.addColorStop(0, "rgba(255,224,150,.5)"); gr.addColorStop(1, "rgba(255,224,150,0)"); ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-48 * u, -980 * u); ctx.lineTo(48 * u, -980 * u); ctx.closePath(); ctx.fill(); }
       ctx.restore(); }
-    // marco art déco
-    const m = w * .035;
-    ctx.fillStyle = "#0b0b0e"; ctx.fillRect(x - m, y - m, w + 2 * m, h + 2 * m); ctx.strokeStyle = "#c9a45a"; ctx.lineWidth = Math.max(2, w * .01); ctx.strokeRect(x - m, y - m, w + 2 * m, h + 2 * m);
-    if (luzHoy) { ctx.save(); ctx.shadowColor = "rgba(255,200,110,.7)"; ctx.shadowBlur = w * .25; ctx.fillStyle = "#000"; ctx.fillRect(x, y, w, h); ctx.restore(); }
-    advVentanaGrandeCanvas(ctx, x, y, w, h, { luz: luzHoy, sube, aparece, icono: d.icono, dia });
+    // marco como el de la tienda: borde dorado, aro negro, hilo dorado y el alféizar de abajo
+    ctx.save(); ctx.shadowColor = "rgba(255,200,110," + (.55 * brillo) + ")"; ctx.shadowBlur = w * .2; ctx.fillStyle = "#c9a45a"; ctx.fillRect(x - w * .0367, y - w * .0367, w * 1.0733, h + w * .0733); ctx.restore();
+    ctx.fillStyle = "#0b0b0e"; ctx.fillRect(x - w * .0333, y - w * .0333, w * 1.0667, h + w * .0667);
+    ctx.fillStyle = "#c9a45a"; ctx.fillRect(x - w * .01, y - w * .01, w * 1.02, h + w * .02);
+    advVentanaGrandeCanvas(ctx, x, y, w, h, { luz: luzHoy, abre, sello, rendija, aparece, icono: d.icono, dia });
+    const gl = ctx.createLinearGradient(0, y + h + w * .023, 0, y + h + w * .07); gl.addColorStop(0, "#fffaf0"); gl.addColorStop(.55, "#dfe7f2"); gl.addColorStop(.56, "#b8892e"); gl.addColorStop(1, "#8a6420");
+    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = w * .05; ctx.shadowOffsetY = w * .03; ctx.fillStyle = gl; flyRect(ctx, x - w * .053, y + h + w * .023, w * 1.107, w * .047, w * .012); ctx.fill(); ctx.restore();
     ctx.restore();
-    if (rayo > 0 && t < 6.5) for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, dist = (300 + (i % 6) * 70) * u * flyEase((t - 4.2) / 1.3), px = x + w / 2 + Math.cos(a) * dist, py = y + h / 2 + Math.sin(a) * dist * .85 + Math.pow(Math.max(0, t - 4.5), 2) * 120 * u;
-      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (t - 4.2) / 2.3); advGlowCanvas(ctx, px, py, 16 * u, 1); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(px, py, 4 * u, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+    if (rayo > 0 && t < 6.5) for (let i = 0; i < 46; i++) { const a = i / 46 * Math.PI * 2, dist = (300 + (i % 6) * 70) * u * flyEase((t - 4.4) / 1.3), px = x + w / 2 + Math.cos(a) * dist, py = y + h / 2 + Math.sin(a) * dist * .85 + Math.pow(Math.max(0, t - 4.7), 2) * 120 * u;
+      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (t - 4.4) / 2.1); advGlowCanvas(ctx, px, py, 16 * u, 1); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(px, py, 4 * u, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
   }
   // nieve
   ctx.fillStyle = "rgba(255,255,255,.75)";
   for (let i = 0; i < 70; i++) { const sx = ((i * 211) % 1000) / 1000 * W + Math.sin(t + i) * 14 * u, sy = (((i * 137) % 1000) / 1000 * H + t * (50 + (i % 5) * 20) * u) % H; ctx.beginPath(); ctx.arc(sx, sy, (1.5 + (i % 3) * 1.2) * u, 0, Math.PI * 2); ctx.fill(); }
   // tarjeta con la sorpresa
   if (tarjeta > 0) {
-    const cw = W - 140 * u, cx = 70 * u;
-    ctx.font = advSerif(66 * u); const lT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 90 * u, 3);
-    ctx.font = advFont(400, 38 * u); const lD = d.detalle ? flyLineas(ctx, d.detalle, cw - 110 * u, 4) : [];
-    const nF = d.fotos.filter(Boolean).slice(0, 3).length, fsMax = nF ? Math.min(250 * u, (cw - 120 * u - (nF - 1) * 24 * u) / nF) : 0;
-    const altoC = 70 * u + 130 * u + 90 * u + lT.length * 74 * u + 20 * u + (lD.length ? lD.length * 52 * u + 30 * u : 0) + (d.codigo ? 120 * u : 0) + (nF ? fsMax + 30 * u : 0) + 50 * u;
-    const libre = H - H * .2 - 260 * u, ch = Math.min(libre, altoC);
-    const cy = H * .2 + (libre - ch) / 2 + (1 - tarjeta) * 260 * u;
-    ctx.save(); ctx.globalAlpha = tarjeta; ctx.shadowColor = "rgba(255,200,120,.4)"; ctx.shadowBlur = 70 * u; ctx.fillStyle = "#fffaf0"; flyRect(ctx, cx, cy, cw, ch, 40 * u); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#e8cf8f"; ctx.lineWidth = 3 * u; ctx.stroke();
-    ctx.textAlign = "center"; let yy = cy + 70 * u;
-    ctx.font = advFont(600, 30 * u); const dt = "DÍA " + dia; ctx.save(); ctx.letterSpacing = (10 * u) + "px"; const dw = ctx.measureText(dt).width + 70 * u; ctx.fillStyle = "#0c1630"; flyRect(ctx, W / 2 - dw / 2, yy - 38 * u, dw, 58 * u, 29 * u); ctx.fill(); ctx.fillStyle = "#e8cf8f"; ctx.fillText(dt, W / 2 + 5 * u, yy + 2 * u); ctx.restore();
-    yy += 130 * u; advIconoCanvas(ctx, d.icono, W / 2, yy - 40 * u, 130 * u);
-    yy += 92 * u; ctx.fillStyle = "#0c1630"; ctx.font = advSerif(66 * u);
-    lT.forEach((l, i) => ctx.fillText(l, W / 2, yy + i * 74 * u)); yy += lT.length * 74 * u + 20 * u;
-    if (lD.length) { ctx.fillStyle = "#4a4a4a"; ctx.font = advFont(400, 38 * u); lD.forEach((l, i) => ctx.fillText(l, W / 2, yy + i * 52 * u)); yy += lD.length * 52 * u + 30 * u; }
-    if (d.codigo) { ctx.font = advFont(700, 46 * u); ctx.save(); ctx.letterSpacing = (8 * u) + "px"; const cwid = ctx.measureText(d.codigo).width + 90 * u; ctx.fillStyle = "#0c1630"; flyRect(ctx, W / 2 - cwid / 2, yy - 10 * u, cwid, 84 * u, 18 * u); ctx.fill(); ctx.fillStyle = "#ffd98a"; ctx.fillText(d.codigo, W / 2 + 4 * u, yy + 48 * u); ctx.restore(); yy += 120 * u; }
-    const fotos = d.fotos.filter(Boolean).slice(0, 3);
-    if (fotos.length) {
-      const fs = Math.min(250 * u, (cw - 120 * u - (fotos.length - 1) * 24 * u) / fotos.length, cy + ch - yy - 40 * u);
-      if (fs > 80 * u) fotos.forEach((im, i) => {
-        const fx = W / 2 - (fotos.length * fs + (fotos.length - 1) * 24 * u) / 2 + i * (fs + 24 * u), fy = yy + (1 - flyEase((t - 5.6 - i * .15) / .5)) * 60 * u;
-        ctx.save(); ctx.globalAlpha = tarjeta * flyEase((t - 5.6 - i * .15) / .5); ctx.fillStyle = "#f4eee4"; flyRect(ctx, fx, fy, fs, fs, 24 * u); ctx.fill(); ctx.clip();
-        const k = Math.min(fs / im.width, fs / im.height) * .9; ctx.drawImage(im, fx + fs / 2 - im.width * k / 2, fy + fs / 2 - im.height * k / 2, im.width * k, im.height * k); ctx.restore();
-      });
-    }
-    ctx.restore();
+    advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u);
     const fin = flyEase((t - 7.0) / .7);
-    if (fin > 0 && d.web) { ctx.save(); ctx.globalAlpha = fin; ctx.textAlign = "center"; ctx.fillStyle = "#e8cf8f"; ctx.font = advFont(600, 38 * u); ctx.fillText("Encendé tu ventana en", W / 2, H - 150 * u); ctx.restore(); ctx.save(); ctx.globalAlpha = fin; ctx.font = flyFont(900, 40 * u); const ww = ctx.measureText(d.web).width + 64 * u; flyPildora(ctx, W / 2 - ww / 2, H - 120 * u, d.web, 40 * u, t); ctx.restore(); }
+    if (fin > 0 && d.web) { ctx.save(); ctx.globalAlpha = fin; ctx.textAlign = "center"; ctx.fillStyle = "#e8cf8f"; ctx.font = advMS(600, 36 * u); ctx.fillText("Encendé tu ventana en", W / 2, H - 180 * u); ctx.restore(); ctx.save(); ctx.globalAlpha = fin; ctx.font = flyFont(900, 40 * u); const ww = ctx.measureText(d.web).width + 64 * u; flyPildora(ctx, W / 2 - ww / 2, H - 150 * u, d.web, 40 * u, t); ctx.restore(); }
+    if (d.credito) { ctx.save(); ctx.globalAlpha = tarjeta * .7; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = advMS(500, 22 * u); ctx.fillText(d.credito, W / 2, H - 40 * u); ctx.restore(); }
   }
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.letterSpacing = "0px";
 }
-function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
+function AdvientoVideo({ d, temaPal, slug, dominio, productos, provs }) {
   const p = temaPal, base = String(API.defaults.baseURL || "").replace(/\/+$/, "");
   const [dia, setDia] = useState(1);
   const [logo, setLogo] = useState(null);
   const [imgs, setImgs] = useState({});
+  const [fotoEsc, setFotoEsc] = useState(null);
   const [grabando, setGrabando] = useState(0);
   const [video, setVideo] = useState(null);
   const [error, setError] = useState("");
@@ -40738,7 +40882,13 @@ function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
   useEffect(() => { if (!slug) return; fetch(base + "/tienda-publica/" + encodeURIComponent(slug)).then(r => r.json()).then(t => { if (t.logo) { const im = new Image(); if (!t.logo.startsWith("data:")) im.crossOrigin = "anonymous"; im.onload = () => setLogo(im); im.src = t.logo; } }).catch(() => {}); }, [slug]);
   const di = d.dias[dia - 1];
   useEffect(() => { (di.productos || []).slice(0, 3).forEach(id => { if (imgs[id] !== undefined) return; const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setImgs(m => ({ ...m, [id]: im })); im.onerror = () => setImgs(m => ({ ...m, [id]: null })); im.src = base + "/tienda-publica/" + encodeURIComponent(slug) + "/foto/" + id; }); }, [dia, d]); // eslint-disable-line react-hooks/exhaustive-deps
-  const datos = { dia, titulo: d.titulo, iconos: d.dias.map(x => x.icono), icono: di.icono, tituloDia: di.titulo, detalle: di.detalle, codigo: di.codigo, logo, fotos: (di.productos || []).slice(0, 3).map(id => imgs[id] || null), web: dominio ? String(dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
+  // La foto de la escena del día (la misma que de fondo en la tienda) y su crédito
+  const escK = advEscenaDe(di.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, dia)) - 1];
+  useEffect(() => { setFotoEsc(null); if (!ADV_FOTOS[escK]) return; const im = new Image(); im.onload = () => setFotoEsc(im); im.src = "/adviento/" + escK + ".jpg"; }, [escK]);
+  const datos = { dia, di, foto: fotoEsc, credito: ADV_FOTOS[escK] && fotoEsc ? "📷 " + ADV_FOTOS[escK][0] + " · " + ADV_FOTOS[escK][1] + " · Wikimedia Commons" : "",
+    alcance: [...(di.categorias || []), ...(di.proveedores || []).map(id => ((provs || []).find(x => x.id === id) || {}).nombre).filter(Boolean)],
+    prodsInfo: (di.productos || []).slice(0, 3).map(id => (productos || []).find(x => x.id === id) || {}),
+    titulo: d.titulo, iconos: d.dias.map(x => x.icono), icono: di.icono, tituloDia: di.titulo, detalle: di.detalle, codigo: di.codigo, logo, fotos: (di.productos || []).slice(0, 3).map(id => imgs[id] || null), web: dominio ? String(dominio).replace(/^https?:\/\//, "") : "Link en la bio" };
   const dRef = useRef(datos); dRef.current = datos;
   useEffect(() => { advFachadaImg(); if (!window.FontFace || !document.fonts) return; ADV_FUENTES.forEach(([fam, src, o]) => { if ([...document.fonts].some(f => f.family === fam)) return; const ff = new FontFace(fam, src, o); ff.load().then(x => document.fonts.add(x)).catch(() => {}); }); }, []);
   useEffect(() => {
@@ -40940,7 +41090,7 @@ function AdvientoTienda({ temaPal, productos }) {
         <button className="btn btn-p" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar"}</button>
         {aviso && <span style={{ fontSize: 12, color: aviso.startsWith("Error") ? p.red : p.green }}>{aviso}</span>}
       </div>
-      <AdvientoVideo d={f} temaPal={p} slug={slug} dominio={d.dominio} productos={productos} />
+      <AdvientoVideo d={f} temaPal={p} slug={slug} dominio={d.dominio} productos={productos} provs={provs} />
     </div>
   );
 }
