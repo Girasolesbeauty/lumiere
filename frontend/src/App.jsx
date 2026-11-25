@@ -31481,8 +31481,8 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-pg .img{position:relative;width:118px;height:118px;border-radius:22px;background:#fff;border:2px solid #e0b54f;box-shadow:0 8px 18px rgba(120,80,20,.22);display:flex;align-items:center;justify-content:center;overflow:visible;animation:twAdvFlotaP 3.4s ease-in-out calc(var(--i) * .5s) infinite}
 .tw-adv-pg .img img{width:100%;height:100%;object-fit:cover;border-radius:20px}
 .tw-adv-pg .img .ph{font-size:34px;color:#c9a45a}
-.tw-adv-pg .img em{position:absolute;left:-6px;top:-6px;font-style:normal;font-size:12px;font-weight:800;color:#fff;background:#c8102e;border-radius:99px;padding:3px 8px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
-.tw-adv-pg .img .moñito{position:absolute;right:-8px;top:-10px;width:30px;height:20px;background:radial-gradient(circle at 50% 55%,#e0b54f 0 3.5px,transparent 4px),radial-gradient(ellipse at 28% 50%,#c8102e 0 7px,transparent 7.5px),radial-gradient(ellipse at 72% 50%,#c8102e 0 7px,transparent 7.5px);transform:rotate(14deg)}
+.tw-adv-pg .img em{position:absolute;left:-6px;top:-6px;font-style:normal;font-size:12px;font-weight:800;color:#161a33;background:#d9bd7e;border-radius:99px;padding:3px 8px;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.tw-adv-pg .img .moñito{position:absolute;right:-8px;top:-10px;width:30px;height:20px;background:radial-gradient(circle at 50% 55%,#e0b54f 0 3.5px,transparent 4px),radial-gradient(ellipse at 28% 50%,#d9bd7e 0 7px,transparent 7.5px),radial-gradient(ellipse at 72% 50%,#d9bd7e 0 7px,transparent 7.5px);transform:rotate(14deg)}
 @keyframes twAdvFlotaP{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-5px) rotate(1.5deg)}}
 .tw-adv-pg small{margin-top:6px;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#a0802f}
 .tw-adv-pg b{font-size:12.5px;font-weight:700;line-height:1.25;text-align:center;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-transform:none}
@@ -31516,6 +31516,29 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw .tw-adv-ingresa .tw-adv-link{color:#ffd56b!important}
 .tw-adv-cod code{background:#fff3d6;color:#8e0c20}
 .tw-adv-sellado{background:rgba(255,243,214,.95)}
+/* Tarjeta de la sorpresa en azul medianoche y champagne (más Nueva York): tipografías Cormorant + Jost */
+@font-face{font-family:"TwCG";font-weight:500 600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf) format("truetype")}
+@font-face{font-family:"TwJO";font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7mz9JQVG.ttf) format("truetype")}
+@font-face{font-family:"TwJO";font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myjJQVG.ttf) format("truetype")}
+@font-face{font-family:"TwJO";font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myRJQVG.ttf) format("truetype")}
+@font-face{font-family:"TwJO";font-weight:600 800;font-display:swap;src:url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7mx9IgVG.ttf) format("truetype")}
+.tw-adv-tarjeta{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;background:radial-gradient(circle at 15% 12%,rgba(255,255,255,.7) 0 1px,transparent 1.6px) 0 0/53px 61px,radial-gradient(circle at 70% 60%,rgba(217,189,126,.5) 0 1.2px,transparent 1.8px) 0 0/79px 71px,linear-gradient(180deg,#1b2046,#141830);color:#efe6d2;box-shadow:0 0 0 1.5px #d9bd7e,0 0 0 6px rgba(217,189,126,.18),0 0 46px rgba(217,189,126,.2),0 26px 70px rgba(0,0,0,.6)}
+.tw-adv-tarjeta::after{border-color:rgba(217,189,126,.5)}
+.tw-adv-dia{background:linear-gradient(180deg,#e6cf94,#c4a35c);color:#161a33;font-weight:500;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.tw-adv-tarjeta .big{background:radial-gradient(circle,#fffaf0 0 52%,#e9d6a4 53% 56%,#fff3d6 57%);box-shadow:0 0 0 2px #d9bd7e,0 8px 22px rgba(0,0,0,.4)}
+.tw-adv-tarjeta .big .halo{background:repeating-conic-gradient(from 0deg,rgba(217,189,126,.4) 0 8deg,transparent 8deg 20deg)}
+.tw-adv-tarjeta h3{font-family:"TwCG",Georgia,serif;font-weight:600;font-size:36px;line-height:1.02;color:#f5ecd8;letter-spacing:.01em}
+.tw-adv-tarjeta p{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:300;font-size:14.5px;color:#d8d0e0}
+.tw-adv-premio{background:linear-gradient(135deg,#262c5c,#191d40);border:1.5px solid #d9bd7e;box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.tw-adv-premio small{color:#d9bd7e;font-weight:500;letter-spacing:.18em}
+.tw-adv-premio b{font-family:"TwCG",Georgia,serif;font-weight:600;font-size:28px;color:#f5ecd8}
+.tw-adv-premio em{color:rgba(239,230,210,.82);font-weight:400}
+.tw-adv-premio.paso{background:rgba(255,255,255,.06);border-color:rgba(217,189,126,.3);color:#9a97ad}.tw-adv-premio.paso small{color:#9a97ad}.tw-adv-premio.paso b{color:#b4b1c4}
+.tw-adv-alcance b{color:#d9bd7e}
+.tw .tw-adv-pg{color:#efe6d2!important}
+.tw-adv-btn.rojo{background:linear-gradient(180deg,#e6cf94,#c4a35c);color:#161a33!important;font-family:"TwJO",sans-serif;font-weight:600;box-shadow:0 0 0 2px rgba(217,189,126,.35),0 8px 20px rgba(0,0,0,.4)}
+.tw-adv-cod code{background:#d9bd7e;color:#161a33;font-family:"TwJO",ui-monospace,monospace}
+.tw-adv-sellado{background:rgba(34,39,80,.96);border-color:#d9bd7e}.tw-adv-sellado b{color:#f5ecd8}.tw-adv-sellado span{color:#d8d0e0}
 @media (prefers-reduced-motion:reduce){.tw-adv-tarjeta h3{animation:none}}
 .tw-adv-prods{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:0 -6px;text-align:left;scroll-snap-type:x mandatory;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-prods>*{flex:0 0 150px;scroll-snap-align:start}
@@ -34284,8 +34307,8 @@ function TwAdvRegalo({ listo, indice = 0 }) {
   return (<>
     <svg ref={raiz} className="tw-adv-gift" viewBox="0 0 120 132" aria-hidden="true">
       <defs>
-        <linearGradient id={id + "r"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff5a76" /><stop offset=".45" stopColor="#e3264a" /><stop offset="1" stopColor="#9c0d28" /></linearGradient>
-        <linearGradient id={id + "t"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff6b84" /><stop offset="1" stopColor="#c8163a" /></linearGradient>
+        <linearGradient id={id + "r"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#56619f" /><stop offset=".45" stopColor="#323a74" /><stop offset="1" stopColor="#171b38" /></linearGradient>
+        <linearGradient id={id + "t"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6672b0" /><stop offset="1" stopColor="#2b3266" /></linearGradient>
         <linearGradient id={id + "o"} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#a8701a" /><stop offset=".42" stopColor="#ffe9a6" /><stop offset=".58" stopColor="#f6c75a" /><stop offset="1" stopColor="#9a6414" /></linearGradient>
         <linearGradient id={id + "oh"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a8701a" /><stop offset=".42" stopColor="#ffe9a6" /><stop offset=".58" stopColor="#f6c75a" /><stop offset="1" stopColor="#9a6414" /></linearGradient>
         <radialGradient id={id + "l"}><stop offset="0" stopColor="#fffbe6" /><stop offset=".35" stopColor="#ffe08a" stopOpacity=".85" /><stop offset="1" stopColor="#ffb84d" stopOpacity="0" /></radialGradient>
@@ -34491,9 +34514,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
             {(() => { const info = advInfo(sel, hoy, false); return (
             <div className="tw-adv-tarjeta" style={abriendo.fase === "listo" ? { opacity: 1, transform: "none", marginTop: 46 } : undefined}>
               <div className="tw-adv-tnieve" aria-hidden="true">{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <i key={i} />)}</div>
-              <svg className="tw-adv-mono" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z" fill="#c8102e" /><path d="M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z" fill="#c8102e" /><path d="M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z" fill="#8e0c20" opacity=".55" /><path d="M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z" fill="#a50e26" /><circle cx="60" cy="30" r="7" fill="#e0b54f" /><circle cx="58" cy="28" r="2.4" fill="#fff3c4" /></svg>
-              <svg className="tw-adv-acebo i" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#1f6b3f" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#185c35" /><circle cx="30" cy="22" r="4" fill="#d01c33" /><circle cx="36" cy="25" r="3.6" fill="#b5122a" /><circle cx="26" cy="27" r="3.4" fill="#e02740" /></svg>
-              <svg className="tw-adv-acebo d" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#1f6b3f" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#185c35" /><circle cx="30" cy="22" r="4" fill="#d01c33" /><circle cx="36" cy="25" r="3.6" fill="#b5122a" /><circle cx="26" cy="27" r="3.4" fill="#e02740" /></svg>
+              <svg className="tw-adv-mono" viewBox="0 0 120 60" aria-hidden="true"><path d="M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z" fill="#d9bd7e" /><path d="M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z" fill="#d9bd7e" /><path d="M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z" fill="#8a6d2c" opacity=".55" /><path d="M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z" fill="#b39350" /><circle cx="60" cy="30" r="7" fill="#f5ecd8" /><circle cx="58" cy="28" r="2.4" fill="#fffaf0" /></svg>
+              <svg className="tw-adv-acebo i" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#c9ab68" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#a88b4c" /><circle cx="30" cy="22" r="4" fill="#f5ecd8" /><circle cx="36" cy="25" r="3.6" fill="#e6dcc4" /><circle cx="26" cy="27" r="3.4" fill="#fffaf0" /></svg>
+              <svg className="tw-adv-acebo d" viewBox="0 0 60 40" aria-hidden="true"><path d="M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z" fill="#c9ab68" /><path d="M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z" fill="#a88b4c" /><circle cx="30" cy="22" r="4" fill="#f5ecd8" /><circle cx="36" cy="25" r="3.6" fill="#e6dcc4" /><circle cx="26" cy="27" r="3.4" fill="#fffaf0" /></svg>
               <span className="tw-adv-dia">Día {sel.dia}</span>
               <div className="big"><i className="halo" aria-hidden="true" /><TwAdvIcono icono={sel.icono} /></div>
               <h3>{sel.titulo || "¡Sorpresa!"}</h3>
@@ -40570,12 +40593,12 @@ function flyDibujar(ctx, W, H, t, d) {
 // Halloween en la tienda online: fechas, textos, juego "¿Dulce o truco?" (premios) y sector "Tu look de Halloween"
 // ── Calendario de Adviento: carga de los 25 días y video de la ventana del día encendiéndose (para Instagram) ──
 const ADV_VID = 10;
-const ADV_FUENTES = [["TwPF", "url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2)", { style: "italic", weight: "500" }], ["TwJS", "url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2)", { weight: "400 700" }], ["TwDM", "url(https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2G_Bx0g.woff2)", {}], ["TwMS", "url(https://fonts.gstatic.com/s/montserrat/v31/JTUSjIg1_i6t8kCHKm459Wlhyw.woff2)", { weight: "400 800" }]];
+const ADV_FUENTES = [["TwPF", "url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2)", { style: "italic", weight: "500" }], ["TwJS", "url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2)", { weight: "400 700" }], ["TwCG", "url(https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf)", { weight: "600" }], ["TwJ3", "url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7mz9JQVG.ttf)", {}], ["TwJ4", "url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myjJQVG.ttf)", {}], ["TwJ5", "url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myRJQVG.ttf)", {}], ["TwJ6", "url(https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7mx9IgVG.ttf)", {}]];
 const advFont = (peso, px) => peso + " " + Math.round(px) + "px TwJS, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 const advSerif = (px) => "italic 500 " + Math.round(px) + "px TwPF, Georgia, serif";
 // Las mismas tipografías de la tarjeta de la tienda: DM Serif para los títulos y Montserrat para el resto
-const advDM = (px) => "400 " + Math.round(px) + "px TwDM, Georgia, serif";
-const advMS = (peso, px) => peso + " " + Math.round(px) + "px TwMS, 'Helvetica Neue', Arial, sans-serif";
+const advDM = (px) => "600 " + Math.round(px) + "px TwCG, Georgia, serif";
+const advMS = (peso, px) => "400 " + Math.round(px) + "px " + (peso <= 300 ? "TwJ3" : peso <= 400 ? "TwJ4" : peso <= 500 ? "TwJ5" : "TwJ6") + ", 'Helvetica Neue', Arial, sans-serif";
 // Brillo dorado redondo
 function advGlowCanvas(ctx, x, y, r, a) {
   if (a <= 0) return;
@@ -40644,15 +40667,15 @@ function advCubrir(ctx, im, x, y, w, h, py, zoom) {
 // Moño y acebo del borde de la tarjeta (los mismos dibujos de la tienda)
 let ADV_ADORNOS = null;
 const advAdornos = () => ADV_ADORNOS || (ADV_ADORNOS = {
-  moño: [["M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z", "#c8102e", 1], ["M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z", "#c8102e", 1], ["M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z", "#8e0c20", .55], ["M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z", "#a50e26", 1]].map(([d, c, a]) => [new Path2D(d), c, a]),
-  acebo: [["M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z", "#1f6b3f"], ["M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z", "#185c35"]].map(([d, c]) => [new Path2D(d), c]),
-  bayas: [[30, 22, 4, "#d01c33"], [36, 25, 3.6, "#b5122a"], [26, 27, 3.4, "#e02740"]],
+  moño: [["M60 30 C40 6 12 6 14 22 C16 36 40 34 60 30Z", "#d9bd7e", 1], ["M60 30 C80 6 108 6 106 22 C104 36 80 34 60 30Z", "#d9bd7e", 1], ["M60 30 C44 14 24 14 24 22 C26 30 44 31 60 30Z M60 30 C76 14 96 14 96 22 C94 30 76 31 60 30Z", "#8a6d2c", .55], ["M58 32 L40 58 L50 56 L56 60 L60 34 L64 60 L70 56 L80 58 L62 32Z", "#b39350", 1]].map(([d, c, a]) => [new Path2D(d), c, a]),
+  acebo: [["M4 26 C10 14 22 12 30 18 C24 20 22 26 24 32 C16 28 10 30 4 26Z", "#c9ab68"], ["M30 18 C38 8 50 8 56 16 C48 18 46 24 48 30 C40 26 34 26 30 18Z", "#a88b4c"]].map(([d, c]) => [new Path2D(d), c]),
+  bayas: [[30, 22, 4, "#f5ecd8"], [36, 25, 3.6, "#e6dcc4"], [26, 27, 3.4, "#fffaf0"]],
 });
 function advMonoCanvas(ctx, cx, y, w) {
   const A = advAdornos(), s = w / 120;
   ctx.save(); ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = w * .06; ctx.shadowOffsetY = w * .03; ctx.translate(cx - w / 2, y); ctx.scale(s, s);
   A.moño.forEach(([p, c, a]) => { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.fill(p); }); ctx.globalAlpha = 1; ctx.shadowColor = "transparent";
-  ctx.fillStyle = "#e0b54f"; ctx.beginPath(); ctx.arc(60, 30, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#fff3c4"; ctx.beginPath(); ctx.arc(58, 28, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#f5ecd8"; ctx.beginPath(); ctx.arc(60, 30, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#fffaf0"; ctx.beginPath(); ctx.arc(58, 28, 2.4, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 function advAceboCanvas(ctx, x, y, w, espejo) {
@@ -40699,17 +40722,17 @@ function advVentanaGrandeCanvas(ctx, x, y, w, h, o) {
 // Si el día tiene foto de escena, la tarjeta va sobre esa foto con el velo de noche y las letras claras
 function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
   const foto = d.foto && d.foto.complete && d.foto.naturalWidth ? d.foto : null, di = d.di || {}, info = advInfo(di, d.dia, true);
-  const cw = W - 140 * u, cx = 70 * u, mx = W / 2, tin = foto ? "#fff" : "#8e0c20", txt = foto ? "#fff" : "#4a3a22";
+  const cw = W - 140 * u, cx = 70 * u, mx = W / 2, tin = "#f5ecd8", txt = "#d8d0e0";
   const sombra = (on) => { ctx.shadowColor = on ? "rgba(0,0,0,.8)" : "transparent"; ctx.shadowBlur = on ? 8 * u : 0; ctx.shadowOffsetY = on ? 2 * u : 0; };
   const B = [];
   // cinta del día
   ctx.font = advMS(800, 27 * u); ctx.letterSpacing = (8 * u) + "px"; const rt = "DÍA " + d.dia, rw = ctx.measureText(rt).width + 120 * u; ctx.letterSpacing = "0px";
   B.push({ h: 94 * u, f: (yy) => {
     const rh = 64 * u, x0 = mx - rw / 2;
-    ctx.save(); ctx.shadowColor = "rgba(142,12,32,.4)"; ctx.shadowBlur = 22 * u; ctx.shadowOffsetY = 6 * u;
-    const gr = ctx.createLinearGradient(0, yy, 0, yy + rh); gr.addColorStop(0, "#d0142f"); gr.addColorStop(1, "#8e0c20"); ctx.fillStyle = gr;
+    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 22 * u; ctx.shadowOffsetY = 6 * u;
+    const gr = ctx.createLinearGradient(0, yy, 0, yy + rh); gr.addColorStop(0, "#e6cf94"); gr.addColorStop(1, "#c4a35c"); ctx.fillStyle = gr;
     ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x0 + rw, yy); ctx.lineTo(x0 + rw * .96, yy + rh / 2); ctx.lineTo(x0 + rw, yy + rh); ctx.lineTo(x0, yy + rh); ctx.lineTo(x0 + rw * .04, yy + rh / 2); ctx.closePath(); ctx.fill(); ctx.restore();
-    ctx.save(); ctx.font = advMS(800, 27 * u); ctx.letterSpacing = (8 * u) + "px"; ctx.fillStyle = "#ffe7a8"; ctx.textAlign = "center"; ctx.fillText(rt, mx + 4 * u, yy + rh * .66); ctx.restore();
+    ctx.save(); ctx.font = advMS(800, 27 * u); ctx.letterSpacing = (8 * u) + "px"; ctx.fillStyle = "#161a33"; ctx.textAlign = "center"; ctx.fillText(rt, mx + 4 * u, yy + rh * .66); ctx.restore();
   } });
   // ícono con halo
   B.push({ h: 210 * u, f: (yy) => {
@@ -40725,37 +40748,37 @@ function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
     ctx.restore();
   } });
   // título y detalle
-  ctx.font = advDM(72 * u); const lT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 120 * u, 3);
-  B.push({ h: lT.length * 80 * u + 18 * u, f: (yy) => { ctx.save(); ctx.font = advDM(72 * u); ctx.fillStyle = tin; ctx.textAlign = "center"; sombra(foto); if (foto) { ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 12 * u; } lT.forEach((l, i) => ctx.fillText(l, mx, yy + 66 * u + i * 80 * u)); ctx.restore(); } });
+  ctx.font = advDM(78 * u); const lT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 120 * u, 3);
+  B.push({ h: lT.length * 80 * u + 18 * u, f: (yy) => { ctx.save(); ctx.font = advDM(78 * u); ctx.fillStyle = tin; ctx.textAlign = "center"; sombra(foto); if (foto) { ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 12 * u; } lT.forEach((l, i) => ctx.fillText(l, mx, yy + 66 * u + i * 80 * u)); ctx.restore(); } });
   ctx.font = advMS(500, 33 * u); const lD = d.detalle ? flyLineas(ctx, d.detalle, cw - 150 * u, 4) : [];
   if (lD.length) B.push({ h: lD.length * 48 * u + 22 * u, f: (yy) => { ctx.save(); ctx.font = advMS(500, 33 * u); ctx.fillStyle = txt; ctx.textAlign = "center"; sombra(foto); lD.forEach((l, i) => ctx.fillText(l, mx, yy + 36 * u + i * 48 * u)); ctx.restore(); } });
   // premio verde
   if (info) {
     const pw = Math.min(cw - 120 * u, 800 * u), iw = pw - 80 * u;
-    ctx.font = advDM(56 * u); const lb = flyLineas(ctx, info.dest, iw, 2);
+    ctx.font = advDM(60 * u); const lb = flyLineas(ctx, info.dest, iw, 2);
     ctx.font = advMS(600, 27 * u); const le = info.nota ? flyLineas(ctx, info.nota, iw, 3) : [];
     const ph = 30 * u + 32 * u + lb.length * 62 * u + (le.length ? 12 * u + le.length * 36 * u : 0) + 26 * u;
     B.push({ h: ph + 30 * u, f: (yy) => {
       const x0 = mx - pw / 2;
-      ctx.save(); flyRect(ctx, x0, yy, pw, ph, 42 * u); ctx.shadowColor = "rgba(18,63,38,.4)"; ctx.shadowBlur = 26 * u; ctx.shadowOffsetY = 8 * u;
-      const gp = ctx.createLinearGradient(x0, yy, x0 + pw, yy + ph); gp.addColorStop(0, "#1f6b3f"); gp.addColorStop(1, "#123f26"); ctx.fillStyle = gp; ctx.fill(); sombra(false);
-      ctx.strokeStyle = "#e0b54f"; ctx.lineWidth = 4 * u; ctx.stroke(); ctx.clip();
+      ctx.save(); flyRect(ctx, x0, yy, pw, ph, 42 * u); ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 26 * u; ctx.shadowOffsetY = 8 * u;
+      const gp = ctx.createLinearGradient(x0, yy, x0 + pw, yy + ph); gp.addColorStop(0, "#262c5c"); gp.addColorStop(1, "#191d40"); ctx.fillStyle = gp; ctx.fill(); sombra(false);
+      ctx.strokeStyle = "#d9bd7e"; ctx.lineWidth = 4 * u; ctx.stroke(); ctx.clip();
       const a = x0 - pw * .5 + ((t * .3) % 1) * pw * 2, g2 = ctx.createLinearGradient(a, yy, a + pw * .5, yy + ph * .4); g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(.5, "rgba(255,255,255,.26)"); g2.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g2; ctx.fillRect(x0, yy, pw, ph);
       ctx.textAlign = "center"; let y2 = yy + 28 * u + 24 * u;
-      ctx.font = advMS(700, 24 * u); ctx.letterSpacing = (3.4 * u) + "px"; ctx.fillStyle = "#f3d68a"; ctx.fillText(String(info.et).toUpperCase(), mx + 2 * u, y2); ctx.letterSpacing = "0px"; y2 += 8 * u;
-      ctx.font = advDM(56 * u); ctx.fillStyle = "#fff8e6"; lb.forEach((l, i) => ctx.fillText(l, mx, y2 + 52 * u + i * 62 * u)); y2 += lb.length * 62 * u + 12 * u;
+      ctx.font = advMS(700, 24 * u); ctx.letterSpacing = (3.4 * u) + "px"; ctx.fillStyle = "#d9bd7e"; ctx.fillText(String(info.et).toUpperCase(), mx + 2 * u, y2); ctx.letterSpacing = "0px"; y2 += 8 * u;
+      ctx.font = advDM(60 * u); ctx.fillStyle = "#f5ecd8"; lb.forEach((l, i) => ctx.fillText(l, mx, y2 + 52 * u + i * 62 * u)); y2 += lb.length * 62 * u + 12 * u;
       if (le.length) { ctx.font = advMS(600, 27 * u); ctx.fillStyle = "rgba(255,255,255,.86)"; le.forEach((l, i) => ctx.fillText(l, mx, y2 + 24 * u + i * 36 * u)); }
       ctx.restore();
     } });
   }
   // a qué productos vale el descuento
   const alc = di.tipo === "descuento" ? (d.alcance || []).join(" · ") : "";
-  if (alc) { ctx.font = advMS(500, 29 * u); const lA = flyLineas(ctx, "Vale en todo: " + alc, cw - 140 * u, 2); B.push({ h: lA.length * 40 * u + 20 * u, f: (yy) => { ctx.save(); ctx.font = advMS(600, 29 * u); ctx.fillStyle = foto ? "#ffe39a" : "#8e0c20"; ctx.textAlign = "center"; sombra(foto); lA.forEach((l, i) => ctx.fillText(l, mx, yy + 30 * u + i * 40 * u)); ctx.restore(); } }); }
+  if (alc) { ctx.font = advMS(500, 29 * u); const lA = flyLineas(ctx, "Vale en todo: " + alc, cw - 140 * u, 2); B.push({ h: lA.length * 40 * u + 20 * u, f: (yy) => { ctx.save(); ctx.font = advMS(600, 29 * u); ctx.fillStyle = "#d9bd7e"; ctx.textAlign = "center"; sombra(foto); lA.forEach((l, i) => ctx.fillText(l, mx, yy + 30 * u + i * 40 * u)); ctx.restore(); } }); }
   // código
   if (d.codigo && di.tipo === "codigo") B.push({ h: 120 * u, f: (yy) => {
     ctx.save(); ctx.font = advMS(800, 48 * u); ctx.letterSpacing = (8 * u) + "px"; const cwid = ctx.measureText(d.codigo).width + 90 * u;
-    ctx.fillStyle = "#0c1630"; flyRect(ctx, mx - cwid / 2, yy + 4 * u, cwid, 84 * u, 18 * u); ctx.fill(); ctx.strokeStyle = "rgba(224,181,79,.8)"; ctx.lineWidth = 3 * u; ctx.stroke();
-    ctx.fillStyle = "#ffd98a"; ctx.textAlign = "center"; ctx.fillText(d.codigo, mx + 4 * u, yy + 63 * u); ctx.restore();
+    ctx.fillStyle = "#d9bd7e"; flyRect(ctx, mx - cwid / 2, yy + 4 * u, cwid, 84 * u, 18 * u); ctx.fill();
+    ctx.fillStyle = "#161a33"; ctx.textAlign = "center"; ctx.fillText(d.codigo, mx + 4 * u, yy + 63 * u); ctx.restore();
   } });
   // productos
   const nF = Math.min(3, (di.productos || []).length);
@@ -40772,31 +40795,31 @@ function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
         if (im) { const k = Math.min(fs / im.width, fs / im.height) * .88; ctx.drawImage(im, fx + fs / 2 - im.width * k / 2, fy + fs / 2 - im.height * k / 2, im.width * k, im.height * k); }
         else { ctx.fillStyle = "#d9bf7f"; ctx.font = advDM(fs * .4); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("✿", fx + fs / 2, fy + fs / 2); }
         ctx.restore();
-        if (di.tipo === "descuento" && di.pct > 0) { ctx.font = advMS(800, 26 * u); const tx = "-" + di.pct + "%", bw = ctx.measureText(tx).width + 28 * u; ctx.fillStyle = "#c8102e"; flyRect(ctx, fx + fs - bw + 10 * u, fy - 12 * u, bw, 44 * u, 22 * u); ctx.fill(); ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(tx, fx + fs - bw / 2 + 10 * u, fy + 10 * u); ctx.textBaseline = "alphabetic"; }
+        if (di.tipo === "descuento" && di.pct > 0) { ctx.font = advMS(800, 26 * u); const tx = "-" + di.pct + "%", bw = ctx.measureText(tx).width + 28 * u; ctx.fillStyle = "#d9bd7e"; flyRect(ctx, fx + fs - bw + 10 * u, fy - 12 * u, bw, 44 * u, 22 * u); ctx.fill(); ctx.fillStyle = "#161a33"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(tx, fx + fs - bw / 2 + 10 * u, fy + 10 * u); ctx.textBaseline = "alphabetic"; }
         ctx.font = advMS(600, 26 * u); ctx.fillStyle = txt; ctx.textAlign = "center"; sombra(foto); nombres[i].forEach((l, j) => ctx.fillText(l, fx + fs / 2, fy + fs + 38 * u + j * 33 * u));
         ctx.restore();
       }
-      if (mas > 0) { ctx.save(); ctx.font = advMS(600, 28 * u); ctx.fillStyle = foto ? "#ffe39a" : "#8e0c20"; ctx.textAlign = "center"; sombra(foto); ctx.globalAlpha *= flyEase((t - 6.1) / .5); ctx.fillText("y " + mas + (mas === 1 ? " producto más" : " productos más"), mx, yy + fs + 20 * u + hn + 34 * u); ctx.restore(); }
+      if (mas > 0) { ctx.save(); ctx.font = advMS(600, 28 * u); ctx.fillStyle = "#d9bd7e"; ctx.textAlign = "center"; sombra(foto); ctx.globalAlpha *= flyEase((t - 6.1) / .5); ctx.fillText("y " + mas + (mas === 1 ? " producto más" : " productos más"), mx, yy + fs + 20 * u + hn + 34 * u); ctx.restore(); }
     } });
   }
   const alto = 78 * u + B.reduce((a, b) => a + b.h, 0) + 56 * u;
   const libre = H - 600 * u, esc = Math.min(1, libre / (alto + 70 * u)), top = 330 * u + (libre - (alto + 70 * u) * esc) / 2 + 70 * u * esc + (1 - tarjeta) * 260 * u;
   ctx.save(); ctx.globalAlpha = tarjeta; ctx.translate(mx, top); ctx.scale(esc, esc); ctx.translate(-mx, 0);
   // fondo: crema, o la foto del día con el velo de noche
-  flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.shadowColor = "rgba(255,214,140,.38)"; ctx.shadowBlur = 90 * u;
-  if (foto) ctx.fillStyle = "#1d1446"; else { const gc = ctx.createLinearGradient(0, 0, 0, alto); gc.addColorStop(0, "#fffdf6"); gc.addColorStop(1, "#fbefd9"); ctx.fillStyle = gc; }
+  flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.shadowColor = "rgba(217,189,126,.3)"; ctx.shadowBlur = 90 * u;
+  { const gc = ctx.createLinearGradient(0, 0, 0, alto); gc.addColorStop(0, "#1b2046"); gc.addColorStop(1, "#141830"); ctx.fillStyle = gc; }
   ctx.fill(); sombra(false);
   if (foto) {
     ctx.save(); flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.clip(); advCubrir(ctx, foto, cx, 0, cw, alto, .2);
-    const gv = ctx.createLinearGradient(0, 0, 0, alto); [[0, "rgba(14,22,60,.5)"], [.3, "rgba(24,18,66,.42)"], [.52, "rgba(24,18,66,.72)"], [.75, "rgba(40,14,56,.9)"], [1, "rgba(58,15,54,.95)"]].forEach(([p, c]) => gv.addColorStop(p, c)); ctx.fillStyle = gv; ctx.fillRect(cx, 0, cw, alto);
+    const gv = ctx.createLinearGradient(0, 0, 0, alto); [[0, "rgba(14,18,48,.55)"], [.3, "rgba(20,24,58,.5)"], [.52, "rgba(20,24,58,.78)"], [.75, "rgba(18,22,52,.92)"], [1, "rgba(16,20,46,.96)"]].forEach(([p, c]) => gv.addColorStop(p, c)); ctx.fillStyle = gv; ctx.fillRect(cx, 0, cw, alto);
     ctx.fillStyle = "rgba(255,236,170,.8)"; for (let i = 0; i < 26; i++) { ctx.beginPath(); ctx.arc(cx + ((i * 197) % 1000) / 1000 * cw, ((i * 311) % 1000) / 1000 * alto * .8, (1.4 + (i % 3)) * u, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
   }
-  ctx.strokeStyle = "rgba(217,178,95,.28)"; ctx.lineWidth = 14 * u; flyRect(ctx, cx - 9 * u, -9 * u, cw + 18 * u, alto + 18 * u, 65 * u); ctx.stroke();
-  ctx.strokeStyle = "#d9b25f"; ctx.lineWidth = 5 * u; flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.stroke();
-  ctx.save(); ctx.setLineDash([13 * u, 9 * u]); ctx.strokeStyle = "rgba(201,164,90,.6)"; ctx.lineWidth = 3 * u; flyRect(ctx, cx + 22 * u, 22 * u, cw - 44 * u, alto - 44 * u, 44 * u); ctx.stroke(); ctx.restore();
+  ctx.strokeStyle = "rgba(217,189,126,.25)"; ctx.lineWidth = 14 * u; flyRect(ctx, cx - 9 * u, -9 * u, cw + 18 * u, alto + 18 * u, 65 * u); ctx.stroke();
+  ctx.strokeStyle = "#d9bd7e"; ctx.lineWidth = 5 * u; flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.stroke();
+  ctx.save(); ctx.setLineDash([13 * u, 9 * u]); ctx.strokeStyle = "rgba(217,189,126,.55)"; ctx.lineWidth = 3 * u; flyRect(ctx, cx + 22 * u, 22 * u, cw - 44 * u, alto - 44 * u, 44 * u); ctx.stroke(); ctx.restore();
   // nieve que cae dentro de la tarjeta
-  ctx.save(); flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.clip(); ctx.fillStyle = foto ? "rgba(255,255,255,.55)" : "rgba(230,220,203,.85)";
+  ctx.save(); flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.clip(); ctx.fillStyle = "rgba(255,255,255,.5)";
   for (let i = 0; i < 12; i++) { const sx = cx + ((i * 173 + 40) % 1000) / 1000 * cw, sy = ((i * 97 + t * (60 + (i % 4) * 14) * 1.2) % 1000) / 1000 * alto; ctx.beginPath(); ctx.arc(sx, sy, (3 + (i % 3)) * u, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
   advAceboCanvas(ctx, cx + 14 * u, 24 * u, 134 * u, false); advAceboCanvas(ctx, cx + cw - 14 * u - 134 * u, 24 * u, 134 * u, true);
