@@ -31345,7 +31345,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 @media(prefers-reduced-motion:reduce){.tw-pron::after,.tw-pron-cielo i,.tw-pron-cielo b,.tw-pron-santa::before,.tw-pron-santa .gorro,.tw-pron-santa .regalo,.tw-pron-tit .n,.tw-pron-reloj b{animation:none!important}.tw-pron-cielo i{opacity:.6}}
 
 .tw-adv-nav{background:linear-gradient(90deg,#b8892e,#e9cf8a)!important;border-radius:99px}
-.tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(74,39,104,.97),rgba(15,12,46,.98));display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
+.tw-adv-modal{position:fixed;inset:0;z-index:600;background:radial-gradient(circle at 50% 35%,rgba(74,39,104,.97),rgba(15,12,46,.98));display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;font-family:"TwJS","Helvetica Neue",Helvetica,Arial,sans-serif}
 .tw-adv-escena{position:relative;width:100%;max-width:440px;text-align:center;color:#fff;perspective:1000px}
 .tw-adv-cerrar{position:absolute;top:-6px;right:0;z-index:5;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff!important;font-size:24px;line-height:1;cursor:pointer}
 .tw-adv-rayos{position:absolute;left:50%;top:190px;width:640px;height:640px;margin:-320px 0 0 -320px;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,224,150,.26) 0 9deg,transparent 9deg 22deg);opacity:0;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 22%,transparent 68%);mask:radial-gradient(circle,#000 22%,transparent 68%)}
@@ -31366,7 +31366,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-modal.con-foto .tw-adv-tarjeta h3{filter:drop-shadow(0 2px 6px rgba(0,0,0,.85)) drop-shadow(0 0 14px rgba(255,190,90,.35))}
 .tw-adv-modal.con-foto .tw-adv-tarjeta p{text-shadow:0 1px 4px rgba(0,0,0,.8)}
 @keyframes twAdvFoto{from{opacity:0;transform:scale(1.12)}12%{opacity:1}to{opacity:1;transform:scale(1)}}
-.tw-adv-modal>.tw-adv-escena{position:relative;z-index:1}
+.tw-adv-modal>.tw-adv-escena{position:relative;z-index:1;margin:auto}  /* centrada, pero si el contenido es más alto que la pantalla arranca arriba y se puede deslizar (con align-items:center se cortaba la parte de arriba) */
 .tw .tw-adv-credito{position:fixed;left:10px;bottom:8px;z-index:2;max-width:70vw;font-size:9.5px;line-height:1.3;color:rgba(255,255,255,.6)!important;text-decoration:none;background:rgba(0,0,0,.25);padding:3px 7px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (prefers-reduced-motion:reduce){.tw-adv-foto{animation:none}}
 .tw-adv-zv{position:relative;width:min(300px,82vw);aspect-ratio:300/280;margin:50px auto 0;border:3px solid #c9a45a;border-radius:4px;background:#0f1a31;box-shadow:0 0 0 7px #0b0b0e,0 0 0 8px #c9a45a,0 0 40px 10px rgba(255,200,110,0);overflow:visible;transform-origin:50% 50%;transform-style:preserve-3d}
@@ -31464,6 +31464,10 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-premio em{font-style:normal;font-size:12px;font-weight:600;color:rgba(255,255,255,.82)}
 .tw-adv-premio.paso{background:#efe7d8;border-color:#d8ccb4;color:#7a6c55;box-shadow:none}.tw-adv-premio.paso small{color:#9a8c72}.tw-adv-premio.paso b{color:#7a6c55;font-size:18px}
 .tw-adv-regalos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 12px;margin:2px 0 16px}
+.tw-adv-alcance{margin:6px 0 10px!important;font-size:13px;opacity:.95}.tw-adv-alcance b{color:#ffe39a}
+/* Con muchos productos en la ventana: la tarjeta se ensancha en la compu y en el celular los productos van de a tres, así no queda una columna larguísima */
+.tw-adv-escena.muchos{max-width:760px}
+@media(max-width:560px){.tw-adv-escena.muchos .tw-adv-regalos{gap:12px 8px}.tw .tw-adv-escena.muchos .tw-adv-pg{width:calc(33.333% - 6px);font-size:12px}.tw-adv-escena.muchos .tw-adv-pg .img{width:100%;height:auto;aspect-ratio:1/1}}
 .tw .tw-adv-pg{width:132px;border:0;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:#2a1f12!important;font:inherit}
 .tw-adv-escena.listo .tw-adv-pg{animation:twAdvHijo .6s cubic-bezier(.3,1.3,.5,1) calc(.95s + var(--i) * .12s) both}
 /* Regalo que se abre (TwAdvRegalo): mientras está envuelto no se ve el marco blanco ni el producto */
@@ -34478,7 +34482,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
             <a className="tw-adv-credito" href={f[2]} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>📷 {f[0]} · {f[1]} · Wikimedia Commons</a>
           </> : null; })()}
           <TwAdvNieve />
-          <div className={"tw-adv-escena " + abriendo.fase} onClick={e => e.stopPropagation()}>
+          <div className={"tw-adv-escena " + abriendo.fase + (prods.length > 4 ? " muchos" : "")} onClick={e => e.stopPropagation()}>
             <button className="tw-adv-cerrar" onClick={cerrarDia} aria-label="Cerrar">×</button>
             <div className="tw-adv-rayos" aria-hidden="true" />
             <div className="tw-adv-confeti" aria-hidden="true">{confeti.map((k, i) => <i key={i} className={"f" + k.f} style={{ "--x": k.x, "--y": k.y, "--k": k.k, "--r": k.r }} />)}</div>
@@ -34495,6 +34499,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
               <h3>{sel.titulo || "¡Sorpresa!"}</h3>
               {sel.detalle ? <p>{sel.detalle}</p> : !sel.titulo && <p>Muy pronto vas a ver acá la sorpresa de este día.</p>}
               {info && <div className={"tw-adv-premio" + (info.paso ? " paso" : "")}><small>{info.et}</small><b>{info.dest}</b>{info.nota && <em>{info.nota}</em>}</div>}
+              {sel.tipo === "descuento" && sel.alcance && sel.alcance.length > 0 && <p className="tw-adv-alcance">Vale en todo: <b>{sel.alcance.join(" · ")}</b></p>}
               {sel.codigo && sel.tipo === "codigo" && !(info || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
               {prods.length > 0 && <div className="tw-adv-regalos">{prods.map((p, i) => <button key={p.id} className="tw-adv-pg" style={{ "--i": i }} onClick={() => { cerrarDia(); onAbrir && onAbrir(p); }}>
                 <span className="img">{p.foto && foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="ph">✿</span>}{sel.tipo === "descuento" && sel.pct > 0 && !(info || {}).paso && <em>-{sel.pct}%</em>}<i className="moñito" aria-hidden="true" />
@@ -40779,7 +40784,7 @@ function AdvientoVideo({ d, temaPal, slug, dominio, productos }) {
 // Tipos de sorpresa del calendario: [clave, botón, explicación]
 const ADV_TIPOS_LUM = [
   ["codigo", "🎟️ Código de descuento", "El cupón se crea solo en Cupones y vale ese día (o hasta Navidad), en la tienda online y en los locales."],
-  ["descuento", "🏷️ Descuento en productos", "Ese día los productos elegidos tienen el % de descuento solos (precio tachado en la tienda), también en la caja de los locales."],
+  ["descuento", "🏷️ Descuento", "Ese día los productos, categorías o proveedores que elijas tienen el % de descuento solos (precio tachado en la tienda), también en la caja de los locales."],
   ["regalo", "🎁 Regalo con la compra", "Los pedidos de ese día (desde el mínimo) llevan un aviso para que el vendedor agregue el regalo."],
   ["mensaje", "💌 Solo mensaje", "Un saludo, un tip o un anuncio (por ejemplo un sorteo): no cambia precios."],
 ];
@@ -40810,6 +40815,8 @@ function AdvientoTienda({ temaPal, productos }) {
   const [busca, setBusca] = useState("");
   const [aviso, setAviso] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [provs, setProvs] = useState([]);
+  useEffect(() => { API.get("/proveedores").then(r => setProvs(Array.isArray(r.data) ? r.data : [])).catch(() => {}); }, []);
   useEffect(() => { API.get("/promociones/adviento-tienda").then(r => { setD(r.data); setF(r.data.adviento); }).catch(() => setD(false)); }, []);
   if (d === false) return <div className="card" style={{ color: p.textMuted }}>No se pudo cargar el calendario.</div>;
   if (!d || !f) return <div className="card"><div className="skel" style={{ height: 160 }} /></div>;
@@ -40866,7 +40873,7 @@ function AdvientoTienda({ temaPal, productos }) {
             <button onClick={() => { setAbierto(ab ? null : x.dia); setBusca(""); }} style={{ width: "100%", display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", background: "none", border: 0, cursor: "pointer", color: p.text, textAlign: "left" }}>
               <span style={{ width: 32, height: 32, borderRadius: 3, background: x.titulo ? "linear-gradient(180deg, #fff3cf, #f5c065 70%, #e7a440)" : "linear-gradient(180deg, #22345c, #14223f)", border: "1.5px solid #c9a45a", color: x.titulo ? "#6a3d00" : "#e8cf8f", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{x.dia}</span>
               <span style={{ width: 26, height: 26, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}><TwAdvIcono icono={x.icono} style={{ width: "100%", height: "100%" }} /></span>
-              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: "block", fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.titulo ? " · " + (x.tipo === "codigo" ? "🎟️ " + (x.codigo || "sin código") + (x.pct ? " " + x.pct + "%" : "") : x.tipo === "descuento" ? "🏷️ " + (x.pct || "?") + "% en " + x.productos.length + " prod." : x.tipo === "regalo" ? "🎁 regalo" : "💌 mensaje") : ""}</span>{ADV_PELIS[advEscenaDe(x.icono)] && <span style={{ display: "block", fontSize: 11.5, color: p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🎬 {ADV_PELIS[advEscenaDe(x.icono)][0]}</span>}</span>
+              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: "block", fontSize: 13, fontWeight: x.titulo ? 700 : 400, color: x.titulo ? p.text : p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.titulo || "Sin cargar"}{x.titulo ? " · " + (x.tipo === "codigo" ? "🎟️ " + (x.codigo || "sin código") + (x.pct ? " " + x.pct + "%" : "") : x.tipo === "descuento" ? "🏷️ " + (x.pct || "?") + "% en " + ([(x.productos || []).length ? x.productos.length + " prod." : "", (x.categorias || []).length ? x.categorias.length + " categ." : "", (x.proveedores || []).length ? x.proveedores.length + " prov." : ""].filter(Boolean).join(" + ") || "0 prod.") : x.tipo === "regalo" ? "🎁 regalo" : "💌 mensaje") : ""}</span>{ADV_PELIS[advEscenaDe(x.icono)] && <span style={{ display: "block", fontSize: 11.5, color: p.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🎬 {ADV_PELIS[advEscenaDe(x.icono)][0]}</span>}</span>
               <span style={{ color: p.textMuted }}>{ab ? "▴" : "▾"}</span>
             </button>
             {ab && <div style={{ padding: "4px 12px 12px", display: "grid", gap: 8 }}>
@@ -40896,13 +40903,24 @@ function AdvientoTienda({ temaPal, productos }) {
                 <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, gridColumn: "1 / -1" }}><input type="checkbox" checked={x.uno} onChange={e => setDia(x.dia, "uno", e.target.checked)} /> Una vez por cliente</label>
               </div>}
               {x.tipo === "descuento" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
-                <div><label style={lbl}>% de descuento en los productos de abajo</label><input className="inp" inputMode="numeric" value={x.pct || ""} placeholder="Ej: 20" onChange={e => setDia(x.dia, "pct", Math.min(90, parseInt(e.target.value.replace(/\D/g, "")) || 0))} /></div>
+                <div><label style={lbl}>% de descuento</label><input className="inp" inputMode="numeric" value={x.pct || ""} placeholder="Ej: 20" onChange={e => setDia(x.dia, "pct", Math.min(90, parseInt(e.target.value.replace(/\D/g, "")) || 0))} /></div>
+              </div>}
+              {x.tipo === "descuento" && <div>
+                <label style={lbl}>¿En qué categorías? <span style={{ fontWeight: 400, color: p.textMuted }}>(todo lo de esa categoría)</span></label>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {[...new Set((productos || []).map(y => y.categoria).filter(Boolean))].sort().map(c => { const on = (x.categorias || []).includes(c); return <button key={c} className={"chip-btn" + (on ? " on" : "")} onClick={() => setDia(x.dia, "categorias", on ? x.categorias.filter(z => z !== c) : [...(x.categorias || []), c])}>{c}</button>; })}
+                </div>
+                <label style={{ ...lbl, marginTop: 8 }}>¿De qué proveedores? <span style={{ fontWeight: 400, color: p.textMuted }}>(todos sus productos)</span></label>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {provs.length === 0 ? <span style={{ fontSize: 12, color: p.textMuted }}>No hay proveedores cargados.</span> : provs.map(pv => { const on = (x.proveedores || []).includes(pv.id); return <button key={pv.id} className={"chip-btn" + (on ? " on" : "")} onClick={() => setDia(x.dia, "proveedores", on ? x.proveedores.filter(z => z !== pv.id) : [...(x.proveedores || []), pv.id])}>{pv.nombre}</button>; })}
+                </div>
+                <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 6 }}>Podés elegir categorías, proveedores y también productos sueltos (abajo): el descuento vale para todo lo que sumes. Los productos de un proveedor son los que tiene hoy; si cargás nuevos, volvé a guardar el día.</div>
               </div>}
               {x.tipo === "regalo" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
                 <div style={{ gridColumn: "span 2" }}><label style={lbl}>¿Qué se llevan de regalo?</label><input className="inp" value={x.regalo} maxLength={120} placeholder="Ej: un neceser navideño" onChange={e => setDia(x.dia, "regalo", e.target.value)} /></div>
                 <div><label style={lbl}>Con compras desde (opcional)</label><input className="inp" inputMode="numeric" value={x.minimo || ""} placeholder="Cualquier compra" onChange={e => setDia(x.dia, "minimo", parseInt(e.target.value.replace(/\D/g, "")) || 0)} /></div>
               </div>}
-              <div><label style={lbl}>{x.tipo === "descuento" ? "Productos con el descuento" : "Productos para mostrar"} ({x.productos.length})</label>
+              <div><label style={lbl}>{x.tipo === "descuento" ? "Productos sueltos con el descuento (además)" : "Productos para mostrar"} ({x.productos.length})</label>
                 <input className="inp" placeholder="Buscar producto para sumar…" value={busca} onChange={e => setBusca(e.target.value)} style={{ width: "100%" }} />
                 {q.length >= 2 && <div style={{ border: "1px solid " + p.border, borderRadius: 8, marginTop: 4 }}>{(productos || []).filter(y => !x.productos.includes(y.id) && normTxt([y.nombre, y.marca, y.categoria].join(" ")).includes(q)).slice(0, 8).map(y => <div key={y.id} onClick={() => { setDia(x.dia, "productos", [...x.productos, y.id]); setBusca(""); }} style={{ padding: "6px 10px", cursor: "pointer", fontSize: 12.5, borderBottom: "1px solid " + p.border }}>+ {y.nombre}{!y.publicado ? <span style={{ color: p.warn }}> · no está publicado</span> : null}</div>)}</div>}
                 {x.productos.map(id => { const y = (productos || []).find(z => z.id === id); return <div key={id} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12.5, marginTop: 4 }}><span style={{ flex: 1 }}>{y ? y.nombre : "Producto #" + id}</span><button className="chip-btn" style={{ color: p.red }} onClick={() => setDia(x.dia, "productos", x.productos.filter(z => z !== id))}>✕</button></div>; })}

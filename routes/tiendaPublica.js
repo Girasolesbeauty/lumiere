@@ -96,6 +96,7 @@ router.get('/:slug', async (req, res) => {
     // Calendario de Adviento: en diciembre (1 al 25) o antes con el link privado (?adviento=codigo, se ven todos los días)
     const adv = tienda.advientoDe(c), advHoy = tienda.advientoHoy(adv), advVista = !!adv.token && String(req.query.adviento || '') === adv.token;
     const advVer = (adv.activo && advHoy >= 1 && advHoy <= 25) || advVista;
+    const advDias = advVer ? await tienda.advientoAmpliar(adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? { ...d } : { dia: d.dia, icono: d.icono, bloqueado: true })) : null;
     // Cartelito "faltan N días": con el calendario prendido, desde que se prende hasta el 1 de diciembre (hora de Argentina)
     const advPronto = (adv.activo || advVista) && advHoy === 0 ? { desde: adv.anio + '-12-01T00:00:00-03:00', anio: adv.anio } : null;
     const hw = tienda.halloweenDe(c), hwEnCurso = tienda.halloweenVigente(hw), hwVista = !hwEnCurso && !!hw.token && String(req.query.halloween || '') === hw.token;
@@ -107,7 +108,7 @@ router.get('/:slug', async (req, res) => {
     res.json({
       adviento_pronto: advPronto,
       adviento: advVer ? { titulo: adv.titulo, bajada: adv.bajada, anio: adv.anio, musica: adv.musica, constancia: adv.constancia, estrella_puntos: adv.estrella_puntos, hoy: advVista ? 25 : advHoy, vista_previa: advVista && !(adv.activo && advHoy >= 1 && advHoy <= 25),
-        dias: adv.dias.map(d => d.dia <= (advVista ? 25 : advHoy) ? d : { dia: d.dia, icono: d.icono, bloqueado: true }) } : null,
+        dias: advDias } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
       cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, marcas_primero: ky.marcas_primero, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
