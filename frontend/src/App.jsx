@@ -2,6 +2,7 @@
 import { createPortal } from "react-dom";
 import { getProductos, createVenta, getClientes, getFlujo, getPuntoEquilibrio, agregarEgreso, getResumenFinanzas, getVentas, getAlertasStock, getCupones, createCupon, updateCupon, getRanking, getReglas, createRegla as createReglaWA, updateRegla as updateReglaWA, login, register } from "./api";
 import API from "./api";
+import { ADV_ILUS } from "./advIlus";
 import JsBarcode from "jsbarcode";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, ReferenceLine } from "recharts";
 
@@ -31527,11 +31528,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-dia{background:linear-gradient(180deg,#e6cf94,#c4a35c);color:#161a33;font-weight:500;box-shadow:0 3px 10px rgba(0,0,0,.35)}
 .tw-adv-tarjeta .big{background:radial-gradient(circle,#fffaf0 0 52%,#e9d6a4 53% 56%,#fff3d6 57%);box-shadow:0 0 0 2px #d9bd7e,0 8px 22px rgba(0,0,0,.4)}
 .tw-adv-tarjeta .big .halo{background:repeating-conic-gradient(from 0deg,rgba(217,189,126,.4) 0 8deg,transparent 8deg 20deg)}
-.tw-adv-tarjeta h3{font-family:"TwCG",Georgia,serif;font-weight:600;font-size:36px;line-height:1.02;color:#f5ecd8;letter-spacing:.01em}
+.tw-adv-tarjeta h3{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:600;font-size:30px;line-height:1.1;color:#f5ecd8;letter-spacing:.005em}
 .tw-adv-tarjeta p{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:300;font-size:14.5px;color:#d8d0e0}
 .tw-adv-premio{background:linear-gradient(135deg,#262c5c,#191d40);border:1.5px solid #d9bd7e;box-shadow:0 8px 20px rgba(0,0,0,.4)}
 .tw-adv-premio small{color:#d9bd7e;font-weight:500;letter-spacing:.18em}
-.tw-adv-premio b{font-family:"TwCG",Georgia,serif;font-weight:600;font-size:28px;color:#f5ecd8}
+.tw-adv-premio b{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:600;font-size:26px;color:#f5ecd8}
 .tw-adv-premio em{color:rgba(239,230,210,.82);font-weight:400}
 .tw-adv-premio.paso{background:rgba(255,255,255,.06);border-color:rgba(217,189,126,.3);color:#9a97ad}.tw-adv-premio.paso small{color:#9a97ad}.tw-adv-premio.paso b{color:#b4b1c4}
 .tw-adv-alcance b{color:#d9bd7e}
@@ -34008,6 +34009,8 @@ const ADV_ESCENAS = (() => {
     trineo: ["El trineo cruzando la luna", `<circle cx="50" cy="50" r="40" fill="#fff4d6"/><circle cx="50" cy="50" r="40" fill="none" stroke="${G2}" stroke-width="2"/><circle cx="34" cy="34" r="5" fill="#f3e3b8"/><circle cx="64" cy="68" r="7" fill="#f3e3b8"/><circle cx="66" cy="30" r="3" fill="#f3e3b8"/><g fill="${N}"><g transform="translate(44 44) scale(.55)"><path d="M3 15 C5 11 12 10 18 10.5 C22 10.8 25 9 27 6.5 L28.5 3.2 C29 2.4 30.6 2.2 31.2 3 L31.6 4.2 C31 5.4 30 6.6 29.6 8.2 C29.4 10.4 28.4 12.6 26.6 13.8 L30.6 18.6 L28.8 19.2 L25 15.4 C21 16.4 16 16.4 12 15.6 L7.4 19.8 L5.8 18.8 L9 14.6 C7 14.6 4.6 15.6 3 15 Z"/><path d="M29.6 3.4 l-1.6 -3 M29.6 3.4 l1.8 -3.4 M30.8 1.2 l2.6 -1.2" stroke="${N}" stroke-width="1.2" stroke-linecap="round" fill="none"/></g><g transform="translate(58 39) scale(.55)"><path d="M3 15 C5 11 12 10 18 10.5 C22 10.8 25 9 27 6.5 L28.5 3.2 C29 2.4 30.6 2.2 31.2 3 L31.6 4.2 C31 5.4 30 6.6 29.6 8.2 C29.4 10.4 28.4 12.6 26.6 13.8 L30.6 18.6 L28.8 19.2 L25 15.4 C21 16.4 16 16.4 12 15.6 L7.4 19.8 L5.8 18.8 L9 14.6 C7 14.6 4.6 15.6 3 15 Z"/><path d="M29.6 3.4 l-1.6 -3 M29.6 3.4 l1.8 -3.4 M30.8 1.2 l2.6 -1.2" stroke="${N}" stroke-width="1.2" stroke-linecap="round" fill="none"/></g><g transform="translate(72 34) scale(.55)"><path d="M3 15 C5 11 12 10 18 10.5 C22 10.8 25 9 27 6.5 L28.5 3.2 C29 2.4 30.6 2.2 31.2 3 L31.6 4.2 C31 5.4 30 6.6 29.6 8.2 C29.4 10.4 28.4 12.6 26.6 13.8 L30.6 18.6 L28.8 19.2 L25 15.4 C21 16.4 16 16.4 12 15.6 L7.4 19.8 L5.8 18.8 L9 14.6 C7 14.6 4.6 15.6 3 15 Z"/><path d="M29.6 3.4 l-1.6 -3 M29.6 3.4 l1.8 -3.4 M30.8 1.2 l2.6 -1.2" stroke="${N}" stroke-width="1.2" stroke-linecap="round" fill="none"/></g><circle cx="90.3" cy="36.7" r="1.2" fill="${R}"/><path d="M44 52 L36 56" stroke="${N}" stroke-width=".7"/><g transform="translate(14 46) scale(.7)"><path d="M2 20 Q-2 20 -1 23.5 H30 Q36 23.5 38 17" fill="none" stroke="${N}" stroke-width="2.2" stroke-linecap="round"/><path d="M4 9 Q2 4 6 3 H24 Q30 3 32 9 L30 17 H6 Z"/><path d="M8 20 V17 M28 20 V17" stroke="${N}" stroke-width="1.8"/><circle cx="17" cy="-2" r="3.6"/><path d="M14 -4 Q17 -12 22 -6 Z"/><path d="M22 3 Q26 -6 31 0 Q32 3 30 4 Z"/></g></g><circle cx="10" cy="62" r=".9" fill="${G}"/><circle cx="7" cy="66" r=".9" fill="${G}"/><circle cx="12" cy="68" r=".9" fill="${G}"/><circle cx="5" cy="71" r=".9" fill="${G}"/>`],
   };
 })();
+// Los dibujos nuevos (hoja de ilustraciones) reemplazan a los de esas escenas; el resto se ve como antes hasta tener los demás
+Object.entries(ADV_ILUS).forEach(([k, [x, y, w, h, svg]]) => { if (ADV_ESCENAS[k]) ADV_ESCENAS[k][1] = '<svg x="5" y="5" width="90" height="90" viewBox="' + x + " " + y + " " + w + " " + h + '" preserveAspectRatio="xMidYMid meet">' + svg + "</svg>"; });
 const ADV_ESCENA_DIA = ["medias", "patines", "empire", "taxi", "bolsas", "chocolate", "tortolas", "cascanueces", "mitones", "globo", "baston", "carta", "campana", "boleto", "corona", "farol", "gorro", "libertad", "puente", "pretzel", "piano", "carteles", "arbol", "brindis", "trineo"];
 // "nyc:taxi" -> "taxi"; un emoji propio -> null
 const advEscenaDe = (icono) => { const k = /^nyc:([a-z]+)$/.exec(String(icono || "")); return k && ADV_ESCENAS[k[1]] ? k[1] : null; };
@@ -40597,7 +40600,7 @@ const ADV_FUENTES = [["TwPF", "url(https://fonts.gstatic.com/s/playfairdisplay/v
 const advFont = (peso, px) => peso + " " + Math.round(px) + "px TwJS, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 const advSerif = (px) => "italic 500 " + Math.round(px) + "px TwPF, Georgia, serif";
 // Las mismas tipografías de la tarjeta de la tienda: DM Serif para los títulos y Montserrat para el resto
-const advDM = (px) => "600 " + Math.round(px) + "px TwCG, Georgia, serif";
+const advDM = (px) => "600 " + Math.round(px) + "px TwJ6, 'Helvetica Neue', Arial, sans-serif";
 const advMS = (peso, px) => "400 " + Math.round(px) + "px " + (peso <= 300 ? "TwJ3" : peso <= 400 ? "TwJ4" : peso <= 500 ? "TwJ5" : "TwJ6") + ", 'Helvetica Neue', Arial, sans-serif";
 // Brillo dorado redondo
 function advGlowCanvas(ctx, x, y, r, a) {
@@ -40748,14 +40751,14 @@ function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
     ctx.restore();
   } });
   // título y detalle
-  ctx.font = advDM(78 * u); const lT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 120 * u, 3);
-  B.push({ h: lT.length * 80 * u + 18 * u, f: (yy) => { ctx.save(); ctx.font = advDM(78 * u); ctx.fillStyle = tin; ctx.textAlign = "center"; sombra(foto); if (foto) { ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 12 * u; } lT.forEach((l, i) => ctx.fillText(l, mx, yy + 66 * u + i * 80 * u)); ctx.restore(); } });
+  ctx.font = advDM(68 * u); const lT = flyLineas(ctx, d.tituloDia || "¡Sorpresa!", cw - 120 * u, 3);
+  B.push({ h: lT.length * 80 * u + 18 * u, f: (yy) => { ctx.save(); ctx.font = advDM(68 * u); ctx.fillStyle = tin; ctx.textAlign = "center"; sombra(foto); if (foto) { ctx.shadowColor = "rgba(0,0,0,.85)"; ctx.shadowBlur = 12 * u; } lT.forEach((l, i) => ctx.fillText(l, mx, yy + 66 * u + i * 80 * u)); ctx.restore(); } });
   ctx.font = advMS(500, 33 * u); const lD = d.detalle ? flyLineas(ctx, d.detalle, cw - 150 * u, 4) : [];
   if (lD.length) B.push({ h: lD.length * 48 * u + 22 * u, f: (yy) => { ctx.save(); ctx.font = advMS(500, 33 * u); ctx.fillStyle = txt; ctx.textAlign = "center"; sombra(foto); lD.forEach((l, i) => ctx.fillText(l, mx, yy + 36 * u + i * 48 * u)); ctx.restore(); } });
   // premio verde
   if (info) {
     const pw = Math.min(cw - 120 * u, 800 * u), iw = pw - 80 * u;
-    ctx.font = advDM(60 * u); const lb = flyLineas(ctx, info.dest, iw, 2);
+    ctx.font = advDM(54 * u); const lb = flyLineas(ctx, info.dest, iw, 2);
     ctx.font = advMS(600, 27 * u); const le = info.nota ? flyLineas(ctx, info.nota, iw, 3) : [];
     const ph = 30 * u + 32 * u + lb.length * 62 * u + (le.length ? 12 * u + le.length * 36 * u : 0) + 26 * u;
     B.push({ h: ph + 30 * u, f: (yy) => {
@@ -40766,7 +40769,7 @@ function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
       const a = x0 - pw * .5 + ((t * .3) % 1) * pw * 2, g2 = ctx.createLinearGradient(a, yy, a + pw * .5, yy + ph * .4); g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(.5, "rgba(255,255,255,.26)"); g2.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g2; ctx.fillRect(x0, yy, pw, ph);
       ctx.textAlign = "center"; let y2 = yy + 28 * u + 24 * u;
       ctx.font = advMS(700, 24 * u); ctx.letterSpacing = (3.4 * u) + "px"; ctx.fillStyle = "#d9bd7e"; ctx.fillText(String(info.et).toUpperCase(), mx + 2 * u, y2); ctx.letterSpacing = "0px"; y2 += 8 * u;
-      ctx.font = advDM(60 * u); ctx.fillStyle = "#f5ecd8"; lb.forEach((l, i) => ctx.fillText(l, mx, y2 + 52 * u + i * 62 * u)); y2 += lb.length * 62 * u + 12 * u;
+      ctx.font = advDM(54 * u); ctx.fillStyle = "#f5ecd8"; lb.forEach((l, i) => ctx.fillText(l, mx, y2 + 52 * u + i * 62 * u)); y2 += lb.length * 62 * u + 12 * u;
       if (le.length) { ctx.font = advMS(600, 27 * u); ctx.fillStyle = "rgba(255,255,255,.86)"; le.forEach((l, i) => ctx.fillText(l, mx, y2 + 24 * u + i * 36 * u)); }
       ctx.restore();
     } });
