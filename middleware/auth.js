@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const negocios = require('../lib/negocios');
 const { enNegocio } = require('../lib/contexto');
+const llaves = require('../lib/llaves');
 
 // Exige haber iniciado sesion para usar el sistema. Al entrar, el servidor entrega una
 // "llave" (token) y desde ahora cada pedido tiene que traerla; sin ella no se ve ningun dato.
@@ -21,6 +22,21 @@ module.exports = function exigirSesion(req, res, next) {
   const cab = req.headers.authorization || '';
   const token = cab.startsWith('Bearer ') ? cab.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Iniciá sesión para continuar', sesion: true });
+  // Llave de solo lectura (ver lib/llaves.js): entra como el dueño pero solo para consultar
+  if (llaves.esLlave(token)) {
+    return llaves.buscar(token).then((ll) => {
+      if (!ll) return res.status(401).json({ error: 'La llave no es válida o fue desactivada', sesion: true });
+      const ok = llaves.rutaPermitida(req.method, req.path);
+      llaves.registrar(ll, req.method, req.originalUrl || req.path, ok);
+      if (!ok) return res.status(403).json({ error: 'Esta llave es de solo lectura: no puede cargar, modificar ni ver esta sección', solo_lectura: true });
+      return negocios.negocioPorId(ll.negocio_id).then((neg) => {
+        if (!neg) return res.status(401).json({ error: 'La llave no es válida', sesion: true });
+        req.negocio = neg;
+        req.usuario = { id: 0, rol: 'jefe', rol_id: 1, neg: neg.id, nombre: 'Llave: ' + ll.nombre, solo_lectura: true, llave_id: ll.id };
+        enNegocio({ id: neg.id, schema: neg.schema }, next);
+      });
+    }).catch((e) => { console.error('[llave]', e.message); res.status(500).json({ error: 'No se pudo verificar la llave' }); });
+  }
   let datos;
   try {
     datos = jwt.verify(token, process.env.JWT_SECRET);
