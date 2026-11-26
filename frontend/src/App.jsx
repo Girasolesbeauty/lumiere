@@ -44246,6 +44246,65 @@ function SinPermiso() {
   );
 }
 
+// Llaves de solo lectura: para que alguien de confianza (por ejemplo Claude) consulte los datos sin usuario ni contraseña.
+// Solo leen (no cargan, modifican ni borran), no ven respaldos, usuarios ni cuentas de pago, y dejan registro de cada consulta.
+function LlavesSoloLectura({ p }) {
+  const [lista, setLista] = useState(null);
+  const [nueva, setNueva] = useState(null); // { llave, nombre }
+  const [nombre, setNombre] = useState("Claude (asistente)");
+  const [usos, setUsos] = useState(null); // { id, lista }
+  const [copiado, setCopiado] = useState(false);
+  const cargar = () => API.get("/llaves").then(r => setLista(r.data)).catch(() => setLista([]));
+  useEffect(() => { cargar(); }, []);
+  const crear = async () => {
+    try { const r = await API.post("/llaves", { nombre }); setNueva(r.data); setCopiado(false); cargar(); }
+    catch (e) { alert(e.response?.data?.error || "No se pudo crear la llave"); }
+  };
+  const desactivar = async (l) => {
+    if (!confirm("¿Desactivar la llave «" + l.nombre + "»? Deja de funcionar al instante y no se puede volver a activar (si hace falta, creás otra).")) return;
+    try { await API.post("/llaves/" + l.id + "/desactivar"); cargar(); } catch (e) { alert("No se pudo desactivar"); }
+  };
+  const verUsos = async (l) => { try { const r = await API.get("/llaves/" + l.id + "/usos"); setUsos({ id: l.id, nombre: l.nombre, lista: r.data }); } catch (e) { alert("No se pudo cargar el registro"); } };
+  const fh = (f) => f ? new Date(f).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+  return (
+    <div className="card" style={{ marginTop: 16, textAlign: "left" }}>
+      <div className="ct">🔑 Acceso de solo lectura (para Claude u otra persona de confianza)</div>
+      <div style={{ fontSize: 12.5, color: p.textMuted, lineHeight: 1.55, marginBottom: 10 }}>
+        Una llave deja <b>consultar</b> los datos del negocio (ventas, gastos, pedidos, stock, clientes) <b>sin usar tu usuario y contraseña</b>.
+        <b> No puede cargar, modificar, anular ni borrar nada</b>, no ve respaldos completos, usuarios ni cuentas de Mercado Pago, y queda registrada cada consulta.
+        La podés desactivar cuando quieras.
+      </div>
+      {nueva && <div style={{ background: "#fff8e1", border: "1.5px solid #e0b84a", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+        <div style={{ fontWeight: 800, color: "#5a4300", marginBottom: 6 }}>Tu llave «{nueva.nombre}» (se muestra una sola vez)</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <code style={{ flex: "1 1 260px", wordBreak: "break-all", background: "#fff", border: "1px solid #e0cf98", borderRadius: 6, padding: "8px 10px", fontSize: 13 }}>{nueva.llave}</code>
+          <button className="btn btn-p btn-sm" onClick={() => { try { navigator.clipboard.writeText(nueva.llave); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiada" : "Copiar"}</button>
+        </div>
+        <div style={{ fontSize: 12, color: "#5a4300", marginTop: 8, lineHeight: 1.5 }}>⚠️ <b>No la pegues en el chat ni la mandes por WhatsApp.</b> Pegala solo en el formulario seguro que te abre Claude ("Network secret" / credencial). Si la perdés, desactivala y creá otra.</div>
+        <button className="chip-btn" style={{ marginTop: 8 }} onClick={() => setNueva(null)}>Ya la guardé, ocultar</button>
+      </div>}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        <input className="inp" style={{ flex: "1 1 220px" }} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Para quién es (ej: Claude)" aria-label="Nombre de la llave" />
+        <button className="btn btn-p" onClick={crear} disabled={!nombre.trim()}>+ Crear llave</button>
+      </div>
+      {lista === null ? <div className="skel" style={{ height: 60 }} /> : lista.length === 0 ? <div style={{ fontSize: 12.5, color: p.textMuted }}>Todavía no creaste ninguna llave.</div> :
+        lista.map(l => <div key={l.id} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "8px 0", borderTop: "1px solid " + p.border, opacity: l.activo ? 1 : .55 }}>
+          <div style={{ flex: "1 1 220px", fontSize: 13 }}><b>{l.nombre}</b> <span style={{ color: p.textMuted }}>{l.pista}</span>
+            <div style={{ fontSize: 11.5, color: p.textMuted }}>Creada {fh(l.creado_en)}{l.creado_por ? " por " + l.creado_por : ""} · {l.usos} consultas · último uso {fh(l.ultimo_uso)}{!l.activo ? " · desactivada " + fh(l.desactivado_en) : ""}</div></div>
+          <span className={"tag " + (l.activo ? "tag-ok" : "tag-neutral")}>{l.activo ? "activa" : "desactivada"}</span>
+          <button className="chip-btn" onClick={() => verUsos(l)}>Ver registro</button>
+          {l.activo && <button className="chip-btn" style={{ color: p.red }} onClick={() => desactivar(l)}>Desactivar</button>}
+        </div>)}
+      {usos && <div className="pos-overlay" onClick={() => setUsos(null)}>
+        <div className="card pop-in" style={{ width: 640, maxWidth: "96vw", maxHeight: "86vh", overflowY: "auto", textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: "flex", alignItems: "center" }}><div className="ct" style={{ flex: 1, margin: 0 }}>Registro de «{usos.nombre}»</div><button className="icon-btn" onClick={() => setUsos(null)} aria-label="Cerrar">✕</button></div>
+          <div style={{ fontSize: 12, color: p.textMuted, margin: "4px 0 8px" }}>Las últimas 200 consultas. En rojo, los intentos bloqueados.</div>
+          {usos.lista.length === 0 ? <div style={{ fontSize: 13 }}>Todavía no se usó.</div> : usos.lista.map((u, i) => <div key={i} style={{ display: "flex", gap: 10, fontSize: 12, padding: "3px 0", borderTop: "1px solid " + p.border, color: u.permitido ? p.text : p.red }}><span style={{ whiteSpace: "nowrap", color: p.textMuted }}>{fh(u.en)}</span><span style={{ wordBreak: "break-all" }}>{u.metodo} {u.ruta}</span></div>)}
+        </div>
+      </div>}
+    </div>
+  );
+}
 function Usuarios({ usuario: usuarioActual, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [usuarios, setUsuarios] = useState([]);
@@ -44597,6 +44656,7 @@ function Usuarios({ usuario: usuarioActual, paletaActual }) {
           </div>
         </div>
       )}
+      {(usuarioActual?.rol === "jefe" || Number(usuarioActual?.rol_id) === 1) && <LlavesSoloLectura p={temaPal} />}
     </div>
   );
 }
