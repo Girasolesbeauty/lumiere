@@ -31532,7 +31532,9 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-tarjeta .big{background:radial-gradient(circle,#fffaf0 0 52%,#e9d6a4 53% 56%,#fff3d6 57%);box-shadow:0 0 0 2px #d9bd7e,0 8px 22px rgba(0,0,0,.4)}
 .tw-adv-tarjeta .big .halo{background:repeating-conic-gradient(from 0deg,rgba(217,189,126,.4) 0 8deg,transparent 8deg 20deg)}
 .tw-adv-tarjeta h3{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:600;font-size:30px;line-height:1.1;color:#f5ecd8;letter-spacing:.005em}
-.tw-adv-tarjeta p{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:300;font-size:14.5px;color:#d8d0e0}
+.tw-adv-tarjeta p{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:400;font-size:14.5px;color:#f3eef8}
+.tw-adv-modal.con-foto .tw-adv-tarjeta{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.8) 0 1px,transparent 1.6px) 0 0/71px 83px,radial-gradient(circle at 64% 72%,rgba(217,189,126,.7) 0 1.2px,transparent 1.8px) 0 0/97px 89px,linear-gradient(180deg,rgba(14,18,48,.76) 0%,rgba(20,24,58,.72) 30%,rgba(20,24,58,.87) 52%,rgba(18,22,52,.94) 75%,rgba(16,20,46,.97) 100%),var(--foto) center 20%/cover no-repeat,#141830}
+.tw-adv-modal.con-foto .tw-adv-tarjeta p{text-shadow:0 1px 6px rgba(0,0,0,.9),0 0 2px rgba(0,0,0,.6)}
 .tw-adv-premio{background:linear-gradient(135deg,#262c5c,#191d40);border:1.5px solid #d9bd7e;box-shadow:0 8px 20px rgba(0,0,0,.4)}
 .tw-adv-premio small{color:#d9bd7e;font-weight:500;letter-spacing:.18em}
 .tw-adv-premio b{font-family:"TwJO","Helvetica Neue",Arial,sans-serif;font-weight:600;font-size:26px;color:#f5ecd8}
@@ -40732,7 +40734,7 @@ function advVentanaGrandeCanvas(ctx, x, y, w, h, o) {
 // Si el día tiene foto de escena, la tarjeta va sobre esa foto con el velo de noche y las letras claras
 function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
   const foto = d.foto && d.foto.complete && d.foto.naturalWidth ? d.foto : null, di = d.di || {}, info = advInfo(di, d.dia, true);
-  const cw = W - 140 * u, cx = 70 * u, mx = W / 2, tin = "#f5ecd8", txt = "#d8d0e0";
+  const cw = W - 140 * u, cx = 70 * u, mx = W / 2, tin = "#f5ecd8", txt = "#f0eaf6";
   const sombra = (on) => { ctx.shadowColor = on ? "rgba(0,0,0,.8)" : "transparent"; ctx.shadowBlur = on ? 8 * u : 0; ctx.shadowOffsetY = on ? 2 * u : 0; };
   const B = [];
   // cinta del día
@@ -40821,7 +40823,7 @@ function advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u) {
   ctx.fill(); sombra(false);
   if (foto) {
     ctx.save(); flyRect(ctx, cx, 0, cw, alto, 56 * u); ctx.clip(); advCubrir(ctx, foto, cx, 0, cw, alto, .2);
-    const gv = ctx.createLinearGradient(0, 0, 0, alto); [[0, "rgba(14,18,48,.55)"], [.3, "rgba(20,24,58,.5)"], [.52, "rgba(20,24,58,.78)"], [.75, "rgba(18,22,52,.92)"], [1, "rgba(16,20,46,.96)"]].forEach(([p, c]) => gv.addColorStop(p, c)); ctx.fillStyle = gv; ctx.fillRect(cx, 0, cw, alto);
+    const gv = ctx.createLinearGradient(0, 0, 0, alto); [[0, "rgba(14,18,48,.76)"], [.3, "rgba(20,24,58,.72)"], [.52, "rgba(20,24,58,.87)"], [.75, "rgba(18,22,52,.94)"], [1, "rgba(16,20,46,.97)"]].forEach(([p, c]) => gv.addColorStop(p, c)); ctx.fillStyle = gv; ctx.fillRect(cx, 0, cw, alto);
     ctx.fillStyle = "rgba(255,236,170,.8)"; for (let i = 0; i < 26; i++) { ctx.beginPath(); ctx.arc(cx + ((i * 197) % 1000) / 1000 * cw, ((i * 311) % 1000) / 1000 * alto * .8, (1.4 + (i % 3)) * u, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
   }
@@ -40897,7 +40899,7 @@ function advDibujarVideo(ctx, W, H, t, d) {
   if (tarjeta > 0) {
     advTarjetaCanvas(ctx, W, H, t, d, tarjeta, u);
     const fin = flyEase((t - 7.0) / .7);
-    if (fin > 0 && d.web) { ctx.save(); ctx.globalAlpha = fin; ctx.textAlign = "center"; ctx.fillStyle = "#e8cf8f"; ctx.font = advMS(600, 36 * u); ctx.fillText("Encendé tu ventana en", W / 2, H - 180 * u); ctx.restore(); ctx.save(); ctx.globalAlpha = fin; ctx.font = flyFont(900, 40 * u); const ww = ctx.measureText(d.web).width + 64 * u; flyPildora(ctx, W / 2 - ww / 2, H - 150 * u, d.web, 40 * u, t); ctx.restore(); }
+    if (fin > 0 && d.web) { ctx.save(); ctx.globalAlpha = fin; ctx.textAlign = "center"; ctx.fillStyle = "#e8cf8f"; ctx.font = advMS(600, 36 * u); ctx.fillText("Encendé tu ventana en", W / 2, H - 180 * u); ctx.restore(); ctx.save(); ctx.globalAlpha = fin; ctx.font = advMS(600, 38 * u); const ww = ctx.measureText(d.web).width + 80 * u; ctx.fillStyle = "#d9bd7e"; flyRect(ctx, W / 2 - ww / 2, H - 150 * u, ww, 76 * u, 38 * u); ctx.fill(); ctx.fillStyle = "#161a33"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(d.web, W / 2, H - 150 * u + 40 * u); ctx.textBaseline = "alphabetic"; ctx.restore(); }
     if (d.credito) { ctx.save(); ctx.globalAlpha = tarjeta * .7; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = advMS(500, 22 * u); ctx.fillText(d.credito, W / 2, H - 40 * u); ctx.restore(); }
   }
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.letterSpacing = "0px";
