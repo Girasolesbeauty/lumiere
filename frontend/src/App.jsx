@@ -31465,6 +31465,9 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-premio em{font-style:normal;font-size:12px;font-weight:600;color:rgba(255,255,255,.82)}
 .tw-adv-premio.paso{background:#efe7d8;border-color:#d8ccb4;color:#7a6c55;box-shadow:none}.tw-adv-premio.paso small{color:#9a8c72}.tw-adv-premio.paso b{color:#7a6c55;font-size:18px}
 .tw-adv-regalos{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 12px;margin:2px 0 16px}
+.tw-adv-regalos.compacto{flex-wrap:nowrap;gap:6px;max-width:430px;margin:4px auto 12px;padding:16px 8px 10px;border:1px solid rgba(217,189,126,.45);border-radius:18px;background:rgba(255,255,255,.06)}
+.tw .tw-adv-regalos.compacto .tw-adv-pg{width:calc(33.333% - 4px);font-size:12px}.tw-adv-regalos.compacto .tw-adv-pg .img{width:100%;height:auto;aspect-ratio:1/1}
+.tw-adv-vermas{display:block;margin:0 auto 14px;font-family:"TwJO",sans-serif;font-weight:500}
 .tw-adv-alcance{margin:6px 0 10px!important;font-size:13px;opacity:.95}.tw-adv-alcance b{color:#ffe39a}
 /* Con muchos productos en la ventana: la tarjeta se ensancha en la compu y en el celular los productos van de a tres, así no queda una columna larguísima */
 .tw-adv-escena.muchos{max-width:760px}
@@ -34345,7 +34348,7 @@ function TwAdvRegalo({ listo, indice = 0 }) {
     <span className="tw-adv-gift-fx" aria-hidden="true">{Array.from({ length: 14 }, (_, k) => <i key={k} className={k % 3 === 0 ? "c" : ""} />)}</span>
   </>);
 }
-function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }) {
+function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir, onVerTodos }) {
   // Vista previa: se simula un día (los siguientes quedan cerrados) y lo que se abre se guarda solo en esta pestaña, así cada prueba arranca de cero
   const prueba = !!adv.vista_previa;
   const [diaPrueba, setDiaPrueba] = useState(() => advDiaPrueba(slug));
@@ -34465,7 +34468,10 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
     try { const yaToco = !navigator.userActivation || navigator.userActivation.hasBeenActive; if (navigator.vibrate && yaToco && !twMenosMovimiento()) navigator.vibrate([70, 50, 70]); } catch (e) {}
   };
   const sel = abriendo && abriendo.d;
-  const prods = sel ? (sel.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean) : [];
+  const prodsTodos = sel ? (sel.productos || []).map(id => visibles.find(p => p.id === id)).filter(Boolean) : [];
+  // Descuento por categoría o proveedor con muchos productos: se muestran tres juntos en un solo cuadro y un botón para ver todos
+  const compacto = !!sel && sel.tipo === "descuento" && (sel.alcance || []).length > 0 && prodsTodos.length > 3;
+  const prods = compacto ? prodsTodos.slice(0, 3) : prodsTodos;
   return (
     <section className="tw-adv" id="tw-adviento" aria-label={adv.titulo}>
       <TwAdvNieve />
@@ -34527,11 +34533,12 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir }
               {info && <div className={"tw-adv-premio" + (info.paso ? " paso" : "")}><small>{info.et}</small><b>{info.dest}</b>{info.nota && <em>{info.nota}</em>}</div>}
               {sel.tipo === "descuento" && sel.alcance && sel.alcance.length > 0 && <p className="tw-adv-alcance">Vale en todo: <b>{sel.alcance.join(" · ")}</b></p>}
               {sel.codigo && sel.tipo === "codigo" && !(info || {}).paso && <div className="tw-adv-cod"><code>{sel.codigo}</code><button className="tw-adv-btn sec" onClick={() => { try { navigator.clipboard.writeText(sel.codigo); setCopiado(true); } catch (e) {} }}>{copiado ? "✓ Copiado" : "Copiar"}</button></div>}
-              {prods.length > 0 && <div className="tw-adv-regalos">{prods.map((p, i) => <button key={p.id} className="tw-adv-pg" style={{ "--i": i }} onClick={() => { cerrarDia(); onAbrir && onAbrir(p); }}>
+              {prods.length > 0 && <div className={"tw-adv-regalos" + (compacto ? " compacto" : "")}>{prods.map((p, i) => <button key={p.id} className="tw-adv-pg" style={{ "--i": i }} onClick={() => { cerrarDia(); onAbrir && onAbrir(p); }}>
                 <span className="img">{p.foto && foto ? <img src={foto(p)} alt="" loading="lazy" /> : <span className="ph">✿</span>}{sel.tipo === "descuento" && sel.pct > 0 && !(info || {}).paso && <em>-{sel.pct}%</em>}<i className="moñito" aria-hidden="true" />
                   {/* Primero es un regalo que se abre (con sonido) y de adentro sale el producto */}
                   <TwAdvRegalo listo={/listo/.test(abriendo.fase)} indice={i} /></span>
                 {p.marca && <small>{p.marca}</small>}<b>{p.nombre}</b></button>)}</div>}
+              {compacto && <button className="tw-adv-btn sec tw-adv-vermas" onClick={() => { cerrarDia(); onVerTodos && onVerTodos(sel); }}>Ver los {prodsTodos.length} productos con descuento →</button>}
               {premioSello && sel.dia === hoy && <div className="tw-adv-sellado"><span className="st"><TwAdvIcono icono={sel.icono} /></span><div><b>¡Sumaste el sello del día {sel.dia}!</b>{premioSello.premios && premioSello.premios.length ? <span>🎉 Ganaste {premioSello.premios.reduce((t, h) => t + h.puntos, 0).toLocaleString("es-AR")} puntos por juntar {premioSello.premios[premioSello.premios.length - 1].dias} {premioSello.premios[premioSello.premios.length - 1].dias === 1 ? "sello" : "sellos"}</span> : <span>Llevás {(premioSello.sellos || []).length} de 25 en tu álbum</span>}</div></div>}
               {!cuenta.logueada && sel.dia === hoy && vigente && adv.constancia && adv.constancia.activo && <div className="tw-adv-ingresa">🎖️ <button className="tw-adv-link" onClick={() => { cerrarDia(); cuenta.ingresar && cuenta.ingresar(); }}>Ingresá a tu cuenta</button> para guardar el sello de hoy en tu álbum</div>}
               <button className="tw-adv-btn rojo" onClick={cerrarDia}>{sel.dia === hoy ? "¡Gracias! ✨" : "Cerrar"}</button>
@@ -37639,7 +37646,7 @@ function TiendaPublica({ slug }) {
         ) : (
           <>
             {tienda.adviento_pronto && <TwAdvPronto pr={tienda.adviento_pronto} marca={tienda.titulo} />}
-            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} foto={foto} onAbrir={abrir} cuenta={{ logueada, pedir, ingresar: () => { setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para juntar los sellos del Calendario de Adviento"), 50); } }} />}
+            {tienda.adviento && <TwAdviento adv={tienda.adviento} slug={slug} visibles={visibles} tarjeta={tarjeta} foto={foto} onAbrir={abrir} onVerTodos={(d) => { const c = d.categorias || []; setCat(c.length === 1 && !(d.proveedores || []).length ? c[0] : "*"); try { window.scrollTo({ top: 0 }); } catch (e) {} }} cuenta={{ logueada, pedir, ingresar: () => { setPaso("cuenta"); setTimeout(() => setMotivoCuenta("Ingresá a tu cuenta para juntar los sellos del Calendario de Adviento"), 50); } }} />}
             {tienda.cyber && <TwCyberHero cy={tienda.cyber} onVer={() => irCat("cyber")} foto={foto} prods={cyHeroProds} maxPct={cyHeroMax} />}
             {tienda.halloween && !tienda.cyber && <TwHwHero hw={tienda.halloween} hayLook={hwLook.length > 0} onJugar={() => setHwJuego(true)} onVer={() => irCat("halloween")} />}
             {tienda.halloween && <TwFila clase="tw-hw-fila" titulo="🎃 Para tu disfraz" items={hwDisfraz} onVerTodo={() => irCat("halloween")} render={tarjeta} />}
