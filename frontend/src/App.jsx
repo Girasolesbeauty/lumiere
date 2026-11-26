@@ -34013,7 +34013,7 @@ const ADV_ESCENAS = (() => {
   };
 })();
 // Los dibujos nuevos (hoja de ilustraciones) reemplazan a los de esas escenas; el resto se ve como antes hasta tener los demás
-Object.entries(ADV_ILUS).forEach(([k, [x, y, w, h, svg]]) => { if (ADV_ESCENAS[k]) ADV_ESCENAS[k][1] = '<svg x="5" y="5" width="90" height="90" viewBox="' + x + " " + y + " " + w + " " + h + '" preserveAspectRatio="xMidYMid meet">' + svg + "</svg>"; });
+Object.entries(ADV_ILUS).forEach(([k, [x, y, w, h, svg]]) => { if (ADV_ESCENAS[k]) ADV_ESCENAS[k][1] = '<svg x="5" y="5" width="90" height="90" viewBox="' + x + " " + y + " " + w + " " + h + '" preserveAspectRatio="xMidYMid meet">' + svg.replace(/ns\d+:href/g, "href") + "</svg>"; });
 const ADV_ESCENA_DIA = ["medias", "patines", "empire", "taxi", "bolsas", "chocolate", "tortolas", "cascanueces", "mitones", "globo", "baston", "carta", "campana", "boleto", "corona", "farol", "gorro", "libertad", "puente", "pretzel", "piano", "carteles", "arbol", "brindis", "trineo"];
 // "nyc:taxi" -> "taxi"; un emoji propio -> null
 const advEscenaDe = (icono) => { const k = /^nyc:([a-z]+)$/.exec(String(icono || "")); return k && ADV_ESCENAS[k[1]] ? k[1] : null; };
