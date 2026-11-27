@@ -532,7 +532,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     const promosPedido = (await tienda.promosTienda(client)).filter(x => !x.local || x.local === Number(localId));
     const baseCupon = tienda.baseCupon(promosPedido, lineas, combo.enCombos);
     // Los productos en oferta (ej. Cyber Monday) no se pagan con GoCuotas
-    const conOfertaGoc = pago === 'gocuotas' ? lineas.filter(l => !l.preventa && tienda.sinGoCuotas(promosPedido, { id: l.producto_id, categoria: l.categoria })) : [];
+    // En oferta (también los del 4x3 del evento): sin GoCuotas
+    const nxmGoc = pago === 'gocuotas' ? await tienda.packsPromos(client) : [];
+    const conOfertaGoc = pago === 'gocuotas' ? lineas.filter(l => !l.preventa && (tienda.sinGoCuotas(promosPedido, { id: l.producto_id, categoria: l.categoria }) || nxmGoc.some(pk => pk.productos.includes(Number(l.producto_id))))) : [];
     if (conOfertaGoc.length) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'GoCuotas no está disponible para productos en oferta (' + conOfertaGoc.map(l => l.nombre).slice(0, 3).join(', ') + '). Elegí otra forma de pago.' });
