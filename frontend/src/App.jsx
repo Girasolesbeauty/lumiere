@@ -28644,7 +28644,8 @@ function BlackFriday({ paletaActual }) {
   const nombreOf = (o) => (parseFloat(o.pct) || 0) + "% OFF" + (parseInt(o.cuotas) > 1 ? " + " + o.cuotas + " cuotas" : "");
   const q = busca.trim().toLowerCase();
   const conStock = rot.filter(x => x.stock > 0);
-  const lista = conStock.filter(x => (filtro === "todos" || (filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "tildados" ? (of.productos || []).includes(x.id) : x.estado === filtro))
+  // Buscando, aparecen todos los productos (ej. uno que se vende bien, como llamador), no solo los lentos y parados
+  const lista = conStock.filter(x => (filtro === "todos" || (q && filtro !== "tildados") || (filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "tildados" ? (of.productos || []).includes(x.id) : x.estado === filtro))
     // Los que ya están en otra oferta no aparecen acá (para no confundirse)
     && !((o => o && o.id !== of.id)(ofDeProd(x.id)))
     && (!q || (x.nombre + " " + (x.marca || "") + " " + (x.categoria || "")).toLowerCase().includes(q)))
@@ -28723,7 +28724,7 @@ function BlackFriday({ paletaActual }) {
       <div className="card">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
           <b style={{ fontSize: 14 }}>Productos de {nombreOf(of)}</b>
-          <input className="inp" style={{ flex: "1 1 220px", maxWidth: 320 }} placeholder="Buscar por nombre, marca o categoría" value={busca} onChange={e => setBusca(e.target.value)} />
+          <input className="inp" style={{ flex: "1 1 220px", maxWidth: 320 }} placeholder="Buscar entre todos los productos (nombre, marca…)" value={busca} onChange={e => setBusca(e.target.value)} />
           {[["quietos", "Lentos y parados (" + nQuietos + ")"], ["parado", "Parados"], ["lento", "Lentos"], ["tildados", "Tildados acá (" + (of.productos || []).length + ")"], ["todos", "Todos"]].map(([k, txt]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{txt}</button>)}
         </div>
         {libres.length > 0 && <button className="btn btn-g btn-sm" style={{ marginBottom: 8, display: "block" }} onClick={() => tildar(libres.map(x => x.id), true)}>☑️ Tildar los {libres.length} de la lista</button>}
