@@ -139,7 +139,7 @@ router.get('/:slug', async (req, res) => {
       resenas_puntos: (() => { const r = tienda.puntosResenaDe(c); return r.activo && (r.puntos || r.extra_foto) ? { puntos: r.puntos, extra_foto: r.extra_foto } : null; })(),
       // Logo de la marca para la gift card (blanco sobre el color de la tarjeta)
       logo_marca: Number(req.negTienda.id) === 1 ? { blanco: '/logos/girasoles-logo-blanco.svg', color: '/logos/girasoles-logo.svg' } : null,
-      packs: tienda.packsDe(c).filter(p => p.activo).map(({ activo, ...p }) => p),
+      packs: [...await tienda.packsPromos(pool), ...tienda.packsDe(c).filter(p => p.activo)].map(({ activo, ...p }) => p),
       // Rutina en cuotas (aviso en el carrito): solo mientras está vigente
       rutina_cuotas: await require('./promociones').leerRutinaCuotas().then(r => r.vigente ? { minimo: r.minimo, cuotas: r.cuotas, precio_min: r.precio_min, excluir: r.excluir, online: r.online, hasta: r.hasta } : null).catch(() => null),
       diagnostico: (() => { const k = tienda.diagnosticoDe(c); return k.activo ? { titulo: k.titulo, texto: k.texto, minutos: k.minutos } : null; })(),
@@ -569,7 +569,7 @@ router.post('/:slug/pedidos', async (req, res) => {
     // Descuento por la forma de pago elegida (sobre los productos, despues del cupon; no sobre el envio)
     // Promociones de Lumiere marcadas para la tienda: esos productos llevan la promo en lugar del descuento por forma de pago
     // Las promos de un solo local valen solo para los pedidos de ese local
-    const promo = tienda.descuentoPromos(promosPedido, lineas, combo.enCombos, pago, tienda.packsDe(c));
+    const promo = tienda.descuentoPromos(promosPedido, lineas, combo.enCombos, pago, [...await tienda.packsPromos(client), ...tienda.packsDe(c)]);
     const descPromo = promo.descuento;
     // Los combos de un evento (Cyber) ya tienen su precio por forma de pago: no suman el descuento general
     const montoSinPago = combo.combos.filter(x => x.sin_pago).reduce((t, x) => t + (x.monto || 0), 0)

@@ -4025,22 +4025,25 @@ function POS({ localId, usuario, paletaActual }) {
       else if (promo.tipo === "nxm") {
         const nx = parseInt(promo.nx), ny = parseInt(promo.ny);
         if (nx > 0 && ny > 0 && nx > ny) {
-          const elegibles = cart.filter(i => itemAplica(promo, i));
+          // Por renglón (porItem): así el 4x3 convive con las ofertas de otros productos del ticket (antes competía con todas
+          // juntas). Los renglones que entran en la promo quedan marcados aunque no salgan gratis (no suman el descuento por medio de pago)
+          const elegibles = cart.map((i, k) => ({ i, k })).filter(x => itemAplica(promo, x.i) && !x.i.es_kit && !x.i.es_ajuste);
           if (promo.mismo_producto) {
-            for (const i of elegibles) {
+            for (const { i, k } of elegibles) {
               const grupos = Math.floor(i.qty / nx);
-              const gratisPorGrupo = nx - ny;
-              desc += grupos * gratisPorGrupo * precioItem(i);
+              const v = grupos * (nx - ny) * precioItem(i);
+              if (grupos > 0) { desc += v; porItem.set(k, (porItem.get(k) || 0) + v); }
             }
           } else {
-            const totalUnid = elegibles.reduce((s, i) => s + i.qty, 0);
+            const totalUnid = elegibles.reduce((s, x) => s + x.i.qty, 0);
             const grupos = Math.floor(totalUnid / nx);
             const gratis = grupos * (nx - ny);
             // los mas baratos gratis
             const expandido = [];
-            elegibles.forEach(i => { for (let k = 0; k < i.qty; k++) expandido.push(precioItem(i)); });
-            expandido.sort((a, b) => a - b);
-            for (let k = 0; k < gratis && k < expandido.length; k++) desc += expandido[k];
+            elegibles.forEach(({ i, k }) => { for (let u = 0; u < i.qty; u++) expandido.push({ p: precioItem(i), k }); });
+            expandido.sort((a, b) => a.p - b.p);
+            if (grupos > 0) elegibles.forEach(({ k }) => porItem.set(k, porItem.get(k) || 0));
+            for (let u = 0; u < gratis && u < expandido.length; u++) { desc += expandido[u].p; porItem.set(expandido[u].k, (porItem.get(expandido[u].k) || 0) + expandido[u].p); }
           }
         }
       }
@@ -4096,6 +4099,10 @@ function POS({ localId, usuario, paletaActual }) {
     if (cart.some(i => i.tienda_pedido)) return k;
     promociones.filter(pr => promoVigenteHoy(pr) && !(pr.hasta && new Date(pr.hasta) < new Date()) && (!pr.local_id || Number(pr.local_id) === Number(localId))).forEach(pr => {
       if (pr.tipo === "descuento") cart.forEach((i, j) => { if (itemAplica(pr, i)) k.add(j); });
+      else if (pr.tipo === "nxm" && parseInt(pr.nx) > 0) {
+        const js = cart.map((i, j) => j).filter(j => itemAplica(pr, cart[j]) && !cart[j].es_kit && !cart[j].es_ajuste);
+        if (js.reduce((a, j) => a + cart[j].qty, 0) >= parseInt(pr.nx)) js.forEach(j => k.add(j));
+      }
       else if (pr.tipo === "combo") {
         const ids = (pr.productos_ids || []).map(Number), cant = pr.combo_cantidades || {};
         const hay = (id) => cart.filter(i => Number(i.id) === id && !i.es_kit && !i.es_ajuste).reduce((a, i) => a + i.qty, 0);
@@ -28582,14 +28589,21 @@ const bfHoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/
 const bfDomingo = () => { const d = new Date(bfHoy() + "T12:00:00"); d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); return d.toISOString().slice(0, 10); };
 const bfOfertaNueva = (pct) => ({ id: "o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), pct, tienda: { transferencia: true, mp: true }, locales: { efectivo: true, transferencia: true, debito: true, credito1: true }, cuotas: 0, local: "0", productos: [] });
 // Las promos que salen de una oferta: una por forma de pago; si vale igual en la tienda y en los locales, una sola para los dos
+const bfOferta4x3 = () => ({ id: "x" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tipo: "nxm", nx: 4, ny: 3, nombre: "Mascarillas", enTienda: true, enLocales: true, local: "0", productos: [] });
 function bfGrupos(of) {
   const g = [], t = of.tienda || {}, l = of.locales || {}, pct = parseFloat(of.pct) || 0, loc = of.local && of.local !== "0" ? Number(of.local) : null;
   const P = pct + "% OFF";
   const add = (pago, canal, etiqueta, extra) => {
     // Un solo local: lo de la tienda va aparte (la tienda online vale para todos)
-    if (canal === "ambos" && loc) { g.push({ pct, pago, canal: "tienda", etiqueta: etiqueta + " (tienda online)" }); g.push({ pct, pago, canal: "locales", local: loc, etiqueta: etiqueta + " (local)" }); return; }
+    if (canal === "ambos" && loc) { g.push({ pct, pago, canal: "tienda", etiqueta: etiqueta + " (tienda online)", ...(extra || {}) }); g.push({ pct, pago, canal: "locales", local: loc, etiqueta: etiqueta + " (local)", ...(extra || {}) }); return; }
     g.push({ pct, pago, canal, etiqueta, ...(canal === "locales" && loc ? { local: loc } : {}), ...(extra || {}) });
   };
+  // 4x3: llevando 4 (de los productos elegidos, como quieran), el más barato gratis. Vale con cualquier forma de pago
+  if (of.tipo === "nxm") {
+    const nx = parseInt(of.nx) || 0, ny = parseInt(of.ny) || 0;
+    if (nx > ny && ny > 0 && (of.enTienda || of.enLocales)) add(null, of.enTienda && of.enLocales ? "ambos" : of.enTienda ? "tienda" : "locales", nx + "x" + ny + ((of.nombre || "").trim() ? " en " + of.nombre.trim() : ""), { tipo: "nxm", nx, ny });
+    return g.map(x => ({ ...x, productos: of.productos || [] }));
+  }
   if (pct > 0) {
     if (t.transferencia || l.transferencia) add("transferencia", t.transferencia && l.transferencia ? "ambos" : t.transferencia ? "tienda" : "locales", P + " con transferencia");
     if (l.efectivo) add("efectivo", "locales", P + " en efectivo");
@@ -28641,7 +28655,7 @@ function BlackFriday({ paletaActual }) {
   const tildar = (ids, si) => setPlan(pl => ({ ...pl, ofertas: pl.ofertas.map(o => o.id === of.id
     ? { ...o, productos: si ? [...new Set([...(o.productos || []), ...ids])] : (o.productos || []).filter(x => !ids.includes(x)) }
     : si ? { ...o, productos: (o.productos || []).filter(x => !ids.includes(x)) } : o) }));
-  const nombreOf = (o) => (parseFloat(o.pct) || 0) + "% OFF" + (parseInt(o.cuotas) > 1 ? " + " + o.cuotas + " cuotas" : "");
+  const nombreOf = (o) => o.tipo === "nxm" ? (o.nx || "?") + "x" + (o.ny || "?") + ((o.nombre || "").trim() ? " " + o.nombre.trim() : "") : (parseFloat(o.pct) || 0) + "% OFF" + (parseInt(o.cuotas) > 1 ? " + " + o.cuotas + " cuotas" : "");
   const q = busca.trim().toLowerCase();
   const conStock = rot.filter(x => x.stock > 0);
   // Buscando, aparecen todos los productos (ej. uno que se vende bien, como llamador), no solo los lentos y parados
@@ -28696,15 +28710,25 @@ function BlackFriday({ paletaActual }) {
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         {ofertas.map((o, i) => <button key={o.id} className={"chip-btn" + (o.id === of.id ? " on" : "")} style={o.id === of.id ? { background: "#000", color: "#ff2a2a", borderColor: "#000" } : {}} onClick={() => setSel(i)}>{nombreOf(o)} · {(o.productos || []).length} prod.</button>)}
-        <button className="chip-btn" onClick={() => { setPlan(pl => ({ ...pl, ofertas: [...pl.ofertas, bfOfertaNueva(20)] })); setSel(ofertas.length); }}>+ Otra oferta</button>
+        <button className="chip-btn" onClick={() => { setPlan(pl => ({ ...pl, ofertas: [...pl.ofertas, bfOfertaNueva(20)] })); setSel(ofertas.length); }}>+ Otra oferta %</button>
+        <button className="chip-btn" onClick={() => { setPlan(pl => ({ ...pl, ofertas: [...pl.ofertas, bfOferta4x3()] })); setSel(ofertas.length); setFiltro("todos"); }}>+ Promo 4x3 (el más barato gratis)</button>
       </div>
       <div className="card" style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
-          <div><div className="fl">Descuento</div><div style={{ display: "flex", alignItems: "center", gap: 6 }}><input className="inp" type="number" min="0" max="80" style={{ width: 90 }} value={of.pct} onChange={e => setOf({ pct: e.target.value })} /> % OFF</div></div>
+          {of.tipo === "nxm" ? <>
+            <div><div className="fl">Lleva</div><input className="inp" type="number" min="2" max="20" style={{ width: 80 }} value={of.nx} onChange={e => setOf({ nx: e.target.value })} /></div>
+            <div><div className="fl">Paga</div><input className="inp" type="number" min="1" max="19" style={{ width: 80 }} value={of.ny} onChange={e => setOf({ ny: e.target.value })} /></div>
+            <div style={{ flex: "1 1 200px" }}><div className="fl">Nombre (sale en la tienda)</div><input className="inp" maxLength={40} value={of.nombre || ""} placeholder="Mascarillas" onChange={e => setOf({ nombre: e.target.value })} /></div>
+          </> : <div><div className="fl">Descuento</div><div style={{ display: "flex", alignItems: "center", gap: 6 }}><input className="inp" type="number" min="0" max="80" style={{ width: 90 }} value={of.pct} onChange={e => setOf({ pct: e.target.value })} /> % OFF</div></div>}
           {LOCS_BF.length > 0 && <div><div className="fl">En los locales vale en</div><select className="sel" value={of.local || "0"} onChange={e => setOf({ local: e.target.value })}><option value="0">Todos los locales</option>{LOCS_BF.map(l => <option key={l} value={String(l)}>Solo {nombreLocal(l)}</option>)}</select></div>}
           {ofertas.length > 1 && <button className="btn btn-g btn-sm" style={{ marginLeft: "auto" }} onClick={() => { if (window.confirm("¿Borrar la oferta " + nombreOf(of) + "?")) { setPlan(pl => ({ ...pl, ofertas: pl.ofertas.filter(o => o.id !== of.id) })); setSel(0); } }}>🗑️ Borrar oferta</button>}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+        {of.tipo === "nxm" ? <div style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 14px" }}>
+            <b style={{ fontSize: 13.5 }}>Dónde vale</b>
+            {chk(of.enTienda, "🛍️ Tienda online", v => setOf({ enTienda: v }), "t")}
+            {chk(of.enLocales, "🏪 Locales", v => setOf({ enLocales: v }), "l")}
+            <div style={{ fontSize: 12, color: p.textMuted, marginTop: 4 }}>Llevando {of.nx || "?"} de los productos tildados abajo (combinados como quieran), {parseInt(of.nx) - parseInt(of.ny) > 1 ? "los " + (parseInt(of.nx) - parseInt(of.ny)) + " más baratos salen" : "el más barato sale"} gratis. Vale con cualquier forma de pago; en el Punto de Venta se descuenta solo.</div>
+          </div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
           <div style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 14px" }}>
             <b style={{ fontSize: 13.5 }}>🛍️ En la tienda online, pagando con</b>
             {BF_TIENDA.map(([k, txt]) => chk((of.tienda || {})[k], txt, v => setOf({ tienda: { ...(of.tienda || {}), [k]: v } }), k))}
@@ -28719,7 +28743,7 @@ function BlackFriday({ paletaActual }) {
             </div>
             {parseInt(of.cuotas) > 1 && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>En cuotas va sin el descuento (no se suman). Se cobra con el medio “Crédito {of.cuotas} cuotas” del Punto de Venta.</div>}
           </div>
-        </div>
+        </div>}
       </div>
       <div className="card">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
@@ -28733,7 +28757,7 @@ function BlackFriday({ paletaActual }) {
           : <div style={{ maxHeight: 520, overflow: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
             {lista.map(x => {
               const aca = (of.productos || []).includes(x.id), est = BF_ESTADO[x.estado] || [x.estado || "—", p.textMuted];
-              const pct = parseFloat(of.pct) || 0, perdida = x.costo > 0 && x.precio * (1 - pct / 100) < x.costo;
+              const pct = of.tipo === "nxm" ? 0 : parseFloat(of.pct) || 0, perdida = x.costo > 0 && x.precio * (1 - pct / 100) < x.costo;
               return (
                 <label key={x.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid " + p.border, cursor: "pointer", background: aca ? "rgba(225,6,0,.06)" : undefined }}>
                   <input type="checkbox" checked={!!aca} onChange={e => tildar([x.id], e.target.checked)} aria-label={"Tildar " + x.nombre} />
@@ -33190,7 +33214,7 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
           {p.top && !preventa && !sin && !cyPct && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
           {p.precio_antes && !preventa && <span className="tw-etq oferta">⚡ Oferta</span>}
           {p.nuevo && !preventa && !p.top && !p.precio_antes && !cyPct && <span className="tw-etq">Nuevo</span>}
-          {pack && !preventa && !sin && <span className="tw-etq pack">🎁 {pack.cantidad}+ = {pack.pct}% OFF</span>}
+          {pack && !preventa && !sin && <span className="tw-etq pack">🎁 {twPackCorto(pack)}</span>}
           {p.video && <span className="tw-etq neg">▶ Video</span>}
         </div>
         {sin ? <div className="tw-agotado"><span>AGOTADO</span><button onClick={e => { e.stopPropagation(); onAbrir(p); }}>🔔 Avisame cuando vuelva</button></div> : (
@@ -33953,7 +33977,10 @@ function twSinGoCuotas(promos, p) {
 }
 // Packs: "llevá 3 de esta marca y tenés 15%" (mismo criterio que lib/tienda.js packsDe / descuentoPromos)
 const twEnPack = (pk, id, marca) => pk.productos.includes(id) || (!!marca && pk.marcas.some(m => m.toLowerCase() === String(marca).trim().toLowerCase()));
-const twPackDe = (packs, p) => (packs || []).filter(pk => twEnPack(pk, p.id, p.marca)).sort((a, b) => b.pct - a.pct)[0] || null;
+const twPackDe = (packs, p) => (packs || []).filter(pk => twEnPack(pk, p.id, p.marca)).sort((a, b) => (b.tipo === "nxm") - (a.tipo === "nxm") || b.pct - a.pct)[0] || null;
+// "4x3" o "3+ = 15% OFF"
+const twPackCorto = (pk) => pk.tipo === "nxm" ? pk.cantidad + "x" + pk.paga : pk.cantidad + "+ = " + pk.pct + "% OFF";
+const twPackPremio = (pk) => pk.tipo === "nxm" ? (pk.cantidad - pk.paga === 1 ? "el más barato gratis" : "los " + (pk.cantidad - pk.paga) + " más baratos gratis") : pk.pct + "% OFF";
 // Base de los cupones: lo que suman los productos sin oferta (sin las unidades de los combos ni las de productos con
 // promo, pague como pague). Mismo cálculo que el servidor (baseCupon en lib/tienda.js)
 function twBaseCupon(promos, carrito, usados, combos, catDe) {
@@ -33987,10 +34014,17 @@ function twDescPromos(promos, carrito, usados, combos, pago, catDe, packs, marca
     monto += u * l.precio; descuento += u * l.precio * pr.pct / 100; nombres.add(pr.nombre);
   });
   const tomadas = new Set();
-  [...(packs || [])].sort((a, b) => b.pct - a.pct).forEach(pk => {
+  [...(packs || [])].sort((a, b) => (b.tipo === "nxm") - (a.tipo === "nxm") || b.pct - a.pct).forEach(pk => {
     const its = resto.filter(x => !tomadas.has(x) && twEnPack(pk, x.l.producto_id, marcaDe ? marcaDe(x.l.producto_id) : null));
-    if (its.reduce((t, x) => t + x.u, 0) < pk.cantidad) return;
-    its.forEach(x => { tomadas.add(x); monto += x.u * x.l.precio; descuento += x.u * x.l.precio * pk.pct / 100; });
+    const unid = its.reduce((t, x) => t + x.u, 0);
+    if (unid < pk.cantidad) return;
+    if (pk.tipo === "nxm") {
+      // 4x3: de cada 4, el más barato gratis (igual que el servidor)
+      const gratis = Math.floor(unid / pk.cantidad) * (pk.cantidad - pk.paga);
+      const precios = its.flatMap(x => Array(x.u).fill(x.l.precio)).sort((a, b) => a - b);
+      its.forEach(x => { tomadas.add(x); monto += x.u * x.l.precio; });
+      descuento += precios.slice(0, gratis).reduce((t, v) => t + v, 0);
+    } else its.forEach(x => { tomadas.add(x); monto += x.u * x.l.precio; descuento += x.u * x.l.precio * pk.pct / 100; });
     nombres.add(pk.nombre);
   });
   return { descuento: Math.round(descuento), monto, nombres: [...nombres] };
@@ -37844,7 +37878,7 @@ function TiendaPublica({ slug }) {
         ) : enLista ? (
           <>
             <div className="tw-lista-cab">
-              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + packCat.cantidad + " o más = " + packCat.pct + "% OFF" : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "halloween" ? "🎃 Tu look de Halloween" : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "ofertas" ? "Ofertas" : cat === "mini" ? "Mini size" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
+              <div><h1>{q ? "“" + busca.trim() + "”" : cat === "*" && filtros.ingrediente && !filtros.tipo && !filtros.piel && !filtros.necesidad ? "Con " + ((TW_ING_OP.find(o => o[0] === filtros.ingrediente) || ["", ""])[1]) : cat === "*" && filtros.piel && !filtros.tipo && !filtros.necesidad ? "Piel " + (TW_FILTROS[1].op.find(o => o[0] === filtros.piel) || ["", ""])[1].toLowerCase() : cat === "*" && filtros.necesidad && !filtros.tipo && !filtros.piel ? (TW_FILTROS[2].op.find(o => o[0] === filtros.necesidad) || ["", ""])[1] : cat === "*" ? "Todos los productos" : packCat ? "🎁 " + packCat.nombre + ": " + (packCat.tipo === "nxm" ? packCat.cantidad + "x" + packCat.paga + ", " + twPackPremio(packCat) : packCat.cantidad + " o más = " + packCat.pct + "% OFF") : cat === "preventa" ? "⏳ " + tienda.preventa.titulo : cat === "favoritos" ? "❤️ Tus favoritos" : bannerCat ? (bannerCat.titulo || "Elegidos para vos") : cat === "halloween" ? "🎃 Tu look de Halloween" : cat === "cyber" ? "⚡ Ofertas Cyber" : cat === "ofertas" ? "Ofertas" : cat === "mini" ? "Mini size" : cat === "reingreso" ? reingreso.nombre : sector ? sector.nombre : cat.startsWith("m:") ? cat.slice(2) : cat}</h1><div style={{ color: "#666", fontSize: 14, marginTop: 4, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>{sector && !q && lista.length === 0 && combosSector(sector).length > 0 ? combosSector(sector).length + (combosSector(sector).length === 1 ? " kit" : " kits") : lista.length + " " + (lista.length === 1 ? "producto" : "productos")}
                 {q && <button className="tw-compartir-sec" onClick={() => compartirSeccion("“" + busca.trim() + "”")}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}
                 {!q && cat && cat !== "favoritos" && <button className="tw-compartir-sec" onClick={() => compartirSeccion(cat === "preventa" ? tienda.preventa.titulo : sector ? sector.nombre : cat === "*" ? "Todos los productos" : cat === "ofertas" ? "Ofertas" : cat === "mini" ? "Mini size" : cat === "reingreso" ? reingreso.nombre : cat.startsWith("m:") ? cat.slice(2) : cat)}>{seccionCopiada ? "✓ Link copiado" : "🔗 Compartir"}</button>}</div></div>
               {!(sector && !q && lista.length === 0 && combosSector(sector).length > 0) && <select value={orden} onChange={e => setOrden(e.target.value)} aria-label="Ordenar">{TW_ORDEN.map(([k, t]) => <option key={k} value={k}>Ordenar: {t}</option>)}</select>}
@@ -38158,7 +38192,7 @@ function TiendaPublica({ slug }) {
                     if (gmin && ver.precio < gmin) return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> en compras desde <b>{fmtTienda(gmin)}</b> <span>· GoCuotas</span></div>;
                     return <div className="tw-cuotas" title="Con tu tarjeta de débito">💜 <b>4 cuotas sin interés</b> de <b>{fmtTienda(Math.ceil(base / 4))}</b> <span>· GoCuotas</span></div>;
                   })()}
-                  {(() => { const pk = !preVer && twPackDe(tienda.packs, ver); return pk ? <div className="tw-ficha-pack">🎁 <b>{pk.nombre}:</b> llevando {pk.cantidad} o más, {pk.pct}% OFF en todos <button className="tw-link" onClick={() => { setVer(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver el pack ›</button></div> : null; })()}
+                  {(() => { const pk = !preVer && twPackDe(tienda.packs, ver); return pk ? <div className="tw-ficha-pack">🎁 <b>{pk.nombre}:</b> {pk.tipo === "nxm" ? "llevando " + pk.cantidad + " (combinalos como quieras), " + twPackPremio(pk) : "llevando " + pk.cantidad + " o más, " + pk.pct + "% OFF en todos"} <button className="tw-link" onClick={() => { setVer(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver el pack ›</button></div> : null; })()}
                   {(ver._et && (ver._et.ingrediente || []).length > 0) && <div className="tw-ficha-ing"><span>Con</span>{ver._et.ingrediente.map(k => { const o = TW_ING_OP.find(x => x[0] === k); return o ? <button key={k} onClick={() => { setVer(null); irCat("*", { ingrediente: k }); }} title={"Ver todo con " + o[1]}>{o[1]}</button> : null; })}</div>}
                   {preVer && (
                     <div className="tw-preventa-aviso" role="note">
@@ -38253,8 +38287,8 @@ function TiendaPublica({ slug }) {
                   {(tienda.packs || []).map(pk => {
                     const u = carrito.filter(i => !i.preventa && twEnPack(pk, i.producto_id, ((productos || []).find(x => x.id === i.producto_id) || {}).marca)).reduce((t, i) => t + i.cantidad, 0);
                     if (!u) return null;
-                    return u >= pk.cantidad ? <div key={pk.id} className="tw-pack-avance ok">🎉 <b>{pk.nombre}</b>: ya tenés {pk.pct}% OFF en esos productos</div>
-                      : <div key={pk.id} className="tw-pack-avance">🎁 Sumá <b>{pk.cantidad - u} más</b> de <b>{pk.nombre}</b> y te llevás {pk.pct}% OFF <button className="tw-link" onClick={() => { setPaso(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver ›</button></div>;
+                    return u >= pk.cantidad ? <div key={pk.id} className="tw-pack-avance ok">🎉 <b>{pk.nombre}</b>: {pk.tipo === "nxm" ? "ya tenés " + twPackPremio(pk) + (u >= pk.cantidad * 2 ? " (cada " + pk.cantidad + ")" : "") : "ya tenés " + pk.pct + "% OFF en esos productos"}</div>
+                      : <div key={pk.id} className="tw-pack-avance">🎁 Sumá <b>{pk.cantidad - u} más</b> de <b>{pk.nombre}</b> y te llevás {twPackPremio(pk)} <button className="tw-link" onClick={() => { setPaso(null); pk.marcas.length === 1 && !pk.productos.length ? irCat("m:" + pk.marcas[0]) : irCat("pack:" + pk.id); }}>Ver ›</button></div>;
                   })}
                   {carrito.length === 0 ? <div style={{ textAlign: "center", padding: "50px 0", color: "#666" }}><div style={{ fontSize: 44, lineHeight: 1.3, height: 60, marginBottom: 14 }}>🛍️</div><p style={{ margin: "0 0 14px" }}>Tu carrito está vacío.</p><button className="tw-btn2" onClick={() => setPaso(null)}>Ver productos</button></div> : carrito.map((i, n) => (
                     <div key={i.producto_id + "-" + (i.variante_id || "")} className={"tw-item" + (saliendo.includes(claveIt(i)) ? " sale" : "")} style={{ "--i": Math.min(n, 6) }}>
