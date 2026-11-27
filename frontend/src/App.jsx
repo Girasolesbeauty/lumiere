@@ -171,7 +171,7 @@ let GASTRO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_gastro")
 let CONSULTORIO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_consultorio") === "1"; } catch (e) { return false; } })();
 // Modulo Constructora (Obras, Stock de obra, Compras): sin Punto de Venta ni lo que es de tienda
 let CONSTRUCTORA_ACTIVO = (() => { try { return localStorage.getItem("lumiere_constructora") === "1"; } catch (e) { return false; } })();
-const OCULTAS_EN_CONSTRUCTORA = new Set(["dashboard", "pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "black-friday", "reclamos-proveedores"]);
+const OCULTAS_EN_CONSTRUCTORA = new Set(["dashboard", "pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "black-friday", "bf-ofertas", "reclamos-proveedores"]);
 const OCULTAS_EN_CONSULTORIO = new Set(["etiquetas", "kits", "listas-precios", "traspasos", "control-inv", "ventas-online", "cambio-devolucion", "buscar-precio", "fidelizacion", "cupones", "giftcards", "portal"]);
 const aplicarModulos = (m) => {
   GASTRO_ACTIVO = !!(m && m.gastronomia);
@@ -24918,6 +24918,10 @@ function htmlUnaEtiqueta(it, estilo, op, ancha) {
   // Cyber Monday: precio de lista tachado y el precio con cada forma de pagar de su oferta (lo mismo que cobra el Punto de Venta)
   if (estilo === "cyber") {
     const antes = parseFloat(it.precio) || 0, ops = it.opciones || [], max = Math.max(0, ...ops.map(o => o.pct || 0));
+    // 4x3 (Black Friday): llevando N, el más barato gratis
+    if (it.nxm) return `<div class="banda">${escHtml(op.textoOferta || "OFERTA")}<span class="pct">${it.nxm.nx}x${it.nxm.ny}</span></div>
+      <div class="cuerpo"><div class="nom">${nombre}</div>${marca ? `<div class="sub">${marca}</div>` : ""}
+      <div class="pre xl rojo">${escHtml(precioEtiqueta(antes))}</div><div class="ops"><div class="op"><span class="ot">Llevando ${it.nxm.nx} (combinalos como quieras)</span><b>${it.nxm.nx - it.nxm.ny > 1 ? "los " + (it.nxm.nx - it.nxm.ny) + " más baratos" : "el más barato"} gratis</b></div></div></div>`;
     const filas = ops.map(o => {
       const tot = Math.round(antes * (1 - (o.pct || 0) / 100));
       if (o.tipo === "cuotas") return `<div class="op"><span class="ot">${o.cuotas} cuotas sin interés${o.pct ? " · -" + o.pct + "%" : ""}</span><b>${o.cuotas} x ${escHtml(precioEtiqueta(Math.round(tot / o.cuotas)))}</b></div>`;
@@ -24988,7 +24992,7 @@ function htmlEtiquetas(items, estilo, tamId, op, limite) {
     /* Cyber */
     .et.cyber { justify-content: flex-start; padding: 0; border: 0.5mm solid #111; }
     .cyber .banda { width: 100%; background: #111; color: #fff; font-weight: 900; letter-spacing: 0.1em; font-size: ${(uc * 0.11).toFixed(2)}mm; padding: ${(uc * 0.03).toFixed(2)}mm 0; }
-    .cyber .pct { background: #7c3aed; color: #fff; border-radius: 99px; padding: 0 1.4mm; margin-left: 1.5mm; letter-spacing: 0.04em; }
+    .cyber .pct { background: ${/black/i.test(op.textoOferta || "") ? "#e10600" : "#7c3aed"}; color: #fff; border-radius: 99px; padding: 0 1.4mm; margin-left: 1.5mm; letter-spacing: 0.04em; }
     .cyber .cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; padding: ${(uc * 0.035).toFixed(2)}mm ${(uc * 0.07).toFixed(2)}mm; }
     .cyber .nom { font-size: ${(uc * 0.09).toFixed(2)}mm; }
     .cyber .sub { font-size: ${(uc * 0.07).toFixed(2)}mm; margin-top: 0; }
@@ -28616,6 +28620,114 @@ function bfGrupos(of) {
   if (n > 1) add("credito", "locales", n + " cuotas sin interés", { pct: 0, cuotas: n });
   return g.map(x => ({ ...x, productos: of.productos || [] }));
 }
+// ===== Detalle de las ofertas de Black Friday (para las vendedoras): las promos activas agrupadas por oferta, con sus
+// productos, precios y formas de pago, y etiquetas para imprimir. Lee lo que está activo (no el borrador del armado).
+const BF_COLORES = ["#e10600", "#ff8a00", "#7c3aed", "#0891b2", "#059669", "#db2777", "#2563eb", "#ca8a04"];
+const BF_MEDIO_LOCAL = { efectivo: "efectivo", transferencia: "transferencia", debito: "débito", credito: "crédito en 1 pago" };
+const BF_MEDIO_TIENDA = { transferencia: "transferencia", mercadopago: "débito o crédito en 1 cuota", efectivo: "efectivo al retirar" };
+const bfLista = (xs) => xs.length ? xs.slice(0, -1).join(", ") + (xs.length > 1 ? " o " : "") + xs[xs.length - 1] : "";
+function bfAgruparOfertas(promos, evento) {
+  const pref = (evento || "Black Friday") + " · ";
+  const grupos = new Map();
+  (promos || []).filter(x => String(x.nombre || "").startsWith(pref) && x.activo !== false).forEach(x => {
+    const ids = [...new Set((x.productos_ids || []).map(Number))].sort((a, b) => a - b);
+    if (!ids.length) return;
+    const k = (x.tipo === "nxm" ? "n" : "d") + ids.join(",");
+    const g = grupos.get(k) || { key: k, ids, pct: 0, cuotas: 0, pctCuotas: 0, local: new Set(), tienda: new Set(), nxm: null, nombre: "", locales: new Set(), desde: null, hasta: null };
+    const fi = x.fecha_inicio ? String(x.fecha_inicio).slice(0, 10) : null, ff = x.fecha_fin ? String(x.fecha_fin).slice(0, 10) : null;
+    if (fi && (!g.desde || fi < g.desde)) g.desde = fi;
+    if (ff && (!g.hasta || ff > g.hasta)) g.hasta = ff;
+    if (!x.solo_tienda && x.local_id) g.locales.add(Number(x.local_id));
+    if (!x.solo_tienda && !x.local_id) g.locales.add(0);
+    if (x.tipo === "nxm") { g.nxm = { nx: parseInt(x.nx), ny: parseInt(x.ny) }; g.nombre = String(x.nombre).slice(pref.length).replace(/ \((tienda online|local)\)$/, ""); if (x.en_tienda) g.tienda.add("nxm"); if (!x.solo_tienda) g.local.add("nxm"); }
+    else if (x.tipo === "descuento") {
+      const n = parseInt((String(x.nombre).match(/(\d+)\s*cuotas/i) || [])[1]) || 0, v = parseFloat(x.valor) || 0;
+      if (x.medio_pago_tipo === "credito" && n > 1) { g.cuotas = n; g.pctCuotas = v; return grupos.set(k, g); }
+      g.pct = Math.max(g.pct, v);
+      if (!x.solo_tienda && BF_MEDIO_LOCAL[x.medio_pago_tipo]) g.local.add(x.medio_pago_tipo);
+      if (x.en_tienda && BF_MEDIO_TIENDA[x.medio_pago_tipo]) g.tienda.add(x.medio_pago_tipo);
+    }
+    grupos.set(k, g);
+  });
+  return [...grupos.values()].sort((a, b) => (!!a.nxm - !!b.nxm) || a.pct - b.pct || a.cuotas - b.cuotas)
+    .map((g, i) => ({ ...g, color: BF_COLORES[i % BF_COLORES.length],
+      titulo: g.nxm ? g.nxm.nx + "x" + g.nxm.ny + (g.nombre && !/^\d+x\d+$/.test(g.nombre) ? " · " + g.nombre.replace(/^\d+x\d+\s*(en\s*)?/i, "") : "") : g.pct + "% OFF" + (g.cuotas ? " o " + g.cuotas + " cuotas sin interés" : " (sin cuotas)") }));
+}
+function BlackFridayDetalle({ p }) {
+  const [datos, setDatos] = useState(null);
+  const [busca, setBusca] = useState("");
+  const [abierta, setAbierta] = useState(null);
+  const [verEtiq, setVerEtiq] = useState(false);
+  useEffect(() => {
+    Promise.all([API.get("/promociones?activas=true&vigentes=true"), API.get("/productos"), API.get("/promociones/plan-evento").catch(() => ({ data: {} }))])
+      .then(([pr, prod, pl]) => setDatos({ promos: pr.data || [], productos: prod.data || [], evento: (pl.data && pl.data.plan && pl.data.plan.nombre) || "Black Friday" }))
+      .catch(() => setDatos({ promos: [], productos: [], evento: "Black Friday", error: true }));
+  }, []);
+  if (!datos) return <div className="card"><div className="skel" style={{ height: 220 }} /></div>;
+  const ofertas = bfAgruparOfertas(datos.promos, datos.evento);
+  const prodDe = (id) => datos.productos.find(x => Number(x.id) === id);
+  const $ = (n) => "$" + Math.round(n || 0).toLocaleString("es-AR");
+  const q = normTxt(busca.trim());
+  const filas = (of) => of.ids.map(prodDe).filter(Boolean).filter(x => !q || normTxt([x.nombre, x.marca, x.categoria].join(" ")).includes(q)).sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+  const totalProd = ofertas.reduce((t, of) => t + of.ids.length, 0);
+  const fch = (f) => f ? f.split("-").reverse().slice(0, 2).join("/") : "";
+  const hasta = ofertas.reduce((m, of) => of.hasta && (!m || of.hasta > m) ? of.hasta : m, null), desde = ofertas.reduce((m, of) => of.desde && (!m || of.desde < m) ? of.desde : m, null);
+  const textoLocal = (of) => of.nxm ? "Llevando " + of.nxm.nx + " (combinados como quieran), " + (of.nxm.nx - of.nxm.ny > 1 ? "los " + (of.nxm.nx - of.nxm.ny) + " más baratos gratis" : "el más barato gratis") + ". Con cualquier forma de pago."
+    : [of.local.size ? of.pct + "% OFF pagando con " + bfLista(["efectivo", "transferencia", "debito", "credito"].filter(k => of.local.has(k)).map(k => BF_MEDIO_LOCAL[k])) : "", of.cuotas ? "o " + of.cuotas + " cuotas sin interés" + (of.pctCuotas ? " con " + of.pctCuotas + "% OFF" : " a precio de lista (sin el descuento)") : ""].filter(Boolean).join(" ");
+  const textoTienda = (of) => of.nxm ? (of.tienda.has("nxm") ? "Sí, el mismo " + of.nxm.nx + "x" + of.nxm.ny : "") : of.tienda.size ? of.pct + "% OFF pagando con " + bfLista(["transferencia", "mercadopago", "efectivo"].filter(k => of.tienda.has(k)).map(k => BF_MEDIO_TIENDA[k])) + " (sin cuotas)" : "";
+  // Etiquetas: lo mismo que cobra el Punto de Venta (formas de pago del local y las cuotas)
+  const etiquetas = ofertas.flatMap(of => of.ids.map(prodDe).filter(x => x && (parseFloat(x.stock) || 0) > 0).map(x => ({
+    key: of.key + "-" + x.id, nombre: x.nombre, marca: x.marca, precio: parseFloat(x.precio) || 0, stock: parseInt(x.stock) || 0, color: of.color, grupo: of.titulo,
+    nxm: of.nxm, opciones: of.nxm ? [] : [...(of.local.size ? [{ tipo: "pct", pct: of.pct, medios: ["efectivo", "transferencia", "debito", "credito"].filter(k => of.local.has(k)) }] : []), ...(of.cuotas ? [{ tipo: "cuotas", pct: of.pctCuotas, cuotas: of.cuotas }] : [])],
+  })));
+  if (!ofertas.length) return <div className="card" style={{ color: p.textMuted }}>{datos.error ? "No se pudieron leer las ofertas. Probá de nuevo." : "Todavía no hay ofertas de " + datos.evento + " activas. Se arman en “⚙️ Armar ofertas” y se activan con el botón negro de abajo."}</div>;
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <b style={{ fontSize: 15 }}>📋 {ofertas.length} ofertas · {totalProd} productos</b>
+          {hasta && <span style={{ fontSize: 12.5, color: p.textMuted }}>{desde ? "del " + fch(desde) + " " : ""}hasta el {fch(hasta)} inclusive</span>}
+          <input className="inp" style={{ flex: "1 1 220px", maxWidth: 340, marginLeft: "auto" }} placeholder="Buscar un producto para ver su oferta…" value={busca} onChange={e => setBusca(e.target.value)} />
+          <button className="btn btn-p btn-sm" style={{ background: "#000", color: "#ff2a2a", borderColor: "#000" }} onClick={() => setVerEtiq(v => !v)}>🖨️ {verEtiq ? "Ocultar etiquetas" : "Etiquetas para imprimir"}</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+          {ofertas.map(of => <button key={of.key} className="chip-btn" style={{ borderColor: of.color, color: of.color, fontWeight: 700 }} onClick={() => { setAbierta(of.key); setTimeout(() => { const el = document.getElementById("bfo-" + of.key); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }}>{of.titulo} · {of.ids.length}</button>)}
+        </div>
+      </div>
+      {verEtiq && <div style={{ marginBottom: 14 }}><EtiquetasCyber p={p} lista={etiquetas} titulo={datos.evento} desde={desde} hasta={hasta} /></div>}
+      {ofertas.map(of => {
+        const fs = filas(of);
+        if (q && !fs.length) return null;
+        const abierto = q || abierta === of.key || ofertas.length <= 2;
+        return (
+          <div key={of.key} id={"bfo-" + of.key} className="card" style={{ marginBottom: 12, borderLeft: "6px solid " + of.color, scrollMarginTop: 70 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", cursor: "pointer" }} onClick={() => setAbierta(a => a === of.key ? null : of.key)}>
+              <b style={{ fontSize: 18, color: of.color }}>{of.nxm ? "🎁 " : "🏷️ "}{of.titulo}</b>
+              <span style={{ fontSize: 12.5, color: p.textMuted }}>{of.ids.length} producto{of.ids.length === 1 ? "" : "s"}{of.locales.size && !of.locales.has(0) ? " · solo " + [...of.locales].map(nombreLocal).join(", ") : ""}</span>
+              <span style={{ marginLeft: "auto", fontSize: 12.5, color: p.textMuted }}>{abierto ? "▲ Ocultar" : "▼ Ver productos"}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 10, marginTop: 10, fontSize: 13 }}>
+              {textoLocal(of) && <div style={{ background: p.bg, borderRadius: 10, padding: "8px 12px" }}><b>🏪 En los locales:</b> {textoLocal(of)}</div>}
+              <div style={{ background: p.bg, borderRadius: 10, padding: "8px 12px" }}><b>🛍️ Tienda online:</b> {textoTienda(of) || "no está en la tienda"}</div>
+            </div>
+            {abierto && <div style={{ overflowX: "auto", marginTop: 10 }}>
+              <table className="tbl" style={{ width: "100%", fontSize: 13 }}>
+                <thead><tr><th style={{ textAlign: "left" }}>Producto</th><th>Stock</th><th>Precio de lista</th>{!of.nxm && of.pct > 0 && <th>Con {of.pct}% OFF</th>}{of.cuotas > 0 && <th>{of.cuotas} cuotas sin interés</th>}</tr></thead>
+                <tbody>{fs.map(x => { const pr = parseFloat(x.precio) || 0, tc = pr * (1 - (of.pctCuotas || 0) / 100); return (
+                  <tr key={x.id}>
+                    <td style={{ textAlign: "left" }}><b>{x.nombre}</b>{x.marca ? <div style={{ fontSize: 11.5, color: p.textMuted }}>{x.marca}</div> : null}</td>
+                    <td style={{ textAlign: "center", color: (parseFloat(x.stock) || 0) > 0 ? undefined : p.red }}>{parseFloat(x.stock) || 0}</td>
+                    <td style={{ textAlign: "center", textDecoration: !of.nxm && of.pct > 0 ? "line-through" : "none", color: !of.nxm && of.pct > 0 ? p.textMuted : undefined }}>{$(pr)}</td>
+                    {!of.nxm && of.pct > 0 && <td style={{ textAlign: "center", fontWeight: 800, color: "#c00000" }}>{$(pr * (1 - of.pct / 100))}</td>}
+                    {of.cuotas > 0 && <td style={{ textAlign: "center" }}>{of.cuotas} x {$(tc / of.cuotas)}</td>}
+                  </tr>); })}</tbody>
+              </table>
+            </div>}
+          </div>);
+      })}
+    </>
+  );
+}
 function BlackFriday({ paletaActual }) {
   const p = paletaActual || PALETA_CLARA;
   const [plan, setPlan] = useState(null);
@@ -28627,6 +28739,8 @@ function BlackFriday({ paletaActual }) {
   const [guardando, setGuardando] = useState(false);
   const [cy, setCy] = useState(null);
   const ultimo = useRef("");
+  const [vista, setVista] = useState(() => { try { return sessionStorage.getItem("lumiere_bf_vista") || "armar"; } catch (e) { return "armar"; } });
+  useEffect(() => { try { sessionStorage.setItem("lumiere_bf_vista", vista); } catch (e) {} }, [vista]);
   const LOCS_BF = UN_SOLO_LOCAL ? [] : [1, 2];
   useEffect(() => {
     API.get("/promociones/plan-evento").then(r => {
@@ -28646,6 +28760,8 @@ function BlackFriday({ paletaActual }) {
     return () => clearTimeout(t);
   }, [plan]);
   const t = useCuentaRegresiva(plan && plan.hasta ? plan.hasta + "T23:59:59-03:00" : null);
+  const tabsBF = <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>{[["armar", "⚙️ Armar ofertas"], ["detalle", "📋 Detalle de ofertas y etiquetas"]].map(([k, t]) => <button key={k} className={"chip-btn" + (vista === k ? " on" : "")} style={vista === k ? { background: "#000", color: "#ff2a2a", borderColor: "#000", fontWeight: 800 } : {}} onClick={() => setVista(k)}>{t}</button>)}</div>;
+  if (vista === "detalle") return <div className="fade" style={{ textAlign: "left" }}>{tabsBF}<BlackFridayDetalle p={p} /></div>;
   if (!plan || rot === null) return <div className="fade"><div className="card"><div className="skel" style={{ height: 240 }} /></div></div>;
   const ofertas = plan.ofertas;
   const of = ofertas[Math.min(sel, ofertas.length - 1)];
@@ -28692,6 +28808,7 @@ function BlackFriday({ paletaActual }) {
   const chk = (on, txt, fn, key) => <label key={key} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", cursor: "pointer" }}><input type="checkbox" checked={!!on} onChange={e => fn(e.target.checked)} /> {txt}</label>;
   return (
     <div className="fade" style={{ textAlign: "left" }}>
+      {tabsBF}
       <div style={{ background: "#000", color: "#ff2a2a", borderRadius: 14, padding: "18px 20px", marginBottom: 14, border: "1px solid #3a0000", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 260px" }}>
           <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: ".06em" }}>🖤 BLACK FRIDAY</div>
@@ -30078,6 +30195,7 @@ const NAV_SECTIONS = [
     { id: "cocina", icon: "👨‍🍳", label: "Cocina", k: "comandas cocina pedidos gastronomia", soloGastro: true },
     { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
     { id: "tienda-online", icon: "🛍️", label: "Tienda online", k: "tienda web online pedidos carrito ecommerce publicar catalogo" },
+    { id: "bf-ofertas", icon: "🏷️", label: "Ofertas Black Friday", k: "black friday ofertas detalle productos descuento etiquetas imprimir vendedoras cuotas" },
     { id: "black-friday", icon: "🖤", label: "Black Friday", k: "ofertas black friday descuentos lentos parados quietos transferencia debito cuotas tienda locales promociones contador" },
     { id: "cyber", icon: "⚡", label: "Cyber Monday", k: "ofertas liquidacion black friday productos quietos lentos parados cuotas promociones", soloOriginal: true },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
@@ -45871,7 +45989,7 @@ function AppWrapper() {
       "finance": "finanzas.flujo", "balance-anual": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
-      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "black-friday": "promociones.ver", "postventa": "postventa.ver", "club-wa": "postventa.ver", "portal": "portal.ver",
+      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "black-friday": "promociones.ver", "bf-ofertas": "pos.ver", "postventa": "postventa.ver", "club-wa": "postventa.ver", "portal": "portal.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
@@ -45966,6 +46084,7 @@ function AppWrapper() {
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
+    if (id === "bf-ofertas") return <div className="fade" style={{ textAlign: "left" }}><div className="ph"><div><div className="pt">🏷️ Ofertas Black Friday</div><div className="ps">qué oferta tiene cada producto, formas de pago y etiquetas</div></div></div><BlackFridayDetalle p={paletaActual || PALETA_CLARA} /></div>;
     if (id === "black-friday") return <BlackFriday paletaActual={paletaActual} />;
     if (id === "cyber") return ES_NEGOCIO_ORIGINAL ? <PaginaCyber paletaActual={paletaActual} /> : <SinPermiso />;
     if (id === "club-wa") return <PaginaClubWa paletaActual={paletaActual} />;
