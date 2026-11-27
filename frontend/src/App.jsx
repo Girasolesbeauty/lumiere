@@ -171,7 +171,7 @@ let GASTRO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_gastro")
 let CONSULTORIO_ACTIVO = (() => { try { return localStorage.getItem("lumiere_consultorio") === "1"; } catch (e) { return false; } })();
 // Modulo Constructora (Obras, Stock de obra, Compras): sin Punto de Venta ni lo que es de tienda
 let CONSTRUCTORA_ACTIVO = (() => { try { return localStorage.getItem("lumiere_constructora") === "1"; } catch (e) { return false; } })();
-const OCULTAS_EN_CONSTRUCTORA = new Set(["dashboard", "pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "reclamos-proveedores"]);
+const OCULTAS_EN_CONSTRUCTORA = new Set(["dashboard", "pos", "buscar-precio", "cambio-devolucion", "ventas-online", "tienda-online", "etiquetas", "kits", "listas-precios", "insumos", "inventory", "stock-alertas", "vencimientos", "ordenes", "traspasos", "control-inv", "testers", "salud-stock", "valorizacion", "rotacion", "inconsistencias", "historial-ajustes", "cierre", "giftcards", "fidelizacion", "portal", "postventa", "club-wa", "cupones", "promociones", "del-mes", "comisiones", "productividad", "pedidos", "presupuestos", "cyber", "black-friday", "reclamos-proveedores"]);
 const OCULTAS_EN_CONSULTORIO = new Set(["etiquetas", "kits", "listas-precios", "traspasos", "control-inv", "ventas-online", "cambio-devolucion", "buscar-precio", "fidelizacion", "cupones", "giftcards", "portal"]);
 const aplicarModulos = (m) => {
   GASTRO_ACTIVO = !!(m && m.gastronomia);
@@ -3347,6 +3347,23 @@ const colorTile = (txt) => {
 };
 const inicialesProd = (nombre) => String(nombre || "?").split(/\s+/).filter(w => /[A-Za-zÁÉÍÓÚÑ0-9]/.test(w)).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 
+// Cuenta regresiva del evento (Cyber Monday, Black Friday…) en el Punto de Venta: mientras está en curso, para que en el
+// local también se vea cuánto falta y se lo puedan decir a los clientes
+function ContadorEventoPOS() {
+  const [cy, setCy] = useState(null);
+  useEffect(() => { API.get("/promociones/cyber-tienda").then(r => { if (r.data && r.data.en_curso) setCy(r.data.cyber); }).catch(() => {}); }, []);
+  const t = useCuentaRegresiva(cy ? twCyHasta(cy.hasta) : null);
+  if (!cy || !t.ms) return null;
+  const bf = twCyBF(cy);
+  return (
+    <div role="status" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12, padding: "10px 16px", borderRadius: 10, background: bf ? "#000" : "linear-gradient(90deg,#12002e,#3b0a8f)", color: bf ? "#ff2a2a" : "#e9d5ff", border: "1px solid " + (bf ? "#b30000" : "#7c3aed") }}>
+      <b style={{ letterSpacing: ".12em", fontSize: 13 }}>{bf ? "🖤" : "⚡"} {twCyNombre(cy).toUpperCase()}</b>
+      <span style={{ fontSize: 12.5, opacity: .9 }}>termina en</span>
+      <span style={{ display: "flex", gap: 6, fontVariantNumeric: "tabular-nums" }}>{[[t.d, "días"], [t.h, "hs"], [t.m, "min"], [t.s, "seg"]].map(([v, u]) => <span key={u} style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, padding: "3px 8px", fontWeight: 900, fontSize: 15 }}>{twDos(v)}<small style={{ fontSize: 9.5, fontWeight: 600, marginLeft: 3, opacity: .75 }}>{u}</small></span>)}</span>
+      <span style={{ fontSize: 12, opacity: .85, marginLeft: "auto" }}>Las ofertas ya se aplican solas al cobrar</span>
+    </div>
+  );
+}
 function POS({ localId, usuario, paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [cart, setCart] = useState([]);
@@ -6124,6 +6141,7 @@ function POS({ localId, usuario, paletaActual }) {
           💰 Modo Seña: para productos que <b>ya tenemos</b> pero el cliente no se los lleva ahora. Se reserva el stock (nadie mas se lo puede llevar) y cobrás la seña — el resto se cobra cuando venga a buscarlo.
         </div>
       )}
+      <ContadorEventoPOS />
       {modoPrueba && (
         <div style={{ background: "#c0392b12", border: "1px solid #c0392b", borderRadius: 6, padding: "10px 16px", marginBottom: 12, fontSize: 12, color: "#c0392b", fontWeight: 600 }}>
           🧪 MODO PRUEBA ACTIVO — las ventas son de práctica: no se registran, no descuentan stock, no se facturan en ARCA ni mueven la caja. Desactivalo para vender de verdad.
@@ -27739,13 +27757,20 @@ function CyberTienda({ temaPal }) {
   return (
     <div className="card" style={{ marginBottom: 16, textAlign: "left" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div className="ct" style={{ margin: 0 }}>🛍️ Diseño Cyber en la tienda online</div>
+        <div className="ct" style={{ margin: 0 }}>🛍️ Diseño del evento en la tienda online ({f.nombre || "Cyber Monday"})</div>
         {slug && <button className="btn btn-p" onClick={verComoQueda} title="Abre la tienda con el diseño Cyber, solo para vos">👀 Ver cómo va a quedar la tienda</button>}
       </div>
       <div style={{ fontSize: 12, color: temaPal.textMuted, marginBottom: 12 }}>Portada violeta con cuenta regresiva, botón CYBER en el menú y los productos con descuento marcados con su %. Los clientes solo lo ven entre las fechas que pongas.</div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Sw on={!!f.activo} toggle={() => set("activo", !f.activo)} /><b style={{ fontSize: 13 }}>Programar en la tienda</b></div>
       <div style={{ fontSize: 12, fontWeight: 700, color: estado[1], marginBottom: 14 }}>{estado[0]}{f.activo !== k.activo ? " · (guardá para aplicar)" : ""}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: temaPal.textMuted, alignSelf: "center" }}>Atajos:</span>
+        <button className="chip-btn" onClick={() => { const h = new Date(), dom = new Date(h); dom.setDate(h.getDate() + ((7 - h.getDay()) % 7)); const f2 = (x) => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); const dd = String(dom.getDate()); setF(x => ({ ...x, activo: true, nombre: "Black Friday", desde: f2(h) + "T00:00", hasta: f2(dom) + "T23:59", ceja: "Black Friday · hasta el domingo " + dd, titulo: /cyber/i.test(x.titulo || "") || !x.titulo ? "Hasta 50% OFF" : x.titulo })); }}>🖤 Black Friday (desde hoy hasta el domingo)</button>
+        <button className="chip-btn" onClick={() => setF(x => ({ ...x, nombre: "Cyber Monday" }))}>⚡ Cyber Monday</button>
+      </div>
       <div className="g2">
+        <div><label style={lbl}>Nombre del evento</label><input className="inp" value={f.nombre || ""} maxLength={30} placeholder="Cyber Monday, Black Friday, Hot Sale…" onChange={e => set("nombre", e.target.value)} /><div style={{ fontSize: 11, opacity: .7, marginTop: 3 }}>Sale en la barra de arriba y en el botón del menú.{/black/i.test(f.nombre || "") ? " Con «Black» la tienda se pone negra y dorada." : ""}</div></div>
+        <div />
         <div><label style={lbl}>Empieza</label><input className="inp" type="datetime-local" value={f.desde} onChange={e => set("desde", e.target.value)} /></div>
         <div><label style={lbl}>Termina</label><input className="inp" type="datetime-local" value={f.hasta} onChange={e => set("hasta", e.target.value)} /></div>
         <div><label style={lbl}>Texto chiquito de arriba</label><input className="inp" value={f.ceja} maxLength={80} onChange={e => set("ceja", e.target.value)} /></div>
@@ -28546,6 +28571,186 @@ function CyberResultado({ temaPal }) {
     </div>
   );
 }
+// ===== Black Friday: ofertas simples, distintas en la tienda online y en los locales =====
+// Cada oferta tiene su % (ej. 10% y 15%), con qué se puede pagar en la tienda y en los locales, y los productos tildados
+// (de los lentos y parados). Al activar, se crean las promos "Black Friday · ..." que el Punto de Venta y la tienda aplican solas.
+// En la tienda online: solo transferencia o débito / crédito en 1 cuota (Mercado Pago sin cuotas). Las cuotas sin interés, solo en los locales
+const BF_TIENDA = [["transferencia", "Transferencia"], ["mp", "Débito o crédito en 1 cuota (Mercado Pago, sin cuotas)"]];
+const BF_LOCAL = [["efectivo", "Efectivo"], ["transferencia", "Transferencia"], ["debito", "Débito"], ["credito1", "Crédito en 1 pago"]];
+const BF_ESTADO = { parado: ["Parado", "#e10600"], lento: ["Lento", "#ff8a00"], nuevo: ["Nuevo", "#2962ff"], normal: ["Normal", "#089981"], rapido: ["Se vende bien", "#089981"] };
+const bfHoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+const bfDomingo = () => { const d = new Date(bfHoy() + "T12:00:00"); d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); return d.toISOString().slice(0, 10); };
+const bfOfertaNueva = (pct) => ({ id: "o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), pct, tienda: { transferencia: true, mp: true }, locales: { efectivo: true, transferencia: true, debito: true, credito1: true }, cuotas: 0, pctCuotas: 0, local: "0", productos: [] });
+// Las promos que salen de una oferta: una por forma de pago; si vale igual en la tienda y en los locales, una sola para los dos
+function bfGrupos(of) {
+  const g = [], t = of.tienda || {}, l = of.locales || {}, pct = parseFloat(of.pct) || 0, loc = of.local && of.local !== "0" ? Number(of.local) : null;
+  const P = pct + "% OFF";
+  const add = (pago, canal, etiqueta, extra) => {
+    // Un solo local: lo de la tienda va aparte (la tienda online vale para todos)
+    if (canal === "ambos" && loc) { g.push({ pct, pago, canal: "tienda", etiqueta: etiqueta + " (tienda online)" }); g.push({ pct, pago, canal: "locales", local: loc, etiqueta: etiqueta + " (local)" }); return; }
+    g.push({ pct, pago, canal, etiqueta, ...(canal === "locales" && loc ? { local: loc } : {}), ...(extra || {}) });
+  };
+  if (pct > 0) {
+    if (t.transferencia || l.transferencia) add("transferencia", t.transferencia && l.transferencia ? "ambos" : t.transferencia ? "tienda" : "locales", P + " con transferencia");
+    if (l.efectivo) add("efectivo", "locales", P + " en efectivo");
+    if (t.mp) add("mercadopago", "tienda", P + " con débito o crédito en 1 cuota");
+    if (l.debito) add("debito", "locales", P + " con débito");
+    if (l.credito1) add("credito", "locales", P + " con crédito en 1 pago");
+  }
+  const n = parseInt(of.cuotas) || 0, pc = parseFloat(of.pctCuotas) || 0;
+  if (n > 1) add("credito", "locales", (pc > 0 ? pc + "% OFF + " : "") + n + " cuotas sin interés", { pct: pc, cuotas: n });
+  return g.map(x => ({ ...x, productos: of.productos || [] }));
+}
+function BlackFriday({ paletaActual }) {
+  const p = paletaActual || PALETA_CLARA;
+  const [plan, setPlan] = useState(null);
+  const [rot, setRot] = useState(null);
+  const [sel, setSel] = useState(0);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("quietos");
+  const [msg, setMsg] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [cy, setCy] = useState(null);
+  const ultimo = useRef("");
+  const LOCS_BF = UN_SOLO_LOCAL ? [] : [1, 2];
+  useEffect(() => {
+    API.get("/promociones/plan-evento").then(r => {
+      const pl = r.data && r.data.plan;
+      const base = pl && Array.isArray(pl.ofertas) && pl.ofertas.length ? pl : { nombre: "Black Friday", desde: bfHoy(), hasta: bfDomingo(), ofertas: [bfOfertaNueva(10), bfOfertaNueva(15)] };
+      ultimo.current = JSON.stringify(base); setPlan(base);
+    }).catch(() => setPlan({ nombre: "Black Friday", desde: bfHoy(), hasta: bfDomingo(), ofertas: [bfOfertaNueva(10), bfOfertaNueva(15)] }));
+    API.get("/productos/rotacion?dias=90").then(r => setRot(r.data.productos || [])).catch(() => setRot([]));
+    API.get("/promociones/cyber-tienda").then(r => setCy(r.data)).catch(() => setCy(false));
+  }, []);
+  // El armado se guarda solo (para seguir tildando otro día o desde otra computadora)
+  useEffect(() => {
+    if (!plan) return;
+    const txt = JSON.stringify(plan);
+    if (txt === ultimo.current) return;
+    const t = setTimeout(() => API.put("/promociones/plan-evento", { plan }).then(() => { ultimo.current = txt; }).catch(() => {}), 800);
+    return () => clearTimeout(t);
+  }, [plan]);
+  const t = useCuentaRegresiva(plan && plan.hasta ? plan.hasta + "T23:59:59-03:00" : null);
+  if (!plan || rot === null) return <div className="fade"><div className="card"><div className="skel" style={{ height: 240 }} /></div></div>;
+  const ofertas = plan.ofertas;
+  const of = ofertas[Math.min(sel, ofertas.length - 1)];
+  const setOf = (cambio) => setPlan(pl => ({ ...pl, ofertas: pl.ofertas.map(o => o.id === of.id ? { ...o, ...cambio } : o) }));
+  const ofDeProd = (id) => ofertas.find(o => (o.productos || []).includes(id));
+  // Un producto va en una sola oferta: tildarlo acá lo saca de la otra
+  const tildar = (ids, si) => setPlan(pl => ({ ...pl, ofertas: pl.ofertas.map(o => o.id === of.id
+    ? { ...o, productos: si ? [...new Set([...(o.productos || []), ...ids])] : (o.productos || []).filter(x => !ids.includes(x)) }
+    : si ? { ...o, productos: (o.productos || []).filter(x => !ids.includes(x)) } : o) }));
+  const nombreOf = (o) => (parseFloat(o.pct) || 0) + "% OFF" + (parseInt(o.cuotas) > 1 ? " + " + o.cuotas + " cuotas" : "");
+  const q = busca.trim().toLowerCase();
+  const conStock = rot.filter(x => x.stock > 0);
+  const lista = conStock.filter(x => (filtro === "todos" || (filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "tildados" ? (of.productos || []).includes(x.id) : x.estado === filtro))
+    && (!q || (x.nombre + " " + (x.marca || "") + " " + (x.categoria || "")).toLowerCase().includes(q)))
+    .sort((a, b) => (a.estado === "parado" ? 0 : a.estado === "lento" ? 1 : 2) - (b.estado === "parado" ? 0 : b.estado === "lento" ? 1 : 2) || (a.nombre || "").localeCompare(b.nombre || ""));
+  const libres = lista.filter(x => !ofDeProd(x.id));
+  const nQuietos = conStock.filter(x => ["parado", "lento"].includes(x.estado)).length;
+  const grupos = ofertas.flatMap(bfGrupos).filter(g => g.productos.length);
+  const sinMedios = ofertas.filter(o => (o.productos || []).length && !bfGrupos(o).length);
+  const activar = async () => {
+    setMsg(null);
+    if (!plan.desde || !plan.hasta || plan.desde > plan.hasta) return setMsg({ err: true, t: "Revisá las fechas" });
+    if (sinMedios.length) return setMsg({ err: true, t: nombreOf(sinMedios[0]) + ": elegí al menos una forma de pago" });
+    if (!grupos.length) return setMsg({ err: true, t: "Tildá productos en alguna oferta" });
+    setGuardando(true);
+    try {
+      await API.put("/promociones/plan-evento", { plan }); ultimo.current = JSON.stringify(plan);
+      const r = await API.post("/promociones/liquidacion", { nombre: plan.nombre || "Black Friday", desde: plan.desde, hasta: plan.hasta, grupos, en_tienda: true, sector: false });
+      setMsg({ t: "✅ Listo: " + r.data.creadas + " promos de Black Friday activas" + (r.data.reemplazadas ? " (reemplazan a las " + r.data.reemplazadas + " anteriores)" : "") + ". El Punto de Venta y la tienda online ya las aplican solas." });
+    } catch (e) { setMsg({ err: true, t: (e.response && e.response.data && e.response.data.error) || "No se pudieron activar" }); }
+    setGuardando(false);
+  };
+  const activarContador = async () => {
+    try {
+      const r = await API.put("/promociones/cyber-tienda", { ...(cy.cyber || {}), activo: true, nombre: plan.nombre || "Black Friday", desde: plan.desde + "T00:00", hasta: plan.hasta + "T23:59" });
+      setCy(c => ({ ...c, ...r.data })); setMsg({ t: "✅ Contador activado en la tienda online y en el Punto de Venta" });
+    } catch (e) { setMsg({ err: true, t: (e.response && e.response.data && e.response.data.error) || "No se pudo activar el contador" }); }
+  };
+  const contadorOk = cy && cy.cyber && cy.en_curso && /black/i.test(cy.cyber.nombre || "") && cy.cyber.hasta === plan.hasta + "T23:59";
+  const $ = (n) => "$" + Math.round(n || 0).toLocaleString("es-AR");
+  const chk = (on, txt, fn, key) => <label key={key} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", cursor: "pointer" }}><input type="checkbox" checked={!!on} onChange={e => fn(e.target.checked)} /> {txt}</label>;
+  return (
+    <div className="fade" style={{ textAlign: "left" }}>
+      <div style={{ background: "#000", color: "#ff2a2a", borderRadius: 14, padding: "18px 20px", marginBottom: 14, border: "1px solid #3a0000", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 260px" }}>
+          <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: ".06em" }}>🖤 BLACK FRIDAY</div>
+          <div style={{ color: "#ff8a8a", fontSize: 13, marginTop: 2 }}>Ofertas distintas para la tienda online y los locales · tildá los productos quietos en cada una</div>
+        </div>
+        {t.ms > 0 && <div style={{ display: "flex", gap: 6, fontVariantNumeric: "tabular-nums" }} aria-label="Tiempo que falta">{[[t.d, "días"], [t.h, "hs"], [t.m, "min"], [t.s, "seg"]].map(([v, u]) => <div key={u} style={{ border: "1px solid #5c0000", borderRadius: 8, padding: "6px 10px", textAlign: "center", minWidth: 50 }}><div style={{ fontSize: 22, fontWeight: 900 }}>{twDos(v)}</div><div style={{ fontSize: 10, color: "#ff8a8a" }}>{u}</div></div>)}</div>}
+      </div>
+      {msg && <div className="cli-tip" style={{ margin: "0 0 12px", borderColor: msg.err ? p.red : p.green, color: msg.err ? p.red : undefined }}>{msg.t}</div>}
+      <div className="card" style={{ marginBottom: 14, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div><div className="fl">Desde</div><input type="date" className="inp" value={plan.desde} onChange={e => setPlan(pl => ({ ...pl, desde: e.target.value }))} /></div>
+        <div><div className="fl">Hasta (incluido, 23:59)</div><input type="date" className="inp" value={plan.hasta} onChange={e => setPlan(pl => ({ ...pl, hasta: e.target.value }))} /></div>
+        {cy && cy.cyber && <div style={{ fontSize: 12.5, color: p.textMuted, flex: "1 1 240px" }}>
+          {contadorOk ? <span style={{ color: p.green, fontWeight: 700 }}>✓ El contador está en la tienda online y en el Punto de Venta</span>
+            : <button className="btn btn-g btn-sm" onClick={activarContador}>⏱️ Poner el contador hasta el {plan.hasta.split("-").reverse().slice(0, 2).join("/")} (tienda y locales)</button>}
+        </div>}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        {ofertas.map((o, i) => <button key={o.id} className={"chip-btn" + (o.id === of.id ? " on" : "")} style={o.id === of.id ? { background: "#000", color: "#ff2a2a", borderColor: "#000" } : {}} onClick={() => setSel(i)}>{nombreOf(o)} · {(o.productos || []).length} prod.</button>)}
+        <button className="chip-btn" onClick={() => { setPlan(pl => ({ ...pl, ofertas: [...pl.ofertas, bfOfertaNueva(20)] })); setSel(ofertas.length); }}>+ Otra oferta</button>
+      </div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 12 }}>
+          <div><div className="fl">Descuento</div><div style={{ display: "flex", alignItems: "center", gap: 6 }}><input className="inp" type="number" min="0" max="80" style={{ width: 90 }} value={of.pct} onChange={e => setOf({ pct: e.target.value })} /> % OFF</div></div>
+          {LOCS_BF.length > 0 && <div><div className="fl">En los locales vale en</div><select className="sel" value={of.local || "0"} onChange={e => setOf({ local: e.target.value })}><option value="0">Todos los locales</option>{LOCS_BF.map(l => <option key={l} value={String(l)}>Solo {nombreLocal(l)}</option>)}</select></div>}
+          {ofertas.length > 1 && <button className="btn btn-g btn-sm" style={{ marginLeft: "auto" }} onClick={() => { if (window.confirm("¿Borrar la oferta " + nombreOf(of) + "?")) { setPlan(pl => ({ ...pl, ofertas: pl.ofertas.filter(o => o.id !== of.id) })); setSel(0); } }}>🗑️ Borrar oferta</button>}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 14 }}>
+          <div style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 14px" }}>
+            <b style={{ fontSize: 13.5 }}>🛍️ En la tienda online, pagando con</b>
+            {BF_TIENDA.map(([k, txt]) => chk((of.tienda || {})[k], txt, v => setOf({ tienda: { ...(of.tienda || {}), [k]: v } }), k))}
+            <div style={{ fontSize: 11.5, color: p.textMuted }}>En la tienda no hay cuotas: con débito o crédito, Mercado Pago cobra en 1 cuota.</div>
+          </div>
+          <div style={{ border: "1px solid " + p.border, borderRadius: 10, padding: "10px 14px" }}>
+            <b style={{ fontSize: 13.5 }}>🏪 En los locales, pagando con</b>
+            {BF_LOCAL.map(([k, txt]) => chk((of.locales || {})[k], txt, v => setOf({ locales: { ...(of.locales || {}), [k]: v } }), k))}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 13, marginTop: 4 }}>
+              <span>Además, crédito en</span>
+              <select className="sel" style={{ width: "auto" }} value={of.cuotas || 0} onChange={e => setOf({ cuotas: parseInt(e.target.value) })}><option value={0}>sin cuotas</option>{[3, 4, 5, 6].map(n => <option key={n} value={n}>{n} cuotas sin interés</option>)}</select>
+              {parseInt(of.cuotas) > 1 && <><span>con</span><input className="inp" type="number" min="0" max="80" style={{ width: 70 }} value={of.pctCuotas || 0} onChange={e => setOf({ pctCuotas: e.target.value })} /><span style={{ whiteSpace: "nowrap" }}>% OFF</span></>}
+            </div>
+            {parseInt(of.cuotas) > 1 && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>Se cobra con el medio “Crédito {of.cuotas} cuotas” del Punto de Venta.</div>}
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+          <b style={{ fontSize: 14 }}>Productos de {nombreOf(of)}</b>
+          <input className="inp" style={{ flex: "1 1 220px", maxWidth: 320 }} placeholder="Buscar por nombre, marca o categoría" value={busca} onChange={e => setBusca(e.target.value)} />
+          {[["quietos", "Lentos y parados (" + nQuietos + ")"], ["parado", "Parados"], ["lento", "Lentos"], ["tildados", "Tildados acá (" + (of.productos || []).length + ")"], ["todos", "Todos"]].map(([k, txt]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{txt}</button>)}
+        </div>
+        {libres.length > 0 && <button className="btn btn-g btn-sm" style={{ marginBottom: 8, display: "block" }} onClick={() => tildar(libres.map(x => x.id), true)}>☑️ Tildar los {libres.length} de la lista que no están en otra oferta</button>}
+        {lista.length === 0 ? <div style={{ color: p.textMuted, fontSize: 13, padding: "16px 0" }}>{filtro === "quietos" ? "No hay productos lentos ni parados con stock. Probá con “Todos”." : "No hay productos para mostrar."}</div>
+          : <div style={{ maxHeight: 520, overflow: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
+            {lista.map(x => {
+              const otra = ofDeProd(x.id), aca = otra && otra.id === of.id, est = BF_ESTADO[x.estado] || [x.estado || "—", p.textMuted];
+              const pct = parseFloat(of.pct) || 0, perdida = x.costo > 0 && x.precio * (1 - pct / 100) < x.costo;
+              return (
+                <label key={x.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid " + p.border, cursor: "pointer", background: aca ? "rgba(225,6,0,.06)" : undefined }}>
+                  <input type="checkbox" checked={!!aca} onChange={e => tildar([x.id], e.target.checked)} aria-label={"Tildar " + x.nombre} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.nombre}</div>
+                    <div style={{ fontSize: 11.5, color: p.textMuted }}>{[x.marca, x.categoria, x.stock + " en stock", x.ultima_venta ? "últ. venta " + new Date(x.ultima_venta).toLocaleDateString("es-AR") : "sin ventas"].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: est[1], border: "1px solid " + est[1], borderRadius: 99, padding: "1px 8px", whiteSpace: "nowrap" }}>{est[0]}</span>
+                  {otra && !aca && <span style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}>en {nombreOf(otra)}</span>}
+                  <div style={{ textAlign: "right", fontSize: 12.5, minWidth: 92 }}><div style={{ color: p.textMuted, textDecoration: pct ? "line-through" : "none" }}>{$(x.precio)}</div>{pct > 0 && <div style={{ fontWeight: 800, color: perdida ? p.red : "#c00000" }} title={perdida ? "Con este descuento queda por debajo del costo" : ""}>{$(x.precio * (1 - pct / 100))}{perdida ? " ⚠️" : ""}</div>}</div>
+                </label>);
+            })}
+          </div>}
+      </div>
+      <div className="card" style={{ marginTop: 14, position: "sticky", bottom: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", border: "1px solid #3a0000" }}>
+        <div style={{ flex: "1 1 260px", fontSize: 12.5, color: p.textMuted }}>{ofertas.map(o => nombreOf(o) + ": " + (o.productos || []).length).join(" · ")} — se arman {grupos.length} promos. Lo que tildás se guarda solo; las ofertas se aplican al tocar “Activar”.</div>
+        <button className="btn btn-p" style={{ background: "#000", color: "#ff2a2a", borderColor: "#000" }} disabled={guardando} onClick={activar}>{guardando ? "Activando…" : "🖤 Activar ofertas de Black Friday"}</button>
+      </div>
+    </div>
+  );
+}
 function PaginaCyber({ paletaActual }) {
   const temaPal = paletaActual || PALETA_CLARA;
   const [medios, setMedios] = useState(null);
@@ -28686,7 +28891,7 @@ function Promociones({ paletaActual }) {
                       {p.tipo === "cross" && ("Llevando " + nombreProd(p.cross_producto_id) + ", " + p.valor + "% en " + nombreProd(p.cross_producto_regalo_id))}
                       {p.tipo === "monto" && ("Gastando +$" + p.monto_minimo + ", " + p.valor + "% off")}
                     </td>
-                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{p.medio_pago_tipo || (p.sin_medio_pago ? "Todos menos " + p.sin_medio_pago : "Todos")}{p.local_id ? <div style={{ fontWeight: 700 }}>📍 Solo {nombreLocal(p.local_id)}</div> : null}{p.en_tienda ? <div style={{ fontWeight: 700, color: temaPal.accentText }}>🛍️ + tienda online</div> : null}</td>
+                    <td style={{ fontSize: 11, color: temaPal.textMuted }}>{(p.medio_pago_tipo === "mercadopago" ? "Mercado Pago 1 pago" : p.medio_pago_tipo) || (p.sin_medio_pago ? "Todos menos " + p.sin_medio_pago : "Todos")}{p.local_id ? <div style={{ fontWeight: 700 }}>📍 Solo {nombreLocal(p.local_id)}</div> : null}{p.solo_tienda ? <div style={{ fontWeight: 700, color: temaPal.accentText }}>🛍️ Solo tienda online</div> : p.en_tienda ? <div style={{ fontWeight: 700, color: temaPal.accentText }}>🛍️ + tienda online</div> : null}</td>
                     <td style={{ fontSize: 10, color: temaPal.textMuted }}>{p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString("es-AR") : "-"} a {p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString("es-AR") : "sin fin"}</td>
                     <td><Sw on={p.activo} toggle={() => toggle(p)} /></td>
                     <td><div style={{ display: "flex", gap: 4 }}>
@@ -29846,6 +30051,7 @@ const NAV_SECTIONS = [
     { id: "cocina", icon: "👨‍🍳", label: "Cocina", k: "comandas cocina pedidos gastronomia", soloGastro: true },
     { id: "presupuestos", icon: "🧾", label: "Presupuestos", k: "presupuesto cotizacion cotizar whatsapp pdf" },
     { id: "tienda-online", icon: "🛍️", label: "Tienda online", k: "tienda web online pedidos carrito ecommerce publicar catalogo" },
+    { id: "black-friday", icon: "🖤", label: "Black Friday", k: "ofertas black friday descuentos lentos parados quietos transferencia debito cuotas tienda locales promociones contador" },
     { id: "cyber", icon: "⚡", label: "Cyber Monday", k: "ofertas liquidacion black friday productos quietos lentos parados cuotas promociones", soloOriginal: true },
     { id: "ventas-online", icon: "🌐", label: "Ventas Online", k: "web tienda internet pedidos online" },
     { id: "buscar-precio", icon: "🔎", label: "Buscar Precio", k: "precio consultar" },
@@ -31746,6 +31952,20 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-hw-otra b,.tw-hw-mis b{display:block;color:#ffb347;font-size:14px;margin-bottom:4px}
 .tw-hw-otra .tw-hw-chica{margin-top:6px}
 .tw-hw-mis{border-style:solid;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
+/* Black Friday: el mismo diseño del Cyber pero negro y dorado */
+.tw-cy-barra.bf{background:#000!important;color:#ff2a2a!important}
+.tw .tw-nav .tw-cy-nav.bf{background:#000;color:#ff2a2a;border:1px solid #b30000}
+.tw-cy-hero.bf{background:radial-gradient(120% 120% at 0% 0%,#2a0000 0%,#0a0000 50%,#000 100%)}
+.tw-cy-hero.bf .tw-cy-fondo .o1{background:#e10600}.tw-cy-hero.bf .tw-cy-fondo .o2{background:#5c0000}
+.tw-cy-hero.bf .tw-cy-piso{background-image:linear-gradient(rgba(255,42,42,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,42,42,.4) 1px,transparent 1px)}
+.tw-cy-hero.bf .tw-cy-ceja{color:#ff2a2a;border-color:rgba(255,42,42,.5)}
+.tw-cy-hero.bf .tw-cy-vivo{background:#ff2a2a;box-shadow:0 0 0 0 rgba(255,42,42,.7)}
+.tw .tw-cy-hero.bf .tw-cy-tit{background:linear-gradient(90deg,#ff1a1a,#ff6b6b,#c00000,#ff1a1a);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(255,26,26,.4))}
+.tw-cy-hero.bf .tw-cy-hasta{background:#e10600;color:#fff}
+.tw-cy-hero.bf .tw-cy-reloj div{border-color:rgba(255,42,42,.45);color:#ff3b3b}
+.tw-cy-hero.bf .tw-cy-chips span{border-color:rgba(255,42,42,.45);color:#ff6b6b}
+.tw .tw-cy-hero.bf .tw-cy-btn{background:#e10600;color:#fff}
+.tw-cy-hero.bf .tw-cy-rayo{fill:#ff2a2a}
 .tw-cy-vista{position:fixed;left:12px;right:12px;bottom:12px;z-index:400;background:#12002e;color:#e9d5ff;border:1px solid #7c3aed;border-radius:14px;padding:10px 14px;font-size:12.5px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 @media (min-width:700px){.tw-cy-vista{left:auto;max-width:420px}}
 @media (prefers-reduced-motion:reduce){.tw-cy-hero::after,.tw-cy-hero *{animation:none!important}}
@@ -33804,9 +34024,13 @@ const twCyHasta = (fh) => fh ? fh + ":59-03:00" : null;
 // Mejor % de un producto pagando con ese medio (cuentan las promos de ese medio y las que valen con cualquiera)
 const twPctCon = (promos, p, pago) => twMejorPct((promos || []).filter(x => !x.pago || x.pago === pago), p);
 const twMejorPct = (promos, p) => (promos || []).reduce((m, x) => { const ok = x.aplica_a === "todo" || (x.aplica_a === "productos" && x.productos.includes(p.id)) || (x.aplica_a === "categorias" && x.categorias.includes(p.categoria)); return ok && x.pct > m ? x.pct : m; }, 0);
+// Nombre del evento (Cyber Monday, Black Friday…) y si va con el diseño negro con letras rojas
+const twCyNombre = (cy) => String((cy && cy.nombre) || "Cyber Monday");
+const twCyBF = (cy) => /black/i.test(twCyNombre(cy));
+const twCyCorto = (cy) => { const n = twCyNombre(cy).toUpperCase(); return n.length <= 12 ? n : n.split(" ")[0]; };
 function TwCyberBarra({ cy }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
-  return <div className="tw-anuncio tw-cy-barra" aria-live="off"><div><span>{"⚡ "}<span className="tw-cy-bl">CYBER MONDAY</span><span className="tw-cy-bc">CYBER</span>{" · "}{String(cy.titulo || "").toUpperCase()}{t.ms ? <>{" · "}<span className="tw-cy-bl">TERMINA EN </span>{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
+  return <div className={"tw-anuncio tw-cy-barra" + (twCyBF(cy) ? " bf" : "")} aria-live="off"><div><span>{twCyBF(cy) ? "🖤 " : "⚡ "}<span className="tw-cy-bl">{twCyNombre(cy).toUpperCase()}</span><span className="tw-cy-bc">{twCyCorto(cy).split(" ")[0]}</span>{" · "}{String(cy.titulo || "").toUpperCase()}{t.ms ? <>{" · "}<span className="tw-cy-bl">TERMINA EN </span>{t.d ? t.d + "D " : ""}{twDos(t.h)}:{twDos(t.m)}:{twDos(t.s)}</> : null}</span></div></div>;
 }
 // ── Halloween en la tienda ──
 // ── Calendario de Adviento "Navidad en Nueva York": la fachada de un edificio clásico de la Quinta Avenida, toda
@@ -34925,7 +35149,7 @@ function TwCyberHero({ cy, onVer, prods = [], foto, maxPct = 0 }) {
   const t = useCuentaRegresiva(twCyHasta(cy.hasta));
   const flot = prods.slice(0, 5), cinta = prods.length >= 4 ? [...prods, ...prods] : [];
   return (
-    <section className={"tw-cy-hero" + (flot.length >= 3 ? " con-fotos" : "")} aria-label="Cyber Monday">
+    <section className={"tw-cy-hero" + (flot.length >= 3 ? " con-fotos" : "") + (twCyBF(cy) ? " bf" : "")} aria-label={twCyNombre(cy)}>
       <div className="tw-cy-fondo" aria-hidden="true"><i className="o1" /><i className="o2" /><div className="tw-cy-piso" />
         {Array.from({ length: 14 }, (_, k) => <b key={k} style={{ "--x": ((k * 37) % 100) + "%", "--y": ((k * 53) % 70) + "%", "--d": (k % 5) * .7 + "s" }} />)}
       </div>
@@ -36673,7 +36897,7 @@ function TiendaPublica({ slug }) {
       {tienda.adviento && tienda.adviento.vista_previa && <div className="tw-adv-vista" role="note">🎄 <b>Vista previa del Calendario de Adviento.</b> Los clientes todavía no lo ven. <span style={{ display: "block", marginTop: 6 }}>🧪 Probar como si fuera el <select aria-label="Día a simular (cartel)" defaultValue={advDiaPrueba(slug)} onChange={e => { const n = parseInt(e.target.value); try { sessionStorage.setItem("tienda_adv_prueba_" + slug, String(n)); } catch (x) {} window.dispatchEvent(new CustomEvent("tw-adv-dia", { detail: n })); }} style={{ font: "inherit", fontWeight: 700, borderRadius: 999, border: 0, padding: "4px 8px", background: "#fff", color: "#2a1c00" }}>{Array.from({ length: 25 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} de diciembre</option>)}</select></span><span style={{ display: "block", marginTop: 4 }}>Ese día se enciende y los siguientes quedan cerrados.</span></div>}
       {tienda.adviento && <TwAdvIntro adv={tienda.adviento} slug={slug} />}
       {tienda.halloween && tienda.halloween.vista_previa && !(tienda.cyber && tienda.cyber.vista_previa) && <div className="tw-hw-vista" role="note">🎃 <b>Vista previa de Halloween.</b> Los clientes todavía no lo ven: se prende solo el {tienda.halloween.desde.slice(8, 10)}/{tienda.halloween.desde.slice(5, 7)} a las {tienda.halloween.desde.slice(11)}. El juego acá es de prueba (no da premios de verdad).</div>}
-      {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa del Cyber Monday.</b> Los clientes todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
+      {tienda.cyber && tienda.cyber.vista_previa && <div className="tw-cy-vista" role="note">👁 <b>Vista previa de {twCyNombre(tienda.cyber)}.</b> Los clientes todavía no lo ven: se prende solo el {tienda.cyber.desde.slice(8, 10)}/{tienda.cyber.desde.slice(5, 7)} a las {tienda.cyber.desde.slice(11)}. Los descuentos son los de ese día; si comprás ahora, se cobra con los precios de hoy.</div>}
       <header className={"tw-cab" + (sombra ? " sombra" : "")}>
         <div className="tw-cab1">
           <button className="tw-marca" onClick={() => { if (codigoUrl) window.location.href = "?tienda=" + encodeURIComponent(slug); else irInicio(); }} aria-label="Inicio">
@@ -37571,7 +37795,7 @@ function TiendaPublica({ slug }) {
             <button className={!enLista ? "on" : ""} onClick={irInicio}>Inicio</button>
             {tienda.adviento && <button className="tw-hw-nav tw-adv-nav" onClick={() => { irCat(""); setTimeout(() => { const el = document.getElementById("tw-adviento"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 150); }}>🎄 ADVIENTO</button>}
             {tienda.halloween && hwLook.length > 0 && <button className={"tw-hw-nav" + (cat === "halloween" && !q ? " on" : "")} onClick={() => irCat("halloween")}>🎃 HALLOWEEN</button>}
-            {tienda.cyber && <button className={"tw-cy-nav" + (cat === "cyber" && !q ? " on" : "")} onClick={() => irCat("cyber")}>CYBER</button>}
+            {tienda.cyber && <button className={"tw-cy-nav" + (cat === "cyber" && !q ? " on" : "") + (twCyBF(tienda.cyber) ? " bf" : "")} onClick={() => irCat("cyber")}>{twCyCorto(tienda.cyber)}</button>}
             <button className={cat === "*" && !q ? "on" : ""} onClick={() => irCat("*")}>Todo</button>
             {tienda.regalos && (tienda.regalos.giftcards
               ? <button className={"tw-nav-regalo tw-nav-gc" + (cat === "regalos" && !q ? " on" : "")} onClick={() => irRegalos("gift")}>Gift Cards<i className="tw-nav-gc-chispa a" aria-hidden="true">✦</i><i className="tw-nav-gc-chispa b" aria-hidden="true">✦</i></button>
@@ -42099,7 +42323,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                   : p.estado === "en_caja" ? ["Ir a la caja", () => { try { sessionStorage.setItem("lumiere_pos_tienda", String(p.id)); } catch (er) {} irASeccion("pos"); }]
                   : null;
                 const indic = [
-                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.hw_regalo && ["🎃", "Lleva el premio de Halloween"], p.cupon_contado && ["💵", "Cupón solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota"], p.cupon_efectivo && ["🎃", "Juntó códigos de Halloween: solo transferencia o efectivo"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
+                  (p.nota || (p.notas_local || []).length) && ["🗒️", "Tiene notas"], p.muestra && ["🎁", "Lleva muestra gratis"], p.adviento_regalo && ["🎄", "Lleva regalo del calendario"], p.hw_regalo && ["🎃", "Lleva el premio de Halloween"], p.cupon_contado && ["💵", (p.cupon ? "Cupón" : "Oferta") + " solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota"], p.cupon_efectivo && ["🎃", "Juntó códigos de Halloween: solo transferencia o efectivo"], p.ruleta && p.ruleta.tipo !== "nada" && ["🎡", "Ganó en la ruleta"],
                   preventa && ["⏳", "Tiene preventa"], Math.abs(p.pendiente || 0) >= 1 && p.estado !== "cancelado" && ["💰", "Diferencia por un cambio"], p.contactado_en && p.estado !== "entregado" && ["✅", "Ya le escribimos"],
                 ].filter(Boolean);
                 const seccion = { border: "1px solid " + temaPal.border, borderRadius: 12, padding: "10px 12px", background: temaPal.bg };
@@ -42159,7 +42383,7 @@ function TiendaOnline({ localId, usuario, paletaActual }) {
                             {p.muestra && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎁 + Muestra gratis: {p.muestra}</div>}
                             {p.adviento_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e7a46", marginTop: 4 }}>🎄 + Regalo del calendario · {p.adviento_regalo}</div>}
                             {p.cupon_efectivo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#b45309", marginTop: 4 }}>🎃 Juntó códigos de Halloween ({[p.cupon, ...(p.cupones_extra || [])].join(" + ")}){p.pago === "retiro" && !p.pagado ? ": cobrar solo en efectivo" : ""}</div>}
-                            {p.cupon_contado && !p.pagado && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#b45309", marginTop: 4 }}>💵 Cupón {p.cupon} solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota</div>}
+                            {p.cupon_contado && !p.pagado && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#b45309", marginTop: 4 }}>💵 {p.cupon ? "Cupón " + p.cupon : "Oferta"} solo contado: cobrar en efectivo, débito, transferencia o crédito en 1 cuota</div>}
                             {p.hw_regalo && <div style={{ fontSize: 12.5, fontWeight: 700, color: "#d35400", marginTop: 4 }}>🎃 + Premio de Halloween (ganado en la calabaza) · {p.hw_regalo}</div>}
                             {p.ruleta && <div style={{ fontSize: 12.5, marginTop: 4, fontWeight: 700, color: p.ruleta.tipo === "nada" ? temaPal.textMuted : temaPal.warn }}>🎡 Ruleta: {p.ruleta.tipo === "regalo" ? "ganó " + (/mega/i.test(p.ruleta.texto || "") ? "el 💎 MEGA REGALO" : "un REGALO 🎁") + " — dáselo con el pedido" : p.ruleta.tipo === "cupon" ? "ganó " + p.ruleta.texto + " (cupón " + p.ruleta.cupon + ", se activa al entregar)" : "seguí participando"}</div>}
                             {(p.cambios || []).map((c, k) => <div key={"c" + k} style={{ fontSize: 12, color: temaPal.textMuted }}>🔁 Cambió {c.de} por <b style={{ color: temaPal.text }}>{c.a}</b>{c.diferencia ? " · diferencia " + (c.diferencia > 0 ? "+" : "−") + fmt(Math.abs(c.diferencia)) : " · mismo precio"}</div>)}
@@ -45605,7 +45829,7 @@ function AppWrapper() {
       "finance": "finanzas.flujo", "balance-anual": "finanzas.flujo", "decisiones": "decisiones.ver", "gerente": "gerente.ver", "comprobantes": "comprobantes.ver",
       "comisiones": "comisiones.propias", "proveedores": "proveedores.ver",
       "calculadoras": "calculadoras.ver", "productividad": "productividad.ver",
-      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "postventa": "postventa.ver", "club-wa": "postventa.ver", "portal": "portal.ver",
+      "cupones": "cupones.ver", "promociones": "promociones.ver", "cyber": "cyber.ver", "black-friday": "promociones.ver", "postventa": "postventa.ver", "club-wa": "postventa.ver", "portal": "portal.ver",
       "caja": "caja.ver", "caja-respaldo": "caja_respaldo.ver", "cierre": "cierre_caja.ver", "giftcards": "giftcards.ver",
       "usuarios": "usuarios.ver", "config-negocio": "config_negocio.editar",
     };
@@ -45700,6 +45924,7 @@ function AppWrapper() {
     if (id === "productividad") return <Productividad localId={local.id} paletaActual={paletaActual} />;
     if (id === "cupones") return <Cupones localId={local.id} usuario={usuario} paletaActual={paletaActual} />;
     if (id === "promociones") return <Promociones paletaActual={paletaActual} />;
+    if (id === "black-friday") return <BlackFriday paletaActual={paletaActual} />;
     if (id === "cyber") return ES_NEGOCIO_ORIGINAL ? <PaginaCyber paletaActual={paletaActual} /> : <SinPermiso />;
     if (id === "club-wa") return <PaginaClubWa paletaActual={paletaActual} />;
     if (id === "fidelizacion") return <Fidelizacion usuario={usuario} paletaActual={paletaActual} />;

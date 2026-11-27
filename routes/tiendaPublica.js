@@ -111,7 +111,7 @@ router.get('/:slug', async (req, res) => {
         dias: advDias } : null,
       halloween: hwEnCurso || hwVista ? { ceja: hw.ceja, titulo: hw.titulo, musica: hw.musica, subtitulo: hw.subtitulo, juego: hw.juego && hw.premios.some(x => x.chance > 0),
         premios: hw.premios.filter(x => x.chance > 0 && x.tipo !== 'nada').map(x => x.texto + (x.contado ? '*' : '')), tope: hw.tope, disfraz: hw.disfraz, despues: hw.despues, desde: hw.desde, hasta: hw.hasta, vista_previa: hwVista } : null,
-      cyber: cyEnCurso || cyVista ? { ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, marcas_primero: ky.marcas_primero, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
+      cyber: cyEnCurso || cyVista ? { nombre: ky.nombre, ceja: ky.ceja, titulo: ky.titulo, subtitulo: ky.subtitulo, boton: ky.boton, chips: ky.chips, marcas_primero: ky.marcas_primero, desde: ky.desde, hasta: ky.hasta, vista_previa: cyVista } : null,
       promos: promosT.map(x => ({ nombre: x.nombre, pct: x.pct, aplica_a: x.aplica_a, productos: x.productos, categorias: x.categorias, pago: x.pago, local: x.local })),
       titulo: c.titulo || neg.nombre_negocio || 'Tienda', mensaje: c.mensaje || '', logo: c.logo || neg.logo_url || null, color: c.color || '#c9a84c', whatsapp: c.whatsapp || null,
       retiro: c.retiro_activo ? locales : [], ciudades,
@@ -603,7 +603,9 @@ router.post('/:slug/pedidos', async (req, res) => {
     if (descuentoPago) await client.query('UPDATE tienda_pedidos SET descuento_pago = $1, descuento_pago_pct = $2 WHERE id = $3', [descuentoPago, pctPago, pedido.id]);
     if (descPromo) await client.query('UPDATE tienda_pedidos SET descuento_promo = $1, promos = $2 WHERE id = $3', [descPromo, promo.nombres.join(', ').slice(0, 300), pedido.id]);
     if (hwJunta) await client.query('UPDATE tienda_pedidos SET cupones_extra = $1, cupon_efectivo = TRUE WHERE id = $2', [hwJunta.extras.map(x => x.codigo), pedido.id]);
-    if (cupon && cupon.solo_contado) { await client.query('UPDATE tienda_pedidos SET cupon_contado = TRUE WHERE id = $1', [pedido.id]); pedido.cupon_contado = true; }
+    // Cupón de contado u oferta "con Mercado Pago en 1 pago" (Black Friday): Mercado Pago no ofrece cuotas
+    const promoUnPago = pago === 'mp' && promosPedido.some(x => x.pago === 'mp' && (promo.nombres || []).includes(x.nombre));
+    if ((cupon && cupon.solo_contado) || promoUnPago) { await client.query('UPDATE tienda_pedidos SET cupon_contado = TRUE WHERE id = $1', [pedido.id]); pedido.cupon_contado = true; }
     if (amiga && descAmiga) await client.query('UPDATE tienda_pedidos SET amiga_de = $1, descuento_amiga = $2 WHERE id = $3', [amiga.referente_id, descAmiga, pedido.id]);
     // Hoy es dia de puntos extra (ej. domingo): el pedido queda con el x2 / x3 prometido
     const multHoy = tienda.multPuntosHoy(c);

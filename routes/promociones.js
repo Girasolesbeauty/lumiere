@@ -64,6 +64,8 @@ async function asegurarPlan() {
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion JSONB');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion_por TEXT');
   await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_liquidacion_en TIMESTAMP');
+  await pool.query('ALTER TABLE configuracion_negocio ADD COLUMN IF NOT EXISTS plan_evento JSONB');
+  await pool.query('ALTER TABLE promociones ADD COLUMN IF NOT EXISTS solo_tienda BOOLEAN NOT NULL DEFAULT FALSE');
 }
 // Modo Cyber de la tienda online (lo ven y editan quienes entran a Cyber Monday)
 router.get('/cyber-tienda', async (req, res) => {
@@ -189,7 +191,7 @@ router.put('/liquidacion/extender', async (req, res) => {
         if (combos) await client.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify({ ...o, combos: nuevos })]);
       }
       // El modo Cyber de la tienda (cuenta regresiva arriba): si es un Cyber, se alarga hasta las 23:59 de ese día
-      if (/cyber/i.test(nombre) && c.cyber) {
+      if (c.cyber && (/cyber/i.test(nombre) || String(tiendaLib.cyberDe(c).nombre).toLowerCase() === String(nombre).toLowerCase())) {
         const k = tiendaLib.cyberDe(c);
         if (k.hasta.slice(0, 10) !== hasta) { await client.query('UPDATE tienda_config SET cyber = $1 WHERE id = 1', [JSON.stringify({ ...k, hasta: hasta + 'T23:59' })]); cyber = true; }
       }
@@ -212,6 +214,7 @@ router.put('/liquidacion/terminar', async (req, res) => {
     await client.query('BEGIN');
     const like = nombre.replace(/[%_\\]/g, '\\$&') + ' · %';
     // En un Cyber también se apagan las promos sueltas que digan "cyber" (las creadas a mano, sin el formato "Evento · oferta")
+    const normEv = (x) => String(x || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
     const esCyber = /cyber/i.test(nombre);
     const r = await client.query(`UPDATE promociones SET activo = FALSE WHERE (nombre LIKE $1 OR nombre = $2${esCyber ? " OR nombre ILIKE '%cyber%'" : ''}) AND activo = TRUE RETURNING id`, [like, nombre]);
     let combos = 0, cyber = false, rutina = false, mediosOff = 0;
@@ -226,7 +229,9 @@ router.put('/liquidacion/terminar', async (req, res) => {
         const nuevos = o.combos.map(x => (String(x.id || '').startsWith(pref) && x.activo !== false ? (combos++, { ...x, activo: false }) : x));
         if (combos) await client.query('UPDATE tienda_config SET ofertas = $1 WHERE id = 1', [JSON.stringify({ ...o, combos: nuevos })]);
       }
-      if (/cyber/i.test(nombre) && c.cyber && tiendaLib.cyberDe(c).activo) {
+      // El diseño especial de la tienda se apaga si es el de este evento (Cyber Monday, Black Friday…)
+      const kc = c.cyber ? tiendaLib.cyberDe(c) : null;
+      if (kc && kc.activo && (/cyber/i.test(nombre) || normEv(kc.nombre) === normEv(nombre))) {
         await client.query('UPDATE tienda_config SET cyber = $1 WHERE id = 1', [JSON.stringify({ ...c.cyber, activo: false })]);
         cyber = true;
       }
@@ -327,11 +332,34 @@ router.put('/plan-liquidacion', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'No se pudo guardar el plan' }); }
 });
 
+// Plan del evento (Black Friday): las ofertas armadas en "Black Friday" con sus productos tildados, para volver a editarlas
+router.get('/plan-evento', async (req, res) => {
+  try {
+    await asegurarPlan();
+    const r = (await pool.query('SELECT plan_evento FROM configuracion_negocio LIMIT 1')).rows[0] || {};
+    res.json({ plan: r.plan_evento || null });
+  } catch (e) { res.status(500).json({ error: 'No se pudo leer el plan' }); }
+});
+router.put('/plan-evento', async (req, res) => {
+  try {
+    const plan = (req.body || {}).plan;
+    if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return res.status(400).json({ error: 'Plan inválido' });
+    const txt = JSON.stringify(plan);
+    if (txt.length > 400000) return res.status(400).json({ error: 'El plan es demasiado grande' });
+    await asegurarPlan();
+    await pool.query('UPDATE configuracion_negocio SET plan_evento = $1', [txt]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'No se pudo guardar el plan' }); }
+});
+
 // Listar promociones. ?activas=true&vigentes=true para el POS
 router.get('/', async (req, res) => {
   try {
     const { activas, vigentes } = req.query;
+    if (req.query.con_dia === '1') await asegurarPlan().catch(() => {});
     let q = 'SELECT * FROM promociones WHERE 1=1';
+    // Punto de Venta y Buscar precio: sin las ofertas que son solo de la tienda online (ej. Black Friday con Mercado Pago)
+    if (req.query.con_dia === '1') q += ' AND solo_tienda IS NOT TRUE';
     if (activas === 'true') q += ' AND activo = TRUE';
     if (vigentes === 'true') q += " AND (fecha_inicio IS NULL OR fecha_inicio <= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AND (fecha_fin IS NULL OR fecha_fin >= (NOW() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)";
     q += ' ORDER BY creado_en DESC';
@@ -443,9 +471,12 @@ router.post('/liquidacion', async (req, res) => {
   if (nombre.length < 3) return res.status(400).json({ error: 'Ponele un nombre al evento' });
   if (!FECHA.test(b.desde || '') || !FECHA.test(b.hasta || '') || b.desde > b.hasta) return res.status(400).json({ error: 'Revisá las fechas' });
   const grupos = (Array.isArray(b.grupos) ? b.grupos : []).map(g => ({
-    pct: Math.round(Math.min(80, Math.max(1, parseFloat(g.pct) || 0))),
+    // 0% solo para "N cuotas sin interés" (la oferta son las cuotas)
+    pct: Math.round(Math.min(80, Math.max(g.pago === 'credito' && parseInt(g.cuotas) > 1 ? 0 : 1, parseFloat(g.pct) || 0))),
     productos: [...new Set((Array.isArray(g.productos) ? g.productos : []).map(Number).filter(n => Number.isInteger(n) && n > 0))],
-    pago: ['efectivo', 'transferencia', 'debito', 'credito'].includes(g.pago) ? g.pago : null,
+    pago: ['efectivo', 'transferencia', 'debito', 'credito', 'mercadopago'].includes(g.pago) ? g.pago : null,
+    // Dónde vale: 'ambos' (tienda y locales), 'tienda' (solo la tienda online) o 'locales'
+    canal: ['tienda', 'locales'].includes(g.canal) ? g.canal : g.pago === 'mercadopago' ? 'tienda' : 'ambos',
     sin: g.sin === 'credito' && !g.pago ? 'credito' : null,
     cuotas: Math.min(24, Math.max(0, parseInt(g.cuotas) || 0)),
     // Cómo se llama en la lista de promociones (ej. "Oferta 2: 30% OFF con transferencia")
@@ -454,22 +485,27 @@ router.post('/liquidacion', async (req, res) => {
     combo: g.tipo === 'combo',
     cantidades: g.tipo === 'combo' && g.cantidades && typeof g.cantidades === 'object'
       ? Object.fromEntries(Object.entries(g.cantidades).map(([k, v]) => [parseInt(k), Math.min(10, Math.max(1, parseInt(v) || 1))]).filter(([k, v]) => k > 0 && v > 1)) : null,
-  })).filter(g => g.pct && g.productos.length && (!g.combo || g.productos.reduce((s, id) => s + ((g.cantidades || {})[id] || 1), 0) >= 2)).slice(0, 200);
+  })).filter(g => (g.pct || (g.pago === 'credito' && g.cuotas > 1)) && g.productos.length && (!g.combo || g.productos.reduce((s, id) => s + ((g.cantidades || {})[id] || 1), 0) >= 2)).slice(0, 200);
   if (!grupos.length) return res.status(400).json({ error: 'No hay productos con descuento' });
   const enTienda = b.en_tienda !== false;
+  await asegurarPlan();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const viejas = await client.query(`DELETE FROM promociones WHERE nombre LIKE $1 RETURNING id`, [nombre.replace(/[%_\\]/g, '\\$&') + ' · %']);
-    const PAGO_TXT = { efectivo: 'en efectivo', transferencia: 'con transferencia', debito: 'con débito' };
+    const PAGO_TXT = { efectivo: 'en efectivo', transferencia: 'con transferencia', debito: 'con débito', mercadopago: 'con débito o crédito en 1 cuota' };
     for (const g of grupos) {
       const txt = g.pago === 'credito' ? ' + ' + (g.cuotas || '') + ' cuotas sin interés (crédito)' : g.pago ? ' ' + PAGO_TXT[g.pago] : g.sin ? ' otros medios (menos crédito)' : ' otros medios';
       // La de crédito es solo del local: en la tienda las cuotas las da Mercado Pago
       // Los combos en la tienda online van como combos de la tienda (ver combos_tienda): la promo es para el local
-      await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, sin_medio_pago, combinable, fecha_inicio, fecha_fin, activo, en_tienda, local_id, combo_cantidades)
-        VALUES ($1, $10, $2, 'productos', $3, '{}', TRUE, $4, $5, FALSE, $6, $7, TRUE, $8, $9, $11)`,
-        [(nombre + ' · ' + (g.etiqueta || g.pct + '% OFF' + txt)).slice(0, 120), g.pct, g.productos, g.pago, g.sin, b.desde, b.hasta, enTienda && g.pago !== 'credito' && !g.combo, g.local,
-          g.combo ? 'combo' : 'descuento', g.combo ? JSON.stringify(g.cantidades || {}) : null]);
+      // Débito y crédito no existen en la tienda (ahí se paga con Mercado Pago); Mercado Pago es solo de la tienda
+      const tiendaOk = enTienda && !g.combo && !['credito', 'debito'].includes(g.pago) && g.canal !== 'locales';
+      const soloTienda = tiendaOk && (g.canal === 'tienda' || g.pago === 'mercadopago');
+      if (!tiendaOk && (g.canal === 'tienda' || g.pago === 'mercadopago')) continue;
+      await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, mismo_producto, medio_pago_tipo, sin_medio_pago, combinable, fecha_inicio, fecha_fin, activo, en_tienda, local_id, combo_cantidades, solo_tienda)
+        VALUES ($1, $10, $2, 'productos', $3, '{}', TRUE, $4, $5, FALSE, $6, $7, TRUE, $8, $9, $11, $12)`,
+        [(nombre + ' · ' + (g.etiqueta || g.pct + '% OFF' + txt)).slice(0, 120), g.pct, g.productos, g.pago, g.sin, b.desde, b.hasta, tiendaOk, soloTienda ? null : g.local,
+          g.combo ? 'combo' : 'descuento', g.combo ? JSON.stringify(g.cantidades || {}) : null, soloTienda]);
     }
     // Combos en la tienda online: con precio especial y solo entre las fechas del evento (reemplaza los de este evento)
     let combosTienda = 0;
