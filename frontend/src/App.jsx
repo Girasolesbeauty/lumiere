@@ -28580,7 +28580,7 @@ const BF_LOCAL = [["efectivo", "Efectivo"], ["transferencia", "Transferencia"], 
 const BF_ESTADO = { parado: ["Parado", "#e10600"], lento: ["Lento", "#ff8a00"], nuevo: ["Nuevo", "#2962ff"], normal: ["Normal", "#089981"], rapido: ["Se vende bien", "#089981"] };
 const bfHoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
 const bfDomingo = () => { const d = new Date(bfHoy() + "T12:00:00"); d.setDate(d.getDate() + ((7 - d.getDay()) % 7)); return d.toISOString().slice(0, 10); };
-const bfOfertaNueva = (pct) => ({ id: "o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), pct, tienda: { transferencia: true, mp: true }, locales: { efectivo: true, transferencia: true, debito: true, credito1: true }, cuotas: 0, pctCuotas: 0, local: "0", productos: [] });
+const bfOfertaNueva = (pct) => ({ id: "o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), pct, tienda: { transferencia: true, mp: true }, locales: { efectivo: true, transferencia: true, debito: true, credito1: true }, cuotas: 0, local: "0", productos: [] });
 // Las promos que salen de una oferta: una por forma de pago; si vale igual en la tienda y en los locales, una sola para los dos
 function bfGrupos(of) {
   const g = [], t = of.tienda || {}, l = of.locales || {}, pct = parseFloat(of.pct) || 0, loc = of.local && of.local !== "0" ? Number(of.local) : null;
@@ -28597,8 +28597,9 @@ function bfGrupos(of) {
     if (l.debito) add("debito", "locales", P + " con débito");
     if (l.credito1) add("credito", "locales", P + " con crédito en 1 pago");
   }
-  const n = parseInt(of.cuotas) || 0, pc = parseFloat(of.pctCuotas) || 0;
-  if (n > 1) add("credito", "locales", (pc > 0 ? pc + "% OFF + " : "") + n + " cuotas sin interés", { pct: pc, cuotas: n });
+  // Cuotas sin interés: van sin el descuento (no se suman)
+  const n = parseInt(of.cuotas) || 0;
+  if (n > 1) add("credito", "locales", n + " cuotas sin interés", { pct: 0, cuotas: n });
   return g.map(x => ({ ...x, productos: of.productos || [] }));
 }
 function BlackFriday({ paletaActual }) {
@@ -28644,10 +28645,12 @@ function BlackFriday({ paletaActual }) {
   const q = busca.trim().toLowerCase();
   const conStock = rot.filter(x => x.stock > 0);
   const lista = conStock.filter(x => (filtro === "todos" || (filtro === "quietos" ? ["parado", "lento"].includes(x.estado) : filtro === "tildados" ? (of.productos || []).includes(x.id) : x.estado === filtro))
+    // Los que ya están en otra oferta no aparecen acá (para no confundirse)
+    && !((o => o && o.id !== of.id)(ofDeProd(x.id)))
     && (!q || (x.nombre + " " + (x.marca || "") + " " + (x.categoria || "")).toLowerCase().includes(q)))
     .sort((a, b) => (a.estado === "parado" ? 0 : a.estado === "lento" ? 1 : 2) - (b.estado === "parado" ? 0 : b.estado === "lento" ? 1 : 2) || (a.nombre || "").localeCompare(b.nombre || ""));
   const libres = lista.filter(x => !ofDeProd(x.id));
-  const nQuietos = conStock.filter(x => ["parado", "lento"].includes(x.estado)).length;
+  const nQuietos = conStock.filter(x => ["parado", "lento"].includes(x.estado) && !((o => o && o.id !== of.id)(ofDeProd(x.id)))).length;
   const grupos = ofertas.flatMap(bfGrupos).filter(g => g.productos.length);
   const sinMedios = ofertas.filter(o => (o.productos || []).length && !bfGrupos(o).length);
   const activar = async () => {
@@ -28710,11 +28713,10 @@ function BlackFriday({ paletaActual }) {
             <b style={{ fontSize: 13.5 }}>🏪 En los locales, pagando con</b>
             {BF_LOCAL.map(([k, txt]) => chk((of.locales || {})[k], txt, v => setOf({ locales: { ...(of.locales || {}), [k]: v } }), k))}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 13, marginTop: 4 }}>
-              <span>Además, crédito en</span>
+              <span>O con crédito en</span>
               <select className="sel" style={{ width: "auto" }} value={of.cuotas || 0} onChange={e => setOf({ cuotas: parseInt(e.target.value) })}><option value={0}>sin cuotas</option>{[3, 4, 5, 6].map(n => <option key={n} value={n}>{n} cuotas sin interés</option>)}</select>
-              {parseInt(of.cuotas) > 1 && <><span>con</span><input className="inp" type="number" min="0" max="80" style={{ width: 70 }} value={of.pctCuotas || 0} onChange={e => setOf({ pctCuotas: e.target.value })} /><span style={{ whiteSpace: "nowrap" }}>% OFF</span></>}
             </div>
-            {parseInt(of.cuotas) > 1 && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>Se cobra con el medio “Crédito {of.cuotas} cuotas” del Punto de Venta.</div>}
+            {parseInt(of.cuotas) > 1 && <div style={{ fontSize: 11.5, color: p.textMuted, marginTop: 4 }}>En cuotas va sin el descuento (no se suman). Se cobra con el medio “Crédito {of.cuotas} cuotas” del Punto de Venta.</div>}
           </div>
         </div>
       </div>
@@ -28724,11 +28726,12 @@ function BlackFriday({ paletaActual }) {
           <input className="inp" style={{ flex: "1 1 220px", maxWidth: 320 }} placeholder="Buscar por nombre, marca o categoría" value={busca} onChange={e => setBusca(e.target.value)} />
           {[["quietos", "Lentos y parados (" + nQuietos + ")"], ["parado", "Parados"], ["lento", "Lentos"], ["tildados", "Tildados acá (" + (of.productos || []).length + ")"], ["todos", "Todos"]].map(([k, txt]) => <button key={k} className={"chip-btn" + (filtro === k ? " on" : "")} onClick={() => setFiltro(k)}>{txt}</button>)}
         </div>
-        {libres.length > 0 && <button className="btn btn-g btn-sm" style={{ marginBottom: 8, display: "block" }} onClick={() => tildar(libres.map(x => x.id), true)}>☑️ Tildar los {libres.length} de la lista que no están en otra oferta</button>}
+        {libres.length > 0 && <button className="btn btn-g btn-sm" style={{ marginBottom: 8, display: "block" }} onClick={() => tildar(libres.map(x => x.id), true)}>☑️ Tildar los {libres.length} de la lista</button>}
+        {ofertas.some(o => o.id !== of.id && (o.productos || []).length) && <div style={{ fontSize: 12, color: p.textMuted, marginBottom: 8 }}>No se muestran los que ya tildaste en otra oferta ({ofertas.filter(o => o.id !== of.id).map(o => nombreOf(o) + ": " + (o.productos || []).length).join(" · ")}). Para pasarlo a esta, destildalo allá.</div>}
         {lista.length === 0 ? <div style={{ color: p.textMuted, fontSize: 13, padding: "16px 0" }}>{filtro === "quietos" ? "No hay productos lentos ni parados con stock. Probá con “Todos”." : "No hay productos para mostrar."}</div>
           : <div style={{ maxHeight: 520, overflow: "auto", border: "1px solid " + p.border, borderRadius: 10 }}>
             {lista.map(x => {
-              const otra = ofDeProd(x.id), aca = otra && otra.id === of.id, est = BF_ESTADO[x.estado] || [x.estado || "—", p.textMuted];
+              const aca = (of.productos || []).includes(x.id), est = BF_ESTADO[x.estado] || [x.estado || "—", p.textMuted];
               const pct = parseFloat(of.pct) || 0, perdida = x.costo > 0 && x.precio * (1 - pct / 100) < x.costo;
               return (
                 <label key={x.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid " + p.border, cursor: "pointer", background: aca ? "rgba(225,6,0,.06)" : undefined }}>
@@ -28738,7 +28741,6 @@ function BlackFriday({ paletaActual }) {
                     <div style={{ fontSize: 11.5, color: p.textMuted }}>{[x.marca, x.categoria, x.stock + " en stock", x.ultima_venta ? "últ. venta " + new Date(x.ultima_venta).toLocaleDateString("es-AR") : "sin ventas"].filter(Boolean).join(" · ")}</div>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: est[1], border: "1px solid " + est[1], borderRadius: 99, padding: "1px 8px", whiteSpace: "nowrap" }}>{est[0]}</span>
-                  {otra && !aca && <span style={{ fontSize: 11, color: p.textMuted, whiteSpace: "nowrap" }}>en {nombreOf(otra)}</span>}
                   <div style={{ textAlign: "right", fontSize: 12.5, minWidth: 92 }}><div style={{ color: p.textMuted, textDecoration: pct ? "line-through" : "none" }}>{$(x.precio)}</div>{pct > 0 && <div style={{ fontWeight: 800, color: perdida ? p.red : "#c00000" }} title={perdida ? "Con este descuento queda por debajo del costo" : ""}>{$(x.precio * (1 - pct / 100))}{perdida ? " ⚠️" : ""}</div>}</div>
                 </label>);
             })}
