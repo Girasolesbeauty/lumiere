@@ -31331,6 +31331,11 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 }
 .tw .tw-nav .tw-cy-nav{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;border-radius:999px;padding:6px 14px;font-weight:900;letter-spacing:.1em}
 .tw-etq.tw-cy-badge{background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-weight:900;border:0}
+.tw-cy-ico{font-style:normal}
+/* Black Friday: etiquetas de descuento negras con letras rojas */
+.tw-bf .tw-etq.tw-cy-badge{background:#000;color:#ff2a2a;border:1px solid #e10600}
+.tw-bf .tw-cy-ico{display:none}
+.tw-bf .tw-cy-cinta em,.tw-bf .tw-cy-flot em{background:#000;color:#ff2a2a;border:1px solid #e10600}
 @font-face{font-family:"TwPF";font-display:swap;font-style:italic;font-weight:500;src:url(https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_pqTXtHA-Q.woff2) format("woff2")}
 @font-face{font-family:"TwDM";font-display:swap;font-style:normal;font-weight:400;src:url(https://fonts.gstatic.com/s/dmserifdisplay/v17/-nFnOHM81r4j6k0gjAW3mujVU2B2G_Bx0g.woff2) format("woff2")}
 @font-face{font-family:"TwJS";font-display:swap;font-weight:400 700;src:url(https://fonts.gstatic.com/s/josefinsans/v34/Qw3aZQNVED7rKGKxtqIqX5EUDXx4.woff2) format("woff2")}
@@ -33179,7 +33184,7 @@ function TwTarjeta({ p, base, sin, preventa, llega, fav, onFav, onAbrir, onAgreg
         {onFav && <button className={"tw-fav" + (fav ? " on" : "")} key={fav ? "si" : "no"} onClick={e => { e.stopPropagation(); onFav(p); }} aria-label={fav ? "Sacar de favoritos" : "Guardar en favoritos"} aria-pressed={!!fav}><TwIcono d={TW_CORAZON} size={18} /></button>}
         {preventa && <><span className="tw-pre-brillo" aria-hidden="true" /><span className="tw-pre-chispas" aria-hidden="true"><i>✦</i><i>✦</i><i>✧</i><i>✦</i></span></>}
         <div className="tw-etqs">
-          {cyPct > 0 && !preventa && <span className="tw-etq tw-cy-badge">⚡ -{Math.round(cyPct)}%</span>}
+          {cyPct > 0 && !preventa && <span className="tw-etq tw-cy-badge"><i className="tw-cy-ico">⚡ </i>-{Math.round(cyPct)}%</span>}
           {preventa && <span className="tw-etq pre">✨ Preventa</span>}
           {p.top && !preventa && !sin && !cyPct && <span className="tw-etq top">🔥 {p.top <= 3 ? "#" + p.top + " más vendido" : "Top ventas"}</span>}
           {p.precio_antes && !preventa && <span className="tw-etq oferta">⚡ Oferta</span>}
@@ -35238,7 +35243,7 @@ function TwCombos({ combos, productos, foto, onAgregar, onAbrir, dispo, titulo, 
                   </button>
                 ))}
                 {resto > 0 && <span className="tw-kit-resto">+{resto}</span>}
-                {off > 0 && <div className="tw-etqs"><span className="tw-etq tw-cy-badge">⚡ -{off}%</span></div>}
+                {off > 0 && <div className="tw-etqs"><span className="tw-etq tw-cy-badge"><i className="tw-cy-ico">⚡ </i>-{off}%</span></div>}
               </div>
               {/* Lo importante a la vista: el precio con transferencia y, abajo, el de otros medios con su % y las cuotas */}
               <div className="tw-kit-txt">
@@ -37774,7 +37779,7 @@ function TiendaPublica({ slug }) {
   })();
 
   return (
-    <div className={"tw" + (vistaTk ? " en-vista" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
+    <div className={"tw" + (vistaTk ? " en-vista" : "") + (tienda.cyber && twCyBF(tienda.cyber) ? " tw-bf" : "")} style={{ "--c": color }}><style>{CSS_TIENDA}</style>
       {vistaTk && <div className="tw-vista-barra" role="status"><span>👁️ Viendo la tienda como <b>{miCuenta ? String(miCuenta.nombre || "el cliente") : "el cliente"}</b> · solo para mirar</span><button onClick={salirVista}>Salir</button></div>}
       {cabecera}
       {!amigaInfo && twMultHoy(tienda.puntos_dia) && (() => {
