@@ -483,9 +483,11 @@ router.post('/liquidacion', async (req, res) => {
     etiqueta: String(g.etiqueta || '').replace(/\s+/g, ' ').trim().slice(0, 90),
     local: parseInt(g.local) > 0 ? parseInt(g.local) : null,
     combo: g.tipo === 'combo',
+    // 4x3 (lleva nx, paga ny): de los productos elegidos, combinados como quieran, el más barato gratis
+    nxm: g.tipo === 'nxm' && parseInt(g.nx) > parseInt(g.ny) && parseInt(g.ny) > 0 ? { nx: Math.min(20, parseInt(g.nx)), ny: parseInt(g.ny) } : null,
     cantidades: g.tipo === 'combo' && g.cantidades && typeof g.cantidades === 'object'
       ? Object.fromEntries(Object.entries(g.cantidades).map(([k, v]) => [parseInt(k), Math.min(10, Math.max(1, parseInt(v) || 1))]).filter(([k, v]) => k > 0 && v > 1)) : null,
-  })).filter(g => (g.pct || (g.pago === 'credito' && g.cuotas > 1)) && g.productos.length && (!g.combo || g.productos.reduce((s, id) => s + ((g.cantidades || {})[id] || 1), 0) >= 2)).slice(0, 200);
+  })).filter(g => (g.pct || g.nxm || (g.pago === 'credito' && g.cuotas > 1)) && g.productos.length && (!g.combo || g.productos.reduce((s, id) => s + ((g.cantidades || {})[id] || 1), 0) >= 2)).slice(0, 200);
   if (!grupos.length) return res.status(400).json({ error: 'No hay productos con descuento' });
   const enTienda = b.en_tienda !== false;
   await asegurarPlan();
@@ -499,6 +501,13 @@ router.post('/liquidacion', async (req, res) => {
       // La de crédito es solo del local: en la tienda las cuotas las da Mercado Pago
       // Los combos en la tienda online van como combos de la tienda (ver combos_tienda): la promo es para el local
       // Débito y crédito no existen en la tienda (ahí se paga con Mercado Pago); Mercado Pago es solo de la tienda
+      if (g.nxm) {
+        const enT = enTienda && g.canal !== 'locales', soloT = enT && g.canal === 'tienda';
+        await client.query(`INSERT INTO promociones (nombre, tipo, valor, aplica_a, productos_ids, categorias, nx, ny, mismo_producto, combinable, fecha_inicio, fecha_fin, activo, en_tienda, local_id, solo_tienda)
+          VALUES ($1, 'nxm', 0, 'productos', $2, '{}', $3, $4, FALSE, FALSE, $5, $6, TRUE, $7, $8, $9)`,
+          [(nombre + ' · ' + (g.etiqueta || g.nxm.nx + 'x' + g.nxm.ny)).slice(0, 120), g.productos, g.nxm.nx, g.nxm.ny, b.desde, b.hasta, enT, soloT ? null : g.local, soloT]);
+        continue;
+      }
       const tiendaOk = enTienda && !g.combo && !['credito', 'debito'].includes(g.pago) && g.canal !== 'locales';
       const soloTienda = tiendaOk && (g.canal === 'tienda' || g.pago === 'mercadopago');
       if (!tiendaOk && (g.canal === 'tienda' || g.pago === 'mercadopago')) continue;
