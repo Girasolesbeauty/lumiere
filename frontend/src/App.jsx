@@ -31730,7 +31730,7 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-modal{animation:twAdvIn .45s ease-out}
 /* Foto de la película del día de fondo: entra con un zoom lento, oscurecida y con el violeta de la noche encima */
 .tw-adv-foto{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;pointer-events:none;animation:twAdvFoto 9s ease-out both}
-.tw-adv-foto{filter:blur(3px) saturate(1.1)}
+.tw-adv-foto{will-change:transform}
 .tw-adv-foto::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,rgba(30,16,60,.25),rgba(12,8,36,.7) 80%)}
 /* Dentro de la tarjeta, la misma foto bien nítida bajo un velo de noche (arriba más clara, abajo más oscura para leer) */
 .tw-adv-modal.con-foto .tw-adv-tarjeta{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.9) 0 1px,transparent 1.6px) 0 0/71px 83px,radial-gradient(circle at 64% 72%,rgba(255,236,170,.75) 0 1.2px,transparent 1.8px) 0 0/97px 89px,linear-gradient(180deg,rgba(14,22,60,.5) 0%,rgba(24,18,66,.42) 30%,rgba(24,18,66,.72) 52%,rgba(40,14,56,.9) 75%,rgba(58,15,54,.95) 100%),var(--foto) center 20%/cover no-repeat,#1d1446}
@@ -31965,10 +31965,18 @@ button.tw-reponer-chip{width:calc(100% - 40px);font:inherit;cursor:pointer;color
 .tw-adv-intro-arbol .polvo i{position:absolute;bottom:0;border-radius:50%;background:#ffe39a;box-shadow:0 0 6px 2px rgba(255,214,120,.7);opacity:0;animation:twAdvPolvo linear infinite}
 @keyframes twAdvPolvo{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:1}80%{opacity:.8}100%{opacity:0;transform:translate(var(--x),-58vh) scale(1.1)}}
 .tw-adv-aurora{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.tw-adv-aurora i{position:absolute;width:130vw;height:60vh;left:-15vw;border-radius:50%;filter:blur(60px);opacity:.38;animation:twAdvAurora 14s ease-in-out infinite alternate}
-.tw-adv-aurora i:nth-child(1){top:-18vh;background:radial-gradient(closest-side,#7c3aed,transparent)}
-.tw-adv-aurora i:nth-child(2){top:8vh;background:radial-gradient(closest-side,#0ea5e9,transparent);animation-duration:18s;animation-direction:alternate-reverse;opacity:.25}
-.tw-adv-aurora i:nth-child(3){top:28vh;background:radial-gradient(closest-side,#e11d48,transparent);animation-duration:22s;opacity:.2}
+.tw-adv-aurora i{position:absolute;width:130vw;height:60vh;left:-15vw;border-radius:50%;opacity:.38;will-change:transform;animation:twAdvAurora 14s ease-in-out infinite alternate}
+.tw-adv-aurora i:nth-child(1){top:-18vh;background:radial-gradient(closest-side,rgba(124,58,237,.9),rgba(124,58,237,.35) 45%,transparent)}
+.tw-adv-aurora i:nth-child(2){top:8vh;background:radial-gradient(closest-side,rgba(14,165,233,.9),rgba(14,165,233,.35) 45%,transparent);animation-duration:18s;animation-direction:alternate-reverse;opacity:.25}
+.tw-adv-aurora i:nth-child(3){top:28vh;background:radial-gradient(closest-side,rgba(225,29,72,.9),rgba(225,29,72,.35) 45%,transparent);animation-duration:22s;opacity:.2}
+/* Rendimiento: fuera de pantalla las animaciones del calendario se pausan; en celulares básicos (modo liviano)
+   se sacan las sombras con filtro de lo que se mueve y hay menos copos y brillos */
+.tw-adv.quieto *,.tw-adv.quieto *::before,.tw-adv.quieto *::after{animation-play-state:paused!important}
+.tw-adv-ciudad{contain:layout paint}
+.tw-liviano .tw-adv-prog .np,.tw-liviano .tw-adv-trineo,.tw-liviano .tw-adv-v .dedo,.tw-liviano .tw-adv-pers svg,.tw-liviano .tw-adv-mono{filter:none!important}
+.tw-liviano .tw-adv-aurora i{animation:none!important}
+.tw-liviano .tw-adv-intro-arbol .polvo i:nth-child(2n),.tw-liviano .tw-adv-nevada .capa i:nth-child(2n){display:none}
+.tw-liviano .tw-adv-intro-arbol .polvo i{box-shadow:none}
 @keyframes twAdvAurora{0%{transform:translateX(-12vw) scale(1)}100%{transform:translateX(12vw) scale(1.15)}}
 .tw-adv-cielo{position:absolute;inset:0;z-index:0;pointer-events:none}
 .tw-adv-cielo i{position:absolute;border-radius:50%;background:#fff;box-shadow:0 0 4px #fff;animation:twAdvTitila 3s ease-in-out infinite}
@@ -34455,35 +34463,48 @@ function advInfo(d, hoy, vista) {
   return null;
 }
 // ── Magia del Adviento ──
-// Sonidos (campanitas, el sello que se rompe, las puertas, el trineo, la nevada) y vibración del celular
+// Sonidos (campanitas, el sello, las puertas, el trineo, la nevada) y vibración del celular. Todos tonales y suaves
+// (cajita musical / marimba / burbuja), sin ruido ni "barridos": ataque lento, cola larga y volumen bajo
 const twAdvSon = {
-  ruido(c, cuando, dur, vol, frec, tipo = "highpass") { try {
-    const n = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate), d = n.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
-    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = n; f.type = tipo; f.frequency.value = frec; g.gain.value = vol;
-    src.connect(f).connect(g).connect(c.destination); src.start(c.currentTime + cuando);
-  } catch (e) {} },
-  campanita() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 2093, dur: .5, vol: .05 }); twTono(c, { f1: 3136, dur: .3, vol: .015 }); twVibrar(8); },
-  // Regalo que se abre: papel que cruje al sacudirse, la cinta que se desliza, el "pop" de la tapa y campanitas
+  // Nota de cajita musical: fundamental + un armónico brillante que se apaga rápido
+  nota(c, f, cuando = 0, vol = .04, dur = 1.2) {
+    try {
+      const t = c.currentTime + .01 + cuando, g = c.createGain(), o = c.createOscillator(), o2 = c.createOscillator(), g2 = c.createGain();
+      o.type = "sine"; o.frequency.value = f; o2.type = "sine"; o2.frequency.value = f * 3.01;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      g2.gain.setValueAtTime(.0001, t); g2.gain.exponentialRampToValueAtTime(vol * .25, t + .008); g2.gain.exponentialRampToValueAtTime(.0001, t + dur * .35);
+      o.connect(g).connect(c.destination); o2.connect(g2).connect(c.destination);
+      o.start(t); o2.start(t); o.stop(t + dur + .05); o2.stop(t + dur + .05);
+    } catch (e) {}
+  },
+  // Golpecito de marimba (madera suave y grave)
+  madera(c, f = 330, cuando = 0, vol = .07) { this.nota(c, f, cuando, vol, .35); },
+  // Burbuja suave que se abre ("blup")
+  burbuja(c, cuando = 0, vol = .06) { twTono(c, { f1: 260, f2: 620, dur: .18, vol, cuando }); },
+  campanita() { const c = twSonidoOn() && twCtx(); if (!c) return; this.nota(c, 2093, 0, .035, .9); this.nota(c, 3136, .05, .012, .6); twVibrar(8); },
+  // Regalo que se abre: dos golpecitos de madera (la caja), una burbuja (la tapa) y una cascada de cajita musical
   regalo() {
     const c = twSonidoOn() && twCtx(); if (!c) return;
-    this.ruido(c, .8, .2, .05, 3200, "bandpass"); this.ruido(c, 1.05, .18, .05, 3900, "bandpass");
-    twTono(c, { f1: 900, f2: 1900, dur: .35, vol: .012, tipo: "triangle", cuando: 1.85 });
-    twTono(c, { f1: 420, f2: 150, dur: .2, vol: .06, cuando: 2.3 }); this.ruido(c, 2.3, .07, .07, 1200, "lowpass");
-    [1568, 2093, 2349, 2637, 3136, 4186].forEach((f, i) => { twTono(c, { f1: f, dur: 1.1, vol: .03, cuando: 2.5 + i * .07 }); twTono(c, { f1: f * 2.01, dur: .5, vol: .008, cuando: 2.5 + i * .07 }); });
-    setTimeout(() => twVibrar(20), 2300);
+    this.madera(c, 294, .8); this.madera(c, 349, 1.05);
+    this.burbuja(c, 2.3, .07);
+    [1047, 1319, 1568, 2093, 2637, 3136].forEach((f, i) => this.nota(c, f, 2.45 + i * .09, .03, 1.4));
+    setTimeout(() => twVibrar(15), 2300);
   },
   abrir() {
     const c = twSonidoOn() && twCtx(); if (!c) return;
-    [1046, 1318, 1568].forEach((f, i) => twTono(c, { f1: f, dur: .25, vol: .02, cuando: .75 + i * .08 })); // se prende la luz
-    this.ruido(c, 1.15, .12, .16, 2500, "bandpass"); setTimeout(() => twVibrar(15), 1150); // se rompe el sello
-    [1046, 1318, 1568, 2093, 2637, 3136, 4186].forEach((f, i) => { twTono(c, { f1: f, dur: .9, vol: .045, cuando: 1.45 + i * .06 }); twTono(c, { f1: f * 2.01, dur: .4, vol: .01, cuando: 1.45 + i * .06 }); });
-    this.ruido(c, 1.45, .9, .05, 5000); setTimeout(() => twVibrar([10, 30, 10]), 1450); // las puertas y el brillo
+    [784, 988, 1175].forEach((f, i) => this.nota(c, f, .75 + i * .1, .03, .9)); // se prende la luz
+    this.burbuja(c, 1.15, .07); this.madera(c, 523, 1.15, .05); setTimeout(() => twVibrar(12), 1150); // el sello se suelta
+    // las puertas: un acorde cálido y la cascada de brillos, bien suave
+    [262, 330, 392].forEach(f => this.nota(c, f, 1.45, .025, 2.2));
+    [1047, 1319, 1568, 2093, 2637, 3136].forEach((f, i) => this.nota(c, f, 1.5 + i * .08, .028, 1.5));
+    setTimeout(() => twVibrar([8, 30, 8]), 1450);
   },
-  sello() { const c = twSonidoOn() && twCtx(); if (!c) return; twTono(c, { f1: 140, f2: 60, dur: .25, vol: .18 }); [1568, 2093, 2637].forEach((f, i) => twTono(c, { f1: f, dur: .4, vol: .05, cuando: .12 + i * .08 })); twVibrar([25, 40, 25]); },
-  estrella() { const c = twSonidoOn() && twCtx(); if (!c) return; [2093, 2349, 2637, 3136, 3520, 4186].forEach((f, i) => twTono(c, { f1: f, dur: .5, vol: .04, cuando: i * .05 })); twVibrar(12); },
-  trineo() { const c = twSonidoOn() && twCtx(); if (!c) return; for (let i = 0; i < 14; i++) this.ruido(c, i * .16 + (i % 2) * .05, .1, .07 - i * .003, 6500); },
-  nevada() { const c = twSonidoOn() && twCtx(); if (!c) return; this.ruido(c, 0, 1.4, .06, 900, "lowpass"); [1568, 1976, 2349, 3136].forEach((f, i) => twTono(c, { f1: f, dur: .8, vol: .025, cuando: .2 + i * .15 })); twVibrar([20, 60, 20]); },
+  sello() { const c = twSonidoOn() && twCtx(); if (!c) return; this.madera(c, 196, 0, .09); [1568, 2093, 2637].forEach((f, i) => this.nota(c, f, .12 + i * .09, .035, 1)); twVibrar([20, 40, 20]); },
+  estrella() { const c = twSonidoOn() && twCtx(); if (!c) return; [2093, 2349, 2637, 3136, 3520, 4186].forEach((f, i) => this.nota(c, f, i * .06, .025, .9)); twVibrar(12); },
+  // Cascabeles del trineo: notitas agudas muy suaves que se alejan
+  trineo() { const c = twSonidoOn() && twCtx(); if (!c) return; for (let i = 0; i < 10; i++) this.nota(c, [2637, 3136][i % 2], i * .17 + (i % 3) * .03, .018 - i * .0012, .4); },
+  // Nevada: notas que caen despacito, como copos
+  nevada() { const c = twSonidoOn() && twCtx(); if (!c) return; [3136, 2637, 2349, 1976, 1568].forEach((f, i) => this.nota(c, f, i * .18, .022, 1.2)); this.nota(c, 392, 0, .02, 2); twVibrar([15, 60, 15]); },
 };
 // Nevada fuerte (sacudiendo el celular, o doble clic en la compu): como un globo de nieve
 // Nevada al sacudir el celular: cada sacudida suma una capa de nieve (hasta 4), cada vez más copos y más grandes,
@@ -34748,7 +34769,30 @@ function TwAdvRegalo({ listo, indice = 0 }) {
     <span className="tw-adv-gift-fx" aria-hidden="true">{Array.from({ length: 14 }, (_, k) => <i key={k} className={k % 3 === 0 ? "c" : ""} />)}</span>
   </>);
 }
+// Celulares básicos (pocos núcleos o poca memoria): modo liviano, con menos efectos caros (ver CSS .tw-liviano)
+function twAdvLiviano() {
+  try {
+    const n = navigator.hardwareConcurrency || 8, m = navigator.deviceMemory || 8;
+    if (n <= 4 || m <= 3 || (navigator.connection && navigator.connection.saveData)) document.documentElement.classList.add("tw-liviano");
+  } catch (e) {}
+}
 function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir, onVerTodos }) {
+  const secRef = useRef(null);
+  // Fuera de pantalla, las luces, la nieve y el trineo se pausan (no gastan batería ni trabajan de más)
+  useEffect(() => {
+    twAdvLiviano();
+    const el = secRef.current; if (!el || !window.IntersectionObserver) return;
+    const io = new IntersectionObserver(([e]) => el.classList.toggle("quieto", !e.isIntersecting), { rootMargin: "120px" });
+    io.observe(el); return () => io.disconnect();
+  }, []);
+  // La foto del día se baja de antemano (cuando el celular está libre): al tocar la ventana ya está lista
+  useEffect(() => {
+    const d = (adv.dias || []).find(x => x.dia === adv.hoy); if (!d) return;
+    const k = advEscenaDe(d.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, d.dia)) - 1]; if (!k || !ADV_FOTOS[k]) return;
+    const go = () => ["-fondo.webp", ".webp"].forEach(x => { const im = new Image(); im.src = "/adviento/" + k + x; });
+    const t = window.requestIdleCallback ? window.requestIdleCallback(go, { timeout: 4000 }) : setTimeout(go, 2500);
+    return () => { try { window.cancelIdleCallback ? window.cancelIdleCallback(t) : clearTimeout(t); } catch (e) {} };
+  }, [adv.hoy]); // eslint-disable-line react-hooks/exhaustive-deps
   // Vista previa: se simula un día (los siguientes quedan cerrados) y lo que se abre se guarda solo en esta pestaña, así cada prueba arranca de cero
   const prueba = !!adv.vista_previa;
   const [diaPrueba, setDiaPrueba] = useState(() => advDiaPrueba(slug));
@@ -34873,7 +34917,7 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir, 
   const compacto = !!sel && sel.tipo === "descuento" && (sel.alcance || []).length > 0 && prodsTodos.length > 3;
   const prods = compacto ? prodsTodos.slice(0, 3) : prodsTodos;
   return (
-    <section className="tw-adv" id="tw-adviento" aria-label={adv.titulo}>
+    <section className="tw-adv" id="tw-adviento" aria-label={adv.titulo} ref={secRef}>
       <TwAdvNieve />
       <div className="tw-adv-ceja"><span>🗽 Navidad en Nueva York · {adv.anio}</span></div>
       <h2>{advTitulo(adv.titulo)}</h2>
@@ -34908,9 +34952,9 @@ function TwAdviento({ adv, slug, visibles, tarjeta, cuenta = {}, foto, onAbrir, 
       <TwAdvAlbum adv={prueba ? { ...adv, hoy } : adv} mio={mio} logueada={cuenta.logueada} onIngresar={() => cuenta.ingresar && cuenta.ingresar()} demo={adv.vista_previa ? abiertas : null} />
       <div className="tw-adv-aviso" role="status">{aviso || (hoy >= 1 && hoy <= 25 ? (abiertas.includes(hoy) ? "Ya encendiste la ventana de hoy. ¡Volvé mañana por otra sorpresa!" : "Tocá la ventana de hoy para encenderla y descubrir tu sorpresa") : "")}</div>
       {sel && createPortal(<div className="tw" style={{ minHeight: 0, background: "transparent" }}>
-        <div className={"tw-adv-modal" + (ADV_FOTOS[advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1]] ? " con-foto" : "")} style={{ "--foto": "url(/adviento/" + (advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1]) + ".jpg)" }} role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={cerrarDia}>
+        <div className={"tw-adv-modal" + (ADV_FOTOS[advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1]] ? " con-foto" : "")} style={{ "--foto": "url(/adviento/" + (advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1]) + ".webp)" }} role="dialog" aria-modal="true" aria-label={"Día " + sel.dia} onClick={cerrarDia}>
           {(() => { const k = advEscenaDe(sel.icono) || ADV_ESCENA_DIA[Math.max(1, Math.min(25, sel.dia)) - 1], f = ADV_FOTOS[k]; return f ? <>
-            <div className="tw-adv-foto" style={{ backgroundImage: "url(/adviento/" + k + ".jpg)" }} aria-hidden="true" />
+            <div className="tw-adv-foto" style={{ backgroundImage: "url(/adviento/" + k + "-fondo.webp)" }} aria-hidden="true" />
             <a className="tw-adv-credito" href={f[2]} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>📷 {f[0]} · {f[1]} · Wikimedia Commons</a>
           </> : null; })()}
           <TwAdvNieve />
@@ -34980,6 +35024,7 @@ const advDiaPrueba = (slug) => { try { const n = parseInt(sessionStorage.getItem
 const ADV_INTRO_ESTRELLAS = Array.from({ length: 46 }, (_, k) => ({ left: ((k * 61) % 100) + "%", top: ((k * 37) % 62) + "%", width: (1 + (k % 3)) + "px", height: (1 + (k % 3)) + "px", animationDelay: ((k * .37) % 4).toFixed(2) + "s", animationDuration: (2.2 + (k % 5) * .6).toFixed(1) + "s" }));
 const ADV_INTRO_POLVO = Array.from({ length: 26 }, (_, k) => ({ left: (32 + ((k * 29) % 36)) + "%", animationDelay: (2.2 + (k * .31) % 5).toFixed(2) + "s", animationDuration: (4 + (k % 5) * .7).toFixed(1) + "s", "--x": (((k * 17) % 60) - 30) + "px", width: (2 + (k % 3)) + "px", height: (2 + (k % 3)) + "px" }));
 function TwAdvIntro({ adv: advReal, slug }) {
+  useEffect(() => { twAdvLiviano(); }, []);
   const adv = advReal.vista_previa ? { ...advReal, hoy: advDiaPrueba(slug) } : advReal;
   const clave = "tienda_adv_intro_" + slug + "_" + adv.anio + "_" + adv.hoy;
   const [ver, setVer] = useState(() => {
