@@ -3963,6 +3963,8 @@ function POS({ localId, usuario, paletaActual }) {
   };
   const hoyAR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
   const promoVigenteHoy = (pr) => (!pr.fecha_inicio || String(pr.fecha_inicio).slice(0, 10) <= hoyAR) && (!pr.fecha_fin || String(pr.fecha_fin).slice(0, 10) >= hoyAR);
+  // Productos que entran en una promo NxM vigente en este local (ej. 4x3 en mascarillas): sello en el catálogo
+  const nxmDeProd = (id) => promociones.find(pr => pr.tipo === "nxm" && pr.activo !== false && promoVigenteHoy(pr) && (!pr.local_id || Number(pr.local_id) === Number(localId)) && parseInt(pr.nx) > parseInt(pr.ny) && (pr.aplica_a === "productos" ? (pr.productos_ids || []).map(Number).includes(Number(id)) : false));
   const precioItem = (i) => (i.precio || i.price || 0) * (1 - (i.descuento_pct || 0) / 100);
   const itemAplica = (promo, i) => {
     if (promo.aplica_a === "todo") return true;
@@ -4037,6 +4039,8 @@ function POS({ localId, usuario, paletaActual }) {
           } else {
             const totalUnid = elegibles.reduce((s, x) => s + x.i.qty, 0);
             const grupos = Math.floor(totalUnid / nx);
+            // Aviso para la vendedora: "lleva 3 del 4x3, sumá 1 más y el más barato sale gratis"
+            if (totalUnid % nx) avisos.push({ nxm: true, promo: String(promo.nombre || "").replace(/^.*? · /, ""), lleva: totalUnid, falta: nx - (totalUnid % nx), nx, ny, ya: grupos });
             const gratis = grupos * (nx - ny);
             // los mas baratos gratis
             const expandido = [];
@@ -5516,6 +5520,10 @@ function POS({ localId, usuario, paletaActual }) {
               )}
             </div>
           )}
+          {promoCalc.avisos.filter(a => a.nxm).map((a, k) => { const gr = a.nx - a.ny; return (
+            <div key={"nxm" + k} className="anim-in" role="status" style={{ padding: "9px 12px", borderTop: "2px solid #e10600", background: "#1a0000", color: "#fff", fontSize: 12.5, fontWeight: 700, lineHeight: 1.35 }}>
+              🎁 <span style={{ color: "#ff4d4d" }}>{a.promo}</span>: lleva {a.lleva}{a.ya ? " (ya tiene " + a.ya * gr + " gratis)" : ""}. <span style={{ color: "#ffd0d0" }}>Ofrecele {a.falta} más y {gr > 1 ? "los " + gr + " más baratos salen" : "la más barata sale"} gratis</span>
+            </div>); })}
           {sugerenciasProductos.length > 0 && (
             <div className="anim-in" style={{ padding: "8px 12px", borderTop: "1px solid " + temaPal.border, background: temaPal.card }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: temaPal.accentText, letterSpacing: ".06em", marginBottom: 4 }}>✨ SUELEN LLEVAR TAMBIÉN</div>
@@ -5947,9 +5955,10 @@ function POS({ localId, usuario, paletaActual }) {
             </div>
           </div>
           <div className="pc-sec" style={{ marginBottom: 0 }}>
-            {promoCalc.avisos.length > 0 && (
+            {promoCalc.avisos.some(a => !a.nxm) && (
               <div style={{ background: "#2d7a4f", border: "2px solid #1e5637", borderRadius: 8, padding: "12px 14px", marginBottom: 8, fontSize: 13, color: "#fff", fontWeight: 700, boxShadow: "0 2px 8px rgba(45,122,79,0.4)" }}>
-                {promoCalc.avisos.map((a, k) => {
+                {promoCalc.avisos.filter(a => !a.nxm).map((a, k) => {
+                  if (a.nxm) { const gr = a.nx - a.ny; return <div key={k} style={{ marginBottom: 4 }}>🎁 {a.promo}: lleva {a.lleva}{a.ya ? " (ya tiene " + a.ya * gr + " gratis)" : ""}. Sumando {a.falta} más, {gr > 1 ? "los " + gr + " más baratos salen" : "la más barata sale"} gratis</div>; }
                   const prod = productos.find(p => p.id === parseInt(a.productoId));
                   return <div key={k} style={{ marginBottom: 4 }}>{a.combo ? <>🎁 Sumando {prod ? (prod.nombre || prod.name) : "un producto"} completa el combo: {a.valor}% OFF ({a.promo})</> : <>🎁 Ofrecele: {a.valor}% OFF en {prod ? (prod.nombre || prod.name) : "producto"} ({a.promo})</>}</div>;
                 })}
@@ -6061,6 +6070,7 @@ function POS({ localId, usuario, paletaActual }) {
               {enCarro > 0 && <span className="pos-tile-cant">{enCarro}</span>}
               {sinSt && <span className="pos-tile-agotado">Sin stock</span>}
               {x.tiene_variantes && <span className="pos-tile-var">🎨</span>}
+              {(() => { const nx = nxmDeProd(x.id); return nx ? <span style={{ position: "absolute", left: 4, bottom: 4, background: "#e10600", color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 99, padding: "1px 6px" }} title={String(nx.nombre || "").replace(/^.*? · /, "")}>🎁 {nx.nx}x{nx.ny}</span> : null; })()}
             </div>
             <div className="pos-tile-info">
               <div className="pos-tile-nombre">{x.nombre || x.name}</div>
